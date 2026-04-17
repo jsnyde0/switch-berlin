@@ -84,11 +84,11 @@ One row reviews exactly one target (organizer XOR event). Display logic is phase
 
 ---
 
-### F5: GDPR consent data — captured from 0.2, consumed from 0.5
+### F5: GDPR consent data — captured from 0.1, consumed from 0.5
 
 **Applies to:** GDPR lawful-basis record per organizer (legal-gate requirement at 0.5).
 
-**Do now in 0.2:** `Organizer` gets `consent_recorded_at`, `consent_method` (e.g., 'telegram_forward_implied', 'explicit_opt_in', 'verified_public_source'), `consent_notes` (free-text). Fields are populated during organizer approval in admin even though no user-facing endpoint reads them until 0.5.
+**Do now in 0.1** (pulled forward from 0.2 during design review 2026-04-17)**:** `Organizer` gets `consent_recorded_at`, `consent_method` (e.g., 'telegram_forward_implied', 'explicit_opt_in', 'verified_public_source'), `consent_notes` (free-text). Fields are populated during organizer approval in admin even though no user-facing endpoint reads them until 0.5.
 
 **Why this is cheap foresight:** Capturing consent *as it happens* is correct; backfilling consent records for organizers approved 3 months ago is either impossible or a lie. The data has to be captured at the moment of approval or the compliance posture at 0.5 is fictional. Capturing without consumption costs nothing.
 
