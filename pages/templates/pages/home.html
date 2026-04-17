@@ -1,110 +1,65 @@
 {% extends "layouts/_default.html" %}
 {% load partials %}
 {% block content %}
-<h1 class="mb-6 text-3xl">Just Show Up to these Events</h1>
+<section class="prose max-w-none mb-12">
+    <h1>Kinky Bubbles</h1>
+    <p class="text-base-content/80">
+        Berlin queer, kinky, and conscious events — curated, verified, trust-first.
+    </p>
+    <p class="text-base-content/60 text-sm">
+        V0 scaffolding. Events listing coming soon.
+    </p>
+</section>
 
-<!-- Product Grid -->
-<div class="w-full md:w-3/4 p-4">
-    <c-event-list/>
-</div>
+<section class="mb-8">
+    <h2 class="text-xl mb-4">Stack smoke tests</h2>
 
-<div>
-    <h2 class="text-xl mb-4">Test Celery Task</h2>
-    <p>Clicking the button below should start a trivial celery task!</p>
-    <button class="btn btn-primary max-w-lg"
-            hx-get="{% url 'events:test_celery' %}"
-            hx-target="this"
-            hx-swap="outerHTML">Click me to run a trivial Celery task</button>
-    {% partialdef test-partial %}
-    <div role="alert" class="alert alert-success max-w-lg">
-        <svg xmlns="http://www.w3.org/2000/svg"
-                class="h-6 w-6 shrink-0 stroke-current"
-                fill="none"
-                viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span>HTMX and django-partials is working!</span>
+    <div class="mb-6">
+        <p class="mb-2">HTMX + django-template-partials:</p>
+        <button class="btn btn-primary"
+                hx-get="{% url 'test-partial' %}"
+                hx-target="this"
+                hx-swap="outerHTML">Click me</button>
+        {% partialdef test-partial %}
+        <div role="alert" class="alert alert-success max-w-lg">
+            <span>HTMX + partials working.</span>
+        </div>
+        {% endpartialdef %}
     </div>
-{% endpartialdef %}
-    <h2 class="text-xl mb-4">Test OpenAI</h2>
-    <p>Clicking the button below should start a openai test with celery!</p>
-    <button class="btn btn-primary max-w-lg"
-            hx-get="{% url 'events:test_openai' %}"
-            hx-target="this"
-            hx-swap="outerHTML">Click me to test OpenAI with Celery</button>
 
-    <h2 class="text-xl mb-4">Test Agentic Event Scraping</h2>
-    <p>Clicking the button below should start agentic scraping with controlflow and celery!</p>
-    <button class="btn btn-primary max-w-lg"
-            hx-get="{% url 'events:test_agentic' %}"
-            hx-target="this"
-            hx-swap="outerHTML">Click me to test Agentic event scraping</button>
+    <div class="mb-6">
+        <p class="mb-2">django-cotton:</p>
+        <c-card title="Cotton Card" url="home">
+            If this renders as a formatted card, Cotton is working.
+        </c-card>
+    </div>
 
-</div>
-<div>
-    <h2 class="text-xl mb-4">Test Cotton</h2>
-    <c-card title="Cotton Card" url="home">
-    If you see a formatted card, then the cotton components are working!
-    </c-card>
-    <c-card title="Skeleton Loader" url="">
-        <a class="btn btn-tertiary"
-        href=""
-        hx-get="{% url 'test-skeleton-hx' %}"
-        hx-target="#test"
-        hx-indicator=".skeleton-wrapper">Load content inside skeleton loader</a>
-        <div id="test" class="bg-base-200 p-4 rounded-lg max-w-lg mt-4">
-            <c-skeleton-wrapper>
-            <p>This content swap should be animated with skeleton loading.</p>
-            </c-skeleton-wrapper>
-            {% partialdef skeleton-partial %}
-            <c-skeleton-wrapper>
-            <p>If you saw the skeleton loading animation, then it works!</p>
-            </c-skeleton-wrapper>
-            {% endpartialdef %}
-        </div>
-    </c-card>
-</div>
-{% if user.is_authenticated %}
-<div>
-    <h2 class="text-xl mb-4">Test Alpine.js</h2>
-    <p>Test this counter alpine component</p>
-    <c-counter/>
-</div>
-<!-- Image Upload Section -->
-<div class="mb-8">
-    <h2 class="text-xl mb-4">Test Image Upload</h2>
-    <form hx-post="{% url 'test-image-hx' %}"
-            hx-target="#image-list"
-            hx-swap="outerHTML"
-            enctype="multipart/form-data"
-            class="flex gap-4 items-end">
-        {% csrf_token %}
-        <input type="file"
-                name="image"
-                accept="image/*"
-                class="file-input file-input-bordered w-full max-w-xs" />
-        <button type="submit" class="btn btn-primary">Upload</button>
-    </form>
-</div>
-{% partialdef image-list inline=True %}
-<div id="image-list" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-    {% for image in images %}
-        <div class="card bg-base-200">
-            <figure class="px-4 pt-4">
-                <img src="{{ image.image.url }}"
-                     alt="Uploaded at {{ image.uploaded_at|date:'Y-m-d H:i' }}"
-                     class="rounded-xl"
-                     width="300"
-                     height="300" />
-            </figure>
-            <div class="card-body">
-                <p class="text-sm opacity-70">{{ image.uploaded_at|date:'Y-m-d H:i' }}</p>
+    <div class="mb-6">
+        <p class="mb-2">Skeleton loader (Cotton + partial swap):</p>
+        <c-card title="Skeleton Loader" url="">
+            <a class="btn btn-tertiary"
+               href=""
+               hx-get="{% url 'test-skeleton-hx' %}"
+               hx-target="#skeleton-test"
+               hx-indicator=".skeleton-wrapper">Load content</a>
+            <div id="skeleton-test" class="bg-base-200 p-4 rounded-lg max-w-lg mt-4">
+                <c-skeleton-wrapper>
+                    <p>Triggers skeleton animation on swap.</p>
+                </c-skeleton-wrapper>
+                {% partialdef skeleton-partial %}
+                <c-skeleton-wrapper>
+                    <p>Skeleton-loaded content.</p>
+                </c-skeleton-wrapper>
+                {% endpartialdef %}
             </div>
-        </div>
-    {% empty %}
-        <p class="col-span-full text-center opacity-70">No images uploaded yet.</p>
-    {% endfor %}
-</div>
-{% endpartialdef %}
-{% endif %}
+        </c-card>
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="mb-6">
+        <p class="mb-2">Alpine.js (login-gated test):</p>
+        <c-counter/>
+    </div>
+    {% endif %}
+</section>
 {% endblock content %}

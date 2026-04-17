@@ -1,26 +1,28 @@
-# Pull base image
-FROM python:3.12.2-slim-bookworm
+FROM python:3.13-slim-bookworm
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
-# Create and set work directory called `app`
-RUN mkdir -p /app
+# Install uv from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 WORKDIR /app
 
-# Install UV and dependencies
-COPY pyproject.toml ./
-RUN pip install --upgrade pip && \
-    pip install uv && \
-    uv pip install --system .
+# Install dependencies first (cached layer)
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
 
-# Copy local project
+# Copy project
 COPY . /app
 
-# Expose port 8000
-EXPOSE 8000
+# Install project itself
+RUN uv sync --frozen --no-dev
 
+ENV PATH="/app/.venv/bin:$PATH"
+
+EXPOSE 8000
 
 COPY entrypoint.sh ./
 RUN chmod +x ./entrypoint.sh

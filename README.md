@@ -1,126 +1,62 @@
-# Just Show Up
+# Kinky Bubbles
 
-An agentic AI scraping project to learn to work with AI agents.
+A Berlin queer / kinky / conscious events aggregator. Trust-first, organizer-centric, scraping-powered.
+
+See [`docs/project_brief.md`](docs/project_brief.md), [`docs/plans/2026-04-17-v0-design.md`](docs/plans/2026-04-17-v0-design.md), and [`docs/decisions/ADR-001-core-product-and-stack.md`](docs/decisions/ADR-001-core-product-and-stack.md) for the why.
+
+## Stack
+
+- **Backend:** Django 5.2 + Python 3.13
+- **Frontend:** HTMX + django-cotton + Tailwind v4 + DaisyUI for most pages; one React 19 + TypeScript island on `/events` via django-vite
+- **DB:** Postgres 17 + pgvector
+- **Jobs:** django-q2 (Postgres ORM broker — no Redis)
+- **Ingestion / LLM:** pydantic-ai, httpx, beautifulsoup4, markdownify, python-telegram-bot
+- **Observability:** Logfire
 
 ## Quick Start
 
 ### Prerequisites
 
-- Docker, Docker Compose, and `uv` installed on your machine.
-- A `.env` file with necessary environment variables (see `.env.example` for reference).
+- Docker + Docker Compose
+- `uv` installed locally (for pre-commit, ruff, etc.)
+- A `.env` (see `.env.example`)
 
-### Setup and Run
+### Run
 
-1. **Clone the repository**:
-   ```bash
-   git clone [https://github.com/yourusername/django-starter.git](https://github.com/jsnyde0/just-show-up/)
-   cd just-show-up
-   ```
+```bash
+uv run pre-commit install
+docker compose -f docker-compose.yml -f docker-compose.local.yml up
+```
 
-2. **Install pre-commit hooks**:
-   ```bash
-   uv run pre-commit install
-   ```
+Then open http://localhost:8000.
 
-3. **Start the Docker environment for local development**:
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.local.yml up
-   ```
+## Common tasks
 
-   This will automatically apply migrations, create a superuser (if credentials are provided in the `.env` file), and collect static files.
+```bash
+# Migrations
+docker compose exec app python manage.py makemigrations
+docker compose exec app python manage.py migrate
 
-4. **Access the application**:
-   - Visit [http://localhost:8000](http://localhost:8000) in your browser.
+# Tests (skip agentic/LLM tests by default)
+docker compose exec app pytest
+docker compose exec app pytest -m agentic  # run only LLM-backed tests
 
-## Development Workflow
+# Lint / format
+uv run ruff check .
+uv run ruff format --check .
 
-### Running Management Commands
+# Background worker (runs as its own compose service)
+docker compose logs -f qcluster
+```
 
-While the entrypoint script handles initial setup tasks, you may need to run other management commands during development:
+### React island (`/events`)
 
-- **Make Migrations**: After making changes to your models, run:
-  ```bash
-  docker compose exec app python manage.py makemigrations
-  ```
-
-- **Apply Migrations**: To apply new migrations:
-  ```bash
-  docker compose exec app python manage.py migrate
-  ```
-
-- **Create Superuser**: If you need to create a superuser manually:
-  ```bash
-  docker compose exec app python manage.py createsuperuser
-  ```
-
-- **Run Tests**:
-  ```bash
-  docker compose exec app pytest
-  ```
-
-  Or if you want to run without expensive LLM calls:
-  ```bash
-  docker compose exec app pytest -m "not agentic"
-  ```
-
-- **Collect Static Files**:
-  ```bash
-  docker compose exec app python manage.py collectstatic --noinput
-  ```
-
-### Frontend Development
-
-- **Install frontend dependencies**:
-  ```bash
-  cd node
-  npm install
-  ```
-- **Run Tailwind in watch mode**:
-  ```bash
-  npm run build
-  ```
-
-- **Minify CSS and collect static for production**:
-  ```bash
-  npm run minify
-  cd .. && docker compose exec app python manage.py collectstatic --noinput
-  ```
+The Vite dev server runs as its own compose service on port 5173. `django-vite` auto-injects the dev bundle when `DEBUG=True`. Production builds land in `static/dist/` and are served by WhiteNoise.
 
 ### Debugging
 
-To debug the application with VSCode using Docker Compose:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.debug.yml up --build
+```
 
-1. **Start Services in Debug Mode**:
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.debug.yml up --build
-   ```
-
-2. **Attach Debuggers in VSCode**:
-   - **Django App**: Select 'Attach to App' and press `F5`.
-   - **Celery Worker**: Select 'Attach to Celery' and press `F5`.
-
-> **Note**: Both services will wait for the debugger to attach before starting.
-
-This setup allows you to debug both the Django application and the Celery worker effectively.
-
-## Quality Checks
-
-- **Run tests**:
-  ```bash
-  docker compose exec app pytest
-  ```
-- **Run code formatting**:
-  ```bash
-  uv run ruff check .
-  uv run ruff format --check .
-  ```
-
-## Additional Information
-
-- **Using Flowbite**: Convert Tailwind classes to DaisyUI classes for consistent styling.
-- **Environment Variables**: Ensure all necessary environment variables are set in your `.env` file.
-
-## Troubleshooting
-
-- **Database Issues**: Ensure your Docker volumes are set up correctly to persist data.
-- **Docker Logs**: Use `docker compose logs` to view logs and troubleshoot issues.
+Attach in VS Code: *Attach to App* (Django) or *Attach to qcluster* (worker).

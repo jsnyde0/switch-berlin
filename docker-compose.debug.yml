@@ -4,12 +4,11 @@ services:
       - "8000:8000"
       - "5678:5678"  # Debugger port
     volumes:
-      - .:/app  # Mount entire project directory
-      - /app/.venv  # Exclude virtual environment
-      - /app/node_modules  # Exclude node_modules
+      - .:/app
+      - /app/.venv
     command: ["sh", "-c", "uv run python -m debugpy --wait-for-client --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000"]
 
-  celery:
-    command: ["sh","-c","uv run python -m debugpy --listen 0.0.0.0:6900 -m celery -A a_core worker -E -l info",]
+  qcluster:
     ports:
-      - 6900:6900
+      - "6900:6900"
+    command: ["sh", "-c", "uv run python -m debugpy --listen 0.0.0.0:6900 manage.py qcluster"]

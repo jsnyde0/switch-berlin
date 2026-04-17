@@ -178,3 +178,7 @@ node_modules/
 # static and media files
 staticfiles/
 media/
+
+# Vite build output (rebuilt in prod; HMR-served in dev)
+static/dist/
+

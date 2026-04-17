@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: dark --default;
+}
+
+/* Shared styles for both the Django-rendered pages and the React island. */
+@source "../../templates/**/*.html";
+@source "../../**/templates/**/*.html";
+@source "./**/*.{ts,tsx}";

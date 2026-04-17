@@ -1,17 +1,22 @@
 services:
   app:
     build: .
-    image: app-image
+    image: kinky-bubbles-app
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-      redis:
+
+  qcluster:
+    image: kinky-bubbles-app
+    command: ["python", "manage.py", "qcluster"]
+    depends_on:
+      db:
         condition: service_healthy
 
   db:
-    image: postgres
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
@@ -22,27 +27,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 1s
       timeout: 1s
-      retries: 2
-
-  redis:
-    image: redis:alpine
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 1s
-      timeout: 1s
-      retries: 2
-
-  celery:
-    image: app-image
-    command: ["celery", "-A", "a_core", "worker", "-E", "-l", "info"]
-    ports:
-      - 6900:6900
-    depends_on:
-      - redis
-      - db
+      retries: 5
 
 volumes:
   postgres_data:
-  redis_data:

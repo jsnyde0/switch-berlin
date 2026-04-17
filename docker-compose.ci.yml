@@ -8,9 +8,8 @@ services:
       - DJANGO_SUPERUSER_EMAIL=admin@example.com
       - DJANGO_SUPERUSER_PASSWORD=abc123
       - DATABASE_URL=postgres://postgres:postgres@db:5432/postgres?connect_timeout=1
-      - CELERY_BROKER_URL=redis://redis:6379/0
-    env_file: []  # Explicit empty array
-    command: ["tail", "-f", "/dev/null"]  # Keep container running without running a server
+    env_file: []
+    command: ["tail", "-f", "/dev/null"]
 
   db:
     environment:
@@ -18,8 +17,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
 
-  celery:
+  qcluster:
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/postgres?connect_timeout=1
-      - CELERY_BROKER_URL=redis://redis:6379/0
     env_file: []

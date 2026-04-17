@@ -8,8 +8,15 @@ services:
     volumes:
       - .:/app
       - /app/.venv
-      - /app/node_modules
     command: ["./start.sh"]
+
+  qcluster:
+    env_file: [.env]
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+    volumes:
+      - .:/app
+      - /app/.venv
 
   db:
     env_file: [.env]
@@ -21,11 +28,14 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 1s
       timeout: 1s
-      retries: 2
+      retries: 5
 
-
-  celery:
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?connect_timeout=1
+  vite:
+    image: node:22-alpine
+    working_dir: /app/frontend
+    command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/frontend/node_modules

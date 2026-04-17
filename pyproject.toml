@@ -1,54 +1,63 @@
 [project]
-name = "django-starter"
+name = "kinky-bubbles"
 version = "0.1.0"
-description = "Starter project for Django with Docker, Postgres, HTMX, and more."
+description = "Berlin queer/kinky/conscious events aggregator — Django + HTMX + React island."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
-    "celery>=5.4.0",
-    "controlflow>=0.11.4",
-    "debugpy>=1.8.12",
-    "dj-database-url>=2.3.0",
-    "django>=5.1.4",
-    "django-admin-honeypot-updated-2021>=1.2.0",
-    "django-allauth>=65.3.1",
-    "django-cloudinary-storage>=0.3.0",
-    "django-cotton>=1.5.2",
-    "django-debug-toolbar>=5.0.1",
-    "django-environ>=0.11.2",
-    "django-htmx>=1.21.0",
-    "django-template-partials>=24.4",
-    "djlint>=1.36.4",
-    "gunicorn>=23.0.0",
-    "pillow>=11.1.0",
-    "pre-commit>=4.0.1",
-    "psycopg2-binary>=2.9.10",
-    "pytest>=8.3.4",
-    "pytest-django>=4.9.0",
-    "redis>=5.2.1",
-    "ruff>=0.9.0",
-    "whitenoise>=6.8.2",
+    # Core Django
+    "django>=5.2",
+    "dj-database-url>=3.0",
+    "django-environ>=0.12",
+    "psycopg[binary]>=3.2",
+    "whitenoise>=6.9",
+    "gunicorn>=23.0",
+    "pillow>=11.2",
+    # Auth
+    "django-allauth>=65.8",
+    # Frontend seams
+    "django-htmx>=1.22",
+    "django-cotton>=2.1",
+    "django-template-partials>=25.1",
+    "django-vite>=3.1",
+    # Background jobs (Postgres ORM broker, no Redis)
+    "django-q2>=1.8",
+    # Ingestion / LLM
+    "pydantic-ai>=0.2",
+    "httpx>=0.28",
+    "beautifulsoup4>=4.13",
+    "markdownify>=0.14",
+    "python-telegram-bot>=21.10",
+    # Vector search
+    "pgvector>=0.3",
+    # Observability
+    "logfire>=3.0",
+    # Dev / debug
+    "debugpy>=1.8",
+    "django-debug-toolbar>=5.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.10",
+    "ruff>=0.9",
+    "djlint>=1.36",
+    "pre-commit>=4.1",
 ]
 
 [tool.ruff]
-# Basic settings
 line-length = 88
-target-version = "py312"
+target-version = "py313"
+exclude = [".git", ".venv", "__pycache__", "**/migrations/*"]
 
-# Essential rules for your current codebase
 [tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "F",   # pyflakes
     "I",   # isort
     "B",   # bugbear
-]
-
-# Directories to ignore
-exclude = [
-    ".git",
-    ".venv",
-    "__pycache__",
+    "UP",  # pyupgrade
 ]
 
 [tool.ruff.format]
@@ -56,8 +65,9 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pytest.ini_options]
-markers = [
-    "agentic: marks tests as agentic (deselect with '-m \"not agentic\"')",
-]
 DJANGO_SETTINGS_MODULE = "a_core.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+markers = [
+    "agentic: marks tests that hit an LLM (deselect with '-m \"not agentic\"')",
+]
 addopts = "-m 'not agentic'"
