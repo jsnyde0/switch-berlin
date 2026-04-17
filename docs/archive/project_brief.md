@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-04-17** — written for the event-gulper era (Prefect ETL, internal-only V0, different version numbering). Superseded by `docs/decisions/ADR-001-core-product-and-stack.md` (stack + product decisions) and `docs/plans/2026-04-17-v0-design.md` (current V0 scope). Kept for historical reference only; do not use as a source of truth.
+
 # Event Gulper — Project Brief (Draft)
 
 ## Goal
