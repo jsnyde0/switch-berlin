@@ -1,0 +1,62 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-17 18:29+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+#: templates/account/email_confirm.html:6
+msgid "Confirm Email Address"
+msgstr ""
+
+#: templates/account/login.html:5 templates/account/login.html:60
+msgid "Sign In"
+msgstr ""
+
+#: templates/account/login.html:25
+msgid "E-mail"
+msgstr ""
+
+#: templates/account/login.html:36 templates/account/signup.html:39
+msgid "Password"
+msgstr ""
+
+#: templates/account/login.html:38
+msgid "Forgot Password?"
+msgstr ""
+
+#: templates/account/login.html:51
+msgid "Remember Me"
+msgstr ""
+
+#: templates/account/logout.html:4
+msgid "Sign Out"
+msgstr ""
+
+#: templates/account/signup.html:4
+msgid "Signup"
+msgstr ""
+
+#: templates/account/signup.html:32
+msgid "Email"
+msgstr ""
+
+#: templates/account/signup.html:49
+msgid "Confirm Password"
+msgstr ""
+
+#: templates/account/signup.html:62
+msgid "Create Account"
+msgstr ""

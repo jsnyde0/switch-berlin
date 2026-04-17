@@ -26,6 +26,8 @@ if DEBUG:
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 
+AUTH_USER_MODEL = "accounts.User"
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -46,6 +48,7 @@ INSTALLED_APPS = [
     "template_partials.apps.SimpleAppConfig",
     # local
     "a_core",
+    "accounts",
     "pages",
 ]
 
@@ -53,6 +56,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -148,6 +152,8 @@ else:
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Europe/Berlin"
 USE_I18N = True
+LANGUAGES = [("en", "English"), ("de", "Deutsch")]
+LOCALE_PATHS = [BASE_DIR / "locale"]
 USE_TZ = True
 
 STATIC_URL = "static/"
