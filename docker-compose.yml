@@ -10,8 +10,10 @@ services:
 
   qcluster:
     image: kinky-bubbles-app
-    command: ["python", "manage.py", "qcluster"]
+    entrypoint: ["python", "manage.py", "qcluster"]
     depends_on:
+      app:
+        condition: service_started
       db:
         condition: service_healthy
 

@@ -182,3 +182,8 @@ media/
 # Vite build output (rebuilt in prod; HMR-served in dev)
 static/dist/
 
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
