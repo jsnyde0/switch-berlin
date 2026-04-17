@@ -50,6 +50,11 @@ INSTALLED_APPS = [
     "a_core",
     "accounts",
     "pages",
+    "organizers",
+    "venues",
+    "events",
+    "ingestion",
+    "reviews",
 ]
 
 MIDDLEWARE = [
