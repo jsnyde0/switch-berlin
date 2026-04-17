@@ -73,5 +73,6 @@ DJANGO_SETTINGS_MODULE = "a_core.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 markers = [
     "agentic: marks tests that hit an LLM (deselect with '-m \"not agentic\"')",
+    "slow: marks tests as slow (e.g. makemessages, heavy DB operations)",
 ]
 addopts = "-m 'not agentic'"
