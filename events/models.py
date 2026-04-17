@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Tag(models.Model):
@@ -14,6 +15,11 @@ class Tag(models.Model):
         ]
     )
     description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["label"]
+        verbose_name = _("tag")
+        verbose_name_plural = _("tags")
 
     def __str__(self):
         return self.label
@@ -72,12 +78,16 @@ class Event(models.Model):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        related_name="extracted_events",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        ordering = ["-start"]
+        verbose_name = _("event")
+        verbose_name_plural = _("events")
         indexes = [
             models.Index(fields=["status", "start"]),
             models.Index(fields=["organizer", "start"]),
@@ -103,6 +113,11 @@ class EventImage(models.Model):
     alt = models.CharField(max_length=300, blank=True)
     is_cover = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = _("event image")
+        verbose_name_plural = _("event images")
 
     def __str__(self):
         return f"Image for {self.event} ({self.order})"

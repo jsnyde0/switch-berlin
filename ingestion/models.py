@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class RawMessage(models.Model):
@@ -28,6 +29,11 @@ class RawMessage(models.Model):
     )
     extraction_error = models.TextField(blank=True)
 
+    class Meta:
+        ordering = ["-received_at"]
+        verbose_name = _("raw message")
+        verbose_name_plural = _("raw messages")
+
     def __str__(self):
         return f"{self.source_type} @ {self.received_at}"
 
@@ -46,6 +52,11 @@ class SourceFailure(models.Model):
     occurred_at = models.DateTimeField(auto_now_add=True)
     resolved = models.BooleanField(default=False)
 
+    class Meta:
+        ordering = ["-occurred_at"]
+        verbose_name = _("source failure")
+        verbose_name_plural = _("source failures")
+
     def __str__(self):
         return f"{self.error_class} at {self.stage}"
 
@@ -53,6 +64,11 @@ class SourceFailure(models.Model):
 class HeartbeatLog(models.Model):
     ran_at = models.DateTimeField(auto_now_add=True)
     note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["-ran_at"]
+        verbose_name = _("heartbeat log")
+        verbose_name_plural = _("heartbeat logs")
 
     def __str__(self):
         return f"Heartbeat @ {self.ran_at}"

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Venue(models.Model):
@@ -29,6 +30,11 @@ class Venue(models.Model):
     url = models.URLField(blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = _("venue")
+        verbose_name_plural = _("venues")
 
     def __str__(self):
         return self.name

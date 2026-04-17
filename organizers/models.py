@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Organizer(models.Model):
@@ -45,6 +46,11 @@ class Organizer(models.Model):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = _("organizer")
+        verbose_name_plural = _("organizers")
 
     def __str__(self):
         return self.name

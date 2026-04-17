@@ -152,11 +152,11 @@ If the React island grows tendrils into other pages (filter state needed on orga
 
 ---
 
-### D6: Stack — Django 5 monolith; drop Celery/Prefect/SQLAlchemy/instructor/controlflow/CrewAI
+### D6: Stack — Django 6 monolith; drop Celery/Prefect/SQLAlchemy/instructor/controlflow/CrewAI
 
 **Firmness: FIRM on Django, Django-Q 2, pydantic-ai, Postgres+pgvector, django-vite. FLEXIBLE on PostGIS (lat/lng may suffice V0), map provider, hosting. EXPLORATORY on HTMX vs Datastar for non-island pages.**
 
-Django 5 + HTMX + django-cotton + Tailwind v4 + DaisyUI + **Django-Q 2** + Postgres (pgvector) + pydantic-ai + python-telegram-bot + httpx/bs4/markdownify + Logfire + allauth — **plus one React 19 + TypeScript island on `/events`** via `django-vite` (see D5).
+Django 6 + HTMX + django-cotton + Tailwind v4 + DaisyUI + **Django-Q 2** + Postgres (pgvector) + pydantic-ai + python-telegram-bot + httpx/bs4/markdownify + Logfire + allauth — **plus one React 19 + TypeScript island on `/events`** via `django-vite` (see D5). (Updated 2026-04-17 during phase-0.1 review: Django 6.0 is current-stable; `uv.lock` pins 6.0.x while `pyproject.toml` still declares `django>=5.2`. Floor to be bumped in phase 0.3 cleanup.)
 
 **Rationale:**
 

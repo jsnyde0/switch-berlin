@@ -9,10 +9,9 @@ class RawMessageAdmin(admin.ModelAdmin):
     list_display = ["source_type", "received_at", "extraction_status", "text_preview"]
     list_filter = ["extraction_status"]
     # All read-only in 0.1 (no actions until 0.2 extraction pipeline)
-    # Use hasattr(f, 'column') to exclude reverse relations
-    readonly_fields = [
-        f.name for f in RawMessage._meta.get_fields() if hasattr(f, "column")
-    ]
+
+    def get_readonly_fields(self, request, obj=None):
+        return [f.name for f in self.model._meta.concrete_fields]
 
     def text_preview(self, obj):
         return obj.text[:80] if obj.text else "(no text)"

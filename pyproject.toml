@@ -75,4 +75,4 @@ markers = [
     "agentic: marks tests that hit an LLM (deselect with '-m \"not agentic\"')",
     "slow: marks tests as slow (e.g. makemessages, heavy DB operations)",
 ]
-addopts = "-m 'not agentic'"
+addopts = "-m 'not agentic and not slow'"

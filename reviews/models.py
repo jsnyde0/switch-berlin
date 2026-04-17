@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 
 class Review(models.Model):
@@ -31,6 +32,9 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        ordering = ["-created_at"]
+        verbose_name = _("review")
+        verbose_name_plural = _("reviews")
         constraints = [
             models.CheckConstraint(
                 condition=Q(organizer__isnull=False) ^ Q(event__isnull=False),

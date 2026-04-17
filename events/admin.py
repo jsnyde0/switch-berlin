@@ -26,11 +26,25 @@ class EventAdmin(admin.ModelAdmin):
     def raw_message_preview(self, obj):
         if not obj.raw_message:
             return "—"
+        import json
+
         from django.utils.html import format_html
 
+        enriched = obj.raw_message.enriched_payload
+        enriched_str = (
+            json.dumps(enriched, indent=2, ensure_ascii=False)
+            if enriched
+            else _("(not yet enriched)")
+        )
         return format_html(
+            "<strong>{}</strong>"
+            '<pre style="max-height:200px;overflow:auto">{}</pre>'
+            "<strong>{}</strong>"
             '<pre style="max-height:200px;overflow:auto">{}</pre>',
+            _("Raw text:"),
             obj.raw_message.text or str(obj.raw_message.raw_payload),
+            _("Enriched payload:"),
+            enriched_str,
         )
 
     raw_message_preview.short_description = _("Raw message")
@@ -39,7 +53,12 @@ class EventAdmin(admin.ModelAdmin):
     def publish_events(self, request, queryset):
         from django.utils import timezone
 
-        queryset.update(status="published", published_at=timezone.now())
+        # Only set published_at on first publish; do not overwrite if already set.
+        now = timezone.now()
+        queryset.filter(published_at__isnull=True).update(
+            status="published", published_at=now
+        )
+        queryset.filter(published_at__isnull=False).update(status="published")
 
     @admin.action(description=_("Reject selected events"))
     def reject_events(self, request, queryset):
