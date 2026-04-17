@@ -3,33 +3,33 @@
 {% load account %}
 {% load allauth %}
 {% block head_title %}
-    {% trans "Confirm Email Address" %}
+  {% trans "Confirm Email Address" %}
 {% endblock head_title %}
 {% block content %}
-    <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-lg min-w-[400px]">
-        {% if confirmation %}
-            {% if can_confirm %}
-                <h1 class="text-3xl font-bold self-center">Confirm Email Address</h1>
-                <span class="self-center">
-                    Please confirm that {{ confirmation.email_address.email }} is your valid email address.
-                </span>
-                <form method="post"
-                      action="{% url 'account_confirm_email' confirmation.key %}"
-                      class="flex flex-col gap-4">
-                    {% csrf_token %}
-                    {{ redirect_field }}
-                    <button class="btn btn-primary" type="submit">Confirm Email</button>
-                </form>
-            {% else %}
-                <span class="self-center">
-                    Unable to confirm {{ confirmation.email_address.email }} because it is already confirmed by a different account.
-                </span>
-            {% endif %}
-        {% else %}
-            {% url 'account_email' as email_url %}
-            <span class="self-center">
-                This email confirmation link expired or is invalid. Please <a href="{{ email_url }}">issue a new email confirmation request</a>.
-            </span>
-        {% endif %}
-    </div>
+  <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-lg min-w-[400px]">
+    {% if confirmation %}
+      {% if can_confirm %}
+        <h1 class="text-3xl font-bold self-center">Confirm Email Address</h1>
+        <span class="self-center">
+          Please confirm that {{ confirmation.email_address.email }} is your valid email address.
+        </span>
+        <form method="post"
+              action="{% url 'account_confirm_email' confirmation.key %}"
+              class="flex flex-col gap-4">
+          {% csrf_token %}
+          {{ redirect_field }}
+          <button class="btn btn-primary" type="submit">Confirm Email</button>
+        </form>
+      {% else %}
+        <span class="self-center">
+          Unable to confirm {{ confirmation.email_address.email }} because it is already confirmed by a different account.
+        </span>
+      {% endif %}
+    {% else %}
+      {% url 'account_email' as email_url %}
+      <span class="self-center">
+        This email confirmation link expired or is invalid. Please <a href="{{ email_url }}">issue a new email confirmation request</a>.
+      </span>
+    {% endif %}
+  </div>
 {% endblock content %}

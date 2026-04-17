@@ -1,7 +1,7 @@
 <div class="bg-base-200 shadow rounded border p-4 mb-4">
-    <h2 class="text-xl font-bold">{{ title }}</h2>
-    <p>{{ slot }}</p>
-    {% if url %}
+  <h2 class="text-xl font-bold">{{ title }}</h2>
+  <p>{{ slot }}</p>
+  {% if url %}
     <button class="btn btn-secondary" href="{% url url %}">Read more</button>
-    {% endif %}
+  {% endif %}
 </div>

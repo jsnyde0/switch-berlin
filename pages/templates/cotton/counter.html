@@ -1,23 +1,24 @@
-<div class="stat flex flex-col items-center max-w-xs" x-data="{ counter: 0 }">
-    <div class="stat-title text-4xl font-bold" x-text="counter"></div>
-    <div class="stat-actions">
-        <button class="btn btn-sm" @click="counter++">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                    class="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-        </button>
-        <button class="btn btn-sm" @click="counter--">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                    class="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
-            </svg>
-        </button>
-    </div>
+<div class="stat flex flex-col items-center max-w-xs"
+     x-data="{ counter: 0 }">
+  <div class="stat-title text-4xl font-bold" x-text="counter"></div>
+  <div class="stat-actions">
+    <button class="btn btn-sm" @click="counter++">
+      <svg xmlns="http://www.w3.org/2000/svg"
+           class="h-6 w-6"
+           fill="none"
+           viewBox="0 0 24 24"
+           stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+    </button>
+    <button class="btn btn-sm" @click="counter--">
+      <svg xmlns="http://www.w3.org/2000/svg"
+           class="h-6 w-6"
+           fill="none"
+           viewBox="0 0 24 24"
+           stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+      </svg>
+    </button>
+  </div>
 </div>

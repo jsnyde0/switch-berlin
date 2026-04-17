@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-17 18:29+0200\n"
+"POT-Creation-Date: 2026-04-17 18:48+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,39 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: events/admin.py:36
+msgid "Raw message"
+msgstr ""
+
+#: events/admin.py:38
+msgid "Publish selected events"
+msgstr ""
+
+#: events/admin.py:44
+msgid "Reject selected events"
+msgstr ""
+
+#: events/admin.py:48
+msgid "Archive selected events"
+msgstr ""
+
+#: ingestion/admin.py:20
+msgid "Text preview"
+msgstr ""
+
+#: organizers/admin.py:18
+msgid "Events"
+msgstr ""
+
+#: organizers/admin.py:20
+msgid "Mark approved + record consent"
+msgstr ""
+
+#: reviews/admin.py:18
+msgid "Target"
+msgstr ""
+
 #: templates/account/email_confirm.html:6
 msgid "Confirm Email Address"
 msgstr ""

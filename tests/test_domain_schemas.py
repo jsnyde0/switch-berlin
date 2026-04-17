@@ -8,7 +8,6 @@ All five apps: organizers, venues, events, ingestion, reviews.
 import pytest
 from django.conf import settings
 
-
 # ---------------------------------------------------------------------------
 # INSTALLED_APPS assertions
 # ---------------------------------------------------------------------------
@@ -70,8 +69,9 @@ def test_organizer_create_roundtrip():
 
 @pytest.mark.django_db
 def test_organizer_slug_is_unique():
-    from organizers.models import Organizer
     from django.db import IntegrityError
+
+    from organizers.models import Organizer
 
     Organizer.objects.create(name="Org A", slug="unique-slug")
     with pytest.raises(IntegrityError):
@@ -82,6 +82,7 @@ def test_organizer_slug_is_unique():
 def test_organizer_approved_by_uses_auth_user_model():
     """approved_by FK must point to AUTH_USER_MODEL, not import User directly."""
     from django.contrib.auth import get_user_model
+
     from organizers.models import Organizer
 
     User = get_user_model()
@@ -98,8 +99,9 @@ def test_organizer_approved_by_uses_auth_user_model():
 
 @pytest.mark.django_db
 def test_organizer_consent_fields():
-    from organizers.models import Organizer
     import django.utils.timezone as tz
+
+    from organizers.models import Organizer
 
     now = tz.now()
     org = Organizer.objects.create(
@@ -135,8 +137,9 @@ def test_venue_create_roundtrip():
 
 @pytest.mark.django_db
 def test_venue_slug_is_unique():
-    from venues.models import Venue
     from django.db import IntegrityError
+
+    from venues.models import Venue
 
     Venue.objects.create(name="Venue A", slug="venue-slug-unique")
     with pytest.raises(IntegrityError):
@@ -145,8 +148,9 @@ def test_venue_slug_is_unique():
 
 @pytest.mark.django_db
 def test_venue_geo_fields():
-    from venues.models import Venue
     from decimal import Decimal
+
+    from venues.models import Venue
 
     venue = Venue.objects.create(
         name="Geo Venue",
@@ -193,8 +197,9 @@ def test_tag_create_roundtrip():
 
 @pytest.mark.django_db
 def test_tag_slug_is_unique():
-    from events.models import Tag
     from django.db import IntegrityError
+
+    from events.models import Tag
 
     Tag.objects.create(slug="unique-tag", label="Tag A", kind="theme")
     with pytest.raises(IntegrityError):
@@ -209,19 +214,22 @@ def test_tag_slug_is_unique():
 @pytest.fixture
 def organizer():
     from organizers.models import Organizer
+
     return Organizer.objects.create(name="Event Organizer", slug="event-organizer")
 
 
 @pytest.fixture
 def venue():
     from venues.models import Venue
+
     return Venue.objects.create(name="Event Venue", slug="event-venue")
 
 
 @pytest.mark.django_db
 def test_event_create_roundtrip(organizer):
-    from events.models import Event
     import django.utils.timezone as tz
+
+    from events.models import Event
 
     start = tz.now()
     event = Event.objects.create(
@@ -243,9 +251,10 @@ def test_event_create_roundtrip(organizer):
 @pytest.mark.django_db
 def test_event_slug_unique_per_organizer(organizer):
     """Two events from the same organizer cannot share a slug."""
-    from events.models import Event
-    from django.db import IntegrityError
     import django.utils.timezone as tz
+    from django.db import IntegrityError
+
+    from events.models import Event
 
     start = tz.now()
     Event.objects.create(
@@ -260,9 +269,10 @@ def test_event_slug_unique_per_organizer(organizer):
 @pytest.mark.django_db
 def test_event_slug_can_repeat_across_organizers(organizer):
     """Two events from different organizers CAN share a slug."""
-    from organizers.models import Organizer
-    from events.models import Event
     import django.utils.timezone as tz
+
+    from events.models import Event
+    from organizers.models import Organizer
 
     other_org = Organizer.objects.create(name="Other Org", slug="other-org")
     start = tz.now()
@@ -278,9 +288,10 @@ def test_event_slug_can_repeat_across_organizers(organizer):
 @pytest.mark.django_db
 def test_event_dup_guard_org_start_title(organizer):
     """Same organizer, start, and title combination is rejected."""
-    from events.models import Event
-    from django.db import IntegrityError
     import django.utils.timezone as tz
+    from django.db import IntegrityError
+
+    from events.models import Event
 
     start = tz.now()
     Event.objects.create(
@@ -294,8 +305,9 @@ def test_event_dup_guard_org_start_title(organizer):
 
 @pytest.mark.django_db
 def test_event_with_venue_and_tags(organizer, venue):
-    from events.models import Event, Tag
     import django.utils.timezone as tz
+
+    from events.models import Event, Tag
 
     tag = Tag.objects.create(slug="bubble-1", label="Bubble Party", kind="bubble")
     start = tz.now()
@@ -316,9 +328,10 @@ def test_event_with_venue_and_tags(organizer, venue):
 @pytest.mark.django_db
 def test_event_raw_message_fk_string_reference(organizer):
     """Event.raw_message uses string FK 'ingestion.RawMessage' (no direct import)."""
+    import django.utils.timezone as tz
+
     from events.models import Event
     from ingestion.models import RawMessage
-    import django.utils.timezone as tz
 
     raw = RawMessage.objects.create(
         source_type="telegram_bot_forward",
@@ -343,8 +356,9 @@ def test_event_raw_message_fk_string_reference(organizer):
 
 @pytest.mark.django_db
 def test_event_image_create(organizer):
-    from events.models import Event, EventImage
     import django.utils.timezone as tz
+
+    from events.models import Event, EventImage
 
     event = Event.objects.create(
         title="Image Event",
@@ -428,9 +442,9 @@ def test_heartbeatlog_create_roundtrip():
 
 @pytest.mark.django_db
 def test_review_for_organizer(organizer):
-    from reviews.models import Review
     from django.contrib.auth import get_user_model
-    import django.utils.timezone as tz
+
+    from reviews.models import Review
 
     User = get_user_model()
     user = User.objects.create_user(
@@ -450,10 +464,11 @@ def test_review_for_organizer(organizer):
 
 @pytest.mark.django_db
 def test_review_for_event(organizer):
-    from reviews.models import Review
-    from events.models import Event
-    from django.contrib.auth import get_user_model
     import django.utils.timezone as tz
+    from django.contrib.auth import get_user_model
+
+    from events.models import Event
+    from reviews.models import Review
 
     User = get_user_model()
     user = User.objects.create_user(
@@ -478,11 +493,12 @@ def test_review_for_event(organizer):
 @pytest.mark.django_db
 def test_review_constraint_both_targets_rejected(organizer):
     """Review with both organizer AND event must raise IntegrityError."""
-    from reviews.models import Review
-    from events.models import Event
+    import django.utils.timezone as tz
     from django.contrib.auth import get_user_model
     from django.db import IntegrityError
-    import django.utils.timezone as tz
+
+    from events.models import Event
+    from reviews.models import Review
 
     User = get_user_model()
     user = User.objects.create_user(
@@ -506,9 +522,10 @@ def test_review_constraint_both_targets_rejected(organizer):
 @pytest.mark.django_db
 def test_review_constraint_no_targets_rejected(organizer):
     """Review with neither organizer nor event must raise IntegrityError."""
-    from reviews.models import Review
     from django.contrib.auth import get_user_model
     from django.db import IntegrityError
+
+    from reviews.models import Review
 
     User = get_user_model()
     user = User.objects.create_user(
@@ -538,10 +555,12 @@ def test_event_unique_constraints_in_db():
         )
         names = [r[0] for r in cursor.fetchall()]
     assert "event_slug_unique_per_organizer" in names, (
-        f"UniqueConstraint 'event_slug_unique_per_organizer' not in pg_constraint: {names}"
+        "UniqueConstraint 'event_slug_unique_per_organizer' not in pg_constraint: "
+        f"{names}"
     )
     assert "event_dup_guard_org_start_title" in names, (
-        f"UniqueConstraint 'event_dup_guard_org_start_title' not in pg_constraint: {names}"
+        "UniqueConstraint 'event_dup_guard_org_start_title' not in pg_constraint: "
+        f"{names}"
     )
 
 
@@ -552,7 +571,8 @@ def test_review_check_constraint_in_db():
 
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT conname FROM pg_constraint WHERE conname = 'review_targets_exactly_one'"
+            "SELECT conname FROM pg_constraint "
+            "WHERE conname = 'review_targets_exactly_one'"
         )
         names = [r[0] for r in cursor.fetchall()]
     assert "review_targets_exactly_one" in names, (
@@ -567,6 +587,7 @@ def test_review_check_constraint_in_db():
 
 def test_organizer_admin_registered():
     from django.contrib import admin
+
     from organizers.models import Organizer
 
     assert admin.site.is_registered(Organizer), "Organizer not registered in admin"
@@ -574,6 +595,7 @@ def test_organizer_admin_registered():
 
 def test_venue_admin_registered():
     from django.contrib import admin
+
     from venues.models import Venue
 
     assert admin.site.is_registered(Venue), "Venue not registered in admin"
@@ -581,6 +603,7 @@ def test_venue_admin_registered():
 
 def test_event_admin_registered():
     from django.contrib import admin
+
     from events.models import Event
 
     assert admin.site.is_registered(Event), "Event not registered in admin"
@@ -588,6 +611,7 @@ def test_event_admin_registered():
 
 def test_tag_admin_registered():
     from django.contrib import admin
+
     from events.models import Tag
 
     assert admin.site.is_registered(Tag), "Tag not registered in admin"
@@ -595,6 +619,7 @@ def test_tag_admin_registered():
 
 def test_rawmessage_admin_registered():
     from django.contrib import admin
+
     from ingestion.models import RawMessage
 
     assert admin.site.is_registered(RawMessage), "RawMessage not registered in admin"
@@ -602,6 +627,7 @@ def test_rawmessage_admin_registered():
 
 def test_review_admin_registered():
     from django.contrib import admin
+
     from reviews.models import Review
 
     assert admin.site.is_registered(Review), "Review not registered in admin"

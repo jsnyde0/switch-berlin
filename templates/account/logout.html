@@ -1,18 +1,18 @@
 {% extends "account/base_manage.html" %}
 {% load allauth i18n %}
 {% block head_title %}
-    {% trans "Sign Out" %}
+  {% trans "Sign Out" %}
 {% endblock head_title %}
 {% block content %}
-    <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-md min-w-[400px]">
-        <h1 class="text-3xl font-bold self-center">Log out</h1>
-        <span class="self-center">Are you sure you want to log out?</span>
-        <form method="post"
-              action="{% url 'account_logout' %}"
-              class="flex flex-col gap-4">
-            {% csrf_token %}
-            {{ form }}
-            <button class="btn btn-danger" type="submit">Log Out</button>
-        </form>
-    </div>
+  <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-md min-w-[400px]">
+    <h1 class="text-3xl font-bold self-center">Log out</h1>
+    <span class="self-center">Are you sure you want to log out?</span>
+    <form method="post"
+          action="{% url 'account_logout' %}"
+          class="flex flex-col gap-4">
+      {% csrf_token %}
+      {{ form }}
+      <button class="btn btn-danger" type="submit">Log Out</button>
+    </form>
+  </div>
 {% endblock content %}

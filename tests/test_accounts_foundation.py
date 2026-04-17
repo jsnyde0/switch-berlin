@@ -92,12 +92,8 @@ def test_locale_de_lc_messages_directory_exists():
     from django.conf import settings
 
     locale_dir = settings.BASE_DIR / "locale" / "de" / "LC_MESSAGES"
-    assert locale_dir.exists(), (
-        f"Directory does not exist: {locale_dir}"
-    )
-    assert locale_dir.is_dir(), (
-        f"Path exists but is not a directory: {locale_dir}"
-    )
+    assert locale_dir.exists(), f"Directory does not exist: {locale_dir}"
+    assert locale_dir.is_dir(), f"Path exists but is not a directory: {locale_dir}"
 
 
 # ---------------------------------------------------------------------------

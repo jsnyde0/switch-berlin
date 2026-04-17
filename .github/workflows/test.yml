@@ -3,12 +3,32 @@ name: Tests
 on: [push, pull_request]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: djlint template check
+        run: uv run djlint --check . --extension=html
+
   test:
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -17,41 +37,39 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
+          --health-interval 1s
           --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      SECRET_KEY: ci-insecure-key-for-testing-only
+      DEBUG: "True"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+      LOGFIRE_TOKEN: ""
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Compose
-        run: sudo apt-get -y install docker-compose
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
-      - name: Build and start containers
-        run: docker compose --env-file /dev/null -f docker-compose.yml -f docker-compose.ci.yml up -d
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          DEBUG: "True"
-          ALLOWED_HOSTS: "localhost 127.0.0.1 testserver"
-          CSRF_TRUSTED_ORIGINS: "http://localhost http://127.0.0.1"
-          DJANGO_SUPERUSER_USERNAME: "admin"
-          DJANGO_SUPERUSER_EMAIL: "admin@example.com"
-          DJANGO_SUPERUSER_PASSWORD: "testpass123"
-          CELERY_BROKER_URL: "redis://redis:6379/0"
+      - name: Install dependencies
+        run: uv sync --frozen
 
-      - name: Run tests
-        run: docker compose exec app pytest
+      - name: Run migrations
+        run: uv run python manage.py migrate
 
-      - name: Run Ruff
-        run: docker compose exec app sh -c "uv run ruff check . && uv run ruff format --check ."
+      - name: pytest
+        run: uv run pytest
+
+      - name: makemigrations check (no unapplied migrations)
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: makemessages check (i18n catalog not empty)
+        run: |
+          uv run python manage.py makemessages -l de
+          if ! grep -q '^msgid ' locale/de/LC_MESSAGES/django.po; then
+            echo 'ERROR: locale/de/LC_MESSAGES/django.po is empty — add {% trans %} tags to templates'
+            exit 1
+          fi

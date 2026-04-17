@@ -16,7 +16,10 @@ class EventAdmin(admin.ModelAdmin):
     search_fields = ["title", "description"]
     inlines = [EventImageInline]
     readonly_fields = [
-        "created_at", "updated_at", "published_at", "raw_message_preview"
+        "created_at",
+        "updated_at",
+        "published_at",
+        "raw_message_preview",
     ]
     actions = ["publish_events", "reject_events", "archive_events"]
 

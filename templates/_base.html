@@ -3,26 +3,31 @@
 {% load django_vite %}
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description"
-              content="{% block meta_description %}Berlin queer, kinky, and conscious events — curated and verified.{% endblock meta_description %}">
-        <title>
-            {% block title %}Kinky Bubbles{% endblock title %}
-        </title>
-        <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
-        {% vite_hmr_client %}
-        {% vite_asset 'src/app.css' %}
-        {% django_htmx_script %}
-        <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
-        <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-        {% block extra_head %}{% endblock extra_head %}
-    </head>
-    <body class="bg-base-100 text-base-content">
-        <div class="container mx-auto mt-4">
-            {% block layout %}{% endblock layout %}
-        </div>
-        {% block extra_js %}{% endblock extra_js %}
-    </body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="{% block meta_description %}Berlin queer, kinky, and conscious events — curated and verified.{% endblock meta_description %}">
+    <title>
+      {% block title %}
+        Kinky Bubbles
+      {% endblock title %}
+    </title>
+    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+    {% vite_hmr_client %}
+    {% vite_asset 'src/app.css' %}
+    {% django_htmx_script %}
+    <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {% block extra_head %}
+    {% endblock extra_head %}
+  </head>
+  <body class="bg-base-100 text-base-content">
+    <div class="container mx-auto mt-4">
+      {% block layout %}
+      {% endblock layout %}
+    </div>
+    {% block extra_js %}
+    {% endblock extra_js %}
+  </body>
 </html>

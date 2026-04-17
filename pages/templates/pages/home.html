@@ -1,65 +1,56 @@
 {% extends "layouts/_default.html" %}
 {% load partials %}
 {% block content %}
-<section class="prose max-w-none mb-12">
+  <section class="prose max-w-none mb-12">
     <h1>Kinky Bubbles</h1>
-    <p class="text-base-content/80">
-        Berlin queer, kinky, and conscious events — curated, verified, trust-first.
-    </p>
-    <p class="text-base-content/60 text-sm">
-        V0 scaffolding. Events listing coming soon.
-    </p>
-</section>
-
-<section class="mb-8">
+    <p class="text-base-content/80">Berlin queer, kinky, and conscious events — curated, verified, trust-first.</p>
+    <p class="text-base-content/60 text-sm">V0 scaffolding. Events listing coming soon.</p>
+  </section>
+  <section class="mb-8">
     <h2 class="text-xl mb-4">Stack smoke tests</h2>
-
     <div class="mb-6">
-        <p class="mb-2">HTMX + django-template-partials:</p>
-        <button class="btn btn-primary"
-                hx-get="{% url 'test-partial' %}"
-                hx-target="this"
-                hx-swap="outerHTML">Click me</button>
-        {% partialdef test-partial %}
-        <div role="alert" class="alert alert-success max-w-lg">
-            <span>HTMX + partials working.</span>
-        </div>
-        {% endpartialdef %}
-    </div>
-
-    <div class="mb-6">
-        <p class="mb-2">django-cotton:</p>
-        <c-card title="Cotton Card" url="home">
-            If this renders as a formatted card, Cotton is working.
-        </c-card>
-    </div>
-
-    <div class="mb-6">
-        <p class="mb-2">Skeleton loader (Cotton + partial swap):</p>
-        <c-card title="Skeleton Loader" url="">
-            <a class="btn btn-tertiary"
-               href=""
-               hx-get="{% url 'test-skeleton-hx' %}"
-               hx-target="#skeleton-test"
-               hx-indicator=".skeleton-wrapper">Load content</a>
-            <div id="skeleton-test" class="bg-base-200 p-4 rounded-lg max-w-lg mt-4">
-                <c-skeleton-wrapper>
-                    <p>Triggers skeleton animation on swap.</p>
-                </c-skeleton-wrapper>
-                {% partialdef skeleton-partial %}
-                <c-skeleton-wrapper>
-                    <p>Skeleton-loaded content.</p>
-                </c-skeleton-wrapper>
-                {% endpartialdef %}
-            </div>
-        </c-card>
-    </div>
-
-    {% if user.is_authenticated %}
-    <div class="mb-6">
-        <p class="mb-2">Alpine.js (login-gated test):</p>
-        <c-counter/>
-    </div>
-    {% endif %}
+      <p class="mb-2">HTMX + django-template-partials:</p>
+      <button class="btn btn-primary"
+              hx-get="{% url 'test-partial' %}"
+              hx-target="this"
+              hx-swap="outerHTML">Click me</button>
+      {% partialdef test-partial %}
+      <div role="alert" class="alert alert-success max-w-lg">
+        <span>HTMX + partials working.</span>
+      </div>
+    {% endpartialdef %}
+  </div>
+  <div class="mb-6">
+    <p class="mb-2">django-cotton:</p>
+    <c-card title="Cotton Card" url="home">
+    If this renders as a formatted card, Cotton is working.
+    </c-card>
+  </div>
+  <div class="mb-6">
+    <p class="mb-2">Skeleton loader (Cotton + partial swap):</p>
+    <c-card title="Skeleton Loader" url="">
+    <a class="btn btn-tertiary"
+       href=""
+       hx-get="{% url 'test-skeleton-hx' %}"
+       hx-target="#skeleton-test"
+       hx-indicator=".skeleton-wrapper">Load content</a>
+    <div id="skeleton-test" class="bg-base-200 p-4 rounded-lg max-w-lg mt-4">
+      <c-skeleton-wrapper>
+      <p>Triggers skeleton animation on swap.</p>
+      </c-skeleton-wrapper>
+      {% partialdef skeleton-partial %}
+      <c-skeleton-wrapper>
+      <p>Skeleton-loaded content.</p>
+      </c-skeleton-wrapper>
+    {% endpartialdef %}
+  </div>
+  </c-card>
+</div>
+{% if user.is_authenticated %}
+  <div class="mb-6">
+    <p class="mb-2">Alpine.js (login-gated test):</p>
+    <c-counter />
+  </div>
+{% endif %}
 </section>
 {% endblock content %}

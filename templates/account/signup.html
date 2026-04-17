@@ -1,65 +1,65 @@
 {% extends "account/base_entrance.html" %}
 {% load allauth i18n %}
 {% block head_title %}
-    {% trans "Signup" %}
+  {% trans "Signup" %}
 {% endblock head_title %}
 {% block content %}
-    <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-md min-w-[400px]">
-        <h1 class="text-3xl font-bold self-center">Create an account</h1>
-        <span class="self-center">
-            Already have an account?
-            <a class="link link-secondary" href="{% url 'account_login' %}">Log in</a>
-        </span>
-        <form method="post"
-              action="{% url 'account_signup' %}"
-              class="flex flex-col gap-4">
-            {% csrf_token %}
-            {{ redirect_field }}
-            {% if form.errors %}
-                <div class="alert alert-error">
-                    {% for field, errors in form.errors.items %}
-                        {% for error in errors %}<span>{{ field }}: {{ error }}</span>{% endfor %}
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if form.non_field_errors %}
-                <div class="alert alert-error">
-                    {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
-                </div>
-            {% endif %}
-            <label class="form-control">
-                <div class="label">
-                    <span class="label-text">{% trans "Email" %}</span>
-                </div>
-                <input type="email" name="email" class="input input-bordered" required>
-                {% if form.email.errors %}<div class="text-error text-sm mt-1">{{ form.email.errors }}</div>{% endif %}
-            </label>
-            <label class="form-control">
-                <div class="label">
-                    <span class="label-text">{% trans "Password" %}</span>
-                </div>
-                <input type="password"
-                       name="password1"
-                       class="input input-bordered"
-                       required>
-                {% if form.password1.errors %}<div class="text-error text-sm mt-1">{{ form.password1.errors }}</div>{% endif %}
-            </label>
-            <label class="form-control">
-                <div class="label">
-                    <span class="label-text">{% trans "Confirm Password" %}</span>
-                </div>
-                <input type="password"
-                       name="password2"
-                       class="input input-bordered"
-                       required>
-                {% if form.password2.errors %}<div class="text-error text-sm mt-1">{{ form.password2.errors }}</div>{% endif %}
-            </label>
-            {% if redirect_field_value %}
-                <input type="hidden"
-                       name="{{ redirect_field_name }}"
-                       value="{{ redirect_field_value }}" />
-            {% endif %}
-            <button class="btn btn-primary" type="submit">{% trans "Create Account" %}</button>
-        </form>
-    </div>
+  <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-md min-w-[400px]">
+    <h1 class="text-3xl font-bold self-center">Create an account</h1>
+    <span class="self-center">
+      Already have an account?
+      <a class="link link-secondary" href="{% url 'account_login' %}">Log in</a>
+    </span>
+    <form method="post"
+          action="{% url 'account_signup' %}"
+          class="flex flex-col gap-4">
+      {% csrf_token %}
+      {{ redirect_field }}
+      {% if form.errors %}
+        <div class="alert alert-error">
+          {% for field, errors in form.errors.items %}
+            {% for error in errors %}<span>{{ field }}: {{ error }}</span>{% endfor %}
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if form.non_field_errors %}
+        <div class="alert alert-error">
+          {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+        </div>
+      {% endif %}
+      <label class="form-control">
+        <div class="label">
+          <span class="label-text">{% trans "Email" %}</span>
+        </div>
+        <input type="email" name="email" class="input input-bordered" required>
+        {% if form.email.errors %}<div class="text-error text-sm mt-1">{{ form.email.errors }}</div>{% endif %}
+      </label>
+      <label class="form-control">
+        <div class="label">
+          <span class="label-text">{% trans "Password" %}</span>
+        </div>
+        <input type="password"
+               name="password1"
+               class="input input-bordered"
+               required>
+        {% if form.password1.errors %}<div class="text-error text-sm mt-1">{{ form.password1.errors }}</div>{% endif %}
+      </label>
+      <label class="form-control">
+        <div class="label">
+          <span class="label-text">{% trans "Confirm Password" %}</span>
+        </div>
+        <input type="password"
+               name="password2"
+               class="input input-bordered"
+               required>
+        {% if form.password2.errors %}<div class="text-error text-sm mt-1">{{ form.password2.errors }}</div>{% endif %}
+      </label>
+      {% if redirect_field_value %}
+        <input type="hidden"
+               name="{{ redirect_field_name }}"
+               value="{{ redirect_field_value }}" />
+      {% endif %}
+      <button class="btn btn-primary" type="submit">{% trans "Create Account" %}</button>
+    </form>
+  </div>
 {% endblock content %}

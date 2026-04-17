@@ -1,25 +1,25 @@
 {% extends "_base.html" %}
 {% block layout %}
-    <div class="antialiased bg-100">
-        <!-- Navbar -->
-        <header class="max-w-7xl mx-auto">
-            <c-navbar></c-navbar>
-        </header>
-        <!-- Sidebar -->
-        {% comment %} {% include "components/sidebar.html" %} {% endcomment %}
-        <main id="main-content" class="container px-4 py-8 max-w-7xl mx-auto flex flex-col gap-4 lg:gap-6">
-            {% block content %}
-            {% endblock content %}
-        </main>
-
-        <div class="max-w-7xl mx-auto pt-20">
-            <c-footer/>
-        </div>
+  <div class="antialiased bg-100">
+    <!-- Navbar -->
+    <header class="max-w-7xl mx-auto">
+      <c-navbar></c-navbar>
+    </header>
+    <!-- Sidebar -->
+    {% comment %} {% include "components/sidebar.html" %} {% endcomment %}
+    <main id="main-content"
+          class="container px-4 py-8 max-w-7xl mx-auto flex flex-col gap-4 lg:gap-6">
+      {% block content %}
+      {% endblock content %}
+    </main>
+    <div class="max-w-7xl mx-auto pt-20">
+      <c-footer />
     </div>
+  </div>
 {% endblock layout %}
 {% block extra_js %}
-    {% block component_js %}
-    {% endblock component_js %}
-    {% block page_js %}
-    {% endblock page_js %}
+  {% block component_js %}
+  {% endblock component_js %}
+  {% block page_js %}
+  {% endblock page_js %}
 {% endblock extra_js %}
