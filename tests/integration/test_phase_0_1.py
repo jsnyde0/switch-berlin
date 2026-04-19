@@ -108,9 +108,7 @@ def test_raw_message_create():
     """RawMessage round-trips with JSON payload."""
     from ingestion.models import RawMessage
 
-    RawMessage(
-        source_type="telegram_bot_forward", raw_payload={"text": "hello"}
-    ).save()
+    RawMessage(source_type="telegram_bot_forward", raw_payload={"text": "hello"}).save()
     fetched = RawMessage.objects.get(raw_payload__text="hello")
     assert fetched.source_type == "telegram_bot_forward"
     assert fetched.extraction_status == "pending"
@@ -216,9 +214,7 @@ def test_review_xor_both_raises():
     )
     with pytest.raises(IntegrityError):
         with transaction.atomic():
-            Review.objects.create(
-                author=user, organizer=org, event=event, rating=3
-            )
+            Review.objects.create(author=user, organizer=org, event=event, rating=3)
 
 
 @pytest.mark.django_db
@@ -373,8 +369,11 @@ def test_raw_message_extracted_events_reverse():
     )
     org = Organizer.objects.create(name="Reverse Org", slug="reverse-org-rt")
     Event.objects.create(
-        organizer=org, slug="from-rm", title="From RM",
-        start=tz.now(), raw_message=rm,
+        organizer=org,
+        slug="from-rm",
+        title="From RM",
+        start=tz.now(),
+        raw_message=rm,
     )
     assert rm.extracted_events.count() == 1
     assert rm.extracted_events.first().slug == "from-rm"

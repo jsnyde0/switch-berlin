@@ -41,8 +41,12 @@ class HeartbeatLogAdmin(admin.ModelAdmin):
 @admin.register(ExtractionAttempt)
 class ExtractionAttemptAdmin(admin.ModelAdmin):
     list_display = [
-        "raw_message", "attempted_at", "model_name", "prompt_version",
-        "confidence_score", "success",
+        "raw_message",
+        "attempted_at",
+        "model_name",
+        "prompt_version",
+        "confidence_score",
+        "success",
     ]
     list_filter = ["success", "model_name", "prompt_version"]
     search_fields = ["raw_message__text", "error"]

@@ -95,10 +95,13 @@ class TestEnrichUrlsSkipsUnsafe:
         mock_resp.text = "<html><body><h1>Hello</h1></body></html>"
         mock_resp.status_code = 200
 
-        with patch(
-            "socket.getaddrinfo",
-            return_value=self._make_addrinfo("93.184.216.34"),
-        ), patch("ingestion.enrichment.httpx.get", return_value=mock_resp):
+        with (
+            patch(
+                "socket.getaddrinfo",
+                return_value=self._make_addrinfo("93.184.216.34"),
+            ),
+            patch("ingestion.enrichment.httpx.get", return_value=mock_resp),
+        ):
             result = enrich_urls("See https://example.com/ for details")
         assert "Hello" in result["url_content"]
 
@@ -110,17 +113,12 @@ class TestEnrichUrlsSkipsUnsafe:
 
         def fake_getaddrinfo(host, port, *args, **kwargs):
             if "internal" in host:
-                return [
-                    (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 80))
-                ]
-            return [
-                (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 80))
-            ]
+                return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 80))]
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 80))]
 
-        with patch("socket.getaddrinfo", side_effect=fake_getaddrinfo), patch(
-            "ingestion.enrichment.httpx.get", return_value=mock_resp
+        with (
+            patch("socket.getaddrinfo", side_effect=fake_getaddrinfo),
+            patch("ingestion.enrichment.httpx.get", return_value=mock_resp),
         ):
-            result = enrich_urls(
-                "Bad http://internal/secret Good https://example.com/"
-            )
+            result = enrich_urls("Bad http://internal/secret Good https://example.com/")
         assert "Public page" in result["url_content"]

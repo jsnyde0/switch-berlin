@@ -77,9 +77,7 @@ class RawMessageDedupConstraintTest(TestCase):
             message_id="",
             raw_payload={"n": 2},
         )
-        self.assertEqual(
-            RawMessage.objects.filter(channel_id="chan1").count(), 2
-        )
+        self.assertEqual(RawMessage.objects.filter(channel_id="chan1").count(), 2)
 
 
 class ExtractionAttemptModelTest(TestCase):

@@ -38,8 +38,13 @@ class EnrichUrlsTest(TestCase):
             mock_resp.status_code = 200
             return mock_resp
 
-        # All three calls are inside the patch -- no real HTTP requests made
-        with patch("ingestion.enrichment.httpx.get", side_effect=selective_get):
+        # All three calls are inside the patch -- no real HTTP requests made.
+        # Bypass SSRF guard: the test fixtures are synthetic hostnames whose
+        # DNS resolution is environment-dependent.
+        with (
+            patch("ingestion.enrichment.httpx.get", side_effect=selective_get),
+            patch("ingestion.enrichment._is_safe_url", return_value=True),
+        ):
             result = enrich_urls(
                 "Visit https://site1.com and https://site2.com and https://site3.com"
             )
@@ -276,9 +281,7 @@ class ProcessRawMessageTest(TestCase):
             with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
                 process_raw_message(raw.id)
         self.assertTrue(
-            SourceFailure.objects.filter(
-                raw_message=raw, stage="extraction"
-            ).exists()
+            SourceFailure.objects.filter(raw_message=raw, stage="extraction").exists()
         )
         sf = SourceFailure.objects.get(raw_message=raw, stage="extraction")
         self.assertIn("LLM boom", sf.error_message)
@@ -310,9 +313,7 @@ class ProcessRawMessageTest(TestCase):
             ):
                 process_raw_message(raw.id)
         self.assertTrue(
-            SourceFailure.objects.filter(
-                raw_message=raw, stage="enrichment"
-            ).exists()
+            SourceFailure.objects.filter(raw_message=raw, stage="enrichment").exists()
         )
 
     def test_rawmessage_does_not_exist_logs_and_returns(self):

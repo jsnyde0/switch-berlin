@@ -14,17 +14,17 @@ User = get_user_model()
 class EventAdminTest(TestCase):
     def setUp(self):
         self.superuser = User.objects.create_superuser(
-            username='admin', email='admin@example.com', password='password'
+            username="admin", email="admin@example.com", password="password"
         )
         self.client.force_login(self.superuser)
         self.organizer = Organizer.objects.create(
-            name='Test Org', slug='test-org-admin'
+            name="Test Org", slug="test-org-admin"
         )
 
-    def _make_event(self, status='draft', **kwargs):
+    def _make_event(self, status="draft", **kwargs):
         defaults = dict(
-            title='Test Event',
-            slug='test-event-admin',
+            title="Test Event",
+            slug="test-event-admin",
             organizer=self.organizer,
             start=timezone.now() + timedelta(days=1),
             status=status,
@@ -32,27 +32,27 @@ class EventAdminTest(TestCase):
         defaults.update(kwargs)
         return Event.objects.create(**defaults)
 
-    def _event_post_data(self, event, status='published'):
+    def _event_post_data(self, event, status="published"):
         return {
-            'title': event.title,
-            'slug': event.slug,
-            'status': status,
-            'start_0': event.start.strftime('%Y-%m-%d'),
-            'start_1': event.start.strftime('%H:%M:%S'),
-            'currency': event.currency,
-            'images-TOTAL_FORMS': '0',
-            'images-INITIAL_FORMS': '0',
-            'images-MIN_NUM_FORMS': '0',
-            'images-MAX_NUM_FORMS': '1000',
-            '_save': 'Save',
+            "title": event.title,
+            "slug": event.slug,
+            "status": status,
+            "start_0": event.start.strftime("%Y-%m-%d"),
+            "start_1": event.start.strftime("%H:%M:%S"),
+            "currency": event.currency,
+            "images-TOTAL_FORMS": "0",
+            "images-INITIAL_FORMS": "0",
+            "images-MIN_NUM_FORMS": "0",
+            "images-MAX_NUM_FORMS": "1000",
+            "_save": "Save",
         }
 
     def test_event_changelist_defaults_to_draft_filter(self):
-        draft_event = self._make_event(status='draft')
+        draft_event = self._make_event(status="draft")
         published_event = self._make_event(
-            status='published', slug='pub-event-admin', title='Published Event Only'
+            status="published", slug="pub-event-admin", title="Published Event Only"
         )
-        response = self.client.get('/admin/events/event/')
+        response = self.client.get("/admin/events/event/")
         self.assertEqual(response.status_code, 200)
         # Draft event should be in results; published should not
         self.assertContains(response, draft_event.title)
@@ -60,73 +60,72 @@ class EventAdminTest(TestCase):
 
     def test_change_form_includes_extraction_data(self):
         raw = RawMessage.objects.create(
-            source_type='telegram_bot_forward', raw_payload={}, sender_id='123'
+            source_type="telegram_bot_forward", raw_payload={}, sender_id="123"
         )
         event = self._make_event(raw_message=raw)
         ExtractionAttempt.objects.create(
             raw_message=raw,
             event=event,
-            model_name='claude-opus-4-7',
-            prompt_version='v1',
-            raw_response={'title': 'Test'},
-            extracted_draft={'title': 'Test', 'confidence': 0.9},
+            model_name="claude-opus-4-7",
+            prompt_version="v1",
+            raw_response={"title": "Test"},
+            extracted_draft={"title": "Test", "confidence": 0.9},
             confidence_score=0.9,
             success=True,
         )
-        response = self.client.get(f'/admin/events/event/{event.id}/change/')
+        response = self.client.get(f"/admin/events/event/{event.id}/change/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'extracted-draft-data', response.content)
+        self.assertIn(b"extracted-draft-data", response.content)
 
     def test_consent_captured_on_first_publish(self):
         self.organizer.consent_recorded_at = None
         self.organizer.save()
-        event = self._make_event(status='draft')
-        post_data = self._event_post_data(event, status='published')
-        post_data['organizer'] = self.organizer.pk
+        event = self._make_event(status="draft")
+        post_data = self._event_post_data(event, status="published")
+        post_data["organizer"] = self.organizer.pk
         self.client.post(
-            f'/admin/events/event/{event.id}/change/',
+            f"/admin/events/event/{event.id}/change/",
             data=post_data,
             follow=True,
         )
         self.organizer.refresh_from_db()
         self.assertIsNotNone(self.organizer.consent_recorded_at)
-        self.assertEqual(self.organizer.consent_method, 'telegram_forward_implied')
+        self.assertEqual(self.organizer.consent_method, "telegram_forward_implied")
 
     def test_bulk_publish_captures_consent(self):
         """Bulk publish action should capture consent for organizer's first event."""
         self.organizer.consent_recorded_at = None
         self.organizer.save()
-        event = self._make_event(status='draft')
+        event = self._make_event(status="draft")
         self.client.post(
-            '/admin/events/event/',
+            "/admin/events/event/",
             data={
-                'action': 'publish_events',
-                '_selected_action': [str(event.pk)],
-                'select_across': '0',
-                'index': '0',
+                "action": "publish_events",
+                "_selected_action": [str(event.pk)],
+                "select_across": "0",
+                "index": "0",
             },
         )
         self.organizer.refresh_from_db()
         self.assertIsNotNone(self.organizer.consent_recorded_at)
-        self.assertEqual(self.organizer.consent_method, 'telegram_forward_implied')
+        self.assertEqual(self.organizer.consent_method, "telegram_forward_implied")
 
     def test_consent_not_overwritten_on_second_publish(self):
         original_time = timezone.now() - timedelta(days=10)
         self.organizer.consent_recorded_at = original_time
-        self.organizer.consent_method = 'explicit_opt_in'
+        self.organizer.consent_method = "explicit_opt_in"
         self.organizer.save()
-        event = self._make_event(status='draft')
-        post_data = self._event_post_data(event, status='published')
-        post_data['organizer'] = self.organizer.pk
+        event = self._make_event(status="draft")
+        post_data = self._event_post_data(event, status="published")
+        post_data["organizer"] = self.organizer.pk
         self.client.post(
-            f'/admin/events/event/{event.id}/change/',
+            f"/admin/events/event/{event.id}/change/",
             data=post_data,
             follow=True,
         )
         self.organizer.refresh_from_db()
         # consent_recorded_at should not have changed (already set)
         self.assertEqual(
-            self.organizer.consent_recorded_at.date(),
-            original_time.date()
+            self.organizer.consent_recorded_at.date(), original_time.date()
         )
-        self.assertEqual(self.organizer.consent_method, 'explicit_opt_in')
+        self.assertEqual(self.organizer.consent_method, "explicit_opt_in")
