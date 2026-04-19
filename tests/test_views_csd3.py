@@ -23,6 +23,7 @@ def approved_user(db):
         email="viewer@example.com",
         password="password",
         is_approved=True,
+        is_staff=True,
     )
     return user
 

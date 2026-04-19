@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n event_tags %}
 <div class="card bg-base-200 shadow-sm hover:shadow-md transition-shadow">
   <div class="card-body p-4 gap-2">
     <h2 class="card-title text-base">
@@ -20,7 +20,7 @@
         <span class="badge badge-success badge-sm">{% trans "Free" %}</span>
       {% elif event.price_min_cents %}
         <span class="badge badge-neutral badge-sm">
-          {{ event.currency }} {{ event.price_min_cents }}+
+          {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
         </span>
       {% endif %}
     </div>

@@ -1,5 +1,5 @@
 {% extends "_base.html" %}
-{% load i18n %}
+{% load i18n event_tags %}
 
 {% block title %}{{ event.title }} — Kinky Bubbles{% endblock title %}
 
@@ -38,8 +38,8 @@
       {% if event.is_free %}
         {% trans "Free" %}
       {% elif event.price_min_cents %}
-        {{ event.currency }} {{ event.price_min_cents }}
-        {% if event.price_max_cents %} – {{ event.price_max_cents }}{% endif %}
+        {{ event.currency }} {{ event.price_min_cents|cents_to_display }}
+        {% if event.price_max_cents %} – {{ event.price_max_cents|cents_to_display }}{% endif %}
         {% if event.sliding_scale %} ({% trans "sliding scale" %}){% endif %}
       {% else %}
         {% trans "See event page" %}
@@ -68,7 +68,8 @@
     {% if event.tickets_url %}
       <a href="{{ event.tickets_url }}" target="_blank" rel="noopener noreferrer"
          class="btn btn-primary btn-sm">{% trans "Get tickets" %}</a>
-    {% elif event.external_url %}
+    {% endif %}
+    {% if event.external_url %}
       <a href="{{ event.external_url }}" target="_blank" rel="noopener noreferrer"
          class="btn btn-outline btn-sm">{% trans "More info" %}</a>
     {% endif %}

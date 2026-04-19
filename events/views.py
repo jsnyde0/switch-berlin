@@ -2,7 +2,8 @@ import time
 import urllib.parse
 
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, render
+from django.http import Http404
+from django.shortcuts import render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
@@ -22,6 +23,7 @@ def event_list(request):
     # Filter: tags (OR semantics, comma-separated slugs)
     tags_param = request.GET.get("tags", "")
     tag_slugs = [s.strip() for s in tags_param.split(",") if s.strip()]
+    valid_slugs: list[str] = []
     if tag_slugs:
         valid_slugs = list(
             Tag.objects.filter(slug__in=tag_slugs).values_list("slug", flat=True)
@@ -66,8 +68,8 @@ def event_list(request):
 
     # Build filter query string for pagination links (excludes 'page' param)
     filter_params = {}
-    if tag_slugs:
-        filter_params["tags"] = ",".join(tag_slugs)
+    if valid_slugs:
+        filter_params["tags"] = ",".join(valid_slugs)
     if from_param:
         filter_params["from"] = from_param
     if to_param:
@@ -81,7 +83,7 @@ def event_list(request):
     context = {
         "page_obj": page_obj,
         "all_tags": all_tags,
-        "active_tag_slugs": tag_slugs,
+        "active_tag_slugs": valid_slugs,
         "from_param": from_param,
         "to_param": to_param,
         "organizer_param": organizer_param,
@@ -98,13 +100,19 @@ def event_list(request):
 
 
 def event_detail(request, slug):
-    event = get_object_or_404(
-        Event.objects.select_related("organizer", "venue")
-        .prefetch_related("tags", "images"),
-        slug=slug,
-        status="published",
+    # NOTE: Event.slug is unique per-organizer only (organizer+slug UniqueConstraint).
+    # Two organizers sharing a slug returns the first match. Revise URL scheme at 0.4
+    # to include organizer slug and make it globally unique.
+    qs = (
+        Event.objects.filter(slug=slug, status="published")
+        .select_related("organizer", "venue")
+        .prefetch_related("tags", "images")
     )
-    cover_image = event.images.filter(is_cover=True).first()
+    event = qs.first()
+    if event is None:
+        raise Http404
+    # Use generator over prefetch cache — avoids a second DB query from .filter()
+    cover_image = next((img for img in event.images.all() if img.is_cover), None)
     context = {
         "event": event,
         "cover_image": cover_image,

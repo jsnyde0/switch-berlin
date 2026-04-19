@@ -16,8 +16,7 @@
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
     {% vite_hmr_client %}
     {% vite_asset 'src/app.css' %}
-    {% django_htmx_script %}
-    <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+    {% htmx_script %}
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     {% block extra_head %}
     {% endblock extra_head %}

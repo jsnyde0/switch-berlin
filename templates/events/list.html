@@ -11,7 +11,7 @@
         hx-get="{% url 'event-list' %}"
         hx-target="#event-list-container"
         hx-push-url="true"
-        hx-trigger="change">
+        hx-trigger="submit">
     <c-filter-chips
       :all_tags="all_tags"
       :active_tag_slugs="active_tag_slugs"

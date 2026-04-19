@@ -1,7 +1,11 @@
 """Accounts middleware for kinky-bubbles."""
+import urllib.parse
+
 from django.conf import settings
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
+
+_ROBOTS_TAG = "noindex, nofollow, noarchive"
 
 
 class LoginWallMiddleware:
@@ -13,7 +17,10 @@ class LoginWallMiddleware:
     Kill-switch: LOGIN_WALL_ENABLED=False in settings bypasses the wall.
     """
 
-    PUBLIC_PATHS = {"/accounts/login/", "/accounts/logout/", "/healthz", "/robots.txt"}
+    # Prefix matching so all allauth sub-paths (password reset, email confirm, etc.)
+    # are reachable without authentication. Using /accounts/ as prefix is safe because
+    # allauth handles its own authorization internally.
+    PUBLIC_PREFIXES = ("/accounts/", "/healthz", "/robots.txt")
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -21,12 +28,18 @@ class LoginWallMiddleware:
     def __call__(self, request):
         if not getattr(settings, "LOGIN_WALL_ENABLED", True):
             response = self.get_response(request)
-            response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+            response["X-Robots-Tag"] = _ROBOTS_TAG
             return response
-        if request.path not in self.PUBLIC_PATHS and not request.user.is_authenticated:
-            return redirect(f"/accounts/login/?next={request.path}")
+        if not any(request.path.startswith(p) for p in self.PUBLIC_PREFIXES):
+            if not request.user.is_authenticated:
+                next_url = urllib.parse.quote(request.get_full_path(), safe="/")
+                response = redirect(f"/accounts/login/?next={next_url}")
+                response["X-Robots-Tag"] = _ROBOTS_TAG
+                return response
         if request.user.is_authenticated and not request.user.is_staff:
-            return HttpResponseForbidden("Not available yet.")
+            response = HttpResponseForbidden("Not available yet.")
+            response["X-Robots-Tag"] = _ROBOTS_TAG
+            return response
         response = self.get_response(request)
-        response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        response["X-Robots-Tag"] = _ROBOTS_TAG
         return response

@@ -1,7 +1,8 @@
 {% load i18n %}
+{{ active_tag_slugs|json_script:"active-tag-slugs-data" }}
 <div class="flex flex-wrap gap-2 items-center"
      x-data="{
-       activeTags: {{ active_tag_slugs|default:'[]'|safe }},
+       activeTags: JSON.parse(document.getElementById('active-tag-slugs-data').textContent),
        toggle(slug) {
          const i = this.activeTags.indexOf(slug);
          if (i >= 0) { this.activeTags.splice(i, 1); }
@@ -19,6 +20,10 @@
   {# Hidden input carries final tag list to form submission #}
   <input type="hidden" name="tags" :value="activeTags.join(',')">
 
+  {% if organizer_param %}
+    <input type="hidden" name="organizer" value="{{ organizer_param }}">
+  {% endif %}
+
   {% if price_param == "free" %}
     <button type="submit" name="price" value="" class="badge badge-primary cursor-pointer">
       {% trans "Free" %} ×
@@ -31,8 +36,10 @@
 
   <input type="date" name="from" value="{{ from_param }}"
          class="input input-sm input-bordered"
-         placeholder="{% trans "From" %}">
+         placeholder="{% trans "From" %}"
+         @change="$el.closest('form').requestSubmit()">
   <input type="date" name="to" value="{{ to_param }}"
          class="input input-sm input-bordered"
-         placeholder="{% trans "To" %}">
+         placeholder="{% trans "To" %}"
+         @change="$el.closest('form').requestSubmit()">
 </div>

@@ -1,8 +1,6 @@
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
-from events.models import Event
-
 from .models import Organizer
 
 
@@ -11,22 +9,20 @@ def organizer_profile(request, slug):
     now = timezone.now()
 
     upcoming_events = (
-        Event.objects.filter(
-            organizer=organizer,
+        organizer.event_set.filter(
             status="published",
             start__gte=now,
         )
-        .select_related("venue")
+        .select_related("organizer", "venue")
         .prefetch_related("tags")
-        .order_by("start")
+        .order_by("start")[:50]
     )
     past_events = (
-        Event.objects.filter(
-            organizer=organizer,
+        organizer.event_set.filter(
             status="published",
             start__lt=now,
         )
-        .select_related("venue")
+        .select_related("organizer", "venue")
         .prefetch_related("tags")
         .order_by("-start")[:20]
     )
