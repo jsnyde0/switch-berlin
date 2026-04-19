@@ -12,7 +12,6 @@ from ingestion.models import ApprovedSender, ExtractionAttempt, RawMessage
 from ingestion.schemas import EventDraft
 from ingestion.tasks import process_raw_message
 from organizers.models import Organizer
-from venues.models import Venue
 
 User = get_user_model()
 
@@ -65,7 +64,8 @@ class FullIngestionLoopTest(TestCase):
         }
 
     def test_full_ingestion_loop(self):
-        """Happy path: bot forward -> RawMessage -> process task -> draft Event -> admin publish."""
+        """Happy path: bot forward -> RawMessage -> process task
+        -> draft Event -> admin publish."""
         update = make_update(user_id=123456789, message_id=42, text='Test event text')
         context = MagicMock()
 
@@ -157,6 +157,7 @@ class FullIngestionLoopTest(TestCase):
     def test_partial_url_enrichment_proceeds_to_extraction(self):
         """One URL times out, enrichment continues with remaining URLs."""
         import httpx as _httpx
+
         from ingestion.enrichment import enrich_urls
 
         call_count = [0]
@@ -218,7 +219,7 @@ class FullIngestionLoopTest(TestCase):
 
     def test_tag_matching_splits_into_matched_and_suggested(self):
         """Known tags go to M2M, unknown tags go to suggested_tags JSONField."""
-        tag = Tag.objects.create(slug='queer', label='Queer', kind='identity')
+        Tag.objects.create(slug='queer', label='Queer', kind='identity')
         raw = RawMessage.objects.create(
             source_type='telegram_bot_forward', raw_payload={}, sender_id='111'
         )
@@ -240,7 +241,8 @@ class FullIngestionLoopTest(TestCase):
         self.assertIn('fetish', event.suggested_tags)
 
     def test_archive_past_events_task(self):
-        """archive_past_events archives published events older than 24h, leaves drafts."""
+        """archive_past_events archives published events older
+        than 24h, leaves drafts."""
         from ingestion.tasks import archive_past_events
         now = timezone.now()
         # Should archive: published, end=25h ago
@@ -277,7 +279,8 @@ class FullIngestionLoopTest(TestCase):
         self.assertEqual(e4.status, 'archived')
 
     def test_soft_purge_preserves_row_clears_pii(self):
-        """soft_purge_rawmessages clears text/payloads but preserves row and audit trail."""
+        """soft_purge clears text/payloads but preserves row
+        and audit trail."""
         from ingestion.tasks import soft_purge_rawmessages
         raw = RawMessage.objects.create(
             source_type='telegram_bot_forward',
