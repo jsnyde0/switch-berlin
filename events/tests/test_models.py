@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.utils import timezone
 
-from .models import Event
+from events.models import Event
 
 
 class EventOrganizerNullableTest(TestCase):

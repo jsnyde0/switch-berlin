@@ -1,0 +1,38 @@
+{% extends "admin/change_form.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div style="display: flex; gap: 2rem; align-items: flex-start;">
+  <!-- Left column: raw source data -->
+  <div style="flex: 1; min-width: 300px; max-width: 400px;">
+    <h2>{% trans "Source data" %}</h2>
+    {% if original.raw_message %}
+      <h3>{% trans "Raw text" %}</h3>
+      <pre style="white-space: pre-wrap; background: #f8f8f8; padding: 1rem; max-height: 400px; overflow: auto; font-size: 0.85em;">{{ original.raw_message.text }}</pre>
+      {% if confidence_score is not None %}
+        <p><strong>{% trans "Extraction confidence" %}:</strong> {{ confidence_score|floatformat:2 }}</p>
+      {% endif %}
+      {% if extracted_draft_json %}
+        <script id="extracted-draft-data" type="application/json">{{ extracted_draft_json }}</script>
+        <button type="button" id="apply-draft-btn" class="button">
+          {% trans "Apply draft values to form" %}
+        </button>
+      {% endif %}
+    {% else %}
+      <p>{% trans "No raw message linked." %}</p>
+    {% endif %}
+  </div>
+
+  <!-- Right column: standard Django admin form -->
+  <div style="flex: 2;">
+    {{ block.super }}
+  </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+{% if extracted_draft_json %}
+  <script src="{% static 'admin/js/event_draft.js' %}"></script>
+{% endif %}
+{% endblock %}

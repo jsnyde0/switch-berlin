@@ -20,6 +20,7 @@ class EventAdmin(admin.ModelAdmin):
         "updated_at",
         "published_at",
         "raw_message_preview",
+        "suggested_tags_display",
     ]
     actions = ["publish_events", "reject_events", "archive_events"]
 
@@ -48,6 +49,59 @@ class EventAdmin(admin.ModelAdmin):
         )
 
     raw_message_preview.short_description = _("Raw message")
+
+    def suggested_tags_display(self, obj):
+        return ', '.join(obj.suggested_tags) if obj.suggested_tags else '\u2014'
+    suggested_tags_display.short_description = _('Suggested tags (unmatched)')
+
+    def changelist_view(self, request, extra_context=None):
+        if 'status__exact' not in request.GET:
+            q = request.GET.copy()
+            q['status__exact'] = 'draft'
+            request.GET = q
+            request.META['QUERY_STRING'] = request.GET.urlencode()
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        import json  # noqa: PLC0415
+
+        from ingestion.models import ExtractionAttempt  # noqa: PLC0415
+
+        extra_context = extra_context or {}
+        attempts = ExtractionAttempt.objects.filter(
+            event_id=object_id
+        ).order_by('-attempted_at')
+        extra_context['extraction_attempts'] = attempts
+        if attempts.exists():
+            latest = attempts.first()
+            extra_context['extracted_draft_json'] = json.dumps(latest.extracted_draft)
+            extra_context['confidence_score'] = latest.confidence_score
+        return super().change_view(
+            request, object_id, form_url, extra_context=extra_context
+        )
+
+    def save_model(self, request, obj, form, change):
+        from django.utils import timezone  # noqa: PLC0415
+
+        old_status = (
+            obj.__class__.objects.filter(pk=obj.pk)
+            .values_list('status', flat=True)
+            .first()
+            if obj.pk else None
+        )
+        super().save_model(request, obj, form, change)
+        if (obj.status == 'published'
+                and old_status != 'published'
+                and obj.organizer
+                and not obj.organizer.consent_recorded_at):
+            obj.organizer.consent_recorded_at = timezone.now()
+            obj.organizer.consent_method = 'telegram_forward_implied'
+            obj.organizer.consent_notes = (
+                f'First event approved by {request.user} on {timezone.now().date()}'
+            )
+            obj.organizer.save(
+                update_fields=['consent_recorded_at', 'consent_method', 'consent_notes']
+            )
 
     @admin.action(description=_("Publish selected events"))
     def publish_events(self, request, queryset):
