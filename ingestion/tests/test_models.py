@@ -1,7 +1,7 @@
 from django.db import IntegrityError
 from django.test import TestCase
 
-from .models import ApprovedSender, ExtractionAttempt, RawMessage
+from ingestion.models import ApprovedSender, ExtractionAttempt, RawMessage
 
 
 class RawMessageNeedsReviewChoiceTest(TestCase):

@@ -17,6 +17,17 @@ services:
       db:
         condition: service_healthy
 
+  bot:
+    image: kinky-bubbles-app
+    entrypoint: ["python", "manage.py", "run_bot"]
+    depends_on:
+      app:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+
   db:
     image: pgvector/pgvector:pg17
     environment:
