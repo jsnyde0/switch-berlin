@@ -1,0 +1,28 @@
+{% load i18n %}
+<div class="card bg-base-200 shadow-sm hover:shadow-md transition-shadow">
+  <div class="card-body p-4 gap-2">
+    <h2 class="card-title text-base">
+      <a href="{% url 'event-detail' slug=event.slug %}" class="hover:underline">
+        {{ event.title }}
+      </a>
+    </h2>
+    {% if event.organizer %}
+    <p class="text-sm text-base-content/70">
+      <a href="{% url 'organizer-profile' slug=event.organizer.slug %}" class="hover:underline">
+        {{ event.organizer.name }}
+      </a>
+    </p>
+    {% endif %}
+    <p class="text-sm">{{ event.start|date:"D, d M Y, H:i" }}</p>
+    {% if event.venue %}<p class="text-xs text-base-content/60">{{ event.venue.name }}</p>{% endif %}
+    <div class="card-actions justify-end">
+      {% if event.is_free %}
+        <span class="badge badge-success badge-sm">{% trans "Free" %}</span>
+      {% elif event.price_min_cents %}
+        <span class="badge badge-neutral badge-sm">
+          {{ event.currency }} {{ event.price_min_cents }}+
+        </span>
+      {% endif %}
+    </div>
+  </div>
+</div>

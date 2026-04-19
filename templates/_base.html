@@ -22,7 +22,8 @@
     {% block extra_head %}
     {% endblock extra_head %}
   </head>
-  <body class="bg-base-100 text-base-content">
+  <body class="bg-base-100 text-base-content"
+        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <div class="container mx-auto mt-4">
       {% block layout %}
       {% endblock layout %}

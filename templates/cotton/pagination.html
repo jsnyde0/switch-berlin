@@ -1,0 +1,42 @@
+{% load i18n %}
+{% if page_obj.has_other_pages %}
+<div class="join mt-4">
+  {% if page_obj.has_previous %}
+    {% if filter_query_string %}
+      <a href="?{{ filter_query_string }}&page={{ page_obj.previous_page_number }}"
+         class="join-item btn btn-sm"
+         hx-get="?{{ filter_query_string }}&page={{ page_obj.previous_page_number }}"
+         hx-target="#event-list-container"
+         hx-push-url="true">‹</a>
+    {% else %}
+      <a href="?page={{ page_obj.previous_page_number }}"
+         class="join-item btn btn-sm"
+         hx-get="?page={{ page_obj.previous_page_number }}"
+         hx-target="#event-list-container"
+         hx-push-url="true">‹</a>
+    {% endif %}
+  {% endif %}
+
+  <span class="join-item btn btn-sm btn-disabled">
+    {% blocktrans with num=page_obj.number total=page_obj.paginator.num_pages %}
+      Page {{ num }} of {{ total }}
+    {% endblocktrans %}
+  </span>
+
+  {% if page_obj.has_next %}
+    {% if filter_query_string %}
+      <a href="?{{ filter_query_string }}&page={{ page_obj.next_page_number }}"
+         class="join-item btn btn-sm"
+         hx-get="?{{ filter_query_string }}&page={{ page_obj.next_page_number }}"
+         hx-target="#event-list-container"
+         hx-push-url="true">›</a>
+    {% else %}
+      <a href="?page={{ page_obj.next_page_number }}"
+         class="join-item btn btn-sm"
+         hx-get="?page={{ page_obj.next_page_number }}"
+         hx-target="#event-list-container"
+         hx-push-url="true">›</a>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}

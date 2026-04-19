@@ -1,0 +1,38 @@
+{% load i18n %}
+<div class="flex flex-wrap gap-2 items-center"
+     x-data="{
+       activeTags: {{ active_tag_slugs|default:'[]'|safe }},
+       toggle(slug) {
+         const i = this.activeTags.indexOf(slug);
+         if (i >= 0) { this.activeTags.splice(i, 1); }
+         else { this.activeTags.push(slug); }
+       }
+     }">
+  {% for tag in all_tags %}
+    <button type="button"
+            @click="toggle('{{ tag.slug }}'); $el.closest('form').requestSubmit()"
+            :class="activeTags.includes('{{ tag.slug }}') ? 'badge badge-primary cursor-pointer' : 'badge badge-outline cursor-pointer'">
+      {{ tag.label }} <span x-show="activeTags.includes('{{ tag.slug }}')">×</span>
+    </button>
+  {% endfor %}
+
+  {# Hidden input carries final tag list to form submission #}
+  <input type="hidden" name="tags" :value="activeTags.join(',')">
+
+  {% if price_param == "free" %}
+    <button type="submit" name="price" value="" class="badge badge-primary cursor-pointer">
+      {% trans "Free" %} ×
+    </button>
+  {% else %}
+    <button type="submit" name="price" value="free" class="badge badge-outline cursor-pointer">
+      {% trans "Free" %}
+    </button>
+  {% endif %}
+
+  <input type="date" name="from" value="{{ from_param }}"
+         class="input input-sm input-bordered"
+         placeholder="{% trans "From" %}">
+  <input type="date" name="to" value="{{ to_param }}"
+         class="input input-sm input-bordered"
+         placeholder="{% trans "To" %}">
+</div>

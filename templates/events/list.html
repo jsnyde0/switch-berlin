@@ -1,0 +1,41 @@
+{% extends "_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Events" %} — Kinky Bubbles{% endblock title %}
+
+{% block layout %}
+<div class="flex flex-col gap-6">
+  <h1 class="text-2xl font-bold">{% trans "Events" %}</h1>
+
+  <form id="filter-form"
+        hx-get="{% url 'event-list' %}"
+        hx-target="#event-list-container"
+        hx-push-url="true"
+        hx-trigger="change">
+    <c-filter-chips
+      :all_tags="all_tags"
+      :active_tag_slugs="active_tag_slugs"
+      :from_param="from_param"
+      :to_param="to_param"
+      :organizer_param="organizer_param"
+      :price_param="price_param"
+    />
+  </form>
+
+  <div id="event-list-container">
+    {% partialdef event_list inline %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for event in page_obj %}
+        <c-event-card
+          :event="event"
+        />
+      {% empty %}
+        <p class="col-span-full text-base-content/60">{% trans "No events found." %}</p>
+      {% endfor %}
+    </div>
+
+    <c-pagination :page_obj="page_obj" />
+    {% endpartialdef %}
+  </div>
+</div>
+{% endblock layout %}
