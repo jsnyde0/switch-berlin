@@ -1,7 +1,13 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
-from .models import HeartbeatLog, RawMessage, SourceFailure
+from .models import (
+    ApprovedSender,
+    ExtractionAttempt,
+    HeartbeatLog,
+    RawMessage,
+    SourceFailure,
+)
 
 
 @admin.register(RawMessage)
@@ -30,3 +36,26 @@ class SourceFailureAdmin(admin.ModelAdmin):
 class HeartbeatLogAdmin(admin.ModelAdmin):
     list_display = ["ran_at", "note"]
     readonly_fields = ["ran_at"]
+
+
+@admin.register(ExtractionAttempt)
+class ExtractionAttemptAdmin(admin.ModelAdmin):
+    list_display = [
+        "raw_message",
+        "attempted_at",
+        "model_name",
+        "prompt_version",
+        "confidence_score",
+        "success",
+    ]
+    list_filter = ["success", "model_name", "prompt_version"]
+    search_fields = ["raw_message__text", "error"]
+    readonly_fields = ["attempted_at"]
+
+
+@admin.register(ApprovedSender)
+class ApprovedSenderAdmin(admin.ModelAdmin):
+    list_display = ["telegram_user_id", "telegram_handle", "organizer", "approved_at"]
+    list_filter = ["organizer"]
+    search_fields = ["telegram_user_id", "telegram_handle"]
+    readonly_fields = ["approved_at"]
