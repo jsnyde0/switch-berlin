@@ -1,8 +1,53 @@
+import ipaddress
 import re
+import socket
+from urllib.parse import urlparse
 
 import httpx
 import logfire
 import markdownify
+
+
+def _is_safe_url(url: str) -> bool:
+    """
+    Return True only if the URL uses http/https and its hostname resolves
+    exclusively to public, routable IP addresses.
+
+    Blocks private, loopback, link-local, reserved, and multicast IPs to
+    prevent SSRF attacks. Also blocks non-http(s) schemes and unresolvable hosts.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+
+    try:
+        results = socket.getaddrinfo(hostname, parsed.port or 80)
+    except socket.gaierror:
+        logfire.warning("enrichment.url_blocked_unresolvable", url=url)
+        return False
+
+    for _family, _type, _proto, _canonname, sockaddr in results:
+        ip_str = sockaddr[0]
+        try:
+            addr = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False
+
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_reserved
+            or addr.is_multicast
+        ):
+            logfire.warning("enrichment.url_blocked_ssrf", url=url, ip=ip_str)
+            return False
+
+    return True
 
 
 def enrich_urls(text: str) -> dict:
@@ -16,6 +61,8 @@ def enrich_urls(text: str) -> dict:
     parts = []
     total = 0
     for url in urls:
+        if not _is_safe_url(url):
+            continue
         try:
             resp = httpx.get(
                 url,

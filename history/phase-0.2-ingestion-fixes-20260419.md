@@ -35,4 +35,4 @@ Review passes: 1
 - **Character-count truncation in enrichment** — Negligible at V0 scale. `len(str)` vs `len(str.encode())` difference is minimal for Berlin-locale text.
 - **logfire missing `is_allowlisted` field** — Minor logging field omission. Not worth a fix.
 - **Slug UniqueConstraint with NULL organizer** — Mitigated by UUID suffix in pipeline code. Low risk at V0 volume.
-- **SSRF in URL enrichment** — Closed beta with allowlisted senders only. Very low attack surface. Track as future hardening work if allowlist grows.
+- **SSRF in URL enrichment** — Initially discarded (closed beta, low attack surface). Subsequently addressed: private/reserved IP blocking via DNS resolution check added to `enrichment.py` before each fetch.

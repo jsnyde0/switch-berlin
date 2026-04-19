@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from asgiref.sync import async_to_sync
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from ingestion.bot import _is_rate_limited, _rate_buckets, handle_message
 from ingestion.models import ApprovedSender, RawMessage
@@ -82,6 +82,31 @@ class BotHandlerTest(TestCase):
         # 101st call should be limited
         self.assertTrue(_is_rate_limited("sender_x"))
 
+    def test_valid_message_queued(self):
+        update = make_update(user_id=222, message_id=88)
+        context = MagicMock()
+        ApprovedSender.objects.create(telegram_user_id="222")
+        with patch("ingestion.bot.async_task") as mock_task:
+            async_to_sync(handle_message)(update, context)
+        mock_task.assert_called_once()
+        call_args = mock_task.call_args[0]
+        self.assertEqual(call_args[0], "ingestion.tasks.process_raw_message")
+        raw = RawMessage.objects.get(sender_id="222")
+        self.assertEqual(call_args[1], raw.id)
+        reply_text = update.message.reply_text.call_args[0][0]
+        self.assertIn("Received", reply_text)
+
+
+class BotDuplicateTest(TransactionTestCase):
+    """Separate TransactionTestCase for the duplicate-message test.
+
+    IntegrityError (even when caught) poisons the surrounding atomic block,
+    which is the TestCase transaction wrapper. Using TransactionTestCase avoids
+    this by not wrapping the test in a transaction."""
+
+    def setUp(self):
+        _rate_buckets.clear()
+
     def test_duplicate_message_rejected(self):
         update = make_update(user_id=111, message_id=77)
         context = MagicMock()
@@ -103,17 +128,3 @@ class BotHandlerTest(TestCase):
         self.assertIn("Already received", reply_text)
         # Only one RawMessage should exist
         self.assertEqual(RawMessage.objects.filter(sender_id="111").count(), 1)
-
-    def test_valid_message_queued(self):
-        update = make_update(user_id=222, message_id=88)
-        context = MagicMock()
-        ApprovedSender.objects.create(telegram_user_id="222")
-        with patch("ingestion.bot.async_task") as mock_task:
-            async_to_sync(handle_message)(update, context)
-        mock_task.assert_called_once()
-        call_args = mock_task.call_args[0]
-        self.assertEqual(call_args[0], "ingestion.tasks.process_raw_message")
-        raw = RawMessage.objects.get(sender_id="222")
-        self.assertEqual(call_args[1], raw.id)
-        reply_text = update.message.reply_text.call_args[0][0]
-        self.assertIn("Received", reply_text)
