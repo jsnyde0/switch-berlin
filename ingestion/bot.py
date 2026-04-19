@@ -37,8 +37,8 @@ CONSENT_TEXT_EN = (
     "this information and consent to it being used for event listings on kinky-bubbles."
 )
 CONSENT_TEXT_DE = (
-    "Mit dem Weiterleiten von Nachrichten an diesen Bot bestatigst du, dass du das "
-    "Recht hast, diese Informationen zu teilen, und stimmst ihrer Nutzung fur "
+    "Mit dem Weiterleiten von Nachrichten an diesen Bot bestätigst du, dass du das "
+    "Recht hast, diese Informationen zu teilen, und stimmst ihrer Nutzung für "
     "Veranstaltungslistings auf kinky-bubbles zu."
 )
 
@@ -60,7 +60,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         is_text=bool(update.message and update.message.text),
     )
 
-    # 4. Non-text message check
+    # 4. Allowlist check
+    exists = await sync_to_async(
+        ApprovedSender.objects.filter(telegram_user_id=sender_id).exists
+    )()
+    if not exists:
+        await update.message.reply_text(
+            "This bot only accepts forwards from approved organizers. "
+            "To request access, DM @jsnyde0."
+        )
+        return
+
+    # 5. Non-text message check (only reached by approved senders)
     if update.message and not update.message.text:
         await sync_to_async(RawMessage.objects.create)(
             source_type="telegram_bot_forward",
@@ -74,17 +85,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         await update.message.reply_text(
             "Only text messages and text forwards are supported."
-        )
-        return
-
-    # 5. Allowlist check
-    exists = await sync_to_async(
-        ApprovedSender.objects.filter(telegram_user_id=sender_id).exists
-    )()
-    if not exists:
-        await update.message.reply_text(
-            "This bot only accepts forwards from approved organizers. "
-            "To request access, DM @jsnyde0."
         )
         return
 

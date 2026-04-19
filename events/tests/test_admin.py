@@ -92,6 +92,24 @@ class EventAdminTest(TestCase):
         self.assertIsNotNone(self.organizer.consent_recorded_at)
         self.assertEqual(self.organizer.consent_method, 'telegram_forward_implied')
 
+    def test_bulk_publish_captures_consent(self):
+        """Bulk publish action should capture consent for organizer's first event."""
+        self.organizer.consent_recorded_at = None
+        self.organizer.save()
+        event = self._make_event(status='draft')
+        self.client.post(
+            '/admin/events/event/',
+            data={
+                'action': 'publish_events',
+                '_selected_action': [str(event.pk)],
+                'select_across': '0',
+                'index': '0',
+            },
+        )
+        self.organizer.refresh_from_db()
+        self.assertIsNotNone(self.organizer.consent_recorded_at)
+        self.assertEqual(self.organizer.consent_method, 'telegram_forward_implied')
+
     def test_consent_not_overwritten_on_second_publish(self):
         original_time = timezone.now() - timedelta(days=10)
         self.organizer.consent_recorded_at = original_time

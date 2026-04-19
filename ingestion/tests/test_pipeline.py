@@ -266,6 +266,62 @@ class ProcessRawMessageTest(TestCase):
         self.assertEqual(raw.extraction_status, "failed")
         self.assertIn("LLM error", raw.extraction_error)
 
+    def test_extraction_failure_creates_source_failure(self):
+        from ingestion.models import SourceFailure
+        from ingestion.tasks import process_raw_message
+
+        raw = self._make_raw()
+        with patch("ingestion.extraction.Agent") as MockAgent:
+            MockAgent.return_value.run_sync.side_effect = Exception("LLM boom")
+            with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
+                process_raw_message(raw.id)
+        self.assertTrue(
+            SourceFailure.objects.filter(
+                raw_message=raw, stage="extraction"
+            ).exists()
+        )
+        sf = SourceFailure.objects.get(raw_message=raw, stage="extraction")
+        self.assertIn("LLM boom", sf.error_message)
+        self.assertEqual(sf.source_type, raw.source_type)
+
+    def test_enrichment_failure_creates_source_failure(self):
+        """When enrich_urls raises unexpectedly, a SourceFailure is created."""
+        from datetime import UTC, datetime
+
+        from ingestion.models import SourceFailure
+        from ingestion.schemas import EventDraft
+        from ingestion.tasks import process_raw_message
+
+        raw = self._make_raw()
+        mock_draft = EventDraft(
+            title="Test",
+            organizer_name="Nobody",
+            start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
+            confidence=0.9,
+        )
+        mock_result = MagicMock()
+        mock_result.data = mock_draft
+        with patch("ingestion.extraction.Agent") as MockAgent:
+            MockAgent.return_value.run_sync.return_value = mock_result
+            # Patch enrich_urls to simulate unexpected error from the function itself
+            with patch(
+                "ingestion.enrichment.enrich_urls",
+                side_effect=Exception("unexpected enrichment error"),
+            ):
+                process_raw_message(raw.id)
+        self.assertTrue(
+            SourceFailure.objects.filter(
+                raw_message=raw, stage="enrichment"
+            ).exists()
+        )
+
+    def test_rawmessage_does_not_exist_logs_and_returns(self):
+        from ingestion.tasks import process_raw_message
+
+        # Call with a non-existent ID — should not raise
+        process_raw_message(999999999)
+        # No assertion needed beyond "no exception raised"
+
 
 class ScheduledTaskTest(TestCase):
     def test_archive_past_events(self):

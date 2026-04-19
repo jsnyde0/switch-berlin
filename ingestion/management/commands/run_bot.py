@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
@@ -7,6 +7,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         token = settings.TELEGRAM_BOT_TOKEN
+        if not token:
+            raise CommandError("TELEGRAM_BOT_TOKEN is not set")
         from ingestion.bot import run_bot
 
         self.stdout.write("Starting Telegram bot...")

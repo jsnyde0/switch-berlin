@@ -20,11 +20,18 @@ def process_raw_message(raw_message_id: int) -> None:
 
     from .enrichment import enrich_urls
     from .extraction import extract_event_draft, match_entities
-    from .models import ExtractionAttempt, RawMessage
+    from .models import ExtractionAttempt, RawMessage, SourceFailure
 
     # NOTE: logfire is already imported at module level -- do not re-import here.
 
-    raw_message = RawMessage.objects.get(id=raw_message_id)
+    try:
+        raw_message = RawMessage.objects.get(id=raw_message_id)
+    except RawMessage.DoesNotExist:
+        logfire.warning(
+            "pipeline.raw_message_not_found",
+            raw_message_id=raw_message_id,
+        )
+        return
 
     # Step 1: URL enrichment (best-effort)
     try:
@@ -36,6 +43,13 @@ def process_raw_message(raw_message_id: int) -> None:
             "pipeline.enrichment_failed",
             raw_message_id=raw_message_id,
             error=str(exc),
+        )
+        SourceFailure.objects.create(
+            source_type=raw_message.source_type,
+            raw_message=raw_message,
+            stage="enrichment",
+            error_class=type(exc).__name__,
+            error_message=str(exc),
         )
         enriched = {}
 
@@ -50,6 +64,13 @@ def process_raw_message(raw_message_id: int) -> None:
             "pipeline.extraction_failed",
             raw_message_id=raw_message_id,
             error=str(exc),
+        )
+        SourceFailure.objects.create(
+            source_type=raw_message.source_type,
+            raw_message=raw_message,
+            stage="extraction",
+            error_class=type(exc).__name__,
+            error_message=str(exc),
         )
         return
 

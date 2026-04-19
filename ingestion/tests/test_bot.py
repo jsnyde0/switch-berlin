@@ -53,6 +53,18 @@ class BotHandlerTest(TestCase):
         reply_text = update.message.reply_text.call_args_list[-1][0][0]
         self.assertIn("Only text", reply_text)
 
+    def test_unapproved_sender_non_text_rejected_without_rawmessage(self):
+        """Unapproved sender sending a non-text message should be rejected at
+        allowlist step -- NOT create a RawMessage row."""
+        update = make_update(text=None, user_id=888888)  # photo/sticker, not approved
+        context = MagicMock()
+        # No ApprovedSender created for 888888
+        async_to_sync(handle_message)(update, context)
+        reply_text = update.message.reply_text.call_args[0][0]
+        self.assertIn("approved organizers", reply_text)
+        # Must NOT create a RawMessage row for unapproved sender
+        self.assertEqual(RawMessage.objects.filter(sender_id="888888").count(), 0)
+
     def test_non_allowlisted_sender_rejected(self):
         update = make_update(user_id=999999)
         context = MagicMock()

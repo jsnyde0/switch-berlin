@@ -95,10 +95,12 @@ def match_entities(draft: EventDraft) -> dict:
     )
 
     # Tag matching: exact on slug, unmatched -> suggested_tags
+    # Fetch all tags in one query and match in Python to avoid N+1.
+    all_tags = {tag.slug.lower(): tag for tag in Tag.objects.all()}
     matched_tags = []
     unmatched_tags = []
     for tag_str in draft.tags:
-        tag = Tag.objects.filter(slug__iexact=tag_str).first()
+        tag = all_tags.get(tag_str.lower())
         if tag:
             matched_tags.append(tag)
         else:

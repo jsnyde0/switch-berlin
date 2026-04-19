@@ -12,8 +12,8 @@
       {% if confidence_score is not None %}
         <p><strong>{% trans "Extraction confidence" %}:</strong> {{ confidence_score|floatformat:2 }}</p>
       {% endif %}
-      {% if extracted_draft_json %}
-        <script id="extracted-draft-data" type="application/json">{{ extracted_draft_json }}</script>
+      {% if extracted_draft %}
+        {{ extracted_draft|json_script:"extracted-draft-data" }}
         <button type="button" id="apply-draft-btn" class="button">
           {% trans "Apply draft values to form" %}
         </button>
@@ -32,7 +32,7 @@
 
 {% block footer %}
 {{ block.super }}
-{% if extracted_draft_json %}
+{% if extracted_draft %}
   <script src="{% static 'admin/js/event_draft.js' %}"></script>
 {% endif %}
 {% endblock %}
