@@ -21,3 +21,55 @@ def isolate_logfire_token(monkeypatch):
     Scoped to the whole test suite via autouse=True.
     """
     monkeypatch.setenv("LOGFIRE_TOKEN", "")
+
+
+@pytest.fixture
+def staff_user(db):
+    """Staff user for login-wall tests."""
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    return User.objects.create_user(
+        username="staff", email="staff@example.com", password="x", is_staff=True
+    )
+
+
+@pytest.fixture
+def regular_user(db):
+    """Authenticated but non-staff user — should get 403 from login-wall."""
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    return User.objects.create_user(
+        username="regular", email="regular@example.com", password="x", is_staff=False
+    )
+
+
+@pytest.fixture
+def approved_organizer(db):
+    """Approved organizer for view smoke tests."""
+    from organizers.models import Organizer
+
+    return Organizer.objects.create(
+        name="Test Organizer",
+        slug="test-organizer",
+        status="approved",
+    )
+
+
+@pytest.fixture
+def published_event(db, approved_organizer):
+    """A single published future event."""
+    from datetime import timedelta
+
+    import django.utils.timezone as tz
+
+    from events.models import Event
+
+    return Event.objects.create(
+        title="Test Event",
+        slug="test-event",
+        organizer=approved_organizer,
+        status="published",
+        start=tz.now() + timedelta(days=7),
+    )
