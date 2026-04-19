@@ -187,3 +187,6 @@ static/dist/
 .dolt/
 *.db
 .beads-credential-key
+
+# Git worktrees
+.worktrees/
