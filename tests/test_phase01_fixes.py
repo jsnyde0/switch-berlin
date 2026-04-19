@@ -16,33 +16,40 @@ import pytest
 
 
 def test_approval_gate_middleware_registered():
-    """accounts.middleware.ApprovalGateMiddleware must appear in MIDDLEWARE."""
+    """accounts.middleware.LoginWallMiddleware must appear in MIDDLEWARE."""
     from django.conf import settings
 
-    assert "accounts.middleware.ApprovalGateMiddleware" in settings.MIDDLEWARE, (
-        f"ApprovalGateMiddleware not in MIDDLEWARE: {settings.MIDDLEWARE}"
+    assert "accounts.middleware.LoginWallMiddleware" in settings.MIDDLEWARE, (
+        f"LoginWallMiddleware not in MIDDLEWARE: {settings.MIDDLEWARE}"
     )
 
 
 def test_approval_gate_middleware_importable():
-    """ApprovalGateMiddleware must be importable from accounts.middleware."""
-    from accounts.middleware import ApprovalGateMiddleware  # noqa: F401
+    """LoginWallMiddleware must be importable from accounts.middleware."""
+    from accounts.middleware import LoginWallMiddleware  # noqa: F401
 
 
 def test_approval_gate_middleware_is_passthrough():
-    """ApprovalGateMiddleware must pass requests through without modification."""
-    from accounts.middleware import ApprovalGateMiddleware
+    """LoginWallMiddleware with LOGIN_WALL_ENABLED=False passes requests through."""
+    from unittest.mock import MagicMock
+
+    from accounts.middleware import LoginWallMiddleware
 
     responses = []
+    sentinel = object()
 
     def get_response(request):
         responses.append(request)
-        return "response-sentinel"
+        return MagicMock(headers={})
 
-    middleware = ApprovalGateMiddleware(get_response)
-    result = middleware("fake-request")
-    assert result == "response-sentinel"
-    assert responses == ["fake-request"]
+    middleware = LoginWallMiddleware(get_response)
+    fake_request = MagicMock()
+    fake_request.user.is_authenticated = True
+    fake_request.user.is_staff = True
+    fake_request.path = "/"
+
+    result = middleware(fake_request)
+    assert responses == [fake_request]
 
 
 # ---------------------------------------------------------------------------
