@@ -334,21 +334,50 @@ def test_admin_authenticated_ok(superuser):
 
 
 @pytest.mark.django_db
-def test_admin_organizer_changelist(superuser):
-    """GET /admin/organizers/organizer/ returns 200 for superuser."""
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/admin/accounts/user/",
+        "/admin/organizers/organizer/",
+        "/admin/organizers/organizer/add/",
+        "/admin/venues/venue/",
+        "/admin/venues/venue/add/",
+        "/admin/events/event/",
+        "/admin/events/event/add/",
+        "/admin/events/tag/",
+        "/admin/ingestion/rawmessage/",
+        "/admin/ingestion/sourcefailure/",
+        "/admin/ingestion/heartbeatlog/",
+        "/admin/reviews/review/",
+        "/admin/reviews/review/add/",
+    ],
+)
+def test_admin_url_reachable_for_all_models(superuser, url):
+    """Every model's changelist + add-form renders without error."""
     client = Client()
     client.force_login(superuser)
-    response = client.get("/admin/organizers/organizer/")
-    assert response.status_code == 200
+    response = client.get(url)
+    assert response.status_code == 200, f"{url} → {response.status_code}"
 
 
 @pytest.mark.django_db
-def test_admin_event_changelist(superuser):
-    """GET /admin/events/event/ returns 200 for superuser."""
-    client = Client()
-    client.force_login(superuser)
-    response = client.get("/admin/events/event/")
-    assert response.status_code == 200
+def test_raw_message_extracted_events_reverse():
+    """Event.raw_message FK exposes reverse accessor as 'extracted_events'."""
+    from events.models import Event
+    from ingestion.models import RawMessage
+    from organizers.models import Organizer
+
+    rm = RawMessage.objects.create(
+        source_type="telegram_bot_forward",
+        raw_payload={"text": "x"},
+    )
+    org = Organizer.objects.create(name="Reverse Org", slug="reverse-org-rt")
+    Event.objects.create(
+        organizer=org, slug="from-rm", title="From RM",
+        start=tz.now(), raw_message=rm,
+    )
+    assert rm.extracted_events.count() == 1
+    assert rm.extracted_events.first().slug == "from-rm"
 
 
 # ---------------------------------------------------------------------------
