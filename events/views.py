@@ -2,8 +2,7 @@ import time
 import urllib.parse
 
 from django.core.paginator import Paginator
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render  # noqa: F401
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
@@ -99,5 +98,15 @@ def event_list(request):
 
 
 def event_detail(request, slug):
-    # Stub — replaced in bead 3 (kb-csd.3)
-    return HttpResponse("stub")
+    event = get_object_or_404(
+        Event.objects.select_related("organizer", "venue")
+        .prefetch_related("tags", "images"),
+        slug=slug,
+        status="published",
+    )
+    cover_image = event.images.filter(is_cover=True).first()
+    context = {
+        "event": event,
+        "cover_image": cover_image,
+    }
+    return render(request, "events/detail.html", context)

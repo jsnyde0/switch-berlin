@@ -1,0 +1,10 @@
+{% load i18n %}
+<div class="flex items-center gap-2">
+  <a href="{% url 'organizer-profile' slug=organizer.slug %}"
+     class="text-sm font-medium hover:underline link">
+    {{ organizer.name }}
+  </a>
+  {% if organizer.verified_badge %}
+    <span class="badge badge-info badge-xs">{% trans "Verified" %}</span>
+  {% endif %}
+</div>

@@ -1,0 +1,83 @@
+{% extends "_base.html" %}
+{% load i18n %}
+
+{% block title %}{{ event.title }} — Kinky Bubbles{% endblock title %}
+
+{% block layout %}
+<article class="max-w-2xl mx-auto flex flex-col gap-6">
+
+  {% if cover_image %}
+  <img src="{{ cover_image.image.url }}"
+       alt="{{ cover_image.alt|default:event.title }}"
+       width="672"
+       height="256"
+       class="w-full rounded-xl object-cover max-h-64">
+  {% endif %}
+
+  <header class="flex flex-col gap-2">
+    <h1 class="text-3xl font-bold">{{ event.title }}</h1>
+    {% if event.organizer %}
+      <c-organizer-mini-card :organizer="event.organizer" />
+    {% endif %}
+  </header>
+
+  <section class="flex flex-col gap-2 text-sm">
+    <p><span class="font-semibold">{% trans "Date" %}:</span> {{ event.start|date:"D, d M Y" }}</p>
+    <p>
+      <span class="font-semibold">{% trans "Time" %}:</span>
+      {{ event.start|date:"H:i" }}{% if event.end %} – {{ event.end|date:"H:i" }}{% endif %}
+    </p>
+    {% if event.venue %}
+    <p>
+      <span class="font-semibold">{% trans "Venue" %}:</span>
+      {{ event.venue.name }}{% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+    </p>
+    {% endif %}
+    <p>
+      <span class="font-semibold">{% trans "Price" %}:</span>
+      {% if event.is_free %}
+        {% trans "Free" %}
+      {% elif event.price_min_cents %}
+        {{ event.currency }} {{ event.price_min_cents }}
+        {% if event.price_max_cents %} – {{ event.price_max_cents }}{% endif %}
+        {% if event.sliding_scale %} ({% trans "sliding scale" %}){% endif %}
+      {% else %}
+        {% trans "See event page" %}
+      {% endif %}
+    </p>
+  </section>
+
+  {% if event.tags.all %}
+  <div class="flex flex-wrap gap-2">
+    {% for tag in event.tags.all %}
+      <a href="{% url 'event-list' %}?tags={{ tag.slug }}" class="badge badge-outline">
+        {{ tag.label }}
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if event.description %}
+  <section class="prose prose-sm max-w-none">
+    {{ event.description|linebreaks }}
+  </section>
+  {% endif %}
+
+  {% if event.tickets_url or event.external_url %}
+  <div class="flex gap-3">
+    {% if event.tickets_url %}
+      <a href="{{ event.tickets_url }}" target="_blank" rel="noopener noreferrer"
+         class="btn btn-primary btn-sm">{% trans "Get tickets" %}</a>
+    {% elif event.external_url %}
+      <a href="{{ event.external_url }}" target="_blank" rel="noopener noreferrer"
+         class="btn btn-outline btn-sm">{% trans "More info" %}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <footer class="text-xs text-base-content/50 border-t pt-4">
+    {% trans "Safety first. Consent is mandatory. Look out for each other." %}
+  </footer>
+
+</article>
+{% endblock layout %}
