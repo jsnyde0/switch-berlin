@@ -32,6 +32,8 @@ class Event(models.Model):
     organizer = models.ForeignKey(
         "organizers.Organizer",
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="events",
     )
     venue = models.ForeignKey(
@@ -42,6 +44,7 @@ class Event(models.Model):
         related_name="events",
     )
     tags = models.ManyToManyField(Tag, blank=True, related_name="events")
+    suggested_tags = models.JSONField(default=list, blank=True)
 
     # Time — no per-event timezone in 0.1 (TIME_ZONE=Europe/Berlin covers single-city).
     start = models.DateTimeField()
