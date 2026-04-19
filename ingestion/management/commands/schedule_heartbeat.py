@@ -18,3 +18,25 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS("Schedule seeded: heartbeat every 5 minutes")
         )
+        Schedule.objects.update_or_create(
+            name="archive_past_events",
+            defaults=dict(
+                func="ingestion.tasks.archive_past_events",
+                schedule_type=Schedule.DAILY,
+                repeats=-1,
+            ),
+        )
+        Schedule.objects.update_or_create(
+            name="soft_purge_rawmessages",
+            defaults=dict(
+                func="ingestion.tasks.soft_purge_rawmessages",
+                schedule_type=Schedule.DAILY,
+                repeats=-1,
+            ),
+        )
+        self.stdout.write(
+            self.style.SUCCESS("Schedule seeded: archive_past_events daily")
+        )
+        self.stdout.write(
+            self.style.SUCCESS("Schedule seeded: soft_purge_rawmessages daily")
+        )
