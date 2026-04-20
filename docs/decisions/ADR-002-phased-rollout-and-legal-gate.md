@@ -77,7 +77,7 @@ The alternative — shipping compliance at 0.3 as soon as any reachable URL exis
 
 ### D3: React island decision deferred to end of 0.3
 
-**Firmness: FLEXIBLE**
+**Firmness: FLEXIBLE** — **Resolved 2026-04-20 by [ADR-004](ADR-004-htmx-vs-island-default-plus-tripwire.md)**: HTMX + Alpine + vanilla MapLibre is the default for `/events`; the React island remains as a tripwire-gated escape hatch with `django-vite` scaffolding preserved.
 
 Whether `/events` ships as a React + django-vite island or as HTMX-only is decided at the end of phase 0.3, not committed upfront. At 0.3 the product *must* have server-rendered event detail, organizer profile, and legal pages (HTMX is non-negotiable for those). So `/events` gets built HTMX-first at 0.3. If filter + list + state-sync feels fine, the island is cut entirely and ADR-001 D5 is revisited. If real seams emerge (cross-panel selection, filter URL state painful, map ↔ sidebar two-way interaction), the island ships at 0.4.
 

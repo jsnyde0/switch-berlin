@@ -120,7 +120,7 @@ If approval rate is a bottleneck, loosen to email-verified-only.
 
 ### D5: Single `/events` surface with filter + view modes; React island for interactivity
 
-**Firmness: FIRM on island-vs-HTMX split; FLEXIBLE on default filter state**
+**Firmness: ~~FIRM on island-vs-HTMX split~~ → softened to FLEXIBLE by [ADR-002 D3](ADR-002-phased-rollout-and-legal-gate.md#d3-react-island-decision-deferred-to-end-of-03); resolved 2026-04-20 by [ADR-004](ADR-004-htmx-vs-island-default-plus-tripwire.md) — default is HTMX + Alpine + vanilla MapLibre, island preserved as tripwire-gated escape hatch. FLEXIBLE on default filter state.**
 
 No separate homepage. `/events` is both landing and primary surface. Filters (date, tags, organizer, price) + view modes (list, map). User preferences persist (session for anon, `User.prefs` for authenticated). Default: list, sorted by date, today → +14 days.
 
