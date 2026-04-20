@@ -1,0 +1,23 @@
+{% load i18n %}
+<div class="p-4 bg-base-200 rounded-lg">
+  <div class="flex justify-between items-start mb-2">
+    <h2 class="text-xl font-bold">{{ event.title }}</h2>
+    <button class="btn btn-sm btn-ghost"
+            onclick="document.getElementById('drawer').innerHTML=''">
+      {% trans "Close" %}
+    </button>
+  </div>
+  {% if event.organizer %}
+    <p class="text-sm text-base-content/70">{{ event.organizer.name }}</p>
+  {% endif %}
+  <p class="text-sm">{{ event.start }}</p>
+  {% if event.venue %}
+    <p class="text-sm">{{ event.venue.name }}</p>
+  {% endif %}
+  {% if event.external_url %}
+    <a href="{{ event.external_url }}" target="_blank" rel="noopener"
+       class="btn btn-sm btn-primary mt-2">
+      {% trans "More info" %}
+    </a>
+  {% endif %}
+</div>

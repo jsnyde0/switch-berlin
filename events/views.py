@@ -1,11 +1,14 @@
+import json
 import time
 import urllib.parse
 
 from django.core.paginator import Paginator
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+
+from venues.serializers import venue_to_geojson
 
 from .models import Event, Tag
 
@@ -80,6 +83,49 @@ def event_list(request):
         filter_params["price"] = price_param
     filter_query_string = urllib.parse.urlencode(filter_params)
 
+    # Markers queryset — non-paginated, same filters as qs, plus optional bounds filter
+    markers_qs = qs
+
+    bounds_param = request.GET.get("bounds", "")
+    if bounds_param:
+        parts = bounds_param.split(",")
+        if len(parts) == 4:
+            try:
+                lat_min, lng_min, lat_max, lng_max = [float(p) for p in parts]
+                markers_qs = markers_qs.filter(
+                    venue__latitude__gte=lat_min,
+                    venue__latitude__lte=lat_max,
+                    venue__longitude__gte=lng_min,
+                    venue__longitude__lte=lng_max,
+                )
+            except ValueError:
+                pass  # malformed bounds — ignore silently
+
+    # Serialize markers_qs into a GeoJSON FeatureCollection
+    marker_features = []
+    for event in markers_qs.select_related("venue", "organizer"):
+        if not event.venue_id:
+            continue
+        feature = venue_to_geojson(event.venue)
+        if feature is None:
+            continue
+        feature["properties"].update(
+            {
+                "event_id": event.pk,
+                "event_slug": event.slug,
+                "org_slug": event.organizer.slug if event.organizer else "",
+                "title": event.title,
+            }
+        )
+        marker_features.append(feature)
+
+    markers_geojson = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": marker_features,
+        }
+    )
+
     context = {
         "page_obj": page_obj,
         "all_tags": all_tags,
@@ -89,14 +135,24 @@ def event_list(request):
         "organizer_param": organizer_param,
         "price_param": price_param,
         "filter_query_string": filter_query_string,
+        "markers_geojson": markers_geojson,
+        "bounds_param": bounds_param,
     }
 
     if request.htmx:
-        response = render(request, "events/list.html#event_list", context)
+        response = render(request, "events/_event_list.html", context)
         elapsed_ms = (time.perf_counter() - _t0) * 1000
         response["Server-Timing"] = f'partial;desc="event-list";dur={elapsed_ms:.1f}'
         return response
     return render(request, "events/list.html", context)
+
+
+def event_drawer(request, event_id):
+    event = get_object_or_404(
+        Event.objects.select_related("organizer", "venue"),
+        pk=event_id,
+    )
+    return render(request, "events/_event_drawer.html", {"event": event})
 
 
 def event_detail(request, org_slug, event_slug):

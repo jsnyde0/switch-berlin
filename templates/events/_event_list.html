@@ -1,0 +1,16 @@
+{% load i18n %}
+{{ markers_geojson|json_script:"markers-data" }}
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {% for event in page_obj %}
+    <div data-event-id="{{ event.pk }}"
+         class="cursor-pointer"
+         onclick="Alpine.store('map').selectEvent({{ event.pk }})">
+      <c-event-card :event="event" />
+    </div>
+  {% empty %}
+    <p class="col-span-full text-base-content/60">{% trans "No events found." %}</p>
+  {% endfor %}
+</div>
+
+<c-pagination :page_obj="page_obj" />

@@ -3,15 +3,20 @@
 
 {% block title %}{% trans "Events" %} — Kinky Bubbles{% endblock title %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css">
+{% endblock extra_head %}
+
 {% block layout %}
 <div class="flex flex-col gap-6">
   <h1 class="text-2xl font-bold">{% trans "Events" %}</h1>
 
   <form id="filter-form"
         hx-get="{% url 'event-list' %}"
-        hx-target="#event-list-container"
+        hx-target="#event-list"
         hx-push-url="true"
-        hx-trigger="submit">
+        hx-trigger="submit"
+        hx-on::after-request="window.dispatchEvent(new CustomEvent('events:filter-changed', {}))">
     <c-filter-chips
       :all_tags="all_tags"
       :active_tag_slugs="active_tag_slugs"
@@ -22,20 +27,20 @@
     />
   </form>
 
-  <div id="event-list-container">
-    {% partialdef event_list inline %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {% for event in page_obj %}
-        <c-event-card
-          :event="event"
-        />
-      {% empty %}
-        <p class="col-span-full text-base-content/60">{% trans "No events found." %}</p>
-      {% endfor %}
-    </div>
+  <div id="map" hx-preserve="true" style="height: 500px; width: 100%;"></div>
 
-    <c-pagination :page_obj="page_obj" />
-    {% endpartialdef %}
+  <div id="event-list">
+    {% include "events/_event_list.html" %}
   </div>
+
+  <div id="drawer"></div>
 </div>
 {% endblock layout %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
+{% load static %}
+<script src="{% static 'js/events/store.js' %}"></script>
+<script src="{% static 'js/events/map.js' %}"></script>
+<script src="{% static 'js/events/bridge.js' %}"></script>
+{% endblock extra_js %}
