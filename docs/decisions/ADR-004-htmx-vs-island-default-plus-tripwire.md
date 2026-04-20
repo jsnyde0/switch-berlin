@@ -1,6 +1,6 @@
 # ADR-004: HTMX+Alpine as default for `/events` map surface, React island as tripwire escape hatch
 
-**Status:** Accepted
+**Status:** Accepted — spike graduated 2026-04-20; D4 applied (HTMX code is Phase 0.4 map surface)
 **Date:** 2026-04-20
 **Design:** [Phase 0.4 HTMX map spike](../plans/2026-04-20-phase-0.4-htmx-map-spike-design.md)
 **Parent:** [ADR-001 D5](ADR-001-core-product-and-stack.md), [ADR-002 D3](ADR-002-phased-rollout-and-legal-gate.md)
