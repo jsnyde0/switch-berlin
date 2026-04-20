@@ -45,12 +45,17 @@ window.initMap = function (containerEl, store) {
       },
     })
 
-    // Privacy obfuscation circles: private (1000 m fake center) and neighborhood_blur
+    // Privacy obfuscation circles: blurred venues where blur_radius_m > 0.
+    // Private venues where user is going have blur_radius_m: null and are
+    // shown as pins (event-markers layer), not circles.
     map.addLayer({
       id: 'privacy-circles',
       type: 'circle',
       source: 'events',
-      filter: ['!', ['==', ['get', 'privacy'], 'public']],
+      filter: ['all',
+        ['!', ['has', 'point_count']],
+        ['>', ['coalesce', ['get', 'blur_radius_m'], 0], 0],
+      ],
       paint: {
         'circle-color': '#a855f7',
         'circle-opacity': 0.15,
@@ -60,8 +65,8 @@ window.initMap = function (containerEl, store) {
         // Scale radius by zoom: approximate 1000 m at zoom 13 ≈ 40 px; scale proportionally
         'circle-radius': [
           'interpolate', ['exponential', 2], ['zoom'],
-          10, ['/', ['coalesce', ['get', 'blur_radius_m'], 1000], 75],
-          14, ['/', ['coalesce', ['get', 'blur_radius_m'], 1000], 5],
+          10, ['/', ['get', 'blur_radius_m'], 75],
+          14, ['/', ['get', 'blur_radius_m'], 5],
         ],
       },
     })
@@ -70,7 +75,12 @@ window.initMap = function (containerEl, store) {
       id: 'event-markers',
       type: 'circle',
       source: 'events',
-      filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'privacy'], 'public']],
+      // Show pin when blur_radius_m is null: public venues and private venues
+      // where server revealed exact coords (user has going attendance).
+      filter: ['all',
+        ['!', ['has', 'point_count']],
+        ['==', ['get', 'blur_radius_m'], null],
+      ],
       paint: {
         'circle-color': '#a855f7',
         'circle-radius': 8,

@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
+from accounts.decorators import approved_required
 from venues.serializers import venue_to_geojson
 
 from .models import Attendance, Event, Tag
@@ -166,15 +167,24 @@ def event_drawer(request, event_id):
         pk=event_id,
     )
     if request.user.is_authenticated:
-        user_going = Attendance.objects.filter(
-            user=request.user, event=event, status="going"
-        ).exists()
+        try:
+            attendance = Attendance.objects.get(user=request.user, event=event)
+        except Attendance.DoesNotExist:
+            attendance = None
+        user_going = attendance is not None and attendance.status == "going"
     else:
+        attendance = None
         user_going = False
+    event_past = event.start < timezone.now()
     return render(
         request,
         "events/_event_drawer.html",
-        {"event": event, "user_going": user_going},
+        {
+            "event": event,
+            "attendance": attendance,
+            "user_going": user_going,
+            "event_past": event_past,
+        },
     )
 
 
@@ -192,16 +202,14 @@ def event_detail(request, org_slug, event_slug):
     # Use generator over prefetch cache — avoids a second DB query from .filter()
     cover_image = next((img for img in event.images.all() if img.is_cover), None)
     if request.user.is_authenticated:
-        user_going = Attendance.objects.filter(
-            user=request.user, event=event, status="going"
-        ).exists()
         try:
             attendance = Attendance.objects.get(user=request.user, event=event)
         except Attendance.DoesNotExist:
             attendance = None
+        user_going = attendance is not None and attendance.status == "going"
     else:
-        user_going = False
         attendance = None
+        user_going = False
     event_past = event.start < timezone.now()
     context = {
         "event": event,
@@ -215,6 +223,7 @@ def event_detail(request, org_slug, event_slug):
 
 @require_POST
 @login_required
+@approved_required
 def event_attend(request, event_id):
     event = get_object_or_404(Event, pk=event_id, status="published")
     status_val = request.POST.get("status", "interested")

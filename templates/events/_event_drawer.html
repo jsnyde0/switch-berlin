@@ -18,6 +18,9 @@
       <p class="text-sm">{{ event.venue.name }}</p>
     {% endif %}
   {% endif %}
+  {% if user.is_authenticated %}
+    {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
+  {% endif %}
   {% if event.external_url %}
     <a href="{{ event.external_url }}" target="_blank" rel="noopener"
        class="btn btn-sm btn-primary mt-2">

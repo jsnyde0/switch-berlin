@@ -58,7 +58,7 @@ def venue_to_geojson(venue, *, going_venue_ids=None) -> dict | None:
                 },
             }
         # Not going or anonymous — return blurred center (existing hash logic)
-        digest = hashlib.md5(venue.slug.encode()).digest()
+        digest = hashlib.md5(venue.slug.encode(), usedforsecurity=False).digest()
         offset_lat = ((digest[0] / 255) - 0.5) * 0.018
         offset_lng = ((digest[1] / 255) - 0.5) * 0.025
         fake_lat = round(float(venue.latitude) + offset_lat, 3)

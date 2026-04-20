@@ -61,7 +61,7 @@
   </div>
   {% endif %}
 
-  {% if user.is_authenticated and MAP_ENABLED %}
+  {% if user.is_authenticated %}
     {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
   {% endif %}
 

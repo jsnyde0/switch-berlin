@@ -324,6 +324,38 @@ def test_private_venue_name_hidden_in_drawer(
     assert b"Private venue" in response.content
 
 
+@pytest.mark.django_db
+def test_private_venue_name_shown_in_detail_for_going_user(
+    client, approved_user, event_with_private_venue, approved_organizer
+):
+    """Event detail page shows actual venue name for users WITH going Attendance."""
+    Attendance.objects.create(
+        user=approved_user, event=event_with_private_venue, status="going"
+    )
+    client.force_login(approved_user)
+    response = client.get(
+        f"/events/{approved_organizer.slug}/private-event/"
+    )
+    assert response.status_code == 200
+    assert b"Secret Place" in response.content
+    assert b"Private venue" not in response.content
+
+
+@pytest.mark.django_db
+def test_private_venue_name_shown_in_drawer_for_going_user(
+    client, approved_user, event_with_private_venue
+):
+    """Event drawer shows actual venue name for users WITH going Attendance."""
+    Attendance.objects.create(
+        user=approved_user, event=event_with_private_venue, status="going"
+    )
+    client.force_login(approved_user)
+    response = client.get(f"/events/{event_with_private_venue.pk}/drawer/")
+    assert response.status_code == 200
+    assert b"Secret Place" in response.content
+    assert b"Private venue" not in response.content
+
+
 # ---------------------------------------------------------------------------
 # 5. Attend endpoint (cross-feature, uses conftest fixtures)
 # ---------------------------------------------------------------------------

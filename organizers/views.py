@@ -3,6 +3,9 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from accounts.decorators import approved_required
+from events.models import Attendance
+
 from .models import Organizer, OrganizerFollow
 
 
@@ -33,20 +36,28 @@ def organizer_profile(request, slug):
         following = OrganizerFollow.objects.filter(
             user=request.user, organizer=organizer
         ).exists()
+        going_venue_ids = list(
+            Attendance.objects.filter(
+                user=request.user, status="going", event__venue__isnull=False
+            ).values_list("event__venue_id", flat=True)
+        )
     else:
         following = False
+        going_venue_ids = []
 
     context = {
         "organizer": organizer,
         "upcoming_events": upcoming_events,
         "past_events": past_events,
         "following": following,
+        "going_venue_id_list": going_venue_ids,
     }
     return render(request, "organizers/profile.html", context)
 
 
 @require_POST
 @login_required
+@approved_required
 def organizer_follow(request, slug):
     organizer = get_object_or_404(Organizer, slug=slug, status="approved")
     follow, created = OrganizerFollow.objects.get_or_create(

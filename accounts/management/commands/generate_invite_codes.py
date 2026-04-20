@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from accounts.models import InviteCode
 
@@ -14,7 +14,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         User = get_user_model()
-        creator = User.objects.get(username=options["created_by_username"])
+        username = options["created_by_username"]
+        try:
+            creator = User.objects.get(username=username)
+        except User.DoesNotExist as exc:
+            raise CommandError(f"User '{username}' does not exist.") from exc
         for _ in range(options["count"]):
             invite = InviteCode.objects.create(
                 created_by=creator,

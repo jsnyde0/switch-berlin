@@ -11,6 +11,7 @@ class CustomUserAdmin(UserAdmin):
         (_("Approval"), {"fields": ("is_approved", "approved_at", "approved_by")}),
     )
     list_display = ["username", "email", "is_approved", "is_staff"]
+    list_filter = UserAdmin.list_filter + ("is_approved",)
 
 
 @admin.register(InviteCode)

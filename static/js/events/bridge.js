@@ -25,10 +25,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   })
 
-  // When user marks attendance on a private-venue event, re-fetch markers
-  // so exact coords are shown if user just marked 'going'. ADR-004 D3: event-bus.
+  // When user marks attendance on a private-venue event, re-fetch #event-list
+  // (which contains #markers-data) so exact coords are shown if user just
+  // marked 'going'. Dispatching filter-changed alone only re-reads stale DOM.
+  // ADR-004 D3: event-bus.
   document.body.addEventListener('events:attendance-changed', function () {
-    window.dispatchEvent(new CustomEvent('events:filter-changed', {}))
+    htmx.ajax('GET', window.location.href, { target: '#event-list', swap: 'innerHTML' })
   })
 
   // Handle browser back/forward nav — sync store and drawer without re-pushing history

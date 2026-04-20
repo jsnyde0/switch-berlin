@@ -71,3 +71,6 @@ class OrganizerFollow(models.Model):
 
     class Meta:
         unique_together = [("user", "organizer")]
+
+    def __str__(self):
+        return f"{self.user} follows {self.organizer}"
