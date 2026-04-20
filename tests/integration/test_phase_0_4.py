@@ -1,0 +1,516 @@
+"""
+Integration tests for Phase 0.4 — cross-feature E2E walkthrough, privacy
+enforcement, invite codes, middleware, CSRF, and kill-switches.
+
+This file covers bead kb-2eu.6. It tests CROSS-FEATURE interactions that span
+multiple beads and are not covered by per-bead test files.
+
+Test groups:
+1. Middleware relaxation (approved/unapproved/staff/public-paths)
+2. Invite code redemption via HTTP (GET signup page, POST signup flow)
+3. Privacy enforcement — coordinates (markers_geojson context)
+4. Privacy enforcement — venue metadata (template rendering)
+5. Attend endpoint (auth, idempotency, state transitions)
+6. Follow endpoint (auth, toggle, 404)
+7. CSRF enforcement on attend/follow
+8. Kill-switches (MAP_ENABLED, INVITES_ENABLED)
+"""
+
+from datetime import timedelta
+
+import django.utils.timezone as tz
+import pytest
+from django.test import Client
+
+from accounts.models import InviteCode
+from events.models import Attendance
+from organizers.models import OrganizerFollow
+from venues.models import Venue
+
+# ---------------------------------------------------------------------------
+# Fixtures (new ones for this test file — conftest.py already has
+# superuser, staff_user, regular_user, approved_organizer, published_event)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def approved_user(db):
+    """Approved non-staff user — should pass the middleware after 0.4 restructure."""
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    return User.objects.create_user(
+        username="e2e_approved",
+        email="e2e_approved@example.com",
+        password="x",
+        is_staff=False,
+        is_approved=True,
+    )
+
+
+@pytest.fixture
+def private_venue(db):
+    """A private-mode venue with known coordinates."""
+    return Venue.objects.create(
+        name="Secret Place",
+        slug="secret-place",
+        privacy_mode="private",
+        latitude="52.5",
+        longitude="13.4",
+    )
+
+
+@pytest.fixture
+def event_with_private_venue(db, approved_organizer, private_venue):
+    """A published event whose venue is private."""
+    from events.models import Event
+
+    return Event.objects.create(
+        title="Private Event",
+        slug="private-event",
+        organizer=approved_organizer,
+        status="published",
+        start=tz.now() + timedelta(days=7),
+        venue=private_venue,
+    )
+
+
+@pytest.fixture
+def valid_invite_code(db, staff_user):
+    """An unredeemed, non-expired invite code created by staff_user."""
+    return InviteCode.objects.create(created_by=staff_user, notes="test")
+
+
+# ---------------------------------------------------------------------------
+# 1. Middleware relaxation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_approved_user_can_access_events(client, approved_user, published_event):
+    """Approved non-staff user gets 200 on /events/ (middleware relaxed)."""
+    client.force_login(approved_user)
+    response = client.get("/events/")
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_unapproved_user_sees_pending_page(client, regular_user):
+    """Unapproved authenticated user gets 403 with 'pending' text in body."""
+    client.force_login(regular_user)
+    response = client.get("/events/")
+    assert response.status_code == 403
+    assert b"pending" in response.content
+
+
+@pytest.mark.django_db
+def test_staff_user_still_allowed(client, staff_user, published_event):
+    """Staff user is still allowed through the middleware (backward-compat)."""
+    client.force_login(staff_user)
+    response = client.get("/events/")
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_public_paths_accessible_to_unapproved(client, regular_user):
+    """Unapproved user can reach /accounts/logout/ — PUBLIC_PREFIXES not 403'd.
+
+    /accounts/logout/ shows a confirmation page (200) for authenticated users.
+    This verifies middleware passes /accounts/ prefix without blocking.
+    """
+    client.force_login(regular_user)
+    response = client.get("/accounts/logout/")
+    # Must not be 403 — the /accounts/ prefix is in PUBLIC_PREFIXES
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# 2. Invite code redemption (HTTP-level)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_signup_open_with_valid_code(client, valid_invite_code, settings):
+    """GET /accounts/signup/?code=<valid> renders a signup form."""
+    settings.INVITES_ENABLED = True
+    response = client.get(f"/accounts/signup/?code={valid_invite_code.code}")
+    assert response.status_code == 200
+    assert b"<form" in response.content
+
+
+@pytest.mark.django_db
+def test_signup_closed_without_code(client, settings):
+    """GET /accounts/signup/ without a code must not render a signup form."""
+    settings.INVITES_ENABLED = True
+    response = client.get("/accounts/signup/")
+    # allauth renders signup_closed template at 200 when is_open_for_signup=False
+    content = response.content.decode()
+    assert 'type="password"' not in content, (
+        "Signup form rendered without invite code — signup must be closed"
+    )
+
+
+@pytest.mark.django_db
+def test_invite_code_redeemed_on_signup(client, valid_invite_code, settings):
+    """POST to /accounts/signup/ with code in session redeems the InviteCode."""
+    settings.INVITES_ENABLED = True
+
+    # Inject the invite code into the session
+    session = client.session
+    session["invite_code"] = valid_invite_code.code
+    session.save()
+
+    client.post(
+        "/accounts/signup/",
+        {
+            "email": "newuser@example.com",
+            "password1": "Testpassword1!",
+            "password2": "Testpassword1!",
+        },
+        follow=True,
+    )
+
+    valid_invite_code.refresh_from_db()
+    assert valid_invite_code.redeemed_by is not None
+
+    # Newly created user should be unapproved
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    new_user = User.objects.get(email="newuser@example.com")
+    assert new_user.is_approved is False
+
+
+@pytest.mark.django_db
+def test_redeemed_code_rejected(client, staff_user, settings):
+    """GET /accounts/signup/?code=<redeemed> does not render a signup form."""
+    settings.INVITES_ENABLED = True
+
+    already_redeemed = InviteCode.objects.create(
+        created_by=staff_user, redeemed_by=staff_user
+    )
+    response = client.get(f"/accounts/signup/?code={already_redeemed.code}")
+    content = response.content.decode()
+    assert 'type="password"' not in content
+
+
+@pytest.mark.django_db
+def test_expired_code_rejected(client, staff_user, settings):
+    """GET /accounts/signup/?code=<expired> does not render a signup form."""
+    settings.INVITES_ENABLED = True
+
+    expired = InviteCode.objects.create(
+        created_by=staff_user,
+        expires_at=tz.now() - timedelta(days=1),
+    )
+    response = client.get(f"/accounts/signup/?code={expired.code}")
+    content = response.content.decode()
+    assert 'type="password"' not in content
+
+
+# ---------------------------------------------------------------------------
+# 3. Privacy enforcement — coordinates (via markers_geojson context)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_private_venue_blurred_without_going(
+    client, approved_user, event_with_private_venue
+):
+    """Approved user without Attendance(going) sees blurred coords in GeoJSON."""
+    client.force_login(approved_user)
+    response = client.get("/events/")
+    assert response.status_code == 200
+
+    markers_geojson = response.context["markers_geojson"]
+    feature = next(
+        (
+            f
+            for f in markers_geojson["features"]
+            if f["properties"]["event_id"] == event_with_private_venue.pk
+        ),
+        None,
+    )
+    assert feature is not None, "Event feature not found in markers_geojson"
+
+    # Blurred: coords must NOT be exactly [13.4, 52.5]
+    coords = feature["geometry"]["coordinates"]
+    assert coords != [13.4, 52.5], "Private venue coords must be blurred (not exact)"
+    assert feature["properties"]["blur_radius_m"] == 1000
+
+
+@pytest.mark.django_db
+def test_private_venue_exact_with_going(
+    client, approved_user, event_with_private_venue, private_venue
+):
+    """Approved user with Attendance(going) sees exact coords in GeoJSON."""
+    Attendance.objects.create(
+        user=approved_user, event=event_with_private_venue, status="going"
+    )
+    client.force_login(approved_user)
+    response = client.get("/events/")
+    assert response.status_code == 200
+
+    markers_geojson = response.context["markers_geojson"]
+    feature = next(
+        (
+            f
+            for f in markers_geojson["features"]
+            if f["properties"]["event_id"] == event_with_private_venue.pk
+        ),
+        None,
+    )
+    assert feature is not None, "Event feature not found in markers_geojson"
+
+    coords = feature["geometry"]["coordinates"]
+    # Exact coords: longitude first, then latitude (GeoJSON convention)
+    assert abs(coords[0] - 13.4) < 0.001, "Longitude not exact for going user"
+    assert abs(coords[1] - 52.5) < 0.001, "Latitude not exact for going user"
+    assert feature["properties"]["blur_radius_m"] is None
+
+
+# ---------------------------------------------------------------------------
+# 4. Privacy enforcement — venue metadata (template rendering)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_private_venue_name_hidden_in_card(
+    client, approved_user, event_with_private_venue
+):
+    """Event list card shows 'Private venue' not the actual name for private venues."""
+    client.force_login(approved_user)
+    response = client.get("/events/")
+    assert response.status_code == 200
+    assert b"Secret Place" not in response.content
+    assert b"Private venue" in response.content
+
+
+@pytest.mark.django_db
+def test_private_venue_name_shown_with_going(
+    client, approved_user, event_with_private_venue
+):
+    """Event list card shows actual venue name when user has Attendance(going)."""
+    Attendance.objects.create(
+        user=approved_user, event=event_with_private_venue, status="going"
+    )
+    client.force_login(approved_user)
+    response = client.get("/events/")
+    assert response.status_code == 200
+    assert b"Secret Place" in response.content
+
+
+@pytest.mark.django_db
+def test_private_venue_name_hidden_in_detail(
+    client, approved_user, event_with_private_venue, approved_organizer
+):
+    """Event detail page shows 'Private venue' for users without going Attendance."""
+    client.force_login(approved_user)
+    response = client.get(
+        f"/events/{approved_organizer.slug}/private-event/"
+    )
+    assert response.status_code == 200
+    assert b"Private venue" in response.content
+
+
+@pytest.mark.django_db
+def test_private_venue_name_hidden_in_drawer(
+    client, approved_user, event_with_private_venue
+):
+    """Event drawer shows 'Private venue' for users without going Attendance."""
+    client.force_login(approved_user)
+    response = client.get(f"/events/{event_with_private_venue.pk}/drawer/")
+    assert response.status_code == 200
+    assert b"Private venue" in response.content
+
+
+# ---------------------------------------------------------------------------
+# 5. Attend endpoint (cross-feature, uses conftest fixtures)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_attend_requires_login(client, published_event):
+    """Unauthenticated POST to attend endpoint redirects to login."""
+    response = client.post(
+        f"/events/{published_event.pk}/attend/", {"status": "going"}
+    )
+    assert response.status_code == 302
+    assert "/accounts/login/" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_attend_requires_approved(client, regular_user, published_event):
+    """Unapproved (regular_user) POST to attend endpoint gets 403 from middleware."""
+    client.force_login(regular_user)
+    response = client.post(
+        f"/events/{published_event.pk}/attend/", {"status": "going"}
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_attend_creates_row(client, approved_user, published_event):
+    """Approved user POST to attend creates Attendance row."""
+    client.force_login(approved_user)
+    response = client.post(
+        f"/events/{published_event.pk}/attend/", {"status": "going"}
+    )
+    assert response.status_code == 200
+    assert Attendance.objects.filter(
+        user=approved_user, event=published_event, status="going"
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_attend_returns_hx_trigger(client, approved_user, published_event):
+    """Attend response has HX-Trigger: events:attendance-changed header."""
+    client.force_login(approved_user)
+    response = client.post(
+        f"/events/{published_event.pk}/attend/", {"status": "going"}
+    )
+    assert response.status_code == 200
+    assert response["HX-Trigger"] == "events:attendance-changed"
+
+
+@pytest.mark.django_db
+def test_attend_went_before_event_clamped_to_going(
+    client, approved_user, published_event
+):
+    """POST with status='went' on a future event is clamped to status='going'."""
+    client.force_login(approved_user)
+    client.post(f"/events/{published_event.pk}/attend/", {"status": "went"})
+    assert Attendance.objects.get(
+        user=approved_user, event=published_event
+    ).status == "going"
+
+
+@pytest.mark.django_db
+def test_attend_nonexistent_event_returns_404(client, approved_user):
+    """POST to non-existent event ID returns 404."""
+    client.force_login(approved_user)
+    response = client.post("/events/99999/attend/", {"status": "going"})
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_attend_idempotent(client, approved_user, published_event):
+    """Two identical attend POSTs result in exactly one row with correct status."""
+    client.force_login(approved_user)
+    client.post(f"/events/{published_event.pk}/attend/", {"status": "going"})
+    client.post(f"/events/{published_event.pk}/attend/", {"status": "going"})
+    assert Attendance.objects.filter(
+        user=approved_user, event=published_event
+    ).count() == 1
+    assert Attendance.objects.get(
+        user=approved_user, event=published_event
+    ).status == "going"
+
+
+@pytest.mark.django_db
+def test_attend_state_transition(client, approved_user, published_event):
+    """POST with status='interested' then status='going' updates the row."""
+    client.force_login(approved_user)
+    client.post(f"/events/{published_event.pk}/attend/", {"status": "interested"})
+    assert Attendance.objects.get(
+        user=approved_user, event=published_event
+    ).status == "interested"
+
+    client.post(f"/events/{published_event.pk}/attend/", {"status": "going"})
+    assert Attendance.objects.get(
+        user=approved_user, event=published_event
+    ).status == "going"
+
+
+# ---------------------------------------------------------------------------
+# 6. Follow endpoint
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_follow_requires_login(client, approved_organizer):
+    """Unauthenticated POST to follow endpoint redirects to login."""
+    response = client.post(f"/o/{approved_organizer.slug}/follow/")
+    assert response.status_code == 302
+    assert "/accounts/login/" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_follow_creates_row(client, approved_user, approved_organizer):
+    """Approved user POST to follow creates OrganizerFollow row."""
+    client.force_login(approved_user)
+    response = client.post(f"/o/{approved_organizer.slug}/follow/")
+    assert response.status_code == 200
+    assert OrganizerFollow.objects.filter(
+        user=approved_user, organizer=approved_organizer
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_follow_toggle_unfollow(client, approved_user, approved_organizer):
+    """Two POSTs to follow endpoint: first follows, second unfollows."""
+    client.force_login(approved_user)
+    client.post(f"/o/{approved_organizer.slug}/follow/")
+    assert OrganizerFollow.objects.filter(
+        user=approved_user, organizer=approved_organizer
+    ).exists()
+    client.post(f"/o/{approved_organizer.slug}/follow/")
+    assert not OrganizerFollow.objects.filter(
+        user=approved_user, organizer=approved_organizer
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_follow_nonexistent_organizer_returns_404(client, approved_user):
+    """POST to a non-existent organizer slug returns 404."""
+    client.force_login(approved_user)
+    response = client.post("/o/nonexistent-slug/follow/")
+    assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 7. CSRF enforcement
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_attend_no_csrf_returns_403(approved_user, published_event):
+    """Attend POST without CSRF token returns 403 (Django CSRF middleware)."""
+    c = Client(enforce_csrf_checks=True)
+    c.force_login(approved_user)
+    response = c.post(
+        f"/events/{published_event.pk}/attend/", {"status": "going"}
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_follow_no_csrf_returns_403(approved_user, approved_organizer):
+    """Follow POST without CSRF token returns 403 (Django CSRF middleware)."""
+    c = Client(enforce_csrf_checks=True)
+    c.force_login(approved_user)
+    response = c.post(f"/o/{approved_organizer.slug}/follow/")
+    assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 8. Kill-switches
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_map_enabled_false_hides_map(client, staff_user, published_event, settings):
+    """MAP_ENABLED=False: response does not contain the map div."""
+    settings.MAP_ENABLED = False
+    client.force_login(staff_user)
+    response = client.get("/events/")
+    assert b'id="map"' not in response.content
+
+
+@pytest.mark.django_db
+def test_invites_enabled_false_rejects_signup(client, valid_invite_code, settings):
+    """INVITES_ENABLED=False: even a valid code does not open the signup form."""
+    settings.INVITES_ENABLED = False
+    response = client.get(f"/accounts/signup/?code={valid_invite_code.code}")
+    content = response.content.decode()
+    assert 'type="password"' not in content
