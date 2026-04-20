@@ -1,0 +1,13 @@
+{% load i18n %}
+<div id="follow-{{ organizer.slug }}">
+  <form hx-post="{% url 'organizer-follow' organizer.slug %}"
+        hx-target="#follow-{{ organizer.slug }}"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    {% if following %}
+      <button type="submit" class="btn btn-sm btn-active">{% trans "Following" %}</button>
+    {% else %}
+      <button type="submit" class="btn btn-sm">{% trans "Follow" %}</button>
+    {% endif %}
+  </form>
+</div>

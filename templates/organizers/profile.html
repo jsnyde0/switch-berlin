@@ -35,6 +35,10 @@
     </div>
   </header>
 
+  {% if user.is_authenticated %}
+    {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
+  {% endif %}
+
   {% if organizer.description %}
   <section class="prose prose-sm max-w-none">
     {{ organizer.description|linebreaks }}

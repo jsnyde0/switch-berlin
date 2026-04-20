@@ -54,3 +54,20 @@ class Organizer(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class OrganizerFollow(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="follows",
+    )
+    organizer = models.ForeignKey(
+        Organizer,
+        on_delete=models.CASCADE,
+        related_name="followers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("user", "organizer")]
