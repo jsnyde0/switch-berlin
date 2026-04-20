@@ -19,7 +19,7 @@ window.initMap = function (containerEl, store) {
 
   var map = new maplibregl.Map({
     container: containerEl,
-    style: 'https://demotiles.maplibre.org/style.json',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
     bounds: initialBounds,
     fitBoundsOptions: { padding: 20 },
   })
