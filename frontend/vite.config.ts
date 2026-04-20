@@ -4,9 +4,11 @@ import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "node:path";
 
 // django-vite expects a manifest at STATIC_ROOT/dist/.vite/manifest.json
-export default defineConfig({
+// In dev mode, django-vite generates URLs at /static/... so base must match STATIC_URL.
+// In production, built assets land at static/dist/ so base includes /dist/.
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
-  base: "/static/dist/",
+  base: mode === "development" ? "/static/" : "/static/dist/",
   build: {
     outDir: resolve(__dirname, "../static/dist"),
     emptyOutDir: true,
@@ -24,4 +26,4 @@ export default defineConfig({
     strictPort: true,
     origin: "http://localhost:5173",
   },
-});
+}));

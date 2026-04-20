@@ -35,11 +35,11 @@
   {% endif %}
 
   <input type="date" name="from" value="{{ from_param }}"
-         class="input input-sm input-bordered"
+         class="input input-sm input-bordered w-36"
          placeholder="{% trans "From" %}"
          @change="$el.closest('form').requestSubmit()">
   <input type="date" name="to" value="{{ to_param }}"
-         class="input input-sm input-bordered"
+         class="input input-sm input-bordered w-36"
          placeholder="{% trans "To" %}"
          @change="$el.closest('form').requestSubmit()">
 </div>
