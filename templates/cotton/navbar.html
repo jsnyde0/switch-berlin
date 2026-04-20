@@ -55,9 +55,11 @@
             </li>
           </ul>
         {% else %}
+          {% if INVITES_ENABLED %}
           <li>
             <a class="text-base-content" href="{% url 'account_signup' %}">Register</a>
           </li>
+          {% endif %}
           <li>
             <a class="text-base-content" href="{% url 'account_login' %}">Log in</a>
           </li>

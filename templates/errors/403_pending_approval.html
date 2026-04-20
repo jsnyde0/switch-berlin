@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Account Pending Approval" %} — Kinky Bubbles{% endblock title %}
+
+{% block layout %}
+<div class="flex flex-col items-center justify-center gap-6 py-16">
+  <div class="card bg-base-200 shadow-xl max-w-md w-full">
+    <div class="card-body items-center text-center gap-4">
+      <h1 class="card-title text-2xl">{% trans "Account Pending Approval" %}</h1>
+      <p class="text-base-content/70">
+        {% trans "Your account is pending approval. You will receive an email when approved." %}
+      </p>
+      <div class="card-actions mt-4">
+        <a href="{% url 'account_logout' %}" class="btn btn-outline">
+          {% trans "Log out" %}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock layout %}

@@ -86,6 +86,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "a_core.context_processors.feature_flags",
             ],
             "loaders": [
                 (
@@ -143,6 +144,8 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "optional"
 ACCOUNT_ADAPTER = "accounts.adapter.NoSignupAdapter"
 LOGIN_WALL_ENABLED = env.bool("LOGIN_WALL_ENABLED", default=True)
+MAP_ENABLED = env.bool("MAP_ENABLED", default=True)
+INVITES_ENABLED = env.bool("INVITES_ENABLED", default=True)
 
 EMAIL_HOST = env("EMAIL_HOST", default="")
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")

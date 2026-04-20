@@ -6,13 +6,13 @@
       <a href="?{{ filter_query_string }}&page={{ page_obj.previous_page_number }}"
          class="join-item btn btn-sm"
          hx-get="?{{ filter_query_string }}&page={{ page_obj.previous_page_number }}"
-         hx-target="#event-list-container"
+         hx-target="#event-list"
          hx-push-url="true">‹</a>
     {% else %}
       <a href="?page={{ page_obj.previous_page_number }}"
          class="join-item btn btn-sm"
          hx-get="?page={{ page_obj.previous_page_number }}"
-         hx-target="#event-list-container"
+         hx-target="#event-list"
          hx-push-url="true">‹</a>
     {% endif %}
   {% endif %}
@@ -28,13 +28,13 @@
       <a href="?{{ filter_query_string }}&page={{ page_obj.next_page_number }}"
          class="join-item btn btn-sm"
          hx-get="?{{ filter_query_string }}&page={{ page_obj.next_page_number }}"
-         hx-target="#event-list-container"
+         hx-target="#event-list"
          hx-push-url="true">›</a>
     {% else %}
       <a href="?page={{ page_obj.next_page_number }}"
          class="join-item btn btn-sm"
          hx-get="?page={{ page_obj.next_page_number }}"
-         hx-target="#event-list-container"
+         hx-target="#event-list"
          hx-push-url="true">›</a>
     {% endif %}
   {% endif %}

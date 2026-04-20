@@ -4,9 +4,11 @@
 {% block title %}{% trans "Events" %} — Kinky Bubbles{% endblock title %}
 
 {% block extra_head %}
+{% if MAP_ENABLED %}
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.css"
       integrity="sha384-Nq6PQ+9vJPvw7U/VfDELyrWoGQMsy0gi6QShhaSrGzkpF5KkM40csg2leky+YMTd"
       crossorigin="anonymous">
+{% endif %}
 {% endblock extra_head %}
 
 {% block layout %}
@@ -28,7 +30,7 @@
     />
   </form>
 
-  <div id="map" hx-preserve="true" style="height: 500px; width: 100%;"></div>
+  {% if MAP_ENABLED %}<div id="map" hx-preserve="true" style="height: 500px; width: 100%;"></div>{% endif %}
 
   <div id="event-list">
     {% include "events/_event_list.html" %}
@@ -39,6 +41,7 @@
 {% endblock layout %}
 
 {% block extra_js %}
+{% if MAP_ENABLED %}
 <script src="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.js"
         integrity="sha384-VMpBpZqwtNOdABxFshfUPnyuqncfZtE0j1evmoWakxTDQ+me3EE4G48K/+dSDxSX"
         crossorigin="anonymous"></script>
@@ -46,4 +49,5 @@
 <script src="{% static 'js/events/store.js' %}"></script>
 <script src="{% static 'js/events/map.js' %}"></script>
 <script src="{% static 'js/events/bridge.js' %}"></script>
+{% endif %}
 {% endblock extra_js %}

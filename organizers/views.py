@@ -9,7 +9,7 @@ def organizer_profile(request, slug):
     now = timezone.now()
 
     upcoming_events = (
-        organizer.event_set.filter(
+        organizer.events.filter(
             status="published",
             start__gte=now,
         )
@@ -18,7 +18,7 @@ def organizer_profile(request, slug):
         .order_by("start")[:50]
     )
     past_events = (
-        organizer.event_set.filter(
+        organizer.events.filter(
             status="published",
             start__lt=now,
         )
