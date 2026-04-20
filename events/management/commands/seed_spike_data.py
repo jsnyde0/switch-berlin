@@ -22,7 +22,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from events.models import Event
+from events.models import Event, Tag
 from organizers.models import Organizer
 from venues.models import Venue
 
@@ -115,6 +115,19 @@ _PRIVACY_MODES = [m for m, _ in _PRIVACY_WEIGHTS]
 _PRIVACY_PROBS = [w / 100 for _, w in _PRIVACY_WEIGHTS]
 
 
+_TAG_FIXTURES = [
+    {'slug': 'bdsm',        'label': 'BDSM',         'kind': 'theme'},
+    {'slug': 'rope',        'label': 'Rope',          'kind': 'theme'},
+    {'slug': 'kink-social', 'label': 'Kink Social',   'kind': 'theme'},
+    {'slug': 'sensation',   'label': 'Sensation',     'kind': 'theme'},
+    {'slug': 'workshop',    'label': 'Workshop',      'kind': 'format'},
+    {'slug': 'party',       'label': 'Party',         'kind': 'format'},
+    {'slug': 'munch',       'label': 'Munch',         'kind': 'format'},
+    {'slug': 'queer',       'label': 'Queer',         'kind': 'identity'},
+    {'slug': 'femme',       'label': 'Femme',         'kind': 'identity'},
+]
+
+
 def _rng(seed: int = 42) -> random.Random:
     return random.Random(seed)
 
@@ -171,6 +184,8 @@ class Command(BaseCommand):
         if seed_data_exists and wipe:
             if verbosity >= 1:
                 self.stdout.write("Wiping existing seed data…")
+            # Delete tags first (M2M join rows are cleaned up automatically).
+            Tag.objects.filter(slug__in=[t['slug'] for t in _TAG_FIXTURES]).delete()
             # Cascade: deleting organizers removes their events (PROTECT on venue,
             # but we delete venues separately after events).
             # Events reference organizers (PROTECT) — delete events first.
@@ -180,6 +195,14 @@ class Command(BaseCommand):
 
         rng = _rng(42)
         now = timezone.now()
+
+        all_tags = []
+        for t in _TAG_FIXTURES:
+            tag, _ = Tag.objects.get_or_create(
+                slug=t['slug'],
+                defaults={'label': t['label'], 'kind': t['kind']},
+            )
+            all_tags.append(tag)
 
         organizers = []
         for i in range(NUM_ORGANIZERS):
@@ -225,14 +248,36 @@ class Command(BaseCommand):
                 offset_hours = rng.randint(18, 23)
                 start = now + timedelta(days=offset_days, hours=offset_hours)
                 slug = f"spike-{idx}-{k}-{rng.randint(1000, 9999)}"
-                Event.objects.create(
+                # Pricing: 40% free, 40% fixed, 20% sliding scale
+                roll = rng.random()
+                if roll < 0.40:
+                    is_free = True
+                    sliding_scale = False
+                    price_min = 0
+                    price_max = 0
+                elif roll < 0.80:
+                    is_free = False
+                    sliding_scale = False
+                    price_min = rng.randint(500, 2000)
+                    price_max = price_min + rng.randint(0, 1000)
+                else:
+                    is_free = False
+                    sliding_scale = True
+                    price_min = rng.randint(0, 500)
+                    price_max = rng.randint(1000, 3000)
+                event = Event.objects.create(
                     title=title,
                     slug=slug,
                     organizer=org,
                     venue=venue,
                     start=start,
                     status="published",
+                    is_free=is_free,
+                    sliding_scale=sliding_scale,
+                    price_min_cents=price_min,
+                    price_max_cents=price_max,
                 )
+                event.tags.set(rng.sample(all_tags, k=rng.randint(1, 3)))
                 event_count += 1
 
         if verbosity >= 1:
