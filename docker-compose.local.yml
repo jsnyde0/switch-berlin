@@ -8,6 +8,8 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - ./static:/app/static
+      - ./templates:/app/templates
     command: ["./start.sh"]
 
   qcluster:
