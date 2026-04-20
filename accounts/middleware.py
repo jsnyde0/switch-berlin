@@ -44,6 +44,7 @@ class LoginWallMiddleware:
                     "errors/403_pending_approval.html",
                     status=403,
                 )
+                response.render()
                 response["X-Robots-Tag"] = _ROBOTS_TAG
                 return response
 

@@ -61,11 +61,21 @@ def test_loginwall_staff_gets_through(client, staff_user, published_event):
 
 @pytest.mark.django_db
 def test_signup_closed(client):
-    """GET /accounts/signup/ must not return a working form (302 or 403 expected)."""
-    response = client.get("/accounts/signup/")
-    assert response.status_code in (302, 403), (
-        f"Expected 302 or 403 but got {response.status_code} — "
-        "signup must be closed via NoSignupAdapter"
+    """GET /accounts/signup/ without invite code must not render a working signup form.
+
+    Phase 0.4: allauth renders the signup_closed.html template (200) when
+    is_open_for_signup returns False.  We verify no <form> with a password
+    field is present, meaning the signup form itself is not served.
+    """
+    from django.test import override_settings
+
+    with override_settings(INVITES_ENABLED=True):
+        response = client.get("/accounts/signup/")
+    # allauth renders signup_closed template — not a bare 302/403
+    content = response.content.decode()
+    # Must NOT contain a password input (which would indicate the signup form)
+    assert 'type="password"' not in content, (
+        "Signup form was rendered without an invite code — signup must be closed"
     )
 
 
