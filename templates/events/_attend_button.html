@@ -1,0 +1,22 @@
+{% load i18n %}
+<div id="attend-{{ event.pk }}">
+  <form hx-post="{% url 'event-attend' event.pk %}"
+        hx-target="#attend-{{ event.pk }}"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <button type="submit" name="status" value="interested"
+            class="btn btn-sm {% if attendance and attendance.status == 'interested' %}btn-active{% endif %}">
+      {% trans "Interested" %}
+    </button>
+    <button type="submit" name="status" value="going"
+            class="btn btn-sm {% if attendance and attendance.status == 'going' %}btn-active{% endif %}">
+      {% trans "Going" %}
+    </button>
+    {% if event_past %}
+      <button type="submit" name="status" value="went"
+              class="btn btn-sm {% if attendance and attendance.status == 'went' %}btn-active{% endif %}">
+        {% trans "Went" %}
+      </button>
+    {% endif %}
+  </form>
+</div>

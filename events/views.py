@@ -1,11 +1,13 @@
 import time
 import urllib.parse
 
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.views.decorators.http import require_POST
 
 from venues.serializers import venue_to_geojson
 
@@ -193,11 +195,48 @@ def event_detail(request, org_slug, event_slug):
         user_going = Attendance.objects.filter(
             user=request.user, event=event, status="going"
         ).exists()
+        try:
+            attendance = Attendance.objects.get(user=request.user, event=event)
+        except Attendance.DoesNotExist:
+            attendance = None
     else:
         user_going = False
+        attendance = None
+    event_past = event.start < timezone.now()
     context = {
         "event": event,
         "cover_image": cover_image,
         "user_going": user_going,
+        "attendance": attendance,
+        "event_past": event_past,
     }
     return render(request, "events/detail.html", context)
+
+
+@require_POST
+@login_required
+def event_attend(request, event_id):
+    event = get_object_or_404(Event, pk=event_id, status="published")
+    status_val = request.POST.get("status", "interested")
+    if status_val not in ("interested", "going", "went"):
+        status_val = "interested"
+    # Guard: 'went' only allowed after event.start has passed
+    if status_val == "went" and event.start > timezone.now():
+        status_val = "going"
+    attendance, created = Attendance.objects.update_or_create(
+        user=request.user,
+        event=event,
+        defaults={"status": status_val},
+    )
+    event_past = event.start < timezone.now()
+    response = render(
+        request,
+        "events/_attend_button.html",
+        {
+            "event": event,
+            "attendance": attendance,
+            "event_past": event_past,
+        },
+    )
+    response["HX-Trigger"] = "events:attendance-changed"
+    return response

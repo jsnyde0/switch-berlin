@@ -25,6 +25,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   })
 
+  // When user marks attendance on a private-venue event, re-fetch markers
+  // so exact coords are shown if user just marked 'going'. ADR-004 D3: event-bus.
+  document.body.addEventListener('events:attendance-changed', function () {
+    window.dispatchEvent(new CustomEvent('events:filter-changed', {}))
+  })
+
   // Handle browser back/forward nav — sync store and drawer without re-pushing history
   window.addEventListener('popstate', function () {
     var store = Alpine.store('map')

@@ -61,6 +61,10 @@
   </div>
   {% endif %}
 
+  {% if user.is_authenticated and MAP_ENABLED %}
+    {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
+  {% endif %}
+
   {% if event.description %}
   <section class="prose prose-sm max-w-none">
     {{ event.description|linebreaks }}
