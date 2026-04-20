@@ -2,7 +2,7 @@
 <div class="card bg-base-200 shadow-sm hover:shadow-md transition-shadow">
   <div class="card-body p-4 gap-2">
     <h2 class="card-title text-base">
-      <a href="{% url 'event-detail' slug=event.slug %}" class="hover:underline">
+      <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}" class="hover:underline">
         {{ event.title }}
       </a>
     </h2>

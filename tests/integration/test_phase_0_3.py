@@ -126,17 +126,18 @@ def test_event_list_smoke(client, staff_user, published_event):
 
 @pytest.mark.django_db
 def test_event_detail_smoke(client, staff_user, published_event):
-    """GET /events/<slug>/ returns 200 for staff user with published event."""
+    """GET /events/<org-slug>/<event-slug>/ returns 200 for staff user with published event."""
     client.force_login(staff_user)
-    response = client.get(f"/events/{published_event.slug}/")
+    org_slug = published_event.organizer.slug
+    response = client.get(f"/events/{org_slug}/{published_event.slug}/")
     assert response.status_code == 200
 
 
 @pytest.mark.django_db
-def test_event_detail_404_for_missing(client, staff_user):
-    """GET /events/nonexistent/ returns 404."""
+def test_event_detail_404_for_missing(client, staff_user, approved_organizer):
+    """GET /events/<org-slug>/nonexistent/ returns 404."""
     client.force_login(staff_user)
-    response = client.get("/events/nonexistent-slug/")
+    response = client.get(f"/events/{approved_organizer.slug}/nonexistent-slug/")
     assert response.status_code == 404
 
 

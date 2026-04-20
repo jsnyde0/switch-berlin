@@ -83,28 +83,30 @@ def candidate_organizer(db):
 
 @pytest.mark.django_db
 def test_event_detail_returns_200_for_published(approved_user, published_event):
-    """GET /events/<slug>/ returns 200 for a published event."""
+    """GET /events/<org-slug>/<event-slug>/ returns 200 for a published event."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get(f"/events/{published_event.slug}/")
+    org_slug = published_event.organizer.slug
+    response = client.get(f"/events/{org_slug}/{published_event.slug}/")
     assert response.status_code == 200
 
 
 @pytest.mark.django_db
-def test_event_detail_returns_404_for_nonexistent(approved_user):
-    """GET /events/<nonexistent-slug>/ returns 404."""
+def test_event_detail_returns_404_for_nonexistent(approved_user, organizer):
+    """GET /events/<org-slug>/nonexistent-slug/ returns 404."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get("/events/does-not-exist/")
+    response = client.get(f"/events/{organizer.slug}/does-not-exist/")
     assert response.status_code == 404
 
 
 @pytest.mark.django_db
 def test_event_detail_returns_404_for_draft(approved_user, draft_event):
-    """GET /events/<draft-slug>/ returns 404 (draft is not published)."""
+    """GET /events/<org-slug>/<draft-slug>/ returns 404 (draft is not published)."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get(f"/events/{draft_event.slug}/")
+    org_slug = draft_event.organizer.slug
+    response = client.get(f"/events/{org_slug}/{draft_event.slug}/")
     assert response.status_code == 404
 
 
@@ -113,7 +115,8 @@ def test_event_detail_contains_title(approved_user, published_event):
     """Event detail page contains the event title."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get(f"/events/{published_event.slug}/")
+    org_slug = published_event.organizer.slug
+    response = client.get(f"/events/{org_slug}/{published_event.slug}/")
     assert published_event.title.encode() in response.content
 
 

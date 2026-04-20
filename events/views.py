@@ -99,12 +99,11 @@ def event_list(request):
     return render(request, "events/list.html", context)
 
 
-def event_detail(request, slug):
-    # NOTE: Event.slug is unique per-organizer only (organizer+slug UniqueConstraint).
-    # Two organizers sharing a slug returns the first match. Revise URL scheme at 0.4
-    # to include organizer slug and make it globally unique.
+def event_detail(request, org_slug, event_slug):
     qs = (
-        Event.objects.filter(slug=slug, status="published")
+        Event.objects.filter(
+            organizer__slug=org_slug, slug=event_slug, status="published"
+        )
         .select_related("organizer", "venue")
         .prefetch_related("tags", "images")
     )
