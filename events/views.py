@@ -102,7 +102,7 @@ def event_list(request):
 
     # Serialize markers_qs into a GeoJSON FeatureCollection
     marker_features = []
-    for event in markers_qs.select_related("venue", "organizer"):
+    for event in markers_qs:
         if not event.venue_id:
             continue
         feature = venue_to_geojson(event.venue)
@@ -146,7 +146,7 @@ def event_list(request):
 
 def event_drawer(request, event_id):
     event = get_object_or_404(
-        Event.objects.select_related("organizer", "venue"),
+        Event.objects.filter(status="published").select_related("organizer", "venue"),
         pk=event_id,
     )
     return render(request, "events/_event_drawer.html", {"event": event})

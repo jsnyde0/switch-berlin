@@ -10,10 +10,11 @@ document.addEventListener('alpine:init', function () {
       var url = new URL(window.location)
       if (eventId) {
         url.searchParams.set('selected', eventId)
+        history.pushState({}, '', url)
       } else {
         url.searchParams.delete('selected')
+        history.replaceState({}, '', url)
       }
-      history.pushState({}, '', url)
       window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { eventId: eventId } }))
     },
 

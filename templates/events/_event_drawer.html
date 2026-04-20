@@ -3,7 +3,7 @@
   <div class="flex justify-between items-start mb-2">
     <h2 class="text-xl font-bold">{{ event.title }}</h2>
     <button class="btn btn-sm btn-ghost"
-            onclick="document.getElementById('drawer').innerHTML=''">
+            onclick="Alpine.store('map').selectEvent(null); document.getElementById('drawer').innerHTML=''">
       {% trans "Close" %}
     </button>
   </div>

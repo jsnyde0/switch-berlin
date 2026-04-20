@@ -45,11 +45,32 @@ window.initMap = function (containerEl, store) {
       },
     })
 
+    // Privacy obfuscation circles: private (1000 m fake center) and neighborhood_blur
+    map.addLayer({
+      id: 'privacy-circles',
+      type: 'circle',
+      source: 'events',
+      filter: ['!', ['==', ['get', 'privacy'], 'public']],
+      paint: {
+        'circle-color': '#a855f7',
+        'circle-opacity': 0.15,
+        'circle-stroke-color': '#a855f7',
+        'circle-stroke-width': 1,
+        'circle-stroke-opacity': 0.4,
+        // Scale radius by zoom: approximate 1000 m at zoom 13 ≈ 40 px; scale proportionally
+        'circle-radius': [
+          'interpolate', ['exponential', 2], ['zoom'],
+          10, ['/', ['coalesce', ['get', 'blur_radius_m'], 1000], 75],
+          14, ['/', ['coalesce', ['get', 'blur_radius_m'], 1000], 5],
+        ],
+      },
+    })
+
     map.addLayer({
       id: 'event-markers',
       type: 'circle',
       source: 'events',
-      filter: ['!', ['has', 'point_count']],
+      filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'privacy'], 'public']],
       paint: {
         'circle-color': '#a855f7',
         'circle-radius': 8,
@@ -94,7 +115,8 @@ window.initMap = function (containerEl, store) {
     var el = document.getElementById('markers-data')
     if (!el) return
     var newGeoJSON = JSON.parse(el.textContent)
-    map.getSource('events').setData(newGeoJSON)
+    var src = map.getSource('events')
+    if (src) src.setData(newGeoJSON)
   })
 
   return {

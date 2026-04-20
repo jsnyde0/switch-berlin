@@ -15,8 +15,7 @@
         hx-get="{% url 'event-list' %}"
         hx-target="#event-list"
         hx-push-url="true"
-        hx-trigger="submit"
-        hx-on::after-request="window.dispatchEvent(new CustomEvent('events:filter-changed', {}))">
+        hx-trigger="submit">
     <c-filter-chips
       :all_tags="all_tags"
       :active_tag_slugs="active_tag_slugs"

@@ -90,7 +90,8 @@ class EventListMarkersTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"bdsm", response.content)
 
-    def test_private_venue_coords_absent_from_markers(self):
+    def test_private_venue_exact_coords_absent_from_markers(self):
+        """Private venues must use a fake-center geometry, not the real lat/lng."""
         response = self.client.get("/events/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -109,11 +110,26 @@ class EventListMarkersTest(TestCase):
         self.assertGreater(
             len(private_features), 0, "Expected at least one private-venue feature"
         )
+        real_lat = float(self.venue_private.latitude)
+        real_lng = float(self.venue_private.longitude)
         for f in private_features:
-            self.assertIsNone(
+            # Feature must have a geometry (fake center), not null
+            self.assertIsNotNone(
                 f["geometry"],
-                f'Private venue geometry must be null, got {f["geometry"]}',
+                "Private venue geometry must be a fake-center Point, not null",
             )
+            coords = f["geometry"]["coordinates"]
+            # Fake center must differ from real coordinates
+            self.assertNotAlmostEqual(
+                coords[0], real_lng, places=2,
+                msg="Private venue longitude must be obfuscated",
+            )
+            self.assertNotAlmostEqual(
+                coords[1], real_lat, places=2,
+                msg="Private venue latitude must be obfuscated",
+            )
+            # Properties must carry blur_radius_m for the obfuscation circle
+            self.assertEqual(f["properties"].get("blur_radius_m"), 1000)
 
     def test_drawer_returns_partial(self):
         event = self.events[0]
@@ -125,3 +141,79 @@ class EventListMarkersTest(TestCase):
     def test_drawer_404_for_unknown_event(self):
         response = self.client.get("/events/999999/drawer/")
         self.assertEqual(response.status_code, 404)
+
+    def test_drawer_404_for_unpublished_event(self):
+        """Drawer must not expose draft or cancelled events (security fix)."""
+        now = timezone.now()
+        draft_event = Event.objects.create(
+            title="Draft Event",
+            slug="draft-event",
+            organizer=self.organizer,
+            venue=self.venue_public,
+            start=now + timezone.timedelta(days=1),
+            status="draft",
+        )
+        response = self.client.get(f"/events/{draft_event.pk}/drawer/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_bounds_filter_includes_event_in_bounds(self):
+        """Events whose venue is within bounds must appear in markers."""
+        # venue_public is at lat=52.52, lng=13.40 — include it
+        response = self.client.get(
+            "/events/",
+            {"bounds": "52.50,13.38,52.55,13.45"},
+        )
+        self.assertEqual(response.status_code, 200)
+        import re, json
+        content = response.content.decode()
+        match = re.search(
+            r'id="markers-data" type="application/json">(.*?)</script>',
+            content,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match, "markers-data script tag not found")
+        geojson = json.loads(match.group(1))
+        public_event_ids = [
+            f["properties"]["event_id"]
+            for f in geojson["features"]
+            if f["properties"].get("privacy") == "public"
+        ]
+        self.assertIn(self.events[0].pk, public_event_ids)
+
+    def test_bounds_filter_excludes_event_outside_bounds(self):
+        """Events whose venue is outside bounds must not appear in markers."""
+        # venue_public is at lat=52.52, lng=13.40 — exclude via tight bounds far away
+        response = self.client.get(
+            "/events/",
+            {"bounds": "51.00,12.00,51.50,12.50"},
+        )
+        self.assertEqual(response.status_code, 200)
+        import re, json
+        content = response.content.decode()
+        match = re.search(
+            r'id="markers-data" type="application/json">(.*?)</script>',
+            content,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match, "markers-data script tag not found")
+        geojson = json.loads(match.group(1))
+        self.assertEqual(
+            len(geojson["features"]), 0,
+            "Expected no markers when bounds exclude all venues",
+        )
+
+    def test_bounds_filter_malformed_ignored(self):
+        """Malformed bounds param must be silently ignored (all events returned)."""
+        response = self.client.get("/events/", {"bounds": "not,a,valid,bounds"})
+        self.assertEqual(response.status_code, 200)
+        import re, json
+        content = response.content.decode()
+        match = re.search(
+            r'id="markers-data" type="application/json">(.*?)</script>',
+            content,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match, "markers-data script tag not found")
+        geojson = json.loads(match.group(1))
+        # All 3 events should be present (malformed bounds means no filtering)
+        self.assertEqual(len(geojson["features"]), 3)

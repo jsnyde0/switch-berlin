@@ -44,10 +44,12 @@ def venue_to_geojson(venue) -> dict | None:
         fake_lng = round(float(venue.longitude) + offset_lng, 4)
         return {
             "type": "Feature",
-            "geometry": None,
+            "geometry": {
+                "type": "Point",
+                "coordinates": [fake_lng, fake_lat],
+            },
             "properties": {
                 "privacy": "private",
                 "blur_radius_m": 1000,
-                "fake_center": [fake_lng, fake_lat],
             },
         }

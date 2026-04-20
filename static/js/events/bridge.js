@@ -24,4 +24,29 @@ document.addEventListener('DOMContentLoaded', function () {
       window.dispatchEvent(new CustomEvent('events:filter-changed', {}))
     }
   })
+
+  // Handle browser back/forward nav — sync store and drawer without re-pushing history
+  window.addEventListener('popstate', function () {
+    var store = Alpine.store('map')
+    var params = new URLSearchParams(window.location.search)
+    var selected = params.get('selected')
+    if (selected) {
+      var eventId = parseInt(selected, 10)
+      // Directly update store state — do NOT call store.selectEvent() as it pushes history
+      store.selectedEventId = eventId
+      window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { eventId: eventId } }))
+      htmx.ajax('GET', '/events/' + eventId + '/drawer/', {
+        target: '#drawer',
+        swap: 'innerHTML',
+      })
+    } else {
+      // No selection in new URL — clear drawer and highlight
+      if (store) {
+        store.selectedEventId = null
+        window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { eventId: null } }))
+      }
+      var drawerEl = document.getElementById('drawer')
+      if (drawerEl) drawerEl.innerHTML = ''
+    }
+  })
 })

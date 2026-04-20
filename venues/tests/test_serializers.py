@@ -63,7 +63,8 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
         feature = venue_to_geojson(v)
         assert feature["properties"]["blur_radius_m"] == 500
 
-    def test_private_has_no_geometry(self):
+    def test_private_has_fake_center_geometry(self):
+        """Private venues must use a fake-center Point geometry (not null) for the privacy circle layer."""
         v = self._make_venue(
             slug="private-venue",
             latitude=Decimal("52.5"),
@@ -73,12 +74,14 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
         )
         feature = venue_to_geojson(v)
         assert feature is not None
-        assert feature["geometry"] is None
+        # Geometry must be a Point at the fake center — map.js renders a circle around it
+        assert feature["geometry"] is not None
+        assert feature["geometry"]["type"] == "Point"
         assert feature["properties"]["privacy"] == "private"
         assert feature["properties"]["blur_radius_m"] == 1000
-        assert "fake_center" in feature["properties"]
 
-    def test_private_fake_center_is_deterministic(self):
+    def test_private_geometry_is_deterministic(self):
+        """Same slug must always yield the same fake-center coordinates."""
         v = self._make_venue(
             slug="my-slug",
             latitude=Decimal("52.5"),
@@ -87,7 +90,7 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
         )
         f1 = venue_to_geojson(v)
         f2 = venue_to_geojson(v)
-        assert f1["properties"]["fake_center"] == f2["properties"]["fake_center"]
+        assert f1["geometry"]["coordinates"] == f2["geometry"]["coordinates"]
 
     def test_private_fake_center_differs_from_real_coords(self):
         v = self._make_venue(
@@ -97,7 +100,7 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
             privacy_mode="private",
         )
         feature = venue_to_geojson(v)
-        fake_lng, fake_lat = feature["properties"]["fake_center"]
+        fake_lng, fake_lat = feature["geometry"]["coordinates"]
         # Should not equal exact coords
         assert fake_lat != 52.5 or fake_lng != 13.4
 
@@ -110,7 +113,7 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
             privacy_mode="private",
         )
         feature = venue_to_geojson(v)
-        fake_lng, fake_lat = feature["properties"]["fake_center"]
+        fake_lng, fake_lat = feature["geometry"]["coordinates"]
         # Max offset is 0.018 lat and 0.025 lng
         assert abs(fake_lat - 52.5) <= 0.018
         assert abs(fake_lng - 13.4) <= 0.025
