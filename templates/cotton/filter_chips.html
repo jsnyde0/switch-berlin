@@ -11,7 +11,7 @@
      }">
   {% for tag in all_tags %}
     <button type="button"
-            @click="toggle('{{ tag.slug }}'); $el.closest('form').requestSubmit()"
+            @click="toggle('{{ tag.slug }}'); $nextTick(() => $el.closest('form').requestSubmit())"
             :class="activeTags.includes('{{ tag.slug }}') ? 'badge badge-primary cursor-pointer' : 'badge badge-outline cursor-pointer'">
       {{ tag.label }} <span x-show="activeTags.includes('{{ tag.slug }}')">×</span>
     </button>

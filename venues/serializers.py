@@ -40,8 +40,8 @@ def venue_to_geojson(venue) -> dict | None:
         digest = hashlib.md5(venue.slug.encode()).digest()
         offset_lat = ((digest[0] / 255) - 0.5) * 0.018
         offset_lng = ((digest[1] / 255) - 0.5) * 0.025
-        fake_lat = round(float(venue.latitude) + offset_lat, 4)
-        fake_lng = round(float(venue.longitude) + offset_lng, 4)
+        fake_lat = round(float(venue.latitude) + offset_lat, 3)
+        fake_lng = round(float(venue.longitude) + offset_lng, 3)
         return {
             "type": "Feature",
             "geometry": {
