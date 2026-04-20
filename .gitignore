@@ -190,3 +190,5 @@ static/dist/
 
 # Git worktrees
 .worktrees/
+
+tmp/
