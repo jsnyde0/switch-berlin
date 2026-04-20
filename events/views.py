@@ -1,4 +1,3 @@
-import json
 import time
 import urllib.parse
 
@@ -119,12 +118,10 @@ def event_list(request):
         )
         marker_features.append(feature)
 
-    markers_geojson = json.dumps(
-        {
-            "type": "FeatureCollection",
-            "features": marker_features,
-        }
-    )
+    markers_geojson = {
+        "type": "FeatureCollection",
+        "features": marker_features,
+    }
 
     context = {
         "page_obj": page_obj,

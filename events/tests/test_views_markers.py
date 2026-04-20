@@ -100,11 +100,7 @@ class EventListMarkersTest(TestCase):
             re.DOTALL,
         )
         self.assertIsNotNone(match, "markers-data script tag not found in response")
-        # The json_script filter JSON-encodes the value; since markers_geojson is
-        # already a JSON string, the script tag contains a JSON-encoded string —
-        # load once to get the string, then load again to get the dict.
-        raw = json.loads(match.group(1))
-        geojson = json.loads(raw) if isinstance(raw, str) else raw
+        geojson = json.loads(match.group(1))
         private_features = [
             f
             for f in geojson["features"]
