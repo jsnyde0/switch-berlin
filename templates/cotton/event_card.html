@@ -14,7 +14,15 @@
     </p>
     {% endif %}
     <p class="text-sm">{{ event.start|date:"D, d M Y, H:i" }}</p>
-    {% if event.venue %}<p class="text-xs text-base-content/60">{{ event.venue.name }}</p>{% endif %}
+    {% if event.venue %}
+    <p class="text-xs text-base-content/60">
+      {% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}
+        {% trans 'Private venue' %}
+      {% else %}
+        {{ event.venue.name }}
+      {% endif %}
+    </p>
+    {% endif %}
     <div class="card-actions justify-end">
       {% if event.is_free %}
         <span class="badge badge-success badge-sm">{% trans "Free" %}</span>

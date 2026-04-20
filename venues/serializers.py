@@ -2,8 +2,15 @@
 import hashlib
 
 
-def venue_to_geojson(venue) -> dict | None:
-    """Return a GeoJSON Feature dict with privacy enforcement, or None if coords are missing."""
+def venue_to_geojson(venue, *, going_venue_ids=None) -> dict | None:
+    """Return a GeoJSON Feature dict with privacy enforcement, or None if no coords.
+
+    Args:
+        venue: A Venue instance.
+        going_venue_ids: frozenset/set of venue PKs where the requesting user has
+            Attendance(status='going'). When None, always blur for private venues
+            (backward-compatible with prior behaviour).
+    """
     if venue.latitude is None or venue.longitude is None:
         return None
 
@@ -37,6 +44,20 @@ def venue_to_geojson(venue) -> dict | None:
         }
 
     else:  # 'private'
+        if going_venue_ids is not None and venue.pk in going_venue_ids:
+            # User is going — return exact coords
+            return {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [float(venue.longitude), float(venue.latitude)],
+                },
+                "properties": {
+                    "privacy": "private",
+                    "blur_radius_m": None,
+                },
+            }
+        # Not going or anonymous — return blurred center (existing hash logic)
         digest = hashlib.md5(venue.slug.encode()).digest()
         offset_lat = ((digest[0] / 255) - 0.5) * 0.018
         offset_lng = ((digest[1] / 255) - 0.5) * 0.025

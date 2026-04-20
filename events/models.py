@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -108,6 +109,36 @@ class Event(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Attendance(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="attendances",
+    )
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="attendances",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("interested", "Interested"),
+            ("going", "Going"),
+            ("went", "Went"),
+        ],
+        default="interested",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("user", "event")]
+
+    def __str__(self):
+        return f"{self.user} — {self.event} ({self.status})"
 
 
 class EventImage(models.Model):

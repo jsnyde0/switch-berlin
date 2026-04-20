@@ -30,7 +30,11 @@
     {% if event.venue %}
     <p>
       <span class="font-semibold">{% trans "Venue" %}:</span>
-      {{ event.venue.name }}{% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+      {% if event.venue.privacy_mode == 'private' and not user_going %}
+        {% trans 'Private venue' %}
+      {% else %}
+        {{ event.venue.name }}{% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+      {% endif %}
     </p>
     {% endif %}
     <p>

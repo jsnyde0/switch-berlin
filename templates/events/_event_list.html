@@ -6,7 +6,7 @@
     <div data-event-id="{{ event.pk }}"
          class="cursor-pointer"
          onclick="Alpine.store('map').selectEvent({{ event.pk }})">
-      <c-event-card :event="event" />
+      <c-event-card :event="event" :going_venue_id_list="going_venue_id_list" />
     </div>
   {% empty %}
     <p class="col-span-full text-base-content/60">{% trans "No events found." %}</p>

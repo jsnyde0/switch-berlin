@@ -9,7 +9,7 @@ from django.utils.dateparse import parse_date
 
 from venues.serializers import venue_to_geojson
 
-from .models import Event, Tag
+from .models import Attendance, Event, Tag
 
 
 def event_list(request):
@@ -100,12 +100,22 @@ def event_list(request):
             except ValueError:
                 pass  # malformed bounds — ignore silently
 
+    # Pre-compute venue PKs where requesting user has Attendance(status='going')
+    if request.user.is_authenticated:
+        going_venue_ids = frozenset(
+            Attendance.objects.filter(
+                user=request.user, status="going", event__venue__isnull=False
+            ).values_list("event__venue_id", flat=True)
+        )
+    else:
+        going_venue_ids = frozenset()
+
     # Serialize markers_qs into a GeoJSON FeatureCollection
     marker_features = []
     for event in markers_qs:
         if not event.venue_id:
             continue
-        feature = venue_to_geojson(event.venue)
+        feature = venue_to_geojson(event.venue, going_venue_ids=going_venue_ids)
         if feature is None:
             continue
         feature["properties"].update(
@@ -123,6 +133,9 @@ def event_list(request):
         "features": marker_features,
     }
 
+    # Convert to list for template use (Django templates can't use 'in' with frozenset)
+    going_venue_id_list = list(going_venue_ids)
+
     context = {
         "page_obj": page_obj,
         "all_tags": all_tags,
@@ -134,6 +147,7 @@ def event_list(request):
         "filter_query_string": filter_query_string,
         "markers_geojson": markers_geojson,
         "bounds_param": bounds_param,
+        "going_venue_id_list": going_venue_id_list,
     }
 
     if request.htmx:
@@ -149,7 +163,17 @@ def event_drawer(request, event_id):
         Event.objects.filter(status="published").select_related("organizer", "venue"),
         pk=event_id,
     )
-    return render(request, "events/_event_drawer.html", {"event": event})
+    if request.user.is_authenticated:
+        user_going = Attendance.objects.filter(
+            user=request.user, event=event, status="going"
+        ).exists()
+    else:
+        user_going = False
+    return render(
+        request,
+        "events/_event_drawer.html",
+        {"event": event, "user_going": user_going},
+    )
 
 
 def event_detail(request, org_slug, event_slug):
@@ -165,8 +189,15 @@ def event_detail(request, org_slug, event_slug):
         raise Http404
     # Use generator over prefetch cache — avoids a second DB query from .filter()
     cover_image = next((img for img in event.images.all() if img.is_cover), None)
+    if request.user.is_authenticated:
+        user_going = Attendance.objects.filter(
+            user=request.user, event=event, status="going"
+        ).exists()
+    else:
+        user_going = False
     context = {
         "event": event,
         "cover_image": cover_image,
+        "user_going": user_going,
     }
     return render(request, "events/detail.html", context)

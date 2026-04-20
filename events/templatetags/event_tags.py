@@ -17,3 +17,18 @@ def cents_to_display(value):
         return f"{int(value) / 100:.2f}"
     except (TypeError, ValueError):
         return ""
+
+
+@register.filter
+def in_set(value, the_set):
+    """Return True if value is in the_set.
+
+    Safe when the_set is None, empty string, or empty container.
+    Cotton passes unset props as empty string (""), so this guard
+    prevents a TypeError when the component is rendered without the prop.
+
+    Usage: {{ event.venue.pk|in_set:going_venue_id_list }}
+    """
+    if not the_set:
+        return False
+    return value in the_set
