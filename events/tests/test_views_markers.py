@@ -133,13 +133,15 @@ class EventListMarkersTest(TestCase):
 
     def test_drawer_returns_partial(self):
         event = self.events[0]
-        response = self.client.get(f"/events/{event.pk}/drawer/")
+        response = self.client.get(
+            f"/events/{event.organizer.slug}/{event.slug}/drawer/"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b"<html", response.content.lower())
         self.assertIn(event.title.encode(), response.content)
 
     def test_drawer_404_for_unknown_event(self):
-        response = self.client.get("/events/999999/drawer/")
+        response = self.client.get("/events/unknown-org/unknown-event/drawer/")
         self.assertEqual(response.status_code, 404)
 
     def test_drawer_404_for_unpublished_event(self):
@@ -153,7 +155,9 @@ class EventListMarkersTest(TestCase):
             start=now + timezone.timedelta(days=1),
             status="draft",
         )
-        response = self.client.get(f"/events/{draft_event.pk}/drawer/")
+        response = self.client.get(
+            f"/events/{draft_event.organizer.slug}/{draft_event.slug}/drawer/"
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_bounds_filter_includes_event_in_bounds(self):
@@ -173,12 +177,12 @@ class EventListMarkersTest(TestCase):
         )
         self.assertIsNotNone(match, "markers-data script tag not found")
         geojson = json.loads(match.group(1))
-        public_event_ids = [
-            f["properties"]["event_id"]
+        public_event_slugs = [
+            f["properties"]["event_slug"]
             for f in geojson["features"]
             if f["properties"].get("privacy") == "public"
         ]
-        self.assertIn(self.events[0].pk, public_event_ids)
+        self.assertIn(self.events[0].slug, public_event_slugs)
 
     def test_bounds_filter_excludes_event_outside_bounds(self):
         """Events whose venue is outside bounds must not appear in markers."""

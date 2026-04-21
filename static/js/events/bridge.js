@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var params = new URLSearchParams(window.location.search)
   var selected = params.get('selected')
   if (selected) {
+    // Sync store so map highlight is restored (selectEvent would push history; set directly)
+    store.selectedKey = selected
+    window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { selectedKey: selected } }))
     htmx.ajax('GET', '/events/' + selected + '/drawer/', {
       target: '#drawer',
       swap: 'innerHTML',
@@ -39,19 +42,19 @@ document.addEventListener('DOMContentLoaded', function () {
     var params = new URLSearchParams(window.location.search)
     var selected = params.get('selected')
     if (selected) {
-      var eventId = parseInt(selected, 10)
-      // Directly update store state — do NOT call store.selectEvent() as it pushes history
-      store.selectedEventId = eventId
-      window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { eventId: eventId } }))
-      htmx.ajax('GET', '/events/' + eventId + '/drawer/', {
+      // selected is already a composite key string like "org-slug/event-slug"
+      // Set store directly to avoid selectEvent() pushing another history entry
+      store.selectedKey = selected
+      window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { selectedKey: selected } }))
+      htmx.ajax('GET', '/events/' + selected + '/drawer/', {
         target: '#drawer',
         swap: 'innerHTML',
       })
     } else {
       // No selection in new URL — clear drawer and highlight
       if (store) {
-        store.selectedEventId = null
-        window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { eventId: null } }))
+        store.selectedKey = null
+        window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { selectedKey: null } }))
       }
       var drawerEl = document.getElementById('drawer')
       if (drawerEl) drawerEl.innerHTML = ''
