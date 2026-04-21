@@ -3,9 +3,9 @@
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
   {% for event in page_obj %}
-    <div data-event-id="{{ event.pk }}"
+    <div data-event-slug="{{ event.organizer.slug }}/{{ event.slug }}"
          class="cursor-pointer"
-         onclick="Alpine.store('map').selectEvent({{ event.pk }})">
+         onclick="Alpine.store('map').selectEvent('{{ event.organizer.slug }}/{{ event.slug }}')">
       <c-event-card :event="event" :going_venue_id_list="going_venue_id_list" />
     </div>
   {% empty %}

@@ -1,6 +1,6 @@
 {% load i18n %}
 <div id="attend-{{ event.pk }}">
-  <form hx-post="{% url 'event-attend' event.pk %}"
+  <form hx-post="{% url 'event-attend' event.organizer.slug event.slug %}"
         hx-target="#attend-{{ event.pk }}"
         hx-swap="outerHTML">
     {% csrf_token %}

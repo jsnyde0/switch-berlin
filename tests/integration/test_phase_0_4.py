@@ -227,11 +227,13 @@ def test_private_venue_blurred_without_going(
         (
             f
             for f in markers_geojson["features"]
-            if f["properties"]["event_id"] == event_with_private_venue.pk
+            if f["properties"]["org_slug"] == event_with_private_venue.organizer.slug
+            and f["properties"]["event_slug"] == event_with_private_venue.slug
         ),
         None,
     )
     assert feature is not None, "Event feature not found in markers_geojson"
+    assert "event_id" not in feature["properties"], "event_id must not be in GeoJSON properties"
 
     # Blurred: coords must NOT be exactly [13.4, 52.5]
     coords = feature["geometry"]["coordinates"]
@@ -256,11 +258,13 @@ def test_private_venue_exact_with_going(
         (
             f
             for f in markers_geojson["features"]
-            if f["properties"]["event_id"] == event_with_private_venue.pk
+            if f["properties"]["org_slug"] == event_with_private_venue.organizer.slug
+            and f["properties"]["event_slug"] == event_with_private_venue.slug
         ),
         None,
     )
     assert feature is not None, "Event feature not found in markers_geojson"
+    assert "event_id" not in feature["properties"], "event_id must not be in GeoJSON properties"
 
     coords = feature["geometry"]["coordinates"]
     # Exact coords: longitude first, then latitude (GeoJSON convention)
@@ -319,7 +323,9 @@ def test_private_venue_name_hidden_in_drawer(
 ):
     """Event drawer shows 'Private venue' for users without going Attendance."""
     client.force_login(approved_user)
-    response = client.get(f"/events/{event_with_private_venue.pk}/drawer/")
+    org_slug = event_with_private_venue.organizer.slug
+    event_slug = event_with_private_venue.slug
+    response = client.get(f"/events/{org_slug}/{event_slug}/drawer/")
     assert response.status_code == 200
     assert b"Private venue" in response.content
 
@@ -350,7 +356,9 @@ def test_private_venue_name_shown_in_drawer_for_going_user(
         user=approved_user, event=event_with_private_venue, status="going"
     )
     client.force_login(approved_user)
-    response = client.get(f"/events/{event_with_private_venue.pk}/drawer/")
+    org_slug = event_with_private_venue.organizer.slug
+    event_slug = event_with_private_venue.slug
+    response = client.get(f"/events/{org_slug}/{event_slug}/drawer/")
     assert response.status_code == 200
     assert b"Secret Place" in response.content
     assert b"Private venue" not in response.content
@@ -364,8 +372,10 @@ def test_private_venue_name_shown_in_drawer_for_going_user(
 @pytest.mark.django_db
 def test_attend_requires_login(client, published_event):
     """Unauthenticated POST to attend endpoint redirects to login."""
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
     response = client.post(
-        f"/events/{published_event.pk}/attend/", {"status": "going"}
+        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
     )
     assert response.status_code == 302
     assert "/accounts/login/" in response["Location"]
@@ -375,8 +385,10 @@ def test_attend_requires_login(client, published_event):
 def test_attend_requires_approved(client, regular_user, published_event):
     """Unapproved (regular_user) POST to attend endpoint gets 403 from middleware."""
     client.force_login(regular_user)
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
     response = client.post(
-        f"/events/{published_event.pk}/attend/", {"status": "going"}
+        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
     )
     assert response.status_code == 403
 
@@ -385,8 +397,10 @@ def test_attend_requires_approved(client, regular_user, published_event):
 def test_attend_creates_row(client, approved_user, published_event):
     """Approved user POST to attend creates Attendance row."""
     client.force_login(approved_user)
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
     response = client.post(
-        f"/events/{published_event.pk}/attend/", {"status": "going"}
+        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
     )
     assert response.status_code == 200
     assert Attendance.objects.filter(
@@ -398,8 +412,10 @@ def test_attend_creates_row(client, approved_user, published_event):
 def test_attend_returns_hx_trigger(client, approved_user, published_event):
     """Attend response has HX-Trigger: events:attendance-changed header."""
     client.force_login(approved_user)
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
     response = client.post(
-        f"/events/{published_event.pk}/attend/", {"status": "going"}
+        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
     )
     assert response.status_code == 200
     assert response["HX-Trigger"] == "events:attendance-changed"
@@ -411,17 +427,22 @@ def test_attend_went_before_event_clamped_to_going(
 ):
     """POST with status='went' on a future event is clamped to status='going'."""
     client.force_login(approved_user)
-    client.post(f"/events/{published_event.pk}/attend/", {"status": "went"})
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
+    client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "went"})
     assert Attendance.objects.get(
         user=approved_user, event=published_event
     ).status == "going"
 
 
 @pytest.mark.django_db
-def test_attend_nonexistent_event_returns_404(client, approved_user):
-    """POST to non-existent event ID returns 404."""
+def test_attend_nonexistent_event_returns_404(client, approved_user, approved_organizer):
+    """POST to non-existent event slug returns 404."""
     client.force_login(approved_user)
-    response = client.post("/events/99999/attend/", {"status": "going"})
+    response = client.post(
+        f"/events/{approved_organizer.slug}/nonexistent-event/attend/",
+        {"status": "going"},
+    )
     assert response.status_code == 404
 
 
@@ -429,8 +450,10 @@ def test_attend_nonexistent_event_returns_404(client, approved_user):
 def test_attend_idempotent(client, approved_user, published_event):
     """Two identical attend POSTs result in exactly one row with correct status."""
     client.force_login(approved_user)
-    client.post(f"/events/{published_event.pk}/attend/", {"status": "going"})
-    client.post(f"/events/{published_event.pk}/attend/", {"status": "going"})
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
+    client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
+    client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert Attendance.objects.filter(
         user=approved_user, event=published_event
     ).count() == 1
@@ -443,12 +466,14 @@ def test_attend_idempotent(client, approved_user, published_event):
 def test_attend_state_transition(client, approved_user, published_event):
     """POST with status='interested' then status='going' updates the row."""
     client.force_login(approved_user)
-    client.post(f"/events/{published_event.pk}/attend/", {"status": "interested"})
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
+    client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "interested"})
     assert Attendance.objects.get(
         user=approved_user, event=published_event
     ).status == "interested"
 
-    client.post(f"/events/{published_event.pk}/attend/", {"status": "going"})
+    client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert Attendance.objects.get(
         user=approved_user, event=published_event
     ).status == "going"
@@ -510,8 +535,10 @@ def test_attend_no_csrf_returns_403(approved_user, published_event):
     """Attend POST without CSRF token returns 403 (Django CSRF middleware)."""
     c = Client(enforce_csrf_checks=True)
     c.force_login(approved_user)
+    org_slug = published_event.organizer.slug
+    event_slug = published_event.slug
     response = c.post(
-        f"/events/{published_event.pk}/attend/", {"status": "going"}
+        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
     )
     assert response.status_code == 403
 

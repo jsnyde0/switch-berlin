@@ -102,9 +102,11 @@ window.initMap = function (containerEl, store) {
   map.on('click', 'event-markers', function (e) {
     var feature = e.features[0]
     if (!feature) return
-    var eventId = feature.properties.event_id
-    store.selectEvent(eventId)
-    htmx.ajax('GET', '/events/' + eventId + '/drawer/', {
+    var orgSlug = feature.properties.org_slug
+    var eventSlug = feature.properties.event_slug
+    var compositeKey = orgSlug + '/' + eventSlug
+    store.selectEvent(compositeKey)
+    htmx.ajax('GET', '/events/' + orgSlug + '/' + eventSlug + '/drawer/', {
       target: '#drawer',
       swap: 'innerHTML',
     })
@@ -113,9 +115,13 @@ window.initMap = function (containerEl, store) {
   window.addEventListener('events:selection-changed', function (e) {
     // Visual highlight — set feature state on the selected event marker
     // MapLibre feature state requires a numeric feature id; use a filter layer instead
+    var selectedKey = e.detail.selectedKey || ''
     map.setPaintProperty('event-markers', 'circle-color', [
       'case',
-      ['==', ['get', 'event_id'], e.detail.eventId || -1],
+      ['==',
+        ['concat', ['get', 'org_slug'], '/', ['get', 'event_slug']],
+        selectedKey
+      ],
       '#f59e0b',
       '#a855f7',
     ])

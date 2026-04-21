@@ -1,21 +1,21 @@
 document.addEventListener('alpine:init', function () {
   Alpine.store('map', {
-    selectedEventId: null,
+    selectedKey: null,
     hoveredEventId: null,
     bounds: null,
     _mapInstance: null,
 
-    selectEvent: function (eventId) {
-      this.selectedEventId = eventId
+    selectEvent: function (compositeKey) {
+      this.selectedKey = compositeKey
       var url = new URL(window.location)
-      if (eventId) {
-        url.searchParams.set('selected', eventId)
+      if (compositeKey) {
+        url.searchParams.set('selected', compositeKey)
         history.pushState({}, '', url)
       } else {
         url.searchParams.delete('selected')
         history.replaceState({}, '', url)
       }
-      window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { eventId: eventId } }))
+      window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { selectedKey: compositeKey } }))
     },
 
     hoverEvent: function (eventId) {
