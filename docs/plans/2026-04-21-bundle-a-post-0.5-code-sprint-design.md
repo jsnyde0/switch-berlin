@@ -3,8 +3,9 @@
 **Date:** 2026-04-21
 **Status:** Draft (ready for `/send-it`)
 **Parent roadmap:** [Bundle A in roadmap](2026-04-17-roadmap-0.1-to-1.0.md)
-**ADRs:** [ADR-001 D3](../decisions/ADR-001-core-product-and-stack.md), [ADR-002 D4](../decisions/ADR-002-phased-rollout-and-legal-gate.md), [ADR-003 F2, F8, F9](../decisions/ADR-003-cheap-foresight-patterns.md)
-**Supersedes in scope:** portions of [phase 0.6](2026-04-17-phase-0.6-signals-design.md), [phase 0.7](2026-04-17-phase-0.7-event-reviews-design.md), [phase 1.0](2026-04-17-phase-1.0-soft-launch-design.md)
+**Decisions:** [ADR-005 Bundle post-0.5 execution](../decisions/ADR-005-bundle-post-0.5-execution.md)
+**Upstream ADRs:** [ADR-001 D3](../decisions/ADR-001-core-product-and-stack.md), [ADR-002 D4](../decisions/ADR-002-phased-rollout-and-legal-gate.md), [ADR-003 F2, F8, F9](../decisions/ADR-003-cheap-foresight-patterns.md)
+**Supersedes in scope:** code portions of [phase 0.6](2026-04-17-phase-0.6-signals-design.md), [phase 0.7](2026-04-17-phase-0.7-event-reviews-design.md), [phase 1.0](2026-04-17-phase-1.0-soft-launch-design.md) (per ADR-005 D1)
 **Audience:** current invite cohort — public surface only lights up when maintainer flips flags.
 **Risk killed:** "build when I'm in flow" — solo maintainer code sprints should not block on human-time calendar items (event entry, threshold calibration, organizer approvals).
 
