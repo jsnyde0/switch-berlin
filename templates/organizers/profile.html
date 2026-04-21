@@ -39,6 +39,18 @@
     {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
   {% endif %}
 
+  {% if show_rating %}
+  <div class="flex items-center gap-2">
+    <span class="text-2xl font-bold">{{ avg_rating|floatformat:1 }}</span>
+    <span class="text-base-content/60">/ 5</span>
+    <span class="text-sm text-base-content/50">({{ rating_count }} {% trans "reviews" %})</span>
+  </div>
+  {% endif %}
+
+  {% if user.is_authenticated and user.is_approved and FLAGS_ENABLED and RATINGS_ENABLED %}
+  {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
+  {% endif %}
+
   {% if organizer.description %}
   <section class="prose prose-sm max-w-none">
     {{ organizer.description|linebreaks }}

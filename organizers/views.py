@@ -5,6 +5,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import approved_required
 from events.models import Attendance
+from reviews.views import MIN_RATINGS_FOR_DISPLAY
 
 from .models import Organizer, OrganizerFollow
 
@@ -45,12 +46,28 @@ def organizer_profile(request, slug):
         following = False
         going_venue_ids = []
 
+    rating_count = organizer.rating_count
+    avg_rating = organizer.avg_rating
+    show_rating = rating_count >= MIN_RATINGS_FOR_DISPLAY
+
+    user_review = None
+    if request.user.is_authenticated:
+        try:
+            user_review = organizer.reviews.get(author=request.user)
+        except Exception:
+            user_review = None
+
     context = {
         "organizer": organizer,
         "upcoming_events": upcoming_events,
         "past_events": past_events,
         "following": following,
         "going_venue_id_list": going_venue_ids,
+        "rating_count": rating_count,
+        "avg_rating": avg_rating,
+        "show_rating": show_rating,
+        "user_review": user_review,
+        "MIN_RATINGS_FOR_DISPLAY": MIN_RATINGS_FOR_DISPLAY,
     }
     return render(request, "organizers/profile.html", context)
 

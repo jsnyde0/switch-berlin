@@ -84,6 +84,10 @@
   </div>
   {% endif %}
 
+  {% if user.is_authenticated and user.is_approved and event_past and RATINGS_ENABLED %}
+  {% include "reviews/_rating_form.html" with target_type="event" target_id=event.pk form_id="event-detail-rating-form" %}
+  {% endif %}
+
   <footer class="text-xs text-base-content/50 border-t pt-4">
     {% trans "Safety first. Consent is mandatory. Look out for each other." %}
   </footer>

@@ -1,0 +1,12 @@
+{% load i18n %}
+<div id="organizer-rating-display">
+  {% if rating_count >= MIN_RATINGS_FOR_DISPLAY %}
+  <p class="text-lg font-bold">
+    {{ avg_rating|floatformat:1 }} / 5
+    <span class="text-sm font-normal text-base-content/60">
+      ({{ rating_count }} {% trans "reviews" %})
+    </span>
+  </p>
+  {% endif %}
+  <p class="text-sm text-success">{% trans "Your review has been saved." %}</p>
+</div>

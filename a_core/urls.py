@@ -14,6 +14,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("events/", include("events.urls")),
     path("o/", include("organizers.urls")),
+    path("reviews/", include("reviews.urls")),
     path("robots.txt", robots_txt_view, name="robots-txt"),
     path("age-check/", age_check_view, name="age-check"),
 ]
