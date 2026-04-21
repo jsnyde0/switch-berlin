@@ -14,7 +14,6 @@ Test plan items (from bead kb-2eu.1):
 """
 
 import pytest
-from django.test import override_settings
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -131,25 +130,51 @@ def test_approved_user_not_blocked_by_middleware(
 
 
 @pytest.mark.django_db
-def test_unapproved_user_gets_403_pending_page(client, unapproved_user):
-    """Unapproved authenticated user sees 403_pending_approval.html at status 403."""
+def test_unapproved_user_gets_403_pending_page_in_rollback_mode(client, unapproved_user):
+    """Unapproved user sees 403_pending_approval.html when PUBLIC_READ_ENABLED=False."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    # Phase 0.5: PUBLIC_READ_ENABLED=True allows unapproved users on /events/.
+    # In rollback mode (PUBLIC_READ_ENABLED=False), they see the 403 pending page.
+    FeatureFlag.objects.update_or_create(
+        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
     client.force_login(unapproved_user)
-    response = client.get("/events/")
-    assert response.status_code == 403
-    content = response.content.decode()
-    # Should contain the pending approval message, not bare "Not available yet."
-    assert "pending approval" in content.lower()
+    try:
+        response = client.get("/events/")
+        assert response.status_code == 403
+        content = response.content.decode()
+        assert "pending approval" in content.lower()
+    finally:
+        FeatureFlag.objects.filter(key="PUBLIC_READ_ENABLED").delete()
+        cache.clear()
 
 
 @pytest.mark.django_db
-def test_unapproved_user_gets_full_page_not_bare_text(client, unapproved_user):
-    """Unapproved user sees a real HTML page, not a bare string response."""
+def test_unapproved_user_gets_full_page_not_bare_text_in_rollback_mode(
+    client, unapproved_user
+):
+    """Unapproved user sees a real HTML page in rollback mode, not a bare string."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
     client.force_login(unapproved_user)
-    response = client.get("/events/")
-    assert response.status_code == 403
-    content = response.content.decode()
-    # Should be a real HTML page (extends _base.html)
-    assert "<!DOCTYPE html>" in content or "<html" in content
+    try:
+        response = client.get("/events/")
+        assert response.status_code == 403
+        content = response.content.decode()
+        assert "<!DOCTYPE html>" in content or "<html" in content
+    finally:
+        FeatureFlag.objects.filter(key="PUBLIC_READ_ENABLED").delete()
+        cache.clear()
 
 
 @pytest.mark.django_db
@@ -163,36 +188,24 @@ def test_unapproved_user_can_still_logout(client, unapproved_user):
 
 
 # ---------------------------------------------------------------------------
-# Kill-switches: MAP_ENABLED and INVITES_ENABLED settings exist
+# Kill-switches: MAP_ENABLED and INVITES_ENABLED are FeatureFlags
 # ---------------------------------------------------------------------------
 
 
-def test_map_enabled_setting_exists():
-    """MAP_ENABLED setting exists in Django settings."""
-    from django.conf import settings
+@pytest.mark.django_db
+def test_map_enabled_flag_default_is_true():
+    """MAP_ENABLED FeatureFlag defaults to True when no DB row exists."""
+    from a_core.models import get_flag
 
-    assert hasattr(settings, "MAP_ENABLED")
-
-
-def test_invites_enabled_setting_exists():
-    """INVITES_ENABLED setting exists in Django settings."""
-    from django.conf import settings
-
-    assert hasattr(settings, "INVITES_ENABLED")
+    assert get_flag("MAP_ENABLED", default=True) is True
 
 
-def test_map_enabled_default_is_true():
-    """MAP_ENABLED defaults to True."""
-    from django.conf import settings
+@pytest.mark.django_db
+def test_invites_enabled_flag_default_is_true():
+    """INVITES_ENABLED FeatureFlag defaults to True when no DB row exists."""
+    from a_core.models import get_flag
 
-    assert settings.MAP_ENABLED is True
-
-
-def test_invites_enabled_default_is_true():
-    """INVITES_ENABLED defaults to True."""
-    from django.conf import settings
-
-    assert settings.INVITES_ENABLED is True
+    assert get_flag("INVITES_ENABLED", default=True) is True
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +220,7 @@ def test_feature_flags_context_processor_exists():
     assert callable(feature_flags)
 
 
+@pytest.mark.django_db
 def test_feature_flags_context_processor_returns_map_enabled():
     """feature_flags context processor returns MAP_ENABLED key."""
     from a_core.context_processors import feature_flags
@@ -215,6 +229,7 @@ def test_feature_flags_context_processor_returns_map_enabled():
     assert "MAP_ENABLED" in result
 
 
+@pytest.mark.django_db
 def test_feature_flags_context_processor_returns_invites_enabled():
     """feature_flags context processor returns INVITES_ENABLED key."""
     from a_core.context_processors import feature_flags
@@ -237,24 +252,46 @@ def test_feature_flags_context_processor_registered():
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=False)
 def test_invites_disabled_hides_register_link(client):
-    """With INVITES_ENABLED=False, the Register link is not in the page."""
-    # Anonymous user so we're in the unauthenticated branch of the navbar
-    response = client.get("/accounts/login/")
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "account_signup" not in content or "Register" not in content
+    """With INVITES_ENABLED=False FeatureFlag, the Register link is not in the page."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="INVITES_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
+    try:
+        # Anonymous user so we're in the unauthenticated branch of the navbar
+        response = client.get("/accounts/login/")
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "account_signup" not in content or "Register" not in content
+    finally:
+        FeatureFlag.objects.filter(key="INVITES_ENABLED").delete()
+        cache.clear()
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
 def test_invites_enabled_shows_register_link(client):
-    """With INVITES_ENABLED=True, the Register link is present."""
-    response = client.get("/accounts/login/")
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "Register" in content
+    """With INVITES_ENABLED=True FeatureFlag, the Register link is present."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="INVITES_ENABLED", defaults={"enabled": True}
+    )
+    cache.clear()
+    try:
+        response = client.get("/accounts/login/")
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Register" in content
+    finally:
+        FeatureFlag.objects.filter(key="INVITES_ENABLED").delete()
+        cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -263,30 +300,57 @@ def test_invites_enabled_shows_register_link(client):
 
 
 @pytest.mark.django_db
-@override_settings(MAP_ENABLED=False)
 def test_map_disabled_no_map_div(client, staff_user, published_event):
-    """With MAP_ENABLED=False, the map div is not rendered."""
+    """With MAP_ENABLED=False FeatureFlag, the map div is not rendered."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(key="MAP_ENABLED", defaults={"enabled": False})
+    cache.clear()
     client.force_login(staff_user)
-    response = client.get("/events/")
-    assert response.status_code == 200
-    assert b'id="map"' not in response.content
+    try:
+        response = client.get("/events/")
+        assert response.status_code == 200
+        assert b'id="map"' not in response.content
+    finally:
+        FeatureFlag.objects.filter(key="MAP_ENABLED").delete()
+        cache.clear()
 
 
 @pytest.mark.django_db
-@override_settings(MAP_ENABLED=False)
 def test_map_disabled_no_maplibre_assets(client, staff_user, published_event):
-    """With MAP_ENABLED=False, maplibre JS/CSS is not loaded."""
+    """With MAP_ENABLED=False FeatureFlag, maplibre JS/CSS is not loaded."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(key="MAP_ENABLED", defaults={"enabled": False})
+    cache.clear()
     client.force_login(staff_user)
-    response = client.get("/events/")
-    assert response.status_code == 200
-    assert b"maplibre" not in response.content.lower()
+    try:
+        response = client.get("/events/")
+        assert response.status_code == 200
+        assert b"maplibre" not in response.content.lower()
+    finally:
+        FeatureFlag.objects.filter(key="MAP_ENABLED").delete()
+        cache.clear()
 
 
 @pytest.mark.django_db
-@override_settings(MAP_ENABLED=True)
 def test_map_enabled_has_map_div(client, staff_user, published_event):
-    """With MAP_ENABLED=True, the map div IS rendered."""
+    """With MAP_ENABLED=True FeatureFlag, the map div IS rendered."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(key="MAP_ENABLED", defaults={"enabled": True})
+    cache.clear()
     client.force_login(staff_user)
-    response = client.get("/events/")
-    assert response.status_code == 200
-    assert b'id="map"' in response.content
+    try:
+        response = client.get("/events/")
+        assert response.status_code == 200
+        assert b'id="map"' in response.content
+    finally:
+        FeatureFlag.objects.filter(key="MAP_ENABLED").delete()
+        cache.clear()

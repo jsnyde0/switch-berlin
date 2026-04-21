@@ -16,3 +16,15 @@ LOGFIRE_TOKEN = ""
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
+
+# Swap the pgvector/pg_trgm migrations for no-ops so tests run without these extensions
+MIGRATION_MODULES = {
+    "a_core": "a_core.test_migrations",
+    "ingestion": "ingestion.test_migrations",
+}
+
+# Disable ratelimit during most tests (tests that need it use override_settings)
+RATELIMIT_ENABLE = False
+
+# Allow testserver for Django test client
+ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]

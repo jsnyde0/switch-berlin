@@ -228,7 +228,7 @@ def test_takedown_creates_anonymous_flag(client, published_event):
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
 def test_takedown_rate_limit(client, published_event):
-    """POST /takedown/ 6 times from same IP -> 6th returns 403 (rate limited)."""
+    """POST /takedown/ 6 times from same IP -> 6th returns 429 (rate limited)."""
     from django.urls import reverse
 
     cache.clear()
@@ -267,7 +267,7 @@ def test_takedown_rate_limit(client, published_event):
         },
         REMOTE_ADDR="192.0.2.99",
     )
-    assert resp.status_code == 403, f"Expected 403, got {resp.status_code}"
+    assert resp.status_code == 429, f"Expected 429, got {resp.status_code}"
     cache.clear()
 
 
@@ -634,6 +634,7 @@ def test_rollback_x_robots_header(client, staff_user, feature_flag_public_read_o
     assert "X-Robots-Tag" in response, (
         "X-Robots-Tag header should be present when PUBLIC_READ_ENABLED=False"
     )
+    assert response["X-Robots-Tag"] == "noindex, nofollow, noarchive"
 
 
 @pytest.mark.django_db

@@ -2,6 +2,7 @@ import time
 
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
 from a_core.models import get_flag
@@ -28,7 +29,11 @@ def test_skeleton_hx(request):
 def age_check_view(request):
     if request.method == "POST" and request.POST.get("confirm") == "yes":
         next_url = request.POST.get("next", "/")
-        if not next_url.startswith("/"):
+        if not url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
             next_url = "/"
         response = redirect(next_url)
         max_age = 365 * 24 * 3600 if request.POST.get("remember") else None
@@ -43,7 +48,7 @@ def age_check_view(request):
 def robots_txt_view(request):
     public = get_flag("PUBLIC_READ_ENABLED", default=True)
     if public:
-        content = "User-agent: *\nAllow: /\n\nUser-agent: *\nDisallow: /admin/\n"
+        content = "User-agent: *\nAllow: /\nDisallow: /admin/\n"
     else:
         content = "User-agent: *\nDisallow: /\n"
     return HttpResponse(content, content_type="text/plain")

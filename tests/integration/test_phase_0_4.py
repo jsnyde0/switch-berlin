@@ -95,12 +95,27 @@ def test_approved_user_can_access_events(client, approved_user, published_event)
 
 
 @pytest.mark.django_db
-def test_unapproved_user_sees_pending_page(client, regular_user):
-    """Unapproved authenticated user gets 403 with 'pending' text in body."""
+def test_unapproved_user_sees_pending_page_when_login_wall_active(client, regular_user):
+    """Unapproved user gets 403 when PUBLIC_READ_ENABLED=False (login wall active)."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    # In Phase 0.5 with PUBLIC_READ_ENABLED=True, unapproved users CAN access /events/.
+    # With PUBLIC_READ_ENABLED=False (rollback mode), unapproved authenticated users
+    # are shown the pending-approval page.
+    FeatureFlag.objects.update_or_create(
+        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
     client.force_login(regular_user)
-    response = client.get("/events/")
-    assert response.status_code == 403
-    assert b"pending" in response.content
+    try:
+        response = client.get("/events/")
+        assert response.status_code == 403
+        assert b"pending" in response.content
+    finally:
+        FeatureFlag.objects.filter(key="PUBLIC_READ_ENABLED").delete()
+        cache.clear()
 
 
 @pytest.mark.django_db
@@ -130,18 +145,16 @@ def test_public_paths_accessible_to_unapproved(client, regular_user):
 
 
 @pytest.mark.django_db
-def test_signup_open_with_valid_code(client, valid_invite_code, settings):
+def test_signup_open_with_valid_code(client, valid_invite_code):
     """GET /accounts/signup/?code=<valid> renders a signup form."""
-    settings.INVITES_ENABLED = True
     response = client.get(f"/accounts/signup/?code={valid_invite_code.code}")
     assert response.status_code == 200
     assert b"<form" in response.content
 
 
 @pytest.mark.django_db
-def test_signup_closed_without_code(client, settings):
+def test_signup_closed_without_code(client):
     """GET /accounts/signup/ without a code must not render a signup form."""
-    settings.INVITES_ENABLED = True
     response = client.get("/accounts/signup/")
     # allauth renders signup_closed template at 200 when is_open_for_signup=False
     content = response.content.decode()
@@ -151,10 +164,8 @@ def test_signup_closed_without_code(client, settings):
 
 
 @pytest.mark.django_db
-def test_invite_code_redeemed_on_signup(client, valid_invite_code, settings):
+def test_invite_code_redeemed_on_signup(client, valid_invite_code):
     """POST to /accounts/signup/ with code in session redeems the InviteCode."""
-    settings.INVITES_ENABLED = True
-
     # Inject the invite code into the session
     session = client.session
     session["invite_code"] = valid_invite_code.code
@@ -182,10 +193,8 @@ def test_invite_code_redeemed_on_signup(client, valid_invite_code, settings):
 
 
 @pytest.mark.django_db
-def test_redeemed_code_rejected(client, staff_user, settings):
+def test_redeemed_code_rejected(client, staff_user):
     """GET /accounts/signup/?code=<redeemed> does not render a signup form."""
-    settings.INVITES_ENABLED = True
-
     already_redeemed = InviteCode.objects.create(
         created_by=staff_user, redeemed_by=staff_user
     )
@@ -195,10 +204,8 @@ def test_redeemed_code_rejected(client, staff_user, settings):
 
 
 @pytest.mark.django_db
-def test_expired_code_rejected(client, staff_user, settings):
+def test_expired_code_rejected(client, staff_user):
     """GET /accounts/signup/?code=<expired> does not render a signup form."""
-    settings.INVITES_ENABLED = True
-
     expired = InviteCode.objects.create(
         created_by=staff_user,
         expires_at=tz.now() - timedelta(days=1),
@@ -558,18 +565,40 @@ def test_follow_no_csrf_returns_403(approved_user, approved_organizer):
 
 
 @pytest.mark.django_db
-def test_map_enabled_false_hides_map(client, staff_user, published_event, settings):
-    """MAP_ENABLED=False: response does not contain the map div."""
-    settings.MAP_ENABLED = False
+def test_map_enabled_false_hides_map(client, staff_user, published_event):
+    """MAP_ENABLED=False FeatureFlag: response does not contain the map div."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="MAP_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
     client.force_login(staff_user)
-    response = client.get("/events/")
-    assert b'id="map"' not in response.content
+    try:
+        response = client.get("/events/")
+        assert b'id="map"' not in response.content
+    finally:
+        FeatureFlag.objects.filter(key="MAP_ENABLED").delete()
+        cache.clear()
 
 
 @pytest.mark.django_db
-def test_invites_enabled_false_rejects_signup(client, valid_invite_code, settings):
-    """INVITES_ENABLED=False: even a valid code does not open the signup form."""
-    settings.INVITES_ENABLED = False
-    response = client.get(f"/accounts/signup/?code={valid_invite_code.code}")
-    content = response.content.decode()
-    assert 'type="password"' not in content
+def test_invites_enabled_false_rejects_signup(client, valid_invite_code):
+    """INVITES_ENABLED=False FeatureFlag: even a valid code does not open signup."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="INVITES_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
+    try:
+        response = client.get(f"/accounts/signup/?code={valid_invite_code.code}")
+        content = response.content.decode()
+        assert 'type="password"' not in content
+    finally:
+        FeatureFlag.objects.filter(key="INVITES_ENABLED").delete()
+        cache.clear()

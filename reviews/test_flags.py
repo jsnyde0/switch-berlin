@@ -358,8 +358,8 @@ def test_takedown_no_url_and_no_body_shows_error():
     RATELIMIT_ENABLE=True,
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
-def test_takedown_rate_limit_6th_request_returns_403(published_event):
-    """POST /takedown/ 6 times from same IP -> 6th blocked by ratelimit (403)."""
+def test_takedown_rate_limit_6th_request_returns_429(published_event):
+    """POST /takedown/ 6 times from same IP -> 6th blocked by ratelimit (429)."""
     from django.core.cache import cache
 
     cache.clear()
@@ -399,7 +399,7 @@ def test_takedown_rate_limit_6th_request_returns_403(published_event):
         },
         REMOTE_ADDR="192.0.2.1",
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 429
 
     cache.clear()
 
@@ -419,12 +419,13 @@ def test_organizer_opt_out_get_returns_200():
 
 @pytest.mark.django_db
 def test_organizer_opt_out_valid_telegram_id_suspends_organizer(organizer):
-    """Valid telegram_user_id match -> Organizer.status set to 'suspended'."""
+    """Valid telegram_user_id linked to organizer -> Organizer.status set to 'suspended'."""
     from ingestion.models import ApprovedSender
 
     ApprovedSender.objects.create(
         telegram_user_id="123456789",
         telegram_handle="orgadmin",
+        organizer=organizer,
     )
     url = reverse("organizer-opt-out")
     resp = Client().post(
@@ -717,7 +718,9 @@ def test_flag_target_rate_limit_per_day(
 
     from reviews.views import FLAG_RATE_LIMIT_PER_USER
 
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = timezone.localtime(timezone.now()).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
     # Pre-create FLAG_RATE_LIMIT_PER_USER existing flags (simulating prior usage)
     for _ in range(FLAG_RATE_LIMIT_PER_USER):
         Flag.objects.create(
@@ -737,3 +740,142 @@ def test_flag_target_rate_limit_per_day(
         },
     )
     assert resp.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# Test: IDOR fix — organizer_opt_out cannot suspend unrelated organizer
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_organizer_opt_out_cannot_suspend_unrelated_organizer():
+    """ApprovedSender linked to org-A cannot opt out org-B (IDOR prevention)."""
+    from django.contrib.auth import get_user_model
+
+    from ingestion.models import ApprovedSender
+
+    User = get_user_model()
+    organizer_a = Organizer.objects.create(
+        name="Organizer A", slug="org-a", status="approved"
+    )
+    organizer_b = Organizer.objects.create(
+        name="Organizer B", slug="org-b", status="approved"
+    )
+    # Sender is linked to org-A only
+    ApprovedSender.objects.create(
+        telegram_user_id="sender-idor-test",
+        telegram_handle="senderhandle",
+        organizer=organizer_a,
+    )
+
+    url = reverse("organizer-opt-out")
+    # Attempt to suspend org-B using org-A's sender ID
+    resp = Client().post(
+        url,
+        {
+            "telegram_user_id": "sender-idor-test",
+            "organizer_slug": organizer_b.slug,
+        },
+    )
+    assert resp.status_code == 200
+    organizer_b.refresh_from_db()
+    # org-B must remain approved
+    assert organizer_b.status == "approved"
+    content = resp.content.decode()
+    assert "verification failed" in content.lower() or "error" in content.lower()
+
+
+# ---------------------------------------------------------------------------
+# Test: organizer_opt_out rate limit — 4th POST blocked
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+)
+def test_organizer_opt_out_rate_limit_4th_request_blocked():
+    """POST /organizer-opt-out/ 4 times from same IP -> 4th returns 429."""
+    from django.core.cache import cache
+
+    cache.clear()
+
+    url = reverse("organizer-opt-out")
+    c = Client()
+    # First 3 should return 200 (even with wrong credentials — verification error)
+    for _ in range(3):
+        resp = c.post(
+            url,
+            {
+                "telegram_user_id": "nonexistent",
+                "organizer_slug": "nonexistent-org",
+            },
+            REMOTE_ADDR="192.0.2.50",
+        )
+        assert resp.status_code == 200
+
+    # 4th should be blocked
+    resp = c.post(
+        url,
+        {
+            "telegram_user_id": "nonexistent",
+            "organizer_slug": "nonexistent-org",
+        },
+        REMOTE_ADDR="192.0.2.50",
+    )
+    assert resp.status_code == 429
+
+    cache.clear()
+
+
+# ---------------------------------------------------------------------------
+# Test: FeatureFlag cache invalidation on save/delete
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_feature_flag_save_invalidates_cache():
+    """Toggling FeatureFlag via .save() immediately invalidates the cache."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag, get_flag
+
+    # Prime the cache with True
+    flag, _ = FeatureFlag.objects.get_or_create(
+        key="TEST_CACHE_INVALIDATION_FLAG", defaults={"enabled": True}
+    )
+    val = get_flag("TEST_CACHE_INVALIDATION_FLAG", default=False)
+    assert val is True
+
+    # Toggle to False via .save() — should bust cache
+    flag.enabled = False
+    flag.save()
+
+    # get_flag must reflect new value without cache.clear()
+    val_after = get_flag("TEST_CACHE_INVALIDATION_FLAG", default=True)
+    assert val_after is False
+
+    # Cleanup
+    flag.delete()
+
+
+@pytest.mark.django_db
+def test_feature_flag_delete_invalidates_cache():
+    """Deleting a FeatureFlag via .delete() falls back to default immediately."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag, get_flag
+
+    flag, _ = FeatureFlag.objects.get_or_create(
+        key="TEST_CACHE_DELETE_FLAG", defaults={"enabled": False}
+    )
+    # Prime cache
+    val = get_flag("TEST_CACHE_DELETE_FLAG", default=True)
+    assert val is False
+
+    # Delete the flag — should bust cache; get_flag should return default
+    flag.delete()
+
+    val_after = get_flag("TEST_CACHE_DELETE_FLAG", default=True)
+    assert val_after is True

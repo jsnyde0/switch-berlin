@@ -1,9 +1,10 @@
 import logging
 
 from allauth.account.adapter import DefaultAccountAdapter
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+
+from a_core.models import get_flag
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ class NoSignupAdapter(DefaultAccountAdapter):
     """Invite-gated signup adapter — phase 0.4."""
 
     def is_open_for_signup(self, request):
-        if not getattr(settings, "INVITES_ENABLED", True):
+        if not get_flag("INVITES_ENABLED", default=True):
             return False
         code = request.GET.get("code") or request.session.get("invite_code")
         if not code:

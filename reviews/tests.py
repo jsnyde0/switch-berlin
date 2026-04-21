@@ -213,19 +213,27 @@ def test_submit_event_review_updates_rating_count(client_logged_in, past_event):
 @pytest.mark.django_db
 def test_submit_review_ratings_disabled_returns_503(client_logged_in, organizer):
     """When RATINGS_ENABLED=False, submit returns 503."""
-    from a_core.models import FeatureFlag
     from django.core.cache import cache
-    FeatureFlag.objects.create(key="RATINGS_ENABLED", enabled=False)
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="RATINGS_ENABLED", defaults={"enabled": False}
+    )
     cache.clear()
 
     url = reverse("review-submit")
-    resp = client_logged_in.post(url, {
-        "target_type": "organizer",
-        "target_id": str(organizer.pk),
-        "rating": "4",
-    })
+    resp = client_logged_in.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "rating": "4",
+        },
+    )
     assert resp.status_code == 503
     # Cleanup
+    FeatureFlag.objects.filter(key="RATINGS_ENABLED").update(enabled=True)
     cache.clear()
 
 

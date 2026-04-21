@@ -20,7 +20,6 @@ Test plan items (from bead kb-2eu.4):
 from datetime import timedelta
 
 import pytest
-from django.test import override_settings
 from django.utils import timezone
 
 # ---------------------------------------------------------------------------
@@ -425,11 +424,10 @@ def test_event_detail_attendance_is_none_when_no_row(
 
 
 @pytest.mark.django_db
-@override_settings(MAP_ENABLED=True)
-def test_event_detail_includes_attend_button_when_authenticated_and_map_enabled(
+def test_event_detail_includes_attend_button_when_authenticated(
     client, staff_user, future_event
 ):
-    """event_detail includes attend button for authenticated user (MAP_ENABLED=True)."""
+    """event_detail includes attend button for authenticated user."""
     client.force_login(staff_user)
     response = client.get(
         f"/events/{future_event.organizer.slug}/{future_event.slug}/"
@@ -440,12 +438,10 @@ def test_event_detail_includes_attend_button_when_authenticated_and_map_enabled(
 
 
 @pytest.mark.django_db
-@override_settings(MAP_ENABLED=False)
-def test_event_detail_hides_attend_button_when_map_disabled(
-    client, staff_user, future_event
+def test_event_detail_excludes_attend_button_when_not_authenticated(
+    client, future_event
 ):
-    """event_detail hides attend button when MAP_ENABLED=False."""
-    client.force_login(staff_user)
+    """event_detail hides attend button for anonymous user."""
     response = client.get(
         f"/events/{future_event.organizer.slug}/{future_event.slug}/"
     )

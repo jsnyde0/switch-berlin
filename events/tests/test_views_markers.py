@@ -119,13 +119,15 @@ class EventListMarkersTest(TestCase):
                 "Private venue geometry must be a fake-center Point, not null",
             )
             coords = f["geometry"]["coordinates"]
-            # Fake center must differ from real coordinates
+            # Fake center must differ from real coordinates.
+            # The hash-based offset guarantees at least 3rd-decimal difference
+            # (minimum ~0.001° ≈ 100m). Use places=3 (>= 0.0005° threshold).
             self.assertNotAlmostEqual(
-                coords[0], real_lng, places=2,
+                coords[0], real_lng, places=3,
                 msg="Private venue longitude must be obfuscated",
             )
             self.assertNotAlmostEqual(
-                coords[1], real_lat, places=2,
+                coords[1], real_lat, places=3,
                 msg="Private venue latitude must be obfuscated",
             )
             # Properties must carry blur_radius_m for the obfuscation circle

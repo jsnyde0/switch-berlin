@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import Resolver404, resolve
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from accounts.decorators import approved_required
 from events.models import Event
@@ -119,7 +120,9 @@ def flag_target(request):
 
     from django.utils import timezone
 
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = timezone.localtime(timezone.now()).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
     daily_count = Flag.objects.filter(
         reporter=request.user, created_at__gte=today_start
     ).count()
@@ -135,25 +138,26 @@ def flag_target(request):
     target_id = request.POST.get("target_id")
     reason = request.POST.get("reason", "other")
 
-    if target_type == "event":
-        event = get_object_or_404(Event, pk=target_id)
-        Flag.objects.create(reporter=request.user, event=event, reason=reason)
-        auth_flag_count = Flag.objects.filter(
-            event=event, reporter__isnull=False
-        ).count()
-        if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
-            Event.objects.filter(pk=event.pk).update(hidden=True)
+    with transaction.atomic():
+        if target_type == "event":
+            event = get_object_or_404(Event, pk=target_id)
+            Flag.objects.create(reporter=request.user, event=event, reason=reason)
+            auth_flag_count = Flag.objects.filter(
+                event=event, reporter__isnull=False
+            ).count()
+            if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
+                Event.objects.filter(pk=event.pk).update(hidden=True)
 
-    elif target_type == "organizer":
-        organizer = get_object_or_404(Organizer, pk=target_id)
-        Flag.objects.create(reporter=request.user, organizer=organizer, reason=reason)
-        auth_flag_count = Flag.objects.filter(
-            organizer=organizer, reporter__isnull=False
-        ).count()
-        if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
-            Organizer.objects.filter(pk=organizer.pk).update(hidden=True)
-    else:
-        return HttpResponse("Invalid target.", status=400)
+        elif target_type == "organizer":
+            organizer = get_object_or_404(Organizer, pk=target_id)
+            Flag.objects.create(reporter=request.user, organizer=organizer, reason=reason)
+            auth_flag_count = Flag.objects.filter(
+                organizer=organizer, reporter__isnull=False
+            ).count()
+            if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
+                Organizer.objects.filter(pk=organizer.pk).update(hidden=True)
+        else:
+            return HttpResponse("Invalid target.", status=400)
 
     return render(request, "reviews/_flag_button.html", {"flagged": True})
 
@@ -175,7 +179,7 @@ def takedown_view(request):
         )
         if is_limited:
             return HttpResponse(
-                "Rate limit exceeded. Please try again later.", status=403
+                "Rate limit exceeded. Please try again later.", status=429
             )
 
         event_url = request.POST.get("event_url", "").strip()
@@ -258,17 +262,29 @@ def takedown_view(request):
     return render(request, "reviews/takedown.html", {})
 
 
+@ratelimit(key="ip", rate="3/h", method="POST", block=False)
 def organizer_opt_out_view(request):
-    """GDPR opt-out form. Verified via telegram_user_id match."""
+    """GDPR opt-out form. Verified via telegram_user_id + organizer FK linkage."""
     from ingestion.models import ApprovedSender
 
     if request.method == "POST":
+        if getattr(request, "limited", False):
+            return HttpResponse(
+                "Rate limit exceeded. Please try again later.", status=429
+            )
+
         telegram_user_id = request.POST.get("telegram_user_id", "").strip()
         organizer_slug = request.POST.get("organizer_slug", "").strip()
 
         try:
-            ApprovedSender.objects.get(telegram_user_id=telegram_user_id)
+            # Require the ApprovedSender to be linked to the submitted organizer slug.
+            # This prevents any approved sender from suspending an unrelated organizer
+            # (IDOR fix: the sender must own the organizer they are opting out).
             organizer = Organizer.objects.get(slug=organizer_slug)
+            ApprovedSender.objects.get(
+                telegram_user_id=telegram_user_id,
+                organizer=organizer,
+            )
             organizer.status = "suspended"
             organizer.save(update_fields=["status"])
             return render(

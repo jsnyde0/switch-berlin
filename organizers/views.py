@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import approved_required
-from events.models import Attendance
+from events.models import Attendance, Event
 from reviews.views import MIN_RATINGS_FOR_DISPLAY
 
 from .models import Organizer, OrganizerFollow
@@ -17,8 +17,9 @@ def organizer_profile(request, slug):
     now = timezone.now()
 
     upcoming_events = (
-        organizer.events.filter(
-            hidden=False,
+        Event.objects.visible()
+        .filter(
+            organizer=organizer,
             status="published",
             start__gte=now,
         )
@@ -27,8 +28,9 @@ def organizer_profile(request, slug):
         .order_by("start")[:50]
     )
     past_events = (
-        organizer.events.filter(
-            hidden=False,
+        Event.objects.visible()
+        .filter(
+            organizer=organizer,
             status="published",
             start__lt=now,
         )

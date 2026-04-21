@@ -24,26 +24,21 @@ import pytest
 
 
 @pytest.mark.django_db
-def test_loginwall_anon_redirects_to_login(client):
-    """Anonymous GET /events/ -> 302 redirect to /accounts/login/."""
+def test_loginwall_anon_can_access_events_public_read(client):
+    """Phase 0.5: Anonymous GET /events/ -> 200 (public read mode)."""
+    # Phase 0.3 login wall is superseded by Phase 0.5 public read mode.
+    # PUBLIC_READ_ENABLED=True (default) allows anonymous access.
     response = client.get("/events/")
-    assert response.status_code == 302
-    assert "/accounts/login/" in response["Location"]
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db
-def test_loginwall_anon_next_param(client):
-    """Redirect includes ?next=/events/ so login returns user to intended page."""
-    response = client.get("/events/")
-    assert "next=" in response["Location"]
-
-
-@pytest.mark.django_db
-def test_loginwall_nonstaff_gets_403(client, regular_user):
-    """Authenticated non-staff user receives 403 from login-wall."""
+def test_loginwall_nonstaff_can_access_events_public_read(client, regular_user):
+    """Phase 0.5: Non-staff authenticated user can access /events/ (public read)."""
+    # Phase 0.3 403 for non-staff is superseded by Phase 0.5 public read mode.
     client.force_login(regular_user)
     response = client.get("/events/")
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db
@@ -67,10 +62,9 @@ def test_signup_closed(client):
     is_open_for_signup returns False.  We verify no <form> with a password
     field is present, meaning the signup form itself is not served.
     """
-    from django.test import override_settings
-
-    with override_settings(INVITES_ENABLED=True):
-        response = client.get("/accounts/signup/")
+    # INVITES_ENABLED defaults to True via get_flag(default=True)
+    # so no setup needed; just hit the endpoint without a valid invite code
+    response = client.get("/accounts/signup/")
     # allauth renders signup_closed template — not a bare 302/403
     content = response.content.decode()
     # Must NOT contain a password input (which would indicate the signup form)
@@ -92,11 +86,14 @@ def test_robots_txt_no_auth_required(client):
 
 
 @pytest.mark.django_db
-def test_robots_txt_disallow_all(client):
-    """robots.txt body disallows all crawlers."""
+def test_robots_txt_has_user_agent_stanza(client):
+    """robots.txt body contains a User-agent stanza."""
+    # Phase 0.5: PUBLIC_READ_ENABLED=True -> Allow: /, Disallow: /admin/
+    # Phase 0.3: was Disallow: /
+    # Both have "User-agent: *" so test the stanza presence.
     response = client.get("/robots.txt")
     content = response.content.decode()
-    assert "Disallow: /" in content
+    assert "User-agent: *" in content
 
 
 # ---------------------------------------------------------------------------
@@ -113,12 +110,24 @@ def test_x_robots_tag_on_login_page(client):
 
 
 @pytest.mark.django_db
-def test_x_robots_tag_on_events_page(client, staff_user, published_event):
-    """X-Robots-Tag header present on authenticated page responses."""
+def test_x_robots_tag_on_events_page_when_rollback(client, staff_user, published_event):
+    """X-Robots-Tag header present on events page when PUBLIC_READ_ENABLED=False."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
     client.force_login(staff_user)
-    response = client.get("/events/")
-    assert "X-Robots-Tag" in response
-    assert "noindex" in response["X-Robots-Tag"]
+    try:
+        response = client.get("/events/")
+        assert "X-Robots-Tag" in response
+        assert "noindex" in response["X-Robots-Tag"]
+    finally:
+        FeatureFlag.objects.filter(key="PUBLIC_READ_ENABLED").delete()
+        cache.clear()
 
 
 # ---------------------------------------------------------------------------

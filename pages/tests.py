@@ -78,6 +78,22 @@ def test_robots_txt_public_read_enabled_contains_allow():
     assert "Allow: /" in response.content.decode()
 
 
+def test_robots_txt_public_single_stanza_with_admin_disallow():
+    """GET /robots.txt public -> single User-agent stanza with Disallow: /admin/."""
+    factory = RequestFactory()
+    request = factory.get("/robots.txt")
+
+    from pages.views import robots_txt_view
+
+    with patch("pages.views.get_flag", side_effect=make_get_flag(True)):
+        response = robots_txt_view(request)
+
+    body = response.content.decode()
+    assert body.count("User-agent: *") == 1, "Must have exactly one User-agent stanza"
+    assert "Disallow: /admin/" in body
+    assert "Allow: /" in body
+
+
 def test_robots_txt_public_read_disabled_contains_disallow():
     """GET /robots.txt with PUBLIC_READ_ENABLED=False -> 'Disallow: /' in body."""
     factory = RequestFactory()
@@ -215,6 +231,22 @@ def test_age_check_post_next_url_sanitized():
         response = client.post(
             "/age-check/",
             data={"confirm": "yes", "next": "https://evil.com/"},
+        )
+    assert response.status_code == 302
+    assert response["Location"] == "/"
+
+
+def test_age_check_post_protocol_relative_next_url_blocked():
+    """POST /age-check/ with protocol-relative next=//evil.com -> redirects to /.
+
+    //evil.com starts with '/' so a naive startswith('/') check would pass it
+    through. url_has_allowed_host_and_scheme blocks protocol-relative redirects.
+    """
+    client = Client()
+    with mock_all_get_flags(True):
+        response = client.post(
+            "/age-check/",
+            data={"confirm": "yes", "next": "//evil.com"},
         )
     assert response.status_code == 302
     assert response["Location"] == "/"

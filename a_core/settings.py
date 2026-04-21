@@ -156,6 +156,7 @@ if EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Kinky Bubbles] "
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = "Kinky Bubbles <noreply@localhost>"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Europe/Berlin"

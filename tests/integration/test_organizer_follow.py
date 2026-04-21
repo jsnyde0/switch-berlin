@@ -273,8 +273,10 @@ def test_profile_follow_button_shows_follow_when_not_followed(
 
 @pytest.mark.django_db
 def test_profile_hides_follow_button_for_anonymous_user(client, approved_organizer):
-    """GET /o/<slug>/ for anonymous user doesn't show the follow button."""
-    # Anonymous users are redirected by login wall
+    """GET /o/<slug>/ for anonymous user shows profile but no follow button."""
+    # In Phase 0.5, anonymous users can view organizer profiles (public read mode)
     response = client.get(f"/o/{approved_organizer.slug}/")
-    # Login wall redirects anonymous users
-    assert response.status_code == 302
+    assert response.status_code == 200
+    content = response.content.decode()
+    # Follow button requires authentication — should not appear for anonymous user
+    assert "hx-post" not in content or "/follow/" not in content

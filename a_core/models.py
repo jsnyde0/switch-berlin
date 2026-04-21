@@ -15,6 +15,15 @@ class FeatureFlag(models.Model):
     def __str__(self):
         return f"{self.key}={self.enabled}"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete(f"feature_flag:{self.key}")
+
+    def delete(self, *args, **kwargs):
+        key = self.key
+        super().delete(*args, **kwargs)
+        cache.delete(f"feature_flag:{key}")
+
     class Meta:
         verbose_name = "feature flag"
         verbose_name_plural = "feature flags"
