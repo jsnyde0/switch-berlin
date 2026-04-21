@@ -11,11 +11,14 @@ from .models import Organizer, OrganizerFollow
 
 
 def organizer_profile(request, slug):
-    organizer = get_object_or_404(Organizer, slug=slug, status="approved")
+    organizer = get_object_or_404(
+        Organizer.objects.visible(), slug=slug, status="approved"
+    )
     now = timezone.now()
 
     upcoming_events = (
         organizer.events.filter(
+            hidden=False,
             status="published",
             start__gte=now,
         )
@@ -25,6 +28,7 @@ def organizer_profile(request, slug):
     )
     past_events = (
         organizer.events.filter(
+            hidden=False,
             status="published",
             start__lt=now,
         )
@@ -85,7 +89,11 @@ def organizer_follow(request, slug):
         following = False
     else:
         following = True
-    return render(request, "organizers/_follow_button.html", {
-        "organizer": organizer,
-        "following": following,
-    })
+    return render(
+        request,
+        "organizers/_follow_button.html",
+        {
+            "organizer": organizer,
+            "following": following,
+        },
+    )

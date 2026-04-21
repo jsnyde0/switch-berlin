@@ -1,0 +1,88 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">{% trans "Report Content (DSA Takedown)" %}</h1>
+
+    {% if submitted %}
+      <div class="alert alert-success">
+        <p>{% trans "Your report has been submitted. We aim to review takedown requests within 72 hours." %}</p>
+      </div>
+    {% else %}
+      {% if error %}
+        <div class="alert alert-error mb-4">
+          <p>{{ error }}</p>
+          <p class="mt-2 text-sm">
+            {% trans "You can also contact us directly:" %}
+            <a href="{% url 'takedown' %}" class="link">{% trans "takedown form" %}</a>
+          </p>
+        </div>
+      {% endif %}
+
+      <p class="mb-4 text-sm text-base-content/70">
+        {% trans "Use this form to report content that violates our terms of service or applicable law. Your report will be reviewed within 72 hours." %}
+      </p>
+
+      <form method="post" class="flex flex-col gap-4">
+        {% csrf_token %}
+
+        <div class="form-control">
+          <label class="label" for="event_url">
+            <span class="label-text">{% trans "URL of the content you are reporting" %}</span>
+          </label>
+          <input
+            type="url"
+            id="event_url"
+            name="event_url"
+            class="input input-bordered w-full"
+            placeholder="https://kinkybubbles.de/events/..."
+            value="{{ values.event_url|default:'' }}"
+          >
+        </div>
+
+        <div class="form-control">
+          <label class="label" for="reason">
+            <span class="label-text">{% trans "Reason" %}</span>
+          </label>
+          <select id="reason" name="reason" class="select select-bordered w-full">
+            <option value="spam" {% if values.reason == "spam" %}selected{% endif %}>{% trans "Spam" %}</option>
+            <option value="inaccurate" {% if values.reason == "inaccurate" %}selected{% endif %}>{% trans "Inaccurate information" %}</option>
+            <option value="harmful" {% if values.reason == "harmful" %}selected{% endif %}>{% trans "Harmful content" %}</option>
+            <option value="safety" {% if values.reason == "safety" %}selected{% endif %}>{% trans "Safety concern" %}</option>
+            <option value="other" {% if values.reason == "other" or not values.reason %}selected{% endif %}>{% trans "Other" %}</option>
+          </select>
+        </div>
+
+        <div class="form-control">
+          <label class="label" for="body">
+            <span class="label-text">{% trans "Description" %}</span>
+          </label>
+          <textarea
+            id="body"
+            name="body"
+            class="textarea textarea-bordered w-full"
+            rows="5"
+            placeholder="{% trans 'Please describe the issue...' %}"
+          >{{ values.body|default:'' }}</textarea>
+        </div>
+
+        <div class="form-control">
+          <label class="label" for="contact_email">
+            <span class="label-text">{% trans "Your email address (optional)" %}</span>
+          </label>
+          <input
+            type="email"
+            id="contact_email"
+            name="contact_email"
+            class="input input-bordered w-full"
+            placeholder="you@example.com"
+            value="{{ values.contact_email|default:'' }}"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary">{% trans "Submit Report" %}</button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock content %}

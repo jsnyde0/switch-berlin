@@ -19,7 +19,8 @@ def event_list(request):
     _t0 = time.perf_counter()
     now = timezone.now()
     qs = (
-        Event.objects.filter(status="published", start__gte=now)
+        Event.objects.visible()
+        .filter(status="published", start__gte=now)
         .select_related("organizer", "venue")
         .prefetch_related("tags")
         .order_by("start")
@@ -123,7 +124,6 @@ def event_list(request):
             continue
         feature["properties"].update(
             {
-                "event_id": event.pk,
                 "event_slug": event.slug,
                 "org_slug": event.organizer.slug if event.organizer else "",
                 "title": event.title,
@@ -161,10 +161,13 @@ def event_list(request):
     return render(request, "events/list.html", context)
 
 
-def event_drawer(request, event_id):
+def event_drawer(request, org_slug, event_slug):
     event = get_object_or_404(
-        Event.objects.filter(status="published").select_related("organizer", "venue"),
-        pk=event_id,
+        Event.objects.visible()
+        .filter(status="published")
+        .select_related("organizer", "venue"),
+        organizer__slug=org_slug,
+        slug=event_slug,
     )
     if request.user.is_authenticated:
         try:
@@ -190,9 +193,8 @@ def event_drawer(request, event_id):
 
 def event_detail(request, org_slug, event_slug):
     qs = (
-        Event.objects.filter(
-            organizer__slug=org_slug, slug=event_slug, status="published"
-        )
+        Event.objects.visible()
+        .filter(organizer__slug=org_slug, slug=event_slug, status="published")
         .select_related("organizer", "venue")
         .prefetch_related("tags", "images")
     )
@@ -224,8 +226,13 @@ def event_detail(request, org_slug, event_slug):
 @require_POST
 @login_required
 @approved_required
-def event_attend(request, event_id):
-    event = get_object_or_404(Event, pk=event_id, status="published")
+def event_attend(request, org_slug, event_slug):
+    event = get_object_or_404(
+        Event.objects.visible(),
+        organizer__slug=org_slug,
+        slug=event_slug,
+        status="published",
+    )
     status_val = request.POST.get("status", "interested")
     if status_val not in ("interested", "going", "went"):
         status_val = "interested"

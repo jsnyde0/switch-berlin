@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from pages.views import age_check_view, robots_txt_view
+from reviews.views import organizer_opt_out_view, takedown_view
 
 urlpatterns = [
     path("", include("pages.urls")),
@@ -17,6 +18,8 @@ urlpatterns = [
     path("reviews/", include("reviews.urls")),
     path("robots.txt", robots_txt_view, name="robots-txt"),
     path("age-check/", age_check_view, name="age-check"),
+    path("takedown/", takedown_view, name="takedown"),
+    path("organizer-opt-out/", organizer_opt_out_view, name="organizer-opt-out"),
 ]
 
 if settings.DEBUG:

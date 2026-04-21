@@ -1,4 +1,5 @@
 """Accounts middleware for kinky-bubbles."""
+
 import urllib.parse
 
 from django.shortcuts import redirect
@@ -16,6 +17,7 @@ ALWAYS_PUBLIC_PREFIXES = (
     "/privacy",
     "/terms",
     "/takedown",
+    "/organizer-opt-out",
     "/age-check",
 )
 

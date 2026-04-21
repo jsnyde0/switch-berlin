@@ -1,0 +1,22 @@
+{% load i18n %}
+{% if flagged %}
+  <p class="text-xs text-success">{% trans "Reported. Thank you." %}</p>
+{% elif error %}
+  <p class="text-xs text-error">{{ error }}</p>
+{% else %}
+  <form hx-post="{% url 'flag-target' %}"
+        hx-target="closest form"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <input type="hidden" name="target_type" value="{{ target_type }}">
+    <input type="hidden" name="target_id" value="{{ target_id }}">
+    <select name="reason" class="select select-xs select-bordered" aria-label="{% trans 'Reason' %}">
+      <option value="spam">{% trans "Spam" %}</option>
+      <option value="inaccurate">{% trans "Inaccurate" %}</option>
+      <option value="harmful">{% trans "Harmful" %}</option>
+      <option value="safety">{% trans "Safety concern" %}</option>
+      <option value="other">{% trans "Other" %}</option>
+    </select>
+    <button type="submit" class="btn btn-xs btn-ghost">{% trans "Report" %}</button>
+  </form>
+{% endif %}

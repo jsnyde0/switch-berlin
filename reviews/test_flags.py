@@ -1,0 +1,739 @@
+"""
+TDD tests for bead kb-a4t.6:
+  - flag_target view (authenticated, rate-limited, auto-hide)
+  - takedown_view (anonymous, rate-limited, URL resolution)
+  - organizer_opt_out_view
+  - tasks: send_takedown_notification, daily_flag_digest, recompute_aggregates
+  - .visible() manager usage in event/organizer public querysets
+  - schedule_tasks management command
+"""
+
+from datetime import timedelta
+from unittest.mock import patch
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.test import Client, override_settings
+from django.urls import reverse
+from django.utils import timezone
+
+from events.models import Attendance, Event
+from organizers.models import Organizer, OrganizerFollow
+from reviews.models import Flag, Review
+
+User = get_user_model()
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def approved_user(db):
+    user = User.objects.create_user(
+        username="tester", email="tester@example.com", password="testpass123"
+    )
+    user.is_approved = True
+    user.save()
+    return user
+
+
+@pytest.fixture
+def approved_user2(db):
+    user = User.objects.create_user(
+        username="tester2", email="tester2@example.com", password="testpass123"
+    )
+    user.is_approved = True
+    user.save()
+    return user
+
+
+@pytest.fixture
+def approved_user3(db):
+    user = User.objects.create_user(
+        username="tester3", email="tester3@example.com", password="testpass123"
+    )
+    user.is_approved = True
+    user.save()
+    return user
+
+
+@pytest.fixture
+def organizer(db):
+    return Organizer.objects.create(
+        name="Test Organizer",
+        slug="test-org",
+        status="approved",
+    )
+
+
+@pytest.fixture
+def published_event(db, organizer):
+    return Event.objects.create(
+        title="Test Event",
+        slug="test-event",
+        organizer=organizer,
+        status="published",
+        start=timezone.now() + timedelta(days=3),
+    )
+
+
+@pytest.fixture
+def client_approved(approved_user):
+    c = Client()
+    c.force_login(approved_user)
+    return c
+
+
+# ---------------------------------------------------------------------------
+# Test: flag_target view — functional check (a)
+# POST /reviews/flag/ as approved user, target_type=event -> creates Flag row
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_flag_target_creates_flag_for_event(client_approved, published_event):
+    """POST flag/ as approved user creates a Flag with reporter set."""
+    url = reverse("flag-target")
+    resp = client_approved.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    assert resp.status_code == 200
+    flags = Flag.objects.filter(event=published_event)
+    assert flags.count() == 1
+    flag = flags.first()
+    assert flag.reporter is not None
+
+
+@pytest.mark.django_db
+def test_flag_target_creates_flag_for_organizer(client_approved, organizer):
+    """POST flag/ as approved user creates a Flag for organizer with reporter set."""
+    url = reverse("flag-target")
+    resp = client_approved.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "reason": "harmful",
+        },
+    )
+    assert resp.status_code == 200
+    flags = Flag.objects.filter(organizer=organizer)
+    assert flags.count() == 1
+    flag = flags.first()
+    assert flag.reporter is not None
+
+
+@pytest.mark.django_db
+def test_flag_target_requires_auth():
+    """Unauthenticated POST to flag/ -> 302 redirect to login."""
+    c = Client()
+    url = reverse("flag-target")
+    resp = c.post(url, {"target_type": "event", "target_id": "1", "reason": "spam"})
+    assert resp.status_code == 302
+    assert "/accounts/login/" in resp["Location"]
+
+
+@pytest.mark.django_db
+def test_flag_target_invalid_target_type_returns_400(client_approved, published_event):
+    """POST flag/ with unknown target_type returns 400."""
+    url = reverse("flag-target")
+    resp = client_approved.post(
+        url,
+        {
+            "target_type": "venue",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Test: auto-hide — functional check (b) + (d)
+# POST 3 authenticated flags on same event -> Event.hidden becomes True
+# Anonymous flags do NOT count toward threshold
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_auto_hide_event_after_threshold_authenticated_flags(
+    client_approved, approved_user2, approved_user3, published_event
+):
+    """3 authenticated-user flags on same event -> Event.hidden becomes True."""
+    url = reverse("flag-target")
+    client_approved.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    c2 = Client()
+    c2.force_login(approved_user2)
+    c2.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    c3 = Client()
+    c3.force_login(approved_user3)
+    c3.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    published_event.refresh_from_db()
+    assert published_event.hidden is True
+
+
+@pytest.mark.django_db
+def test_anonymous_flags_do_not_count_toward_auto_hide(published_event):
+    """Anonymous flags (reporter=None) do NOT trigger auto-hide."""
+    # Create 3 anonymous-style flags (via direct model creation, reporter=None)
+    # Only authenticated flags from the view count toward threshold
+    # But we can also create them via DB directly to test the view logic
+    # Anonymous flags are stored with reporter=None — they must NOT count
+    Flag.objects.create(reporter=None, event=published_event, reason="spam")
+    Flag.objects.create(reporter=None, event=published_event, reason="spam")
+    Flag.objects.create(reporter=None, event=published_event, reason="spam")
+    published_event.refresh_from_db()
+    assert published_event.hidden is False
+
+
+@pytest.mark.django_db
+def test_auto_hide_organizer_after_threshold_flags(
+    client_approved, approved_user2, approved_user3, organizer
+):
+    """3 authenticated flags on same organizer -> Organizer.hidden becomes True."""
+    url = reverse("flag-target")
+    client_approved.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "reason": "harmful",
+        },
+    )
+    c2 = Client()
+    c2.force_login(approved_user2)
+    c2.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "reason": "harmful",
+        },
+    )
+    c3 = Client()
+    c3.force_login(approved_user3)
+    c3.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "reason": "harmful",
+        },
+    )
+    organizer.refresh_from_db()
+    assert organizer.hidden is True
+
+
+# ---------------------------------------------------------------------------
+# Test: takedown_view — functional check (c) + (e) + (f)
+# Anonymous takedown resolves URL to Event FK — reporter=null, event FK set
+# Unresolvable URL -> form error, NOT a Flag with all-null FKs
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_takedown_view_get_returns_200():
+    """GET /takedown/ returns the form."""
+    url = reverse("takedown")
+    resp = Client().get(url)
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_takedown_resolves_event_url_and_creates_flag(published_event):
+    """POST /takedown/ with resolvable event URL creates Flag with event FK set."""
+    event_url = reverse(
+        "event-detail",
+        kwargs={
+            "org_slug": published_event.organizer.slug,
+            "event_slug": published_event.slug,
+        },
+    )
+    resp = Client().post(
+        reverse("takedown"),
+        {
+            "event_url": f"http://testserver{event_url}",
+            "reason": "spam",
+            "body": "This is spam.",
+            "contact_email": "reporter@example.com",
+        },
+    )
+    assert resp.status_code == 200
+    flags = Flag.objects.filter(event=published_event)
+    assert flags.count() == 1
+    flag = flags.first()
+    assert flag.reporter is None  # anonymous
+    assert flag.event_id == published_event.pk
+    assert flag.organizer_id is None
+
+
+@pytest.mark.django_db
+def test_takedown_resolves_organizer_url_and_creates_flag(organizer):
+    """POST /takedown/ with resolvable organizer URL creates Flag with organizer FK."""
+    organizer_url = reverse("organizer-profile", kwargs={"slug": organizer.slug})
+    resp = Client().post(
+        reverse("takedown"),
+        {
+            "event_url": f"http://testserver{organizer_url}",
+            "reason": "harmful",
+            "body": "Harmful content.",
+            "contact_email": "",
+        },
+    )
+    assert resp.status_code == 200
+    flags = Flag.objects.filter(organizer=organizer)
+    assert flags.count() == 1
+    flag = flags.first()
+    assert flag.reporter is None
+    assert flag.organizer_id == organizer.pk
+    assert flag.event_id is None
+
+
+@pytest.mark.django_db
+def test_takedown_unresolvable_url_shows_error_not_flag():
+    """POST /takedown/ with URL that does not resolve -> form error, NO Flag created."""
+    resp = Client().post(
+        reverse("takedown"),
+        {
+            "event_url": "https://example.com/totally/unknown/path/",
+            "reason": "spam",
+            "body": "Some body.",
+            "contact_email": "",
+        },
+    )
+    assert resp.status_code == 200
+    # No flags should be created
+    assert Flag.objects.count() == 0
+    # Response must contain an error message
+    content = resp.content.decode()
+    assert "error" in content.lower() or "could not" in content.lower()
+
+
+@pytest.mark.django_db
+def test_takedown_no_url_and_no_body_shows_error():
+    """POST /takedown/ with neither URL nor body -> form error."""
+    resp = Client().post(
+        reverse("takedown"),
+        {
+            "event_url": "",
+            "reason": "spam",
+            "body": "",
+            "contact_email": "",
+        },
+    )
+    assert resp.status_code == 200
+    assert Flag.objects.count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+)
+def test_takedown_rate_limit_6th_request_returns_403(published_event):
+    """POST /takedown/ 6 times from same IP -> 6th blocked by ratelimit (403)."""
+    from django.core.cache import cache
+
+    cache.clear()
+
+    event_url = reverse(
+        "event-detail",
+        kwargs={
+            "org_slug": published_event.organizer.slug,
+            "event_slug": published_event.slug,
+        },
+    )
+    full_url = f"http://testserver{event_url}"
+    url = reverse("takedown")
+    c = Client()
+    # First 5 should succeed
+    for _ in range(5):
+        resp = c.post(
+            url,
+            {
+                "event_url": full_url,
+                "reason": "spam",
+                "body": "test",
+                "contact_email": "",
+            },
+            REMOTE_ADDR="192.0.2.1",
+        )
+        assert resp.status_code == 200
+
+    # 6th should be blocked
+    resp = c.post(
+        url,
+        {
+            "event_url": full_url,
+            "reason": "spam",
+            "body": "test",
+            "contact_email": "",
+        },
+        REMOTE_ADDR="192.0.2.1",
+    )
+    assert resp.status_code == 403
+
+    cache.clear()
+
+
+# ---------------------------------------------------------------------------
+# Test: organizer_opt_out_view
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_organizer_opt_out_get_returns_200():
+    """GET /organizer-opt-out/ returns the form."""
+    url = reverse("organizer-opt-out")
+    resp = Client().get(url)
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_organizer_opt_out_valid_telegram_id_suspends_organizer(organizer):
+    """Valid telegram_user_id match -> Organizer.status set to 'suspended'."""
+    from ingestion.models import ApprovedSender
+
+    ApprovedSender.objects.create(
+        telegram_user_id="123456789",
+        telegram_handle="orgadmin",
+    )
+    url = reverse("organizer-opt-out")
+    resp = Client().post(
+        url,
+        {
+            "telegram_user_id": "123456789",
+            "organizer_slug": organizer.slug,
+        },
+    )
+    assert resp.status_code == 200
+    organizer.refresh_from_db()
+    assert organizer.status == "suspended"
+
+
+@pytest.mark.django_db
+def test_organizer_opt_out_invalid_telegram_id_returns_error(organizer):
+    """Invalid telegram_user_id shows error, does NOT suspend organizer."""
+    url = reverse("organizer-opt-out")
+    resp = Client().post(
+        url,
+        {
+            "telegram_user_id": "99999999",
+            "organizer_slug": organizer.slug,
+        },
+    )
+    assert resp.status_code == 200
+    organizer.refresh_from_db()
+    assert organizer.status == "approved"
+    content = resp.content.decode()
+    assert "error" in content.lower() or "verification failed" in content.lower()
+
+
+# ---------------------------------------------------------------------------
+# Test: .visible() manager in public querysets — checks (g) + (h)
+# GET /events/ -> hidden events not in response
+# GET /o/<slug>/ for hidden organizer -> 404
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_event_list_excludes_hidden_events(client, published_event):
+    """event_list view does not show hidden events."""
+    published_event.hidden = True
+    published_event.save()
+    resp = client.get(reverse("event-list"))
+    assert resp.status_code == 200
+    event_pks = [e.pk for e in resp.context["page_obj"]]
+    assert published_event.pk not in event_pks
+
+
+@pytest.mark.django_db
+def test_event_list_shows_visible_events(client, published_event):
+    """event_list view shows non-hidden published events."""
+    resp = client.get(reverse("event-list"))
+    assert resp.status_code == 200
+    event_pks = [e.pk for e in resp.context["page_obj"]]
+    assert published_event.pk in event_pks
+
+
+@pytest.mark.django_db
+def test_hidden_organizer_profile_returns_404(client, organizer):
+    """Hidden organizer -> 404 on profile page."""
+    organizer.hidden = True
+    organizer.save()
+    url = reverse("organizer-profile", kwargs={"slug": organizer.slug})
+    resp = client.get(url)
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_visible_organizer_profile_returns_200(client, organizer):
+    """Non-hidden organizer profile returns 200."""
+    url = reverse("organizer-profile", kwargs={"slug": organizer.slug})
+    resp = client.get(url)
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_event_drawer_excludes_hidden_event(client, published_event):
+    """event_drawer returns 404 for hidden event."""
+    published_event.hidden = True
+    published_event.save()
+    url = reverse(
+        "event-drawer",
+        kwargs={
+            "org_slug": published_event.organizer.slug,
+            "event_slug": published_event.slug,
+        },
+    )
+    resp = client.get(url)
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_organizer_profile_upcoming_events_excludes_hidden(client, organizer):
+    """Upcoming events on organizer profile exclude hidden events."""
+    hidden_event = Event.objects.create(
+        title="Hidden Upcoming",
+        slug="hidden-upcoming",
+        organizer=organizer,
+        status="published",
+        start=timezone.now() + timedelta(days=5),
+        hidden=True,
+    )
+    visible_event = Event.objects.create(
+        title="Visible Upcoming",
+        slug="visible-upcoming",
+        organizer=organizer,
+        status="published",
+        start=timezone.now() + timedelta(days=5),
+        hidden=False,
+    )
+    url = reverse("organizer-profile", kwargs={"slug": organizer.slug})
+    resp = client.get(url)
+    assert resp.status_code == 200
+    upcoming_pks = [e.pk for e in resp.context["upcoming_events"]]
+    assert visible_event.pk in upcoming_pks
+    assert hidden_event.pk not in upcoming_pks
+
+
+# ---------------------------------------------------------------------------
+# Test: recompute_aggregates — functional check (i)
+# Call recompute_aggregates() directly -> no exceptions, counts updated
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_recompute_aggregates_runs_without_exception(
+    organizer, published_event, approved_user
+):
+    """recompute_aggregates runs without exception and updates counts."""
+    from ingestion.tasks_flags import recompute_aggregates
+
+    # Create some attendance and review data
+    Attendance.objects.create(user=approved_user, event=published_event, status="going")
+    Review.objects.create(author=approved_user, organizer=organizer, rating=4)
+    OrganizerFollow.objects.create(user=approved_user, organizer=organizer)
+
+    # Should not raise
+    recompute_aggregates()
+
+    organizer.refresh_from_db()
+    published_event.refresh_from_db()
+    assert organizer.follower_count == 1
+    assert organizer.rating_count == 1
+    assert organizer.avg_rating == pytest.approx(4.0)
+    assert published_event.attendance_count == 1
+    assert published_event.interested_count == 0
+
+
+@pytest.mark.django_db
+def test_recompute_aggregates_no_data_no_exception():
+    """recompute_aggregates with no data runs cleanly."""
+    from ingestion.tasks_flags import recompute_aggregates
+
+    recompute_aggregates()  # should not raise
+
+
+# ---------------------------------------------------------------------------
+# Test: daily_flag_digest — functional check (j)
+# Call daily_flag_digest() directly -> no exceptions when flags exist
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_daily_flag_digest_no_flags_runs_cleanly():
+    """daily_flag_digest with no flags returns without error."""
+    from ingestion.tasks_flags import daily_flag_digest
+
+    daily_flag_digest()  # should not raise, and not send email (0 flags)
+
+
+@pytest.mark.django_db
+@patch("ingestion.tasks_flags.send_mail")
+def test_daily_flag_digest_with_flags_sends_email(mock_send, published_event):
+    """daily_flag_digest with unresolved flags sends a digest email."""
+    from ingestion.tasks_flags import daily_flag_digest
+
+    Flag.objects.create(reporter=None, event=published_event, reason="spam")
+    daily_flag_digest()
+    assert mock_send.called
+
+
+@pytest.mark.django_db
+@patch("ingestion.tasks_flags.send_mail", side_effect=Exception("SMTP error"))
+def test_daily_flag_digest_email_failure_creates_email_failure_record(
+    mock_send, published_event
+):
+    """daily_flag_digest logs EmailFailure on send exception."""
+    from a_core.models import EmailFailure
+    from ingestion.tasks_flags import daily_flag_digest
+
+    Flag.objects.create(reporter=None, event=published_event, reason="spam")
+    daily_flag_digest()
+
+    assert EmailFailure.objects.count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Test: send_takedown_notification task
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+@patch("reviews.tasks.send_mail")
+def test_send_takedown_notification_sends_email(mock_send):
+    """send_takedown_notification sends an email."""
+    from reviews.tasks import send_takedown_notification
+
+    send_takedown_notification(
+        event_url="https://example.com/events/org/event-slug/",
+        reason="spam",
+        body="Test body",
+        contact_email="test@example.com",
+    )
+    assert mock_send.called
+
+
+@pytest.mark.django_db
+@patch("reviews.tasks.send_mail", side_effect=Exception("SMTP failure"))
+def test_send_takedown_notification_logs_email_failure_on_exception(mock_send):
+    """send_takedown_notification creates EmailFailure on send error."""
+    from a_core.models import EmailFailure
+    from reviews.tasks import send_takedown_notification
+
+    send_takedown_notification(
+        event_url="https://example.com/events/org/event-slug/",
+        reason="spam",
+        body="Test body",
+        contact_email="test@example.com",
+    )
+    assert EmailFailure.objects.count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Test: Flag CheckConstraint — all-null target rejected
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_flag_constraint_rejects_all_null_targets():
+    """Flag.CheckConstraint rejects creating a Flag with all-null FKs."""
+    from django.db import IntegrityError
+
+    with pytest.raises(IntegrityError):
+        Flag.objects.create(reporter=None, reason="spam")
+
+
+# ---------------------------------------------------------------------------
+# Test: schedule_tasks management command
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_schedule_tasks_command_creates_schedules():
+    """schedule_tasks management command registers digest + aggregate schedules."""
+    from django.core.management import call_command
+    from django_q.models import Schedule
+
+    call_command("schedule_tasks")
+
+    assert Schedule.objects.filter(name="daily_flag_digest").exists()
+    assert Schedule.objects.filter(name="nightly_recompute_aggregates").exists()
+
+
+@pytest.mark.django_db
+def test_schedule_tasks_command_is_idempotent():
+    """schedule_tasks is idempotent — running twice does not duplicate schedules."""
+    from django.core.management import call_command
+    from django_q.models import Schedule
+
+    call_command("schedule_tasks")
+    call_command("schedule_tasks")
+
+    assert Schedule.objects.filter(name="daily_flag_digest").count() == 1
+    assert Schedule.objects.filter(name="nightly_recompute_aggregates").count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Test: rate limiting on flag_target — 10/day per user
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_flag_target_rate_limit_per_day(
+    client_approved, approved_user, published_event
+):
+    """User cannot flag more than FLAG_RATE_LIMIT_PER_USER (10) times per day."""
+    from django.utils import timezone
+
+    from reviews.views import FLAG_RATE_LIMIT_PER_USER
+
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    # Pre-create FLAG_RATE_LIMIT_PER_USER existing flags (simulating prior usage)
+    for _ in range(FLAG_RATE_LIMIT_PER_USER):
+        Flag.objects.create(
+            reporter=approved_user,
+            event=published_event,
+            reason="spam",
+            created_at=today_start,
+        )
+
+    url = reverse("flag-target")
+    resp = client_approved.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    assert resp.status_code == 429

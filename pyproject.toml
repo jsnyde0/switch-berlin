@@ -30,6 +30,8 @@ dependencies = [
     "python-telegram-bot>=21.10",
     # Vector search
     "pgvector>=0.3",
+    # Rate limiting
+    "django-ratelimit>=4.1",
     # Observability
     "logfire>=3.0",
     # Dev / debug
@@ -49,7 +51,7 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py313"
-exclude = [".git", ".venv", "__pycache__", "**/migrations/*"]
+exclude = [".git", ".venv", "__pycache__", "**/migrations/*", "**/test_migrations/*"]
 
 [tool.ruff.lint]
 select = [

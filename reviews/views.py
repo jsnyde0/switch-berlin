@@ -1,16 +1,22 @@
+from urllib.parse import urlparse
+
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Avg, Count
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import Resolver404, resolve
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import approved_required
 from events.models import Event
 from organizers.models import Organizer
 
-from .models import Review
+from .models import Flag, Review
 
 MIN_RATINGS_FOR_DISPLAY = 3
+AUTO_HIDE_FLAG_THRESHOLD = 3
+FLAG_RATE_LIMIT_PER_USER = 10  # flags per day per user
 
 
 @require_POST
@@ -99,3 +105,184 @@ def submit_review(request):
                 {"error": "Invalid target type."},
                 status=400,
             )
+
+
+@require_POST
+@login_required
+@approved_required
+def flag_target(request):
+    """Create a Flag. Authenticated users only. Rate limit: 10/day per user."""
+    from a_core.models import get_flag
+
+    if not get_flag("FLAGS_ENABLED", default=True):
+        return HttpResponse("Flagging is temporarily disabled.", status=503)
+
+    from django.utils import timezone
+
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    daily_count = Flag.objects.filter(
+        reporter=request.user, created_at__gte=today_start
+    ).count()
+    if daily_count >= FLAG_RATE_LIMIT_PER_USER:
+        return render(
+            request,
+            "reviews/_flag_button.html",
+            {"error": "Daily flag limit reached."},
+            status=429,
+        )
+
+    target_type = request.POST.get("target_type")
+    target_id = request.POST.get("target_id")
+    reason = request.POST.get("reason", "other")
+
+    if target_type == "event":
+        event = get_object_or_404(Event, pk=target_id)
+        Flag.objects.create(reporter=request.user, event=event, reason=reason)
+        auth_flag_count = Flag.objects.filter(
+            event=event, reporter__isnull=False
+        ).count()
+        if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
+            Event.objects.filter(pk=event.pk).update(hidden=True)
+
+    elif target_type == "organizer":
+        organizer = get_object_or_404(Organizer, pk=target_id)
+        Flag.objects.create(reporter=request.user, organizer=organizer, reason=reason)
+        auth_flag_count = Flag.objects.filter(
+            organizer=organizer, reporter__isnull=False
+        ).count()
+        if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
+            Organizer.objects.filter(pk=organizer.pk).update(hidden=True)
+    else:
+        return HttpResponse("Invalid target.", status=400)
+
+    return render(request, "reviews/_flag_button.html", {"flagged": True})
+
+
+def takedown_view(request):
+    """Anonymous DSA takedown form. No authentication required.
+    Resolves submitted URL to a DB entity for the Flag target FK."""
+    # Apply rate limiting on POST only
+    if request.method == "POST":
+        from django_ratelimit.core import is_ratelimited
+
+        is_limited = is_ratelimited(
+            request,
+            fn=takedown_view,
+            key="ip",
+            rate="5/h",
+            method="POST",
+            increment=True,
+        )
+        if is_limited:
+            return HttpResponse(
+                "Rate limit exceeded. Please try again later.", status=403
+            )
+
+        event_url = request.POST.get("event_url", "").strip()
+        reason = request.POST.get("reason", "other")
+        body = request.POST.get("body", "").strip()
+        contact_email = request.POST.get("contact_email", "").strip()
+
+        if not event_url and not body:
+            return render(
+                request,
+                "reviews/takedown.html",
+                {"error": "Please describe what you are reporting."},
+            )
+
+        # Resolve URL to DB entity
+        target_event = None
+        target_organizer = None
+        if event_url:
+            try:
+                path = urlparse(event_url).path
+                match = resolve(path)
+                if match.url_name == "event-detail":
+                    target_event = Event.objects.filter(
+                        organizer__slug=match.kwargs["org_slug"],
+                        slug=match.kwargs["event_slug"],
+                    ).first()
+                elif match.url_name == "organizer-profile":
+                    target_organizer = Organizer.objects.filter(
+                        slug=match.kwargs["slug"],
+                    ).first()
+            except (Resolver404, KeyError):
+                pass
+
+        if not target_event and not target_organizer:
+            if event_url:
+                return render(
+                    request,
+                    "reviews/takedown.html",
+                    {
+                        "error": (
+                            "We could not identify the content at that URL. "
+                            "Please check the URL or contact us directly "
+                            "at the email below."
+                        ),
+                        "values": {
+                            "event_url": event_url,
+                            "reason": reason,
+                            "body": body,
+                            "contact_email": contact_email,
+                        },
+                    },
+                )
+            return render(
+                request,
+                "reviews/takedown.html",
+                {
+                    "error": "Please provide the URL of the content you are reporting.",
+                },
+            )
+
+        Flag.objects.create(
+            reporter=None,
+            event=target_event,
+            organizer=target_organizer,
+            reason=reason,
+            body=f"URL: {event_url}\n\n{body}" if body else f"URL: {event_url}",
+            contact_email=contact_email,
+        )
+        from django_q.tasks import async_task
+
+        async_task(
+            "reviews.tasks.send_takedown_notification",
+            event_url=event_url,
+            reason=reason,
+            body=body,
+            contact_email=contact_email,
+        )
+        return render(request, "reviews/takedown.html", {"submitted": True})
+
+    return render(request, "reviews/takedown.html", {})
+
+
+def organizer_opt_out_view(request):
+    """GDPR opt-out form. Verified via telegram_user_id match."""
+    from ingestion.models import ApprovedSender
+
+    if request.method == "POST":
+        telegram_user_id = request.POST.get("telegram_user_id", "").strip()
+        organizer_slug = request.POST.get("organizer_slug", "").strip()
+
+        try:
+            ApprovedSender.objects.get(telegram_user_id=telegram_user_id)
+            organizer = Organizer.objects.get(slug=organizer_slug)
+            organizer.status = "suspended"
+            organizer.save(update_fields=["status"])
+            return render(
+                request, "reviews/organizer_opt_out.html", {"submitted": True}
+            )
+        except (ApprovedSender.DoesNotExist, Organizer.DoesNotExist):
+            return render(
+                request,
+                "reviews/organizer_opt_out.html",
+                {
+                    "error": (
+                        "Verification failed. Please contact us via the takedown form."
+                    )
+                },
+            )
+
+    return render(request, "reviews/organizer_opt_out.html", {})
