@@ -26,7 +26,14 @@ class Tag(models.Model):
         return self.label
 
 
+class EventManager(models.Manager):
+    def visible(self):
+        return self.filter(hidden=False)
+
+
 class Event(models.Model):
+    objects = EventManager()
+
     title = models.CharField(max_length=300)
     slug = models.SlugField(max_length=200)  # unique per-organizer, see Meta
     description = models.TextField(blank=True)
@@ -75,6 +82,12 @@ class Event(models.Model):
         default="draft",
     )
     published_at = models.DateTimeField(null=True, blank=True)
+
+    # Aggregate / visibility fields (Phase 0.5)
+    hidden = models.BooleanField(default=False)
+    attendance_count = models.IntegerField(default=0)
+    interested_count = models.IntegerField(default=0)
+    rating_count = models.IntegerField(default=0)
 
     # Provenance (F7)
     raw_message = models.ForeignKey(

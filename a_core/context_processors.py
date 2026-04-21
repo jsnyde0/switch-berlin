@@ -1,16 +1,13 @@
 """Custom context processors for kinky-bubbles."""
 
-from django.conf import settings
+from a_core.models import get_flag
 
 
 def feature_flags(request):
-    """Expose feature-flag kill-switches to all templates.
-
-    Adds MAP_ENABLED and INVITES_ENABLED to every template context so that
-    navbar, list page, and other templates can conditionally render map/invite
-    UI without importing settings directly.
-    """
     return {
-        "MAP_ENABLED": getattr(settings, "MAP_ENABLED", True),
-        "INVITES_ENABLED": getattr(settings, "INVITES_ENABLED", True),
+        "MAP_ENABLED": get_flag("MAP_ENABLED", default=True),
+        "INVITES_ENABLED": get_flag("INVITES_ENABLED", default=True),
+        "PUBLIC_READ_ENABLED": get_flag("PUBLIC_READ_ENABLED", default=True),
+        "RATINGS_ENABLED": get_flag("RATINGS_ENABLED", default=True),
+        "FLAGS_ENABLED": get_flag("FLAGS_ENABLED", default=True),
     }

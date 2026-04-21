@@ -40,7 +40,67 @@ class Review(models.Model):
                 condition=Q(organizer__isnull=False) ^ Q(event__isnull=False),
                 name="review_targets_exactly_one",
             ),
+            models.UniqueConstraint(
+                fields=["author", "organizer"],
+                condition=models.Q(organizer__isnull=False),
+                name="one_review_per_author_per_organizer",
+            ),
+            models.UniqueConstraint(
+                fields=["author", "event"],
+                condition=models.Q(event__isnull=False),
+                name="one_review_per_author_per_event",
+            ),
         ]
 
     def __str__(self):
         return f"Review by {self.author} (rating={self.rating})"
+
+
+class Flag(models.Model):
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="flags_reported",
+    )
+    organizer = models.ForeignKey(
+        "organizers.Organizer", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="flags",
+    )
+    event = models.ForeignKey(
+        "events.Event", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="flags",
+    )
+    review = models.ForeignKey(
+        "reviews.Review", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="flags",
+    )
+    reason = models.CharField(
+        max_length=30,
+        choices=[
+            ("spam", "Spam"), ("inaccurate", "Inaccurate"),
+            ("harmful", "Harmful"), ("safety", "Safety concern"),
+            ("other", "Other"),
+        ],
+    )
+    body = models.TextField(blank=True)
+    contact_email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)
+    resolution_notes = models.TextField(blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="flags_resolved",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(organizer__isnull=False, event__isnull=True, review__isnull=True)
+                    | Q(organizer__isnull=True, event__isnull=False, review__isnull=True)
+                    | Q(organizer__isnull=True, event__isnull=True, review__isnull=False)
+                ),
+                name="flag_targets_exactly_one",
+            ),
+        ]

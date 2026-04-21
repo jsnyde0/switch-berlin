@@ -3,7 +3,14 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+class OrganizerManager(models.Manager):
+    def visible(self):
+        return self.filter(hidden=False)
+
+
 class Organizer(models.Model):
+    objects = OrganizerManager()
+
     # Identity
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -42,6 +49,12 @@ class Organizer(models.Model):
         blank=True,
     )
     consent_notes = models.TextField(blank=True)
+
+    # Aggregate / visibility fields (Phase 0.5)
+    hidden = models.BooleanField(default=False)
+    follower_count = models.IntegerField(default=0)
+    avg_rating = models.FloatField(null=True)
+    rating_count = models.IntegerField(default=0)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
