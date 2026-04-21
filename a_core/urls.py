@@ -5,7 +5,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-from django.views.generic import TemplateView
+
+from pages.views import age_check_view, robots_txt_view
 
 urlpatterns = [
     path("", include("pages.urls")),
@@ -13,14 +14,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("events/", include("events.urls")),
     path("o/", include("organizers.urls")),
-    path(
-        "robots.txt",
-        TemplateView.as_view(
-            template_name="robots.txt",
-            content_type="text/plain",
-        ),
-        name="robots-txt",
-    ),
+    path("robots.txt", robots_txt_view, name="robots-txt"),
+    path("age-check/", age_check_view, name="age-check"),
 ]
 
 if settings.DEBUG:

@@ -30,13 +30,12 @@ def test_approval_gate_middleware_importable():
 
 
 def test_approval_gate_middleware_is_passthrough():
-    """LoginWallMiddleware with LOGIN_WALL_ENABLED=False passes requests through."""
-    from unittest.mock import MagicMock
+    """LoginWallMiddleware passes requests through for public-read paths."""
+    from unittest.mock import MagicMock, patch
 
     from accounts.middleware import LoginWallMiddleware
 
     responses = []
-    sentinel = object()
 
     def get_response(request):
         responses.append(request)
@@ -48,7 +47,9 @@ def test_approval_gate_middleware_is_passthrough():
     fake_request.user.is_staff = True
     fake_request.path = "/"
 
-    result = middleware(fake_request)
+    # Mock get_flag so no DB access is needed (PUBLIC_READ_ENABLED=True)
+    with patch("accounts.middleware.get_flag", return_value=True):
+        middleware(fake_request)
     assert responses == [fake_request]
 
 

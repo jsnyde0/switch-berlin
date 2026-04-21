@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Age Verification" %} — Kinky Bubbles{% endblock title %}
+{% block layout %}
+<main class="min-h-screen flex items-center justify-center" role="main"
+      aria-labelledby="age-gate-heading">
+  <div class="card bg-base-200 w-full max-w-md shadow-xl">
+    <div class="card-body gap-4">
+      <h1 id="age-gate-heading" class="card-title text-xl">
+        {% trans "Age Verification / Altersverifizierung" %}
+      </h1>
+      <p>
+        {% trans "This site contains adult content. You must be 18 or older to enter." %}
+      </p>
+      <p class="text-sm text-base-content/70">
+        {% trans "Diese Seite enthält Inhalte für Erwachsene. Du musst 18 Jahre oder älter sein, um einzutreten." %}
+      </p>
+      <form method="post" action="{% url 'age-check' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <label class="flex items-center gap-2 cursor-pointer mb-4">
+          <input type="checkbox" name="remember" value="1" class="checkbox checkbox-sm">
+          <span class="text-sm">{% trans "Remember for 1 year / 1 Jahr merken" %}</span>
+        </label>
+        <button type="submit" name="confirm" value="yes"
+                class="btn btn-primary w-full">
+          {% trans "Yes, I am 18+ / Ja, ich bin 18+" %}
+        </button>
+      </form>
+      <a href="https://www.google.de" class="btn btn-ghost btn-sm">
+        {% trans "Leave / Verlassen" %}
+      </a>
+    </div>
+  </div>
+</main>
+{% endblock layout %}
