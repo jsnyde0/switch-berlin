@@ -243,3 +243,182 @@ def test_base_html_has_og_meta_block():
     assert "PUBLIC_READ_ENABLED" in content, (
         "_base.html og_meta must be wrapped in PUBLIC_READ_ENABLED check"
     )
+
+
+# ---------------------------------------------------------------------------
+# Legal pages view tests (RED — these tests fail before implementation)
+# ---------------------------------------------------------------------------
+
+
+def test_impressum_view_importable():
+    """impressum_view must be importable from pages.views."""
+    from pages.views import impressum_view  # noqa: F401
+
+
+def test_privacy_view_importable():
+    """privacy_view must be importable from pages.views."""
+    from pages.views import privacy_view  # noqa: F401
+
+
+def test_terms_view_importable():
+    """terms_view must be importable from pages.views."""
+    from pages.views import terms_view  # noqa: F401
+
+
+def test_impressum_url_resolves():
+    """impressum URL resolves to /impressum/."""
+    from django.urls import reverse
+
+    url = reverse("impressum")
+    assert url == "/impressum/"
+
+
+def test_privacy_url_resolves():
+    """privacy URL resolves to /privacy/."""
+    from django.urls import reverse
+
+    url = reverse("privacy")
+    assert url == "/privacy/"
+
+
+def test_terms_url_resolves():
+    """terms URL resolves to /terms/."""
+    from django.urls import reverse
+
+    url = reverse("terms")
+    assert url == "/terms/"
+
+
+def test_impressum_get_returns_200():
+    """GET /impressum/ returns 200 for anonymous user."""
+    client = Client()
+    with mock_all_get_flags(True):
+        response = client.get(
+            "/impressum/",
+            HTTP_ACCEPT="text/html,application/xhtml+xml",
+            COOKIES={"age_gate": "ok"},
+        )
+    assert response.status_code == 200
+
+
+def test_privacy_get_returns_200():
+    """GET /privacy/ returns 200 for anonymous user."""
+    client = Client()
+    with mock_all_get_flags(True):
+        response = client.get(
+            "/privacy/",
+            HTTP_ACCEPT="text/html,application/xhtml+xml",
+            COOKIES={"age_gate": "ok"},
+        )
+    assert response.status_code == 200
+
+
+def test_terms_get_returns_200():
+    """GET /terms/ returns 200 for anonymous user."""
+    client = Client()
+    with mock_all_get_flags(True):
+        response = client.get(
+            "/terms/",
+            HTTP_ACCEPT="text/html,application/xhtml+xml",
+            COOKIES={"age_gate": "ok"},
+        )
+    assert response.status_code == 200
+
+
+def test_impressum_template_exists():
+    """pages/impressum.html template must exist and be renderable."""
+    from django.template.loader import get_template
+
+    get_template("pages/impressum.html")
+
+
+def test_privacy_template_exists():
+    """pages/privacy.html template must exist and be renderable."""
+    from django.template.loader import get_template
+
+    get_template("pages/privacy.html")
+
+
+def test_terms_template_exists():
+    """pages/terms.html template must exist and be renderable."""
+    from django.template.loader import get_template
+
+    get_template("pages/terms.html")
+
+
+def test_impressum_contains_takedown_link():
+    """impressum.html must contain a link to /takedown/."""
+    from django.conf import settings
+
+    tmpl_path = settings.BASE_DIR / "templates" / "pages" / "impressum.html"
+    content = tmpl_path.read_text()
+    assert "/takedown/" in content, "impressum.html must link to /takedown/"
+
+
+def test_impressum_contains_72h_sla():
+    """impressum.html must contain the 72h SLA statement."""
+    from django.conf import settings
+
+    tmpl_path = settings.BASE_DIR / "templates" / "pages" / "impressum.html"
+    content = tmpl_path.read_text()
+    assert "72" in content, "impressum.html must mention the 72-hour SLA"
+
+
+def test_footer_contains_impressum_link():
+    """footer.html must contain link to impressum URL."""
+    from django.conf import settings
+
+    footer_path = settings.BASE_DIR / "templates" / "cotton" / "footer.html"
+    content = footer_path.read_text()
+    assert "impressum" in content.lower(), "footer.html must link to impressum"
+
+
+def test_footer_contains_privacy_link():
+    """footer.html must contain link to privacy URL."""
+    from django.conf import settings
+
+    footer_path = settings.BASE_DIR / "templates" / "cotton" / "footer.html"
+    content = footer_path.read_text()
+    assert "privacy" in content.lower(), "footer.html must link to privacy"
+
+
+def test_footer_contains_terms_link():
+    """footer.html must contain link to terms URL."""
+    from django.conf import settings
+
+    footer_path = settings.BASE_DIR / "templates" / "cotton" / "footer.html"
+    content = footer_path.read_text()
+    assert "terms" in content.lower(), "footer.html must link to terms"
+
+
+def test_footer_does_not_contain_placeholder_links():
+    """footer.html must NOT contain placeholder links (About us, Jobs, Contact, Press kit)."""
+    from django.conf import settings
+
+    footer_path = settings.BASE_DIR / "templates" / "cotton" / "footer.html"
+    content = footer_path.read_text()
+    for placeholder in ("About us", "Jobs", "Contact", "Press kit"):
+        assert placeholder not in content, (
+            f"footer.html must not contain placeholder link: {placeholder}"
+        )
+
+
+def test_footer_contains_takedown_link():
+    """footer.html must contain a link to /takedown/."""
+    from django.conf import settings
+
+    footer_path = settings.BASE_DIR / "templates" / "cotton" / "footer.html"
+    content = footer_path.read_text()
+    assert "/takedown/" in content, "footer.html must link to /takedown/"
+
+
+def test_legal_risk_acceptance_doc_exists():
+    """docs/legal-risk-acceptance-2026-04-20.md must exist."""
+    from django.conf import settings
+
+    doc_path = (
+        settings.BASE_DIR / "docs" / "legal-risk-acceptance-2026-04-20.md"
+    )
+    assert doc_path.exists(), (
+        "docs/legal-risk-acceptance-2026-04-20.md must exist"
+    )

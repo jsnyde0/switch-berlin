@@ -1,0 +1,97 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+{% block title %}{% trans "Privacy Policy" %} — Kinky Bubbles{% endblock title %}
+{% block content %}
+<article class="prose prose-sm max-w-2xl mx-auto">
+  <h1>{% trans "Privacy Policy" %}</h1>
+
+  <h2>{% trans "What data we collect" %}</h2>
+  <ul>
+    <li>
+      <strong>{% trans "Events" %}</strong>:
+      {% trans "Event listings are publicly visible. We collect event title, date, time, location, and organizer information." %}
+    </li>
+    <li>
+      <strong>{% trans "Organizer information" %}</strong>:
+      {% trans "Organizer names, contact details, and social media handles are collected with consent recorded at onboarding." %}
+    </li>
+    <li>
+      <strong>{% trans "User accounts" %}</strong>:
+      {% trans "We collect email addresses for account holders. Accounts are invite-only." %}
+    </li>
+    <li>
+      <strong>{% trans "Attendance" %}</strong>:
+      {% trans "Attendance records are linked to your account and used to provide your personal event history." %}
+    </li>
+  </ul>
+
+  <h2>{% trans "Lawful basis" %}</h2>
+  <ul>
+    <li>
+      <strong>{% trans "Events" %}</strong>:
+      {% trans "Legitimate interest — public event listings serve the community purpose of the platform." %}
+    </li>
+    <li>
+      <strong>{% trans "Organizer information" %}</strong>:
+      {% trans "Consent — organizers provide explicit consent when onboarding to the platform." %}
+    </li>
+    <li>
+      <strong>{% trans "User accounts" %}</strong>:
+      {% trans "Contract — email address is required to provide the service (account-based features)." %}
+    </li>
+    <li>
+      <strong>{% trans "Attendance" %}</strong>:
+      {% trans "Contract — attendance data is processed to provide your personal history within the service." %}
+    </li>
+  </ul>
+
+  <h2>{% trans "Data retention" %}</h2>
+  <ul>
+    <li>
+      {% trans "Raw ingestion messages are purged after 90 days." %}
+    </li>
+    <li>
+      {% trans "Account data is retained until you submit a deletion request." %}
+    </li>
+    <li>
+      {% trans "Event listings are retained indefinitely unless removed by an organizer opt-out request." %}
+    </li>
+  </ul>
+
+  <h2>{% trans "Your rights (GDPR)" %}</h2>
+  <p>{% trans "Under GDPR, you have the following rights:" %}</p>
+  <ul>
+    <li><strong>{% trans "Access" %}</strong>: {% trans "Request a copy of the data we hold about you." %}</li>
+    <li><strong>{% trans "Rectification" %}</strong>: {% trans "Request correction of inaccurate data." %}</li>
+    <li><strong>{% trans "Erasure" %}</strong>: {% trans "Request deletion of your data ('right to be forgotten')." %}</li>
+    <li><strong>{% trans "Restriction" %}</strong>: {% trans "Request we restrict processing of your data." %}</li>
+    <li><strong>{% trans "Portability" %}</strong>: {% trans "Request your data in a machine-readable format." %}</li>
+    <li><strong>{% trans "Objection" %}</strong>: {% trans "Object to processing based on legitimate interest." %}</li>
+  </ul>
+  <p>
+    {% trans "To exercise your rights, contact us at" %} [CONTACT EMAIL].
+  </p>
+
+  <h2>{% trans "Cookie policy" %}</h2>
+  <p>
+    {% trans "We use only one persistent cookie: the age-gate cookie, which is strictly necessary under TTDSG §25(2) to comply with age-verification requirements. No tracking cookies are used." %}
+  </p>
+  <p>
+    {% trans "No cookie consent banner is required because we use only strictly necessary cookies." %}
+  </p>
+
+  <h2>{% trans "Map provider" %}</h2>
+  <p>
+    {% trans "We use MapLibre with OpenStreetMap tiles for event location maps. MapLibre is an open-source map rendering library. OpenStreetMap is a community-maintained open geographic database. No Google Maps or other proprietary map services are used." %}
+  </p>
+
+  <h2>{% trans "Contact" %}</h2>
+  <p>
+    {% trans "For data requests or privacy questions, contact" %} [CONTACT EMAIL].
+  </p>
+  <p>
+    {% trans "For content removal requests, use our" %}
+    <a href="/takedown/">{% trans "takedown form" %}</a>.
+  </p>
+</article>
+{% endblock content %}

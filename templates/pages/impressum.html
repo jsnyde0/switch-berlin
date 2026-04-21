@@ -1,0 +1,33 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+{% block title %}{% trans "Impressum" %} — Kinky Bubbles{% endblock title %}
+{% block content %}
+<article class="prose prose-sm max-w-2xl mx-auto">
+  <h1>{% trans "Impressum / Legal Notice" %}</h1>
+
+  <h2>{% trans "Responsible party / Verantwortliche Person" %}</h2>
+  <p>[MAINTAINER NAME]<br>[MAINTAINER ADDRESS]</p>
+  <p>{% trans "Contact" %}: [CONTACT EMAIL]</p>
+
+  <h2>{% trans "Report content / DSA-Kontakt" %}</h2>
+  <p>
+    {% trans "To report content, use our" %}
+    <a href="/takedown/">{% trans "takedown form" %}</a>.
+  </p>
+  <p>{% trans "We aim to review takedown requests within 72 hours." %}</p>
+  <p class="text-sm text-base-content/70">
+    {% trans "Wir bemühen uns, Takedown-Anfragen innerhalb von 72 Stunden zu bearbeiten." %}
+  </p>
+
+  <h2>{% trans "Platform information / Plattform-Informationen" %}</h2>
+  <p>
+    {% trans "Kinky Bubbles is a community-curated event platform for queer, kinky, and conscious events in Berlin." %}
+  </p>
+  <p>
+    {% trans "Online dispute resolution: The European Commission provides a platform for online dispute resolution (ODR) at" %}
+    <a href="https://ec.europa.eu/consumers/odr" rel="noopener noreferrer" target="_blank">
+      https://ec.europa.eu/consumers/odr
+    </a>.
+  </p>
+</article>
+{% endblock content %}

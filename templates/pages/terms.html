@@ -1,0 +1,58 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+{% block title %}{% trans "Terms of Use" %} — Kinky Bubbles{% endblock title %}
+{% block content %}
+<article class="prose prose-sm max-w-2xl mx-auto">
+  <h1>{% trans "Terms of Use" %}</h1>
+
+  <h2>{% trans "User obligations" %}</h2>
+  <ul>
+    <li>
+      {% trans "You must be 18 years of age or older to use this platform." %}
+    </li>
+    <li>
+      {% trans "You agree to submit only lawful content. Content that is illegal under German or EU law is prohibited." %}
+    </li>
+    <li>
+      {% trans "Harassment, hate speech, and content targeting individuals for harm are prohibited." %}
+    </li>
+    <li>
+      {% trans "You are responsible for the accuracy of any event information you submit." %}
+    </li>
+  </ul>
+
+  <h2>{% trans "Content policy" %}</h2>
+  <p>
+    {% trans "Kinky Bubbles is a platform for queer, kinky, and conscious events, primarily focused on Berlin. We welcome:" %}
+  </p>
+  <ul>
+    <li>{% trans "LGBTQ+ community events" %}</li>
+    <li>{% trans "Kink and fetish events for adults (18+)" %}</li>
+    <li>{% trans "Conscious sexuality and intimacy workshops" %}</li>
+    <li>{% trans "Queer arts, culture, and social events" %}</li>
+  </ul>
+  <p>
+    {% trans "We do not list events that promote exploitation, lack informed consent, or violate applicable law." %}
+  </p>
+
+  <h2>{% trans "Takedown process" %}</h2>
+  <p>
+    {% trans "To report content that violates these terms, use our" %}
+    <a href="/takedown/">{% trans "takedown form" %}</a>.
+    {% trans "We aim to review takedown requests within 72 hours." %}
+  </p>
+
+  <h2>{% trans "Disclaimer" %}</h2>
+  <p>
+    {% trans "Kinky Bubbles is a community-curated platform. Event information is provided by organizers and the community. The operator does not verify, endorse, or guarantee the accuracy of any event listings." %}
+  </p>
+  <p>
+    {% trans "Attendance at any listed event is at your own risk. The operator is not responsible for any loss, injury, or damage arising from attendance at events listed on this platform." %}
+  </p>
+
+  <h2>{% trans "Changes to these terms" %}</h2>
+  <p>
+    {% trans "We may update these terms from time to time. Continued use of the platform constitutes acceptance of any updated terms." %}
+  </p>
+</article>
+{% endblock content %}

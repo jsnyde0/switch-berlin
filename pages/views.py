@@ -47,3 +47,15 @@ def robots_txt_view(request):
     else:
         content = "User-agent: *\nDisallow: /\n"
     return HttpResponse(content, content_type="text/plain")
+
+
+def impressum_view(request):
+    return render(request, "pages/impressum.html", {})
+
+
+def privacy_view(request):
+    return render(request, "pages/privacy.html", {})
+
+
+def terms_view(request):
+    return render(request, "pages/terms.html", {})

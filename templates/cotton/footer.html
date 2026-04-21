@@ -1,8 +1,12 @@
+{% load i18n %}
 <footer class="footer footer-center bg-base-100 text-base-content p-10">
   <nav class="grid grid-flow-col gap-4">
-    <a class="link link-hover">About us</a>
-    <a class="link link-hover">Contact</a>
-    <a class="link link-hover">Jobs</a>
-    <a class="link link-hover">Press kit</a>
+    <a href="{% url 'impressum' %}" class="link link-hover">{% trans "Impressum" %}</a>
+    <a href="{% url 'privacy' %}" class="link link-hover">{% trans "Privacy" %}</a>
+    <a href="{% url 'terms' %}" class="link link-hover">{% trans "Terms" %}</a>
+    <a href="/takedown/" class="link link-hover">{% trans "Report content" %}</a>
   </nav>
+  <p class="text-xs text-base-content/50">
+    {% trans "Kinky Bubbles — Berlin queer, kinky, and conscious events" %}
+  </p>
 </footer>
