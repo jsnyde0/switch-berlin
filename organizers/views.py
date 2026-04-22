@@ -3,9 +3,9 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from a_core.models import get_numeric
 from accounts.decorators import approved_required
 from events.models import Attendance, Event
-from reviews.views import MIN_RATINGS_FOR_DISPLAY
 
 from .models import Organizer, OrganizerFollow
 
@@ -54,7 +54,8 @@ def organizer_profile(request, slug):
 
     rating_count = organizer.rating_count
     avg_rating = organizer.avg_rating
-    show_rating = rating_count >= MIN_RATINGS_FOR_DISPLAY
+    threshold = get_numeric("threshold.organizer_ratings_display", default=3)
+    show_rating = rating_count >= threshold
 
     user_review = None
     if request.user.is_authenticated:
@@ -73,7 +74,7 @@ def organizer_profile(request, slug):
         "avg_rating": avg_rating,
         "show_rating": show_rating,
         "user_review": user_review,
-        "MIN_RATINGS_FOR_DISPLAY": MIN_RATINGS_FOR_DISPLAY,
+        "MIN_RATINGS_FOR_DISPLAY": threshold,
     }
     return render(request, "organizers/profile.html", context)
 

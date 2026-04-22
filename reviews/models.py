@@ -104,4 +104,19 @@ class Flag(models.Model):
                 ),
                 name="flag_targets_exactly_one",
             ),
+            models.UniqueConstraint(
+                fields=["reporter", "event"],
+                condition=models.Q(reporter__isnull=False, event__isnull=False),
+                name="one_flag_per_reporter_per_event",
+            ),
+            models.UniqueConstraint(
+                fields=["reporter", "organizer"],
+                condition=models.Q(reporter__isnull=False, organizer__isnull=False),
+                name="one_flag_per_reporter_per_organizer",
+            ),
+            models.UniqueConstraint(
+                fields=["reporter", "review"],
+                condition=models.Q(reporter__isnull=False, review__isnull=False),
+                name="one_flag_per_reporter_per_review",
+            ),
         ]

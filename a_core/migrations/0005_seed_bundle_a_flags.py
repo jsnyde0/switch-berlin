@@ -34,7 +34,6 @@ def unseed_flags(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         ("a_core", "0004_featureflag_numeric_value_moderationaction"),
-        ("a_core", "0003_seed_featureflags"),
     ]
 
     operations = [migrations.RunPython(seed_flags, unseed_flags)]

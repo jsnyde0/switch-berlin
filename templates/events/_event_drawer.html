@@ -27,7 +27,7 @@
       {% trans "More info" %}
     </a>
   {% endif %}
-  {% if user.is_authenticated and user.is_approved and event_past and RATINGS_ENABLED %}
+  {% if user.is_authenticated and user.is_approved and event_past and RATINGS_ENABLED and user_has_went_attendance %}
   {% include "reviews/_rating_form.html" with target_type="event" target_id=event.pk form_id="event-rating-form" %}
   {% endif %}
 </div>

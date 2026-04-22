@@ -32,7 +32,11 @@ class RateLimitedSignupView(SignupView):
 def me_view(request):
     now = timezone.now()
     followed = (
-        OrganizerFollow.objects.filter(user=request.user)
+        OrganizerFollow.objects.filter(
+            user=request.user,
+            organizer__hidden=False,
+            organizer__status="approved",
+        )
         .select_related("organizer")
         .order_by("organizer__name")
     )
@@ -53,6 +57,7 @@ def me_view(request):
             status="went",
             event__start__lt=now,
             event__status="published",
+            event__hidden=False,
         )
         .select_related("event", "event__organizer")
         .order_by("-event__start")

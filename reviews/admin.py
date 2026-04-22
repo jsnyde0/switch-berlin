@@ -1,8 +1,11 @@
 from django.contrib import admin
+from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import path, reverse
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 
 from a_core.models import ModerationAction
 from events.models import Event
@@ -80,6 +83,7 @@ class FlagAdmin(admin.ModelAdmin):
             request, object_id, form_url=form_url, extra_context=extra_context
         )
 
+    @method_decorator(require_POST)
     def process_action(self, request, flag_id):
         flag = get_object_or_404(Flag, pk=flag_id)
         action = request.POST.get("action")
@@ -91,26 +95,27 @@ class FlagAdmin(admin.ModelAdmin):
 
         target_repr = str(target)
 
-        # Apply side effect
-        if action == "hide" and target_type == "event":
-            Event.objects.filter(pk=target.pk).update(hidden=True)
-        elif action == "hide" and target_type == "organizer":
-            Organizer.objects.filter(pk=target.pk).update(hidden=True)
-        elif action == "suspend":
-            Organizer.objects.filter(pk=target.pk).update(status="suspended")
-        elif action == "delete":
-            Review.objects.filter(pk=target.pk).update(hidden=True)
+        with transaction.atomic():
+            # Apply side effect
+            if action == "hide" and target_type == "event":
+                Event.objects.filter(pk=target.pk).update(hidden=True)
+            elif action == "hide" and target_type == "organizer":
+                Organizer.objects.filter(pk=target.pk).update(hidden=True)
+            elif action == "suspend":
+                Organizer.objects.filter(pk=target.pk).update(status="suspended")
+            elif action == "delete":
+                Review.objects.filter(pk=target.pk).update(hidden=True)
 
-        ModerationAction.objects.create(
-            moderator=request.user,
-            flag=flag,
-            target_type=target_type,
-            target_id=target.pk,
-            target_repr=target_repr,
-            action=action,
-        )
+            ModerationAction.objects.create(
+                moderator=request.user,
+                flag=flag,
+                target_type=target_type,
+                target_id=target.pk,
+                target_repr=target_repr,
+                action=action,
+            )
 
-        flag.resolved = True
-        flag.save(update_fields=["resolved"])
+            flag.resolved = True
+            flag.save(update_fields=["resolved"])
 
         return redirect(reverse("admin:reviews_flag_change", args=[flag.pk]))

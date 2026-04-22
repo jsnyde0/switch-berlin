@@ -16,17 +16,20 @@ class Command(BaseCommand):
                 "repeats": -1,
             },
         )
+        # Runs at 02:30 UTC — 30 min after finalize_attendance (02:00 UTC).
+        # Scheduled to run 30 min after finalize_attendance so that 'went'
+        # attendances are already finalized before aggregates are recomputed.
         Schedule.objects.update_or_create(
             name="nightly_recompute_aggregates",
             defaults={
                 "func": "ingestion.tasks_flags.recompute_aggregates",
-                "schedule_type": Schedule.DAILY,
+                "schedule_type": Schedule.CRON,
+                "cron": "30 2 * * *",
                 "repeats": -1,
             },
         )
         # Runs at 02:00 UTC = 03:00 Europe/Berlin CET = 04:00 CEST.
         # django-q2 Schedule has no timezone kwarg; the cron expression is UTC.
-        # Must run AFTER finalize_attendance so attendance_count includes 'went'.
         Schedule.objects.update_or_create(
             name="nightly_finalize_attendance",
             defaults={

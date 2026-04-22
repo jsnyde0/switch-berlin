@@ -64,6 +64,8 @@ def daily_flag_digest():
             lines.append(
                 f"    Admin: {settings.SITE_URL}{admin_url}?action={suggested}"
             )
+    if count > 50:
+        lines.append(f"\n… and {count - 50} more. Visit admin to see all.")
 
     body = "\n".join(lines)
     try:
@@ -139,7 +141,7 @@ def recompute_aggregates():
 
     for org in Organizer.objects.all():
         follower_count = OrganizerFollow.objects.filter(organizer=org).count()
-        agg = Review.objects.filter(organizer=org).aggregate(
+        agg = Review.objects.filter(organizer=org, hidden=False).aggregate(
             count=Count("pk"), avg=Avg("rating")
         )
         Organizer.objects.filter(pk=org.pk).update(
@@ -154,7 +156,7 @@ def recompute_aggregates():
             event=event, status__in=("going", "went")
         ).count()
         interested = Attendance.objects.filter(event=event, status="interested").count()
-        agg = Review.objects.filter(event=event).aggregate(
+        agg = Review.objects.filter(event=event, hidden=False).aggregate(
             count=Count("pk"), avg=Avg("rating")
         )
         rating_count = agg["count"] or 0

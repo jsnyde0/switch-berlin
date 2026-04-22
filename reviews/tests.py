@@ -215,6 +215,55 @@ def test_submit_event_review_updates_rating_count(client_logged_in_with_went, pa
     assert past_event.rating_count == 1
 
 
+@pytest.mark.django_db
+def test_submit_event_review_updates_avg_rating(client_logged_in_with_went, past_event):
+    """After event review, Event.avg_rating is updated immediately (not just at nightly recompute)."""
+    url = reverse("review-submit")
+    client_logged_in_with_went.post(url, {
+        "target_type": "event",
+        "target_id": str(past_event.pk),
+        "rating": "4",
+    })
+    past_event.refresh_from_db()
+    assert past_event.avg_rating is not None
+    assert abs(past_event.avg_rating - 4.0) < 0.001
+
+
+@pytest.mark.django_db
+def test_submit_event_review_excludes_hidden_from_aggregates(past_event):
+    """submit_review event path: hidden=False filter is applied to aggregates."""
+    from events.models import Attendance
+
+    # Create a user with went attendance
+    user1 = User.objects.create_user(
+        username="ev_agg_user1", email="ev_agg1@example.com", password="testpass123"
+    )
+    user1.is_approved = True
+    user1.save()
+    Attendance.objects.create(user=user1, event=past_event, status="went")
+
+    # Create a hidden review first (rating=1 — should be excluded)
+    user2 = User.objects.create_user(
+        username="ev_agg_user2", email="ev_agg2@example.com", password="testpass123"
+    )
+    user2.is_approved = True
+    user2.save()
+    Review.objects.create(author=user2, event=past_event, rating=1, hidden=True)
+
+    c = Client()
+    c.login(username="ev_agg_user1", password="testpass123")
+    url = reverse("review-submit")
+    c.post(url, {
+        "target_type": "event",
+        "target_id": str(past_event.pk),
+        "rating": "5",
+    })
+    past_event.refresh_from_db()
+    # rating_count should be 1 (hidden review excluded), avg_rating = 5.0
+    assert past_event.rating_count == 1
+    assert abs(past_event.avg_rating - 5.0) < 0.001
+
+
 # ---------------------------------------------------------------------------
 # Test: RATINGS_ENABLED flag
 # ---------------------------------------------------------------------------

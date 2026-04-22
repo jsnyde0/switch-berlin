@@ -36,30 +36,29 @@ def event_list(request):
     trending_enabled = get_flag("TRENDING_SORT_ENABLED", default=True)
 
     if sort == "trending" and trending_enabled:
-        with logfire.span("events.trending_query"):
-            from django.db.models.expressions import RawSQL
+        from django.db.models.expressions import RawSQL
 
-            now_ts = timezone.now()
-            # RawSQL used for days_until_start: PostgreSQL does not support
-            # interval / interval directly, so we convert to epoch seconds.
-            qs = qs.annotate(
-                days_until_start=ExpressionWrapper(
-                    Greatest(
-                        RawSQL(
-                            "EXTRACT(EPOCH FROM (start - %s)) / 86400.0",
-                            [now_ts],
-                        ),
-                        Value(1.0),
+        now_ts = timezone.now()
+        # RawSQL used for days_until_start: PostgreSQL does not support
+        # interval / interval directly, so we convert to epoch seconds.
+        qs = qs.annotate(
+            days_until_start=ExpressionWrapper(
+                Greatest(
+                    RawSQL(
+                        "EXTRACT(EPOCH FROM (start - %s)) / 86400.0",
+                        [now_ts],
                     ),
-                    output_field=FloatField(),
-                )
-            ).annotate(
-                trending_score=ExpressionWrapper(
-                    F("interested_count") * (1.0 / F("days_until_start"))
-                    + F("attendance_count") * 2.0,
-                    output_field=FloatField(),
-                )
-            ).order_by("-trending_score")
+                    Value(1.0),
+                ),
+                output_field=FloatField(),
+            )
+        ).annotate(
+            trending_score=ExpressionWrapper(
+                F("interested_count") * (1.0 / F("days_until_start"))
+                + F("attendance_count") * 2.0,
+                output_field=FloatField(),
+            )
+        ).order_by("-trending_score", "-start", "pk")
     else:
         qs = qs.order_by("start")
 
@@ -116,7 +115,11 @@ def event_list(request):
         page_num = 1
 
     paginator = Paginator(qs, 20)
-    page_obj = paginator.get_page(page_num)
+    if sort == "trending" and trending_enabled:
+        with logfire.span("events.trending_query"):
+            page_obj = paginator.get_page(page_num)
+    else:
+        page_obj = paginator.get_page(page_num)
 
     all_tags = Tag.objects.all().order_by("kind", "label")
 
@@ -253,9 +256,13 @@ def event_drawer(request, org_slug, event_slug):
         except Attendance.DoesNotExist:
             attendance = None
         user_going = attendance is not None and attendance.status == "going"
+        user_has_went_attendance = Attendance.objects.filter(
+            user=request.user, event=event, status="went"
+        ).exists()
     else:
         attendance = None
         user_going = False
+        user_has_went_attendance = False
     event_past = event.start < timezone.now()
     return render(
         request,
@@ -265,6 +272,7 @@ def event_drawer(request, org_slug, event_slug):
             "attendance": attendance,
             "user_going": user_going,
             "event_past": event_past,
+            "user_has_went_attendance": user_has_went_attendance,
         },
     )
 

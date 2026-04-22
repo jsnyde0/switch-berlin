@@ -1,6 +1,6 @@
 """Custom context processors for kinky-bubbles."""
 
-from a_core.models import get_flag
+from a_core.models import get_flag, get_numeric
 
 
 def feature_flags(request):
@@ -10,4 +10,6 @@ def feature_flags(request):
         "PUBLIC_READ_ENABLED": get_flag("PUBLIC_READ_ENABLED", default=True),
         "RATINGS_ENABLED": get_flag("RATINGS_ENABLED", default=True),
         "FLAGS_ENABLED": get_flag("FLAGS_ENABLED", default=True),
+        "EVENT_REVIEWS_DISPLAYED": get_flag("EVENT_REVIEWS_DISPLAYED", default=False),
+        "EVENT_RATING_THRESHOLD": get_numeric("threshold.event_ratings_display", default=3),
     }

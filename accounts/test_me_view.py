@@ -258,3 +258,53 @@ class MeViewPastAttendancesTest(TestCase):
         response = self.client.get("/me/")
         past_events = [a.event for a in response.context["past"]]
         self.assertNotIn(event, past_events)
+
+    def test_hidden_past_event_not_in_past_section(self):
+        """Hidden past events are excluded from the past attendances list."""
+        event = _make_event(
+            self.org, "me-went-hidden-past", start_delta_days=-10, hidden=True
+        )
+        Attendance.objects.create(user=self.user, event=event, status="went")
+        response = self.client.get("/me/")
+        past_events = [a.event for a in response.context["past"]]
+        self.assertNotIn(event, past_events)
+
+
+# ---------------------------------------------------------------------------
+# Followed organizers: hidden/suspended exclusion
+# ---------------------------------------------------------------------------
+
+
+class MeViewFollowedOrganizersFilterTest(TestCase):
+    """Suspended or hidden organizers must not appear in followed section."""
+
+    def setUp(self):
+        self.user = _make_user("mefilterfollowuser")
+        self.client.force_login(self.user)
+
+    def test_suspended_organizer_excluded_from_followed(self):
+        """Suspended organizer should not appear in followed list."""
+        org = _make_organizer(slug="me-suspended-org", status="suspended")
+        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        response = self.client.get("/me/")
+        self.assertEqual(response.status_code, 200)
+        followed = list(response.context["followed"])
+        self.assertNotIn(org, [f.organizer for f in followed])
+
+    def test_hidden_organizer_excluded_from_followed(self):
+        """Hidden organizer should not appear in followed list."""
+        org = _make_organizer(slug="me-hidden-org", hidden=True)
+        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        response = self.client.get("/me/")
+        self.assertEqual(response.status_code, 200)
+        followed = list(response.context["followed"])
+        self.assertNotIn(org, [f.organizer for f in followed])
+
+    def test_approved_visible_organizer_still_appears(self):
+        """Approved, visible organizer appears normally in followed list."""
+        org = _make_organizer(slug="me-approved-org")
+        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        response = self.client.get("/me/")
+        self.assertEqual(response.status_code, 200)
+        followed = list(response.context["followed"])
+        self.assertIn(org, [f.organizer for f in followed])

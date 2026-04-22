@@ -127,8 +127,13 @@ def submit_review(request):
                 event=event,
                 defaults={"rating": rating, "body": body, "organizer": None},
             )
-            count = Review.objects.filter(event=event).count()
-            Event.objects.filter(pk=event.pk).update(rating_count=count)
+            agg = Review.objects.filter(event=event, hidden=False).aggregate(
+                count=Count("pk"), avg=Avg("rating")
+            )
+            Event.objects.filter(pk=event.pk).update(
+                rating_count=agg["count"] or 0,
+                avg_rating=agg["avg"],
+            )
             return render(
                 request,
                 "reviews/_rating_form.html",
@@ -175,20 +180,28 @@ def flag_target(request):
     with transaction.atomic():
         if target_type == "event":
             event = get_object_or_404(Event, pk=target_id)
-            Flag.objects.create(reporter=request.user, event=event, reason=reason)
+            flag, created = Flag.objects.get_or_create(
+                reporter=request.user, event=event,
+                defaults={"reason": reason},
+            )
+            if not created:
+                return render(request, "reviews/_flag_button.html", {"flagged": True})
             auth_flag_count = Flag.objects.filter(
-                event=event, reporter__isnull=False
+                event=event, reporter__isnull=False, resolved=False
             ).count()
             if auth_flag_count >= get_numeric("threshold.auto_hide_flag", default=3):
                 Event.objects.filter(pk=event.pk).update(hidden=True)
 
         elif target_type == "organizer":
             organizer = get_object_or_404(Organizer, pk=target_id)
-            Flag.objects.create(
-                reporter=request.user, organizer=organizer, reason=reason
+            flag, created = Flag.objects.get_or_create(
+                reporter=request.user, organizer=organizer,
+                defaults={"reason": reason},
             )
+            if not created:
+                return render(request, "reviews/_flag_button.html", {"flagged": True})
             auth_flag_count = Flag.objects.filter(
-                organizer=organizer, reporter__isnull=False
+                organizer=organizer, reporter__isnull=False, resolved=False
             ).count()
             if auth_flag_count >= get_numeric("threshold.auto_hide_flag", default=3):
                 Organizer.objects.filter(pk=organizer.pk).update(hidden=True)

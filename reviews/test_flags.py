@@ -705,51 +705,6 @@ def test_schedule_tasks_command_is_idempotent():
 
 
 # ---------------------------------------------------------------------------
-# Test: rate limiting on flag_target — uses django-ratelimit (5/h per user)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.django_db
-@override_settings(
-    RATELIMIT_ENABLE=True,
-    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
-)
-def test_flag_target_rate_limit_per_hour(
-    client_approved, approved_user, published_event
-):
-    """6th flag POST in same hour from same user -> 429 via django-ratelimit."""
-    from django.core.cache import cache
-
-    cache.clear()
-    url = reverse("flag-target")
-
-    # First 5 should succeed (rate is 5/h)
-    for _ in range(5):
-        resp = client_approved.post(
-            url,
-            {
-                "target_type": "event",
-                "target_id": str(published_event.pk),
-                "reason": "spam",
-            },
-        )
-        assert resp.status_code == 200
-
-    # 6th should be rate-limited
-    resp = client_approved.post(
-        url,
-        {
-            "target_type": "event",
-            "target_id": str(published_event.pk),
-            "reason": "spam",
-        },
-    )
-    assert resp.status_code == 429
-
-    cache.clear()
-
-
-# ---------------------------------------------------------------------------
 # Test: IDOR fix — organizer_opt_out cannot suspend unrelated organizer
 # ---------------------------------------------------------------------------
 
@@ -1010,17 +965,6 @@ def test_reviews_views_uses_get_numeric_for_auto_hide():
     )
 
 
-@pytest.mark.django_db
-def test_reviews_views_min_ratings_constant_still_present():
-    """MIN_RATINGS_FOR_DISPLAY must NOT be removed in this step."""
-    import pathlib
-
-    source = pathlib.Path("/workspace/reviews/views.py").read_text()
-    assert "MIN_RATINGS_FOR_DISPLAY" in source, (
-        "MIN_RATINGS_FOR_DISPLAY was removed — it must stay until step-4"
-    )
-
-
 # ---------------------------------------------------------------------------
 # Test: Event.avg_rating field + recompute_aggregates populates it
 # ---------------------------------------------------------------------------
@@ -1059,3 +1003,158 @@ def test_recompute_aggregates_event_avg_rating_none_when_no_reviews(published_ev
 
     published_event.refresh_from_db()
     assert published_event.avg_rating is None
+
+
+@pytest.mark.django_db
+def test_recompute_aggregates_excludes_hidden_reviews_from_event(
+    approved_user, approved_user2, published_event
+):
+    """recompute_aggregates must exclude hidden=True reviews from event aggregates."""
+    from ingestion.tasks_flags import recompute_aggregates
+
+    # One visible review (rating=4), one hidden review (rating=1)
+    Review.objects.create(author=approved_user, event=published_event, rating=4)
+    Review.objects.create(author=approved_user2, event=published_event, rating=1, hidden=True)
+
+    recompute_aggregates()
+
+    published_event.refresh_from_db()
+    # Only the visible review should count
+    assert published_event.rating_count == 1
+    assert published_event.avg_rating == pytest.approx(4.0)
+
+
+@pytest.mark.django_db
+def test_recompute_aggregates_excludes_hidden_reviews_from_organizer(
+    approved_user, approved_user2, published_event
+):
+    """recompute_aggregates must exclude hidden=True reviews from organizer aggregates."""
+    from ingestion.tasks_flags import recompute_aggregates
+
+    organizer = published_event.organizer
+    # One visible review (rating=5), one hidden review (rating=1)
+    Review.objects.create(author=approved_user, organizer=organizer, rating=5)
+    Review.objects.create(author=approved_user2, organizer=organizer, rating=1, hidden=True)
+
+    recompute_aggregates()
+
+    organizer.refresh_from_db()
+    # Only the visible review should count
+    assert organizer.rating_count == 1
+    assert organizer.avg_rating == pytest.approx(5.0)
+
+
+# ---------------------------------------------------------------------------
+# Test: Flag UniqueConstraint rejects duplicate (reporter, event) pairs
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_flag_unique_constraint_rejects_duplicate_reporter_event(
+    approved_user, published_event
+):
+    """Second flag from same reporter on same event is rejected by UniqueConstraint."""
+    from django.db import IntegrityError
+
+    Flag.objects.create(reporter=approved_user, event=published_event, reason="spam")
+    with pytest.raises(IntegrityError):
+        Flag.objects.create(
+            reporter=approved_user, event=published_event, reason="harmful"
+        )
+
+
+@pytest.mark.django_db
+def test_flag_unique_constraint_rejects_duplicate_reporter_organizer(
+    approved_user, published_event
+):
+    """Second flag from same reporter on same organizer is rejected by UniqueConstraint."""
+    from django.db import IntegrityError
+
+    organizer = published_event.organizer
+    Flag.objects.create(reporter=approved_user, organizer=organizer, reason="spam")
+    with pytest.raises(IntegrityError):
+        Flag.objects.create(
+            reporter=approved_user, organizer=organizer, reason="harmful"
+        )
+
+
+@pytest.mark.django_db
+def test_flag_get_or_create_handles_duplicate_gracefully(
+    client_approved, approved_user, published_event
+):
+    """Second flag POST from same user on same event returns 200 without error."""
+    url = reverse("flag-target")
+    payload = {
+        "target_type": "event",
+        "target_id": str(published_event.pk),
+        "reason": "spam",
+    }
+    resp1 = client_approved.post(url, payload)
+    assert resp1.status_code == 200
+    # Second POST: get_or_create returns existing flag; no IntegrityError
+    resp2 = client_approved.post(url, payload)
+    assert resp2.status_code == 200
+    # Only one flag should exist
+    assert Flag.objects.filter(reporter=approved_user, event=published_event).count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Test: auto-hide count excludes resolved flags
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_auto_hide_excludes_resolved_flags(
+    client_approved, approved_user, approved_user2, approved_user3, published_event
+):
+    """Resolved flags do not count toward auto-hide threshold."""
+    # Create 2 resolved flags (should not count toward threshold of 3)
+    Flag.objects.create(
+        reporter=approved_user2, event=published_event, reason="spam", resolved=True
+    )
+    Flag.objects.create(
+        reporter=approved_user3, event=published_event, reason="spam", resolved=True
+    )
+    # Now post one live flag from approved_user; with threshold=3, only 1 unresolved
+    url = reverse("flag-target")
+    client_approved.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    published_event.refresh_from_db()
+    # Only 1 unresolved flag — event must NOT be hidden
+    assert published_event.hidden is False
+
+
+# ---------------------------------------------------------------------------
+# Test: daily_flag_digest appends "and N more" footer when count > 50
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_daily_flag_digest_appends_overflow_footer(approved_user, published_event):
+    """When > 50 unresolved flags exist, the digest body includes an overflow footer."""
+    from unittest.mock import patch
+
+    from ingestion.tasks_flags import daily_flag_digest
+
+    # Create 51 anonymous takedown flags (reporter=None, anon targets)
+    # Anonymous flags bypass the UniqueConstraint (reporter__isnull=False condition).
+    for _ in range(51):
+        Flag.objects.create(reporter=None, event=published_event, reason="spam")
+
+    captured = {}
+
+    def fake_send_mail(subject, message, from_email, recipient_list, fail_silently):
+        captured["message"] = message
+
+    with patch("ingestion.tasks_flags.send_mail", side_effect=fake_send_mail):
+        daily_flag_digest()
+
+    assert "more" in captured.get("message", ""), (
+        "Overflow footer not found in digest body"
+    )

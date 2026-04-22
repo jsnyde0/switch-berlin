@@ -319,5 +319,8 @@ class ContextProcessorTest(TestCase):
         self.assertIn("PUBLIC_READ_ENABLED", ctx)
         self.assertIn("RATINGS_ENABLED", ctx)
         self.assertIn("FLAGS_ENABLED", ctx)
+        # New flags added for event reviews display
+        self.assertIn("EVENT_REVIEWS_DISPLAYED", ctx)
+        self.assertIn("EVENT_RATING_THRESHOLD", ctx)
         # LOGIN_WALL_ENABLED is not in context
         self.assertNotIn("LOGIN_WALL_ENABLED", ctx)
