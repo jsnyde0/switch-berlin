@@ -1,96 +1,106 @@
 {% extends "_base.html" %}
 {% load i18n event_tags %}
-
-{% block title %}{{ event.title }} — Kinky Bubbles{% endblock title %}
-
+{% block title %}
+  {{ event.title }} — Kinky Bubbles
+{% endblock title %}
+{% block og_meta %}
+  {% if PUBLIC_READ_ENABLED %}
+    <meta property="og:title" content="{{ event.title }}" />
+    <meta property="og:description"
+          content="{{ event.description|truncatewords:30 }}" />
+    <meta property="og:type" content="event" />
+    {% if cover_image %}
+      <meta property="og:image"
+            content="{{ request.scheme }}://{{ request.get_host }}{{ cover_image.image.url }}" />
+    {% endif %}
+    <meta property="og:url" content="{{ request.build_absolute_uri }}" />
+  {% endif %}
+{% endblock og_meta %}
 {% block layout %}
-<article class="max-w-2xl mx-auto flex flex-col gap-6">
-
-  {% if cover_image %}
-  <img src="{{ cover_image.image.url }}"
-       alt="{{ cover_image.alt|default:event.title }}"
-       width="672"
-       height="256"
-       class="w-full rounded-xl object-cover max-h-64">
-  {% endif %}
-
-  <header class="flex flex-col gap-2">
-    <h1 class="text-3xl font-bold">{{ event.title }}</h1>
-    {% if event.organizer %}
-      <c-organizer-mini-card :organizer="event.organizer" />
+  <article class="max-w-2xl mx-auto flex flex-col gap-6">
+    {% if cover_image %}
+      <img src="{{ cover_image.image.url }}"
+           alt="{{ cover_image.alt|default:event.title }}"
+           width="672"
+           height="256"
+           class="w-full rounded-xl object-cover max-h-64">
     {% endif %}
-  </header>
-
-  <section class="flex flex-col gap-2 text-sm">
-    <p><span class="font-semibold">{% trans "Date" %}:</span> {{ event.start|date:"D, d M Y" }}</p>
-    <p>
-      <span class="font-semibold">{% trans "Time" %}:</span>
-      {{ event.start|date:"H:i" }}{% if event.end %} – {{ event.end|date:"H:i" }}{% endif %}
-    </p>
-    {% if event.venue %}
-    <p>
-      <span class="font-semibold">{% trans "Venue" %}:</span>
-      {% if event.venue.privacy_mode == 'private' and not user_going %}
-        {% trans 'Private venue' %}
-      {% else %}
-        {{ event.venue.name }}{% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+    <header class="flex flex-col gap-2">
+      <h1 class="text-3xl font-bold">{{ event.title }}</h1>
+      {% if event.organizer %}<c-organizer-mini-card :organizer="event.organizer" />{% endif %}
+    </header>
+    <section class="flex flex-col gap-2 text-sm">
+      <p>
+        <span class="font-semibold">{% trans "Date" %}:</span> {{ event.start|date:"D, d M Y" }}
+      </p>
+      <p>
+        <span class="font-semibold">{% trans "Time" %}:</span>
+        {{ event.start|date:"H:i" }}
+        {% if event.end %}– {{ event.end|date:"H:i" }}{% endif %}
+      </p>
+      {% if event.venue %}
+        <p>
+          <span class="font-semibold">{% trans "Venue" %}:</span>
+          {% if event.venue.privacy_mode == 'private' and not user_going %}
+            {% trans 'Private venue' %}
+          {% else %}
+            {{ event.venue.name }}
+            {% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+          {% endif %}
+        </p>
       {% endif %}
-    </p>
+      <p>
+        <span class="font-semibold">{% trans "Price" %}:</span>
+        {% if event.is_free %}
+          {% trans "Free" %}
+        {% elif event.price_min_cents %}
+          {{ event.currency }} {{ event.price_min_cents|cents_to_display }}
+          {% if event.price_max_cents %}– {{ event.price_max_cents|cents_to_display }}{% endif %}
+          {% if event.sliding_scale %}
+            ({% trans "sliding scale" %})
+          {% endif %}
+        {% else %}
+          {% trans "See event page" %}
+        {% endif %}
+      </p>
+    </section>
+    {% if event.tags.all %}
+      <div class="flex flex-wrap gap-2">
+        {% for tag in event.tags.all %}
+          <a href="{% url 'event-list' %}?tags={{ tag.slug }}"
+             class="badge badge-outline">{{ tag.label }}</a>
+        {% endfor %}
+      </div>
     {% endif %}
-    <p>
-      <span class="font-semibold">{% trans "Price" %}:</span>
-      {% if event.is_free %}
-        {% trans "Free" %}
-      {% elif event.price_min_cents %}
-        {{ event.currency }} {{ event.price_min_cents|cents_to_display }}
-        {% if event.price_max_cents %} – {{ event.price_max_cents|cents_to_display }}{% endif %}
-        {% if event.sliding_scale %} ({% trans "sliding scale" %}){% endif %}
-      {% else %}
-        {% trans "See event page" %}
-      {% endif %}
-    </p>
-  </section>
-
-  {% if event.tags.all %}
-  <div class="flex flex-wrap gap-2">
-    {% for tag in event.tags.all %}
-      <a href="{% url 'event-list' %}?tags={{ tag.slug }}" class="badge badge-outline">
-        {{ tag.label }}
-      </a>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if user.is_authenticated %}
-    {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
-  {% endif %}
-
-  {% if event.description %}
-  <section class="prose prose-sm max-w-none">
-    {{ event.description|linebreaks }}
-  </section>
-  {% endif %}
-
-  {% if event.tickets_url or event.external_url %}
-  <div class="flex gap-3">
-    {% if event.tickets_url %}
-      <a href="{{ event.tickets_url }}" target="_blank" rel="noopener noreferrer"
-         class="btn btn-primary btn-sm">{% trans "Get tickets" %}</a>
+    {% if user.is_authenticated %}
+      {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
     {% endif %}
-    {% if event.external_url %}
-      <a href="{{ event.external_url }}" target="_blank" rel="noopener noreferrer"
-         class="btn btn-outline btn-sm">{% trans "More info" %}</a>
+    {% if event.description %}
+      <section class="prose prose-sm max-w-none">
+        {{ event.description|linebreaks }}
+      </section>
     {% endif %}
-  </div>
-  {% endif %}
-
-  {% if user.is_authenticated and user.is_approved and event_past and RATINGS_ENABLED %}
-  {% include "reviews/_rating_form.html" with target_type="event" target_id=event.pk form_id="event-detail-rating-form" %}
-  {% endif %}
-
-  <footer class="text-xs text-base-content/50 border-t pt-4">
-    {% trans "Safety first. Consent is mandatory. Look out for each other." %}
-  </footer>
-
-</article>
+    {% if event.tickets_url or event.external_url %}
+      <div class="flex gap-3">
+        {% if event.tickets_url %}
+          <a href="{{ event.tickets_url }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn btn-primary btn-sm">{% trans "Get tickets" %}</a>
+        {% endif %}
+        {% if event.external_url %}
+          <a href="{{ event.external_url }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn btn-outline btn-sm">{% trans "More info" %}</a>
+        {% endif %}
+      </div>
+    {% endif %}
+    {% if user.is_authenticated and user.is_approved and event_past and RATINGS_ENABLED %}
+      {% include "reviews/_rating_form.html" with target_type="event" target_id=event.pk form_id="event-detail-rating-form" %}
+    {% endif %}
+    <footer class="text-xs text-base-content/50 border-t pt-4">
+      {% trans "Safety first. Consent is mandatory. Look out for each other." %}
+    </footer>
+  </article>
 {% endblock layout %}

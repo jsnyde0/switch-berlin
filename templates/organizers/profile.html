@@ -1,87 +1,88 @@
 {% extends "_base.html" %}
 {% load i18n %}
-
-{% block title %}{{ organizer.name }} — Kinky Bubbles{% endblock title %}
-
-{% block layout %}
-<div class="max-w-2xl mx-auto flex flex-col gap-8">
-
-  <header class="flex items-start gap-4">
+{% block title %}
+  {{ organizer.name }} — Kinky Bubbles
+{% endblock title %}
+{% block og_meta %}
+  {% if PUBLIC_READ_ENABLED %}
+    <meta property="og:title" content="{{ organizer.name }}" />
+    <meta property="og:description"
+          content="{{ organizer.description|truncatewords:30 }}" />
+    <meta property="og:type" content="profile" />
     {% if organizer.avatar %}
-    <img src="{{ organizer.avatar.url }}"
-         alt="{{ organizer.name }}"
-         width="80"
-         height="80"
-         class="w-20 h-20 rounded-full object-cover">
-    {% else %}
-    <div class="w-20 h-20 rounded-full bg-base-300 flex items-center justify-center text-2xl">
-      {{ organizer.name|first|upper }}
-    </div>
+      <meta property="og:image"
+            content="{{ request.scheme }}://{{ request.get_host }}{{ organizer.avatar.url }}" />
     {% endif %}
-    <div class="flex flex-col gap-1">
-      <h1 class="text-2xl font-bold flex items-center gap-2">
-        {{ organizer.name }}
-        {% if organizer.verified_badge %}
-          <span class="badge badge-info badge-sm">{% trans "Verified" %}</span>
+    <meta property="og:url" content="{{ request.build_absolute_uri }}" />
+  {% endif %}
+{% endblock og_meta %}
+{% block layout %}
+  <div class="max-w-2xl mx-auto flex flex-col gap-8">
+    <header class="flex items-start gap-4">
+      {% if organizer.avatar %}
+        <img src="{{ organizer.avatar.url }}"
+             alt="{{ organizer.name }}"
+             width="80"
+             height="80"
+             class="w-20 h-20 rounded-full object-cover">
+      {% else %}
+        <div class="w-20 h-20 rounded-full bg-base-300 flex items-center justify-center text-2xl">
+          {{ organizer.name|first|upper }}
+        </div>
+      {% endif %}
+      <div class="flex flex-col gap-1">
+        <h1 class="text-2xl font-bold flex items-center gap-2">
+          {{ organizer.name }}
+          {% if organizer.verified_badge %}
+            <span class="badge badge-info badge-sm">{% trans "Verified" %}</span>
+          {% endif %}
+        </h1>
+        {% if organizer.website %}
+          <a href="{{ organizer.website }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="text-sm link">{{ organizer.website }}</a>
         {% endif %}
-      </h1>
-      {% if organizer.website %}
-        <a href="{{ organizer.website }}" target="_blank" rel="noopener noreferrer"
-           class="text-sm link">{{ organizer.website }}</a>
-      {% endif %}
-      {% if organizer.telegram_channel %}
-        <p class="text-sm text-base-content/70">Telegram: {{ organizer.telegram_channel }}</p>
-      {% endif %}
-    </div>
-  </header>
-
-  {% if user.is_authenticated %}
-    {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
-  {% endif %}
-
-  {% if show_rating %}
-  <div class="flex items-center gap-2">
-    <span class="text-2xl font-bold">{{ avg_rating|floatformat:1 }}</span>
-    <span class="text-base-content/60">/ 5</span>
-    <span class="text-sm text-base-content/50">({{ rating_count }} {% trans "reviews" %})</span>
-  </div>
-  {% endif %}
-
-  {% if user.is_authenticated and user.is_approved and FLAGS_ENABLED and RATINGS_ENABLED %}
-  {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
-  {% endif %}
-
-  {% if organizer.description %}
-  <section class="prose prose-sm max-w-none">
-    {{ organizer.description|linebreaks }}
-  </section>
-  {% endif %}
-
-  <section>
-    <h2 class="text-xl font-semibold mb-4">{% trans "Upcoming events" %}</h2>
-    {% if upcoming_events %}
-    <div class="flex flex-col gap-3">
-      {% for event in upcoming_events %}
-        <c-event-card :event="event" />
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-base-content/60">{% trans "No upcoming events." %}</p>
+        {% if organizer.telegram_channel %}
+          <p class="text-sm text-base-content/70">Telegram: {{ organizer.telegram_channel }}</p>
+        {% endif %}
+      </div>
+    </header>
+    {% if user.is_authenticated %}
+      {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
     {% endif %}
-  </section>
-
-  {% if past_events %}
-  <details class="collapse collapse-arrow bg-base-200">
-    <summary class="collapse-title text-lg font-semibold">
-      {% trans "Past events" %}
-    </summary>
-    <div class="collapse-content flex flex-col gap-3 pt-2">
-      {% for event in past_events %}
-        <c-event-card :event="event" />
-      {% endfor %}
-    </div>
-  </details>
-  {% endif %}
-
-</div>
+    {% if show_rating %}
+      <div class="flex items-center gap-2">
+        <span class="text-2xl font-bold">{{ avg_rating|floatformat:1 }}</span>
+        <span class="text-base-content/60">/ 5</span>
+        <span class="text-sm text-base-content/50">({{ rating_count }} {% trans "reviews" %})</span>
+      </div>
+    {% endif %}
+    {% if user.is_authenticated and user.is_approved and FLAGS_ENABLED and RATINGS_ENABLED %}
+      {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
+    {% endif %}
+    {% if organizer.description %}
+      <section class="prose prose-sm max-w-none">
+        {{ organizer.description|linebreaks }}
+      </section>
+    {% endif %}
+    <section>
+      <h2 class="text-xl font-semibold mb-4">{% trans "Upcoming events" %}</h2>
+      {% if upcoming_events %}
+        <div class="flex flex-col gap-3">
+          {% for event in upcoming_events %}<c-event-card :event="event" />{% endfor %}
+        </div>
+      {% else %}
+        <p class="text-base-content/60">{% trans "No upcoming events." %}</p>
+      {% endif %}
+    </section>
+    {% if past_events %}
+      <details class="collapse collapse-arrow bg-base-200">
+        <summary class="collapse-title text-lg font-semibold">{% trans "Past events" %}</summary>
+        <div class="collapse-content flex flex-col gap-3 pt-2">
+          {% for event in past_events %}<c-event-card :event="event" />{% endfor %}
+        </div>
+      </details>
+    {% endif %}
+  </div>
 {% endblock layout %}
