@@ -1,0 +1,63 @@
+{% extends "_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "My Profile" %} — Kinky Bubbles{% endblock title %}
+
+{% block layout %}
+<div class="max-w-2xl mx-auto flex flex-col gap-8">
+  <h1 class="text-2xl font-bold">{% trans "My Profile" %}</h1>
+
+  {# ── Followed Organizers ── #}
+  <section>
+    <h2 class="text-xl font-semibold mb-4">{% trans "Followed Organizers" %}</h2>
+    {% if followed %}
+      <ul class="flex flex-col gap-3">
+        {% for follow in followed %}
+          <li class="flex items-center justify-between">
+            <a href="{% url 'organizer-profile' follow.organizer.slug %}"
+               class="link font-medium">
+              {{ follow.organizer.name }}
+            </a>
+            <form method="post" action="{% url 'organizer-follow' follow.organizer.slug %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline">
+                {% trans "Unfollow" %}
+              </button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-base-content/60">{% trans "You're not following anyone yet." %}</p>
+    {% endif %}
+  </section>
+
+  {# ── Upcoming Events ── #}
+  <section>
+    <h2 class="text-xl font-semibold mb-4">{% trans "Upcoming Events" %}</h2>
+    {% if upcoming %}
+      <div class="flex flex-col gap-3">
+        {% for attendance in upcoming %}
+          <c-event-card :event="attendance.event" />
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-base-content/60">{% trans "No upcoming events." %}</p>
+    {% endif %}
+  </section>
+
+  {# ── Past Events ── #}
+  <section>
+    <h2 class="text-xl font-semibold mb-4">{% trans "Past Events" %}</h2>
+    {% if past %}
+      <div class="flex flex-col gap-3">
+        {% for attendance in past %}
+          <c-event-card :event="attendance.event" />
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-base-content/60">{% trans "No past events." %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock layout %}

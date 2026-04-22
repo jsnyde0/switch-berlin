@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from a_core.models import get_flag, get_numeric
 from accounts.decorators import approved_required
+from organizers.models import OrganizerFollow
 from reviews.models import Review
 from venues.serializers import venue_to_geojson
 
@@ -62,6 +63,17 @@ def event_list(request):
         qs = qs.filter(is_free=True)
     elif price_param == "paid":
         qs = qs.filter(is_free=False)
+
+    # Filter: ?filter=following — only events from organizers the user follows
+    filter_param = request.GET.get("filter", "")
+    if filter_param == "following" and request.user.is_authenticated:
+        followed_org_ids = OrganizerFollow.objects.filter(
+            user=request.user
+        ).values_list("organizer_id", flat=True)
+        qs = qs.filter(organizer_id__in=followed_org_ids)
+    elif filter_param == "following":
+        # Anonymous user with ?filter=following → return empty queryset
+        qs = qs.none()
 
     # Pagination — invalid page falls back to page 1
     try:
@@ -141,6 +153,26 @@ def event_list(request):
     # Convert to list for template use (Django templates can't use 'in' with frozenset)
     going_venue_id_list = list(going_venue_ids)
 
+    # "From organizers you follow" section — authenticated users only, capped at 5
+    if request.user.is_authenticated:
+        followed_org_ids = OrganizerFollow.objects.filter(
+            user=request.user
+        ).values_list("organizer_id", flat=True)
+        following_events = (
+            Event.objects.filter(
+                organizer_id__in=followed_org_ids,
+                status="published",
+                hidden=False,
+                start__gte=now,
+                organizer__status="approved",
+                organizer__hidden=False,
+            )
+            .select_related("organizer")
+            .order_by("start")[:5]
+        )
+    else:
+        following_events = []
+
     context = {
         "page_obj": page_obj,
         "all_tags": all_tags,
@@ -159,6 +191,8 @@ def event_list(request):
         "EVENT_RATING_THRESHOLD": get_numeric(
             "threshold.event_ratings_display", default=3
         ),
+        "following_events": following_events,
+        "filter_param": filter_param,
     }
 
     if request.htmx:

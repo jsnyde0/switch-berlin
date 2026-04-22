@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from accounts.views import me_view
 from pages.views import age_check_view, robots_txt_view
 from reviews.views import organizer_opt_out_view, takedown_view
 
@@ -16,6 +17,7 @@ urlpatterns = [
     path("events/", include("events.urls")),
     path("o/", include("organizers.urls")),
     path("reviews/", include("reviews.urls")),
+    path("me/", me_view, name="me"),
     path("robots.txt", robots_txt_view, name="robots-txt"),
     path("age-check/", age_check_view, name="age-check"),
     path("takedown/", takedown_view, name="takedown"),

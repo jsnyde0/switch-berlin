@@ -32,6 +32,22 @@
 
   {% if MAP_ENABLED %}<div id="map" hx-preserve="true" style="height: 500px; width: 100%;"></div>{% endif %}
 
+  {% if user.is_authenticated %}
+  <section class="flex flex-col gap-3">
+    <h2 class="text-xl font-semibold">{% trans "From organizers you follow" %}</h2>
+    {% if following_events %}
+      <div class="flex flex-col gap-3">
+        {% for event in following_events %}
+          <c-event-card :event="event" />
+        {% endfor %}
+      </div>
+      <a href="?filter=following" class="link text-sm">{% trans "View all" %}</a>
+    {% else %}
+      <p class="text-base-content/60">{% trans "You're not following anyone yet." %}</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <div id="event-list">
     {% include "events/_event_list.html" %}
   </div>
