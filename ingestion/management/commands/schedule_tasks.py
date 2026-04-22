@@ -24,4 +24,16 @@ class Command(BaseCommand):
                 "repeats": -1,
             },
         )
+        # Runs at 02:00 UTC = 03:00 Europe/Berlin CET = 04:00 CEST.
+        # django-q2 Schedule has no timezone kwarg; the cron expression is UTC.
+        # Must run AFTER finalize_attendance so attendance_count includes 'went'.
+        Schedule.objects.update_or_create(
+            name="nightly_finalize_attendance",
+            defaults={
+                "func": "ingestion.tasks_flags.finalize_attendance",
+                "schedule_type": Schedule.CRON,
+                "cron": "0 2 * * *",
+                "repeats": -1,
+            },
+        )
         self.stdout.write(self.style.SUCCESS("Scheduled tasks registered."))

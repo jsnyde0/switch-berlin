@@ -1,5 +1,8 @@
 """Django-q2 tasks for flag digest and nightly aggregate recomputation."""
 
+import time
+
+import logfire
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db.models import Avg, Count
@@ -38,6 +41,43 @@ def daily_flag_digest():
         )
 
 
+def finalize_attendance():
+    """Nightly django-q2 task: flip Attendance status from 'going' to 'went'.
+
+    Flips attendances for events that:
+      - status='published' and hidden=False
+      - end is set (not None) and end < now() - 24 h
+
+    Events with end=None are intentionally skipped — concerts / parties with no
+    stated end time stay at 'going' indefinitely; admins can manually flip.
+    Cancelled events are also skipped (filter is status='published').
+
+    Always emits a logfire span — even zero-count runs are logged.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from events.models import Attendance, Event
+
+    t0 = time.monotonic()
+    cutoff = timezone.now() - timedelta(hours=24)
+    past_events = Event.objects.filter(
+        status="published",
+        hidden=False,
+        end__isnull=False,
+        end__lt=cutoff,
+    )
+    updated = Attendance.objects.filter(
+        event__in=past_events,
+        status="going",
+    ).update(status="went")
+    duration_ms = int((time.monotonic() - t0) * 1000)
+    logfire.info(
+        "finalize_attendance.done", updated_count=updated, duration_ms=duration_ms
+    )
+
+
 def recompute_aggregates():
     """Nightly django-q2 task: recompute denormalized aggregate fields (F8).
 
@@ -45,11 +85,16 @@ def recompute_aggregates():
       Organizer.follower_count, Organizer.avg_rating, Organizer.rating_count
       Event.attendance_count, Event.interested_count, Event.rating_count
 
+    attendance_count counts both 'going' and 'went' statuses so that past events
+    (whose attendances were finalized by finalize_attendance) retain their counts.
+
     Does NOT update hidden (set synchronously in flag_target view).
     """
     from events.models import Attendance, Event
     from organizers.models import Organizer, OrganizerFollow
     from reviews.models import Review
+
+    t0 = time.monotonic()
 
     for org in Organizer.objects.all():
         follower_count = OrganizerFollow.objects.filter(organizer=org).count()
@@ -63,7 +108,10 @@ def recompute_aggregates():
         )
 
     for event in Event.objects.all():
-        going = Attendance.objects.filter(event=event, status="going").count()
+        # Count both 'going' (upcoming) and 'went' (finalized past) attendances
+        going_or_went = Attendance.objects.filter(
+            event=event, status__in=("going", "went")
+        ).count()
         interested = Attendance.objects.filter(event=event, status="interested").count()
         agg = Review.objects.filter(event=event).aggregate(
             count=Count("pk"), avg=Avg("rating")
@@ -71,8 +119,14 @@ def recompute_aggregates():
         rating_count = agg["count"] or 0
         avg = agg["avg"]
         Event.objects.filter(pk=event.pk).update(
-            attendance_count=going,
+            attendance_count=going_or_went,
             interested_count=interested,
             rating_count=rating_count,
             avg_rating=avg,
         )
+
+    event_count = Event.objects.count()
+    duration_ms = int((time.monotonic() - t0) * 1000)
+    logfire.info(
+        "recompute_aggregates.done", event_count=event_count, duration_ms=duration_ms
+    )

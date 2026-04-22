@@ -22,6 +22,7 @@ dependencies = [
     "django-vite>=3.1",
     # Background jobs (Postgres ORM broker, no Redis)
     "django-q2>=1.8",
+    "croniter>=6.0",  # required by django-q2 for Schedule.CRON type
     # Ingestion / LLM
     "pydantic-ai>=0.2",
     "httpx>=0.28",
