@@ -196,6 +196,5 @@ DJANGO_VITE = {
 }
 
 TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
-BOT_ENABLED = env.bool("BOT_ENABLED", default=True)
 
 LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="claude-opus-4-7")

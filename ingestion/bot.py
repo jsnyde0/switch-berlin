@@ -2,7 +2,6 @@ import time
 
 import logfire
 from asgiref.sync import sync_to_async
-from django.conf import settings
 from django_q.tasks import async_task
 from telegram import Update
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
@@ -26,10 +25,16 @@ def _is_rate_limited(sender_id: str) -> bool:
 
 
 def _bot_enabled() -> bool:
-    """Feature flag via Django setting (BOT_ENABLED env var).
-    Design doc calls for DB-backed flag per ADR-003 F9; this is a deliberate
-    simplification -- promote to DB-backed in a future bead if needed."""
-    return getattr(settings, "BOT_ENABLED", True)
+    """DB-backed feature gate via FeatureFlag model (ADR-003 F9, bead kb-8qn.12).
+
+    INGESTION_PAUSED=True  -> bot disabled (returns False; short-circuits handler).
+    INGESTION_PAUSED=False -> bot runs normally (returns True).
+    Flag missing in DB     -> default=False -> not False = True (bot runs normally).
+
+    Cached 60s TTL; toggle propagates without bot restart within one TTL window."""
+    from a_core.models import get_flag
+
+    return not get_flag("INGESTION_PAUSED", default=False)
 
 
 CONSENT_TEXT_EN = (
@@ -44,8 +49,8 @@ CONSENT_TEXT_DE = (
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # 1. Feature flag check
-    if not _bot_enabled():
+    # 1. Feature flag check (DB-backed; sync_to_async required in async context)
+    if not await sync_to_async(_bot_enabled)():
         await update.message.reply_text("Bot is temporarily offline.")
         return
 

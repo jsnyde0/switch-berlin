@@ -1,9 +1,11 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from asgiref.sync import async_to_sync
+from django.core.cache import cache
 from django.test import TestCase, TransactionTestCase
 
-from ingestion.bot import _is_rate_limited, _rate_buckets, handle_message
+from a_core.models import FeatureFlag
+from ingestion.bot import _bot_enabled, _is_rate_limited, _rate_buckets, handle_message
 from ingestion.models import ApprovedSender, RawMessage
 
 
@@ -26,17 +28,65 @@ def make_update(
 
 class BotHandlerTest(TestCase):
     def setUp(self):
+        super().setUp()
         _rate_buckets.clear()
+        cache.clear()
 
-    def test_bot_disabled_feature_flag(self):
+    def test_bot_enabled_when_ingestion_paused_false(self):
+        """INGESTION_PAUSED=False -> _bot_enabled() returns True."""
+        FeatureFlag.objects.update_or_create(
+            key="INGESTION_PAUSED",
+            defaults={"enabled": False},
+        )
+        cache.clear()
+        self.assertTrue(_bot_enabled())
+
+    def test_bot_disabled_when_ingestion_paused_true(self):
+        """INGESTION_PAUSED=True -> _bot_enabled() returns False."""
+        FeatureFlag.objects.update_or_create(
+            key="INGESTION_PAUSED",
+            defaults={"enabled": True},
+        )
+        cache.clear()
+        self.assertFalse(_bot_enabled())
+
+    def test_bot_enabled_by_default_when_flag_missing(self):
+        """No INGESTION_PAUSED flag in DB -> _bot_enabled() returns True.
+
+        default=False -> not False = True."""
+        FeatureFlag.objects.filter(key="INGESTION_PAUSED").delete()
+        cache.clear()
+        self.assertTrue(_bot_enabled())
+
+    def test_handle_message_short_circuits_when_paused(self):
+        """INGESTION_PAUSED=True -> handle_message replies 'temporarily offline'."""
+        FeatureFlag.objects.update_or_create(
+            key="INGESTION_PAUSED",
+            defaults={"enabled": True},
+        )
+        cache.clear()
         update = make_update()
         context = MagicMock()
-        with patch("ingestion.bot.settings") as mock_settings:
-            mock_settings.BOT_ENABLED = False
-            async_to_sync(handle_message)(update, context)
+        async_to_sync(handle_message)(update, context)
         update.message.reply_text.assert_called_once()
         args = update.message.reply_text.call_args[0][0]
         self.assertIn("temporarily offline", args)
+
+    def test_handle_message_processes_normally_when_not_paused(self):
+        """INGESTION_PAUSED=False -> handle_message processes message normally."""
+        FeatureFlag.objects.update_or_create(
+            key="INGESTION_PAUSED",
+            defaults={"enabled": False},
+        )
+        cache.clear()
+        update = make_update(user_id=555, message_id=77)
+        context = MagicMock()
+        ApprovedSender.objects.create(telegram_user_id="555")
+        with patch("ingestion.bot.async_task") as mock_task:
+            async_to_sync(handle_message)(update, context)
+        mock_task.assert_called_once()
+        reply_text = update.message.reply_text.call_args[0][0]
+        self.assertIn("Received", reply_text)
 
     def test_non_text_message_creates_skipped_rawmessage(self):
         update = make_update(text=None)  # photo/sticker
