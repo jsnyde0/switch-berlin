@@ -879,3 +879,175 @@ def test_feature_flag_delete_invalidates_cache():
 
     val_after = get_flag("TEST_CACHE_DELETE_FLAG", default=True)
     assert val_after is True
+
+
+# ---------------------------------------------------------------------------
+# Test: Review.hidden field (new soft-delete field)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_review_hidden_field_exists_and_defaults_false(
+    approved_user, published_event
+):
+    """Review.hidden field exists and defaults to False."""
+    review = Review.objects.create(
+        author=approved_user, event=published_event, rating=4
+    )
+    review.refresh_from_db()
+    assert review.hidden is False
+
+
+@pytest.mark.django_db
+def test_review_hidden_can_be_set_true(approved_user, published_event):
+    """Review.hidden can be set to True (soft-delete)."""
+    review = Review.objects.create(
+        author=approved_user, event=published_event, rating=4
+    )
+    review.hidden = True
+    review.save(update_fields=["hidden"])
+    review.refresh_from_db()
+    assert review.hidden is True
+
+
+@pytest.mark.django_db
+def test_review_hidden_has_db_index():
+    """Review.hidden field has db_index=True."""
+    field = Review._meta.get_field("hidden")
+    assert field.db_index is True
+
+
+# ---------------------------------------------------------------------------
+# Test: AUTO_HIDE_FLAG_THRESHOLD replaced by get_numeric in reviews/views.py
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_auto_hide_threshold_from_feature_flag_not_constant(
+    client_approved, approved_user2, approved_user3, published_event
+):
+    """auto-hide threshold is read from get_numeric, not a module constant."""
+    from django.core.cache import cache
+
+    from a_core.models import FeatureFlag
+
+    # Set threshold to 5 in DB (higher than default 3)
+    FeatureFlag.objects.create(
+        key="threshold.auto_hide_flag", enabled=True, numeric_value=5
+    )
+    cache.clear()
+
+    url = reverse("flag-target")
+    # 3 flags — with threshold=5 the event should NOT be hidden
+    for user in [client_approved]:
+        user.post(
+            url,
+            {
+                "target_type": "event",
+                "target_id": str(published_event.pk),
+                "reason": "spam",
+            },
+        )
+    c2 = Client()
+    c2.force_login(approved_user2)
+    c2.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    c3 = Client()
+    c3.force_login(approved_user3)
+    c3.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(published_event.pk),
+            "reason": "spam",
+        },
+    )
+    published_event.refresh_from_db()
+    # With threshold=5, 3 flags should NOT trigger auto-hide
+    assert published_event.hidden is False
+
+
+@pytest.mark.django_db
+def test_reviews_views_has_no_auto_hide_flag_threshold_constant():
+    """reviews/views.py must not contain AUTO_HIDE_FLAG_THRESHOLD = 3 constant."""
+    import ast
+    import pathlib
+
+    source = pathlib.Path("/workspace/reviews/views.py").read_text()
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "AUTO_HIDE_FLAG_THRESHOLD":
+                    raise AssertionError(
+                        "AUTO_HIDE_FLAG_THRESHOLD constant still present in reviews/views.py"
+                    )
+
+
+@pytest.mark.django_db
+def test_reviews_views_uses_get_numeric_for_auto_hide():
+    """reviews/views.py must use get_numeric('threshold.auto_hide_flag', ...) not hardcoded constant."""
+    import pathlib
+
+    source = pathlib.Path("/workspace/reviews/views.py").read_text()
+    assert 'get_numeric("threshold.auto_hide_flag"' in source, (
+        "reviews/views.py must call get_numeric('threshold.auto_hide_flag', ...) "
+        "but the call was not found"
+    )
+
+
+@pytest.mark.django_db
+def test_reviews_views_min_ratings_constant_still_present():
+    """MIN_RATINGS_FOR_DISPLAY must NOT be removed in this step."""
+    import pathlib
+
+    source = pathlib.Path("/workspace/reviews/views.py").read_text()
+    assert "MIN_RATINGS_FOR_DISPLAY" in source, (
+        "MIN_RATINGS_FOR_DISPLAY was removed — it must stay until step-4"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test: Event.avg_rating field + recompute_aggregates populates it
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_event_avg_rating_field_exists(published_event):
+    """Event.avg_rating field exists and defaults to None."""
+    published_event.refresh_from_db()
+    assert hasattr(published_event, "avg_rating")
+    assert published_event.avg_rating is None
+
+
+@pytest.mark.django_db
+def test_recompute_aggregates_populates_event_avg_rating(
+    approved_user, approved_user2, published_event
+):
+    """recompute_aggregates updates Event.avg_rating from Review ratings."""
+    from ingestion.tasks_flags import recompute_aggregates
+
+    Review.objects.create(author=approved_user, event=published_event, rating=4)
+    Review.objects.create(author=approved_user2, event=published_event, rating=2)
+
+    recompute_aggregates()
+
+    published_event.refresh_from_db()
+    assert published_event.avg_rating == pytest.approx(3.0)
+
+
+@pytest.mark.django_db
+def test_recompute_aggregates_event_avg_rating_none_when_no_reviews(published_event):
+    """recompute_aggregates sets Event.avg_rating to None when there are no reviews."""
+    from ingestion.tasks_flags import recompute_aggregates
+
+    recompute_aggregates()
+
+    published_event.refresh_from_db()
+    assert published_event.avg_rating is None

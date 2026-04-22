@@ -9,6 +9,7 @@ from django.urls import Resolver404, resolve
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
+from a_core.models import get_numeric
 from accounts.decorators import approved_required
 from events.models import Event
 from organizers.models import Organizer
@@ -16,7 +17,6 @@ from organizers.models import Organizer
 from .models import Flag, Review
 
 MIN_RATINGS_FOR_DISPLAY = 3
-AUTO_HIDE_FLAG_THRESHOLD = 3
 FLAG_RATE_LIMIT_PER_USER = 10  # flags per day per user
 
 
@@ -145,7 +145,7 @@ def flag_target(request):
             auth_flag_count = Flag.objects.filter(
                 event=event, reporter__isnull=False
             ).count()
-            if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
+            if auth_flag_count >= get_numeric("threshold.auto_hide_flag", default=3):
                 Event.objects.filter(pk=event.pk).update(hidden=True)
 
         elif target_type == "organizer":
@@ -154,7 +154,7 @@ def flag_target(request):
             auth_flag_count = Flag.objects.filter(
                 organizer=organizer, reporter__isnull=False
             ).count()
-            if auth_flag_count >= AUTO_HIDE_FLAG_THRESHOLD:
+            if auth_flag_count >= get_numeric("threshold.auto_hide_flag", default=3):
                 Organizer.objects.filter(pk=organizer.pk).update(hidden=True)
         else:
             return HttpResponse("Invalid target.", status=400)

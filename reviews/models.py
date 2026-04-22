@@ -30,6 +30,7 @@ class Review(models.Model):
     )
     body = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    hidden = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]

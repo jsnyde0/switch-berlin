@@ -88,6 +88,7 @@ class Event(models.Model):
     attendance_count = models.IntegerField(default=0)
     interested_count = models.IntegerField(default=0)
     rating_count = models.IntegerField(default=0)
+    avg_rating = models.FloatField(null=True, blank=True)
 
     # Provenance (F7)
     raw_message = models.ForeignKey(

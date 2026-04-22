@@ -65,9 +65,14 @@ def recompute_aggregates():
     for event in Event.objects.all():
         going = Attendance.objects.filter(event=event, status="going").count()
         interested = Attendance.objects.filter(event=event, status="interested").count()
-        rating_count = Review.objects.filter(event=event).count()
+        agg = Review.objects.filter(event=event).aggregate(
+            count=Count("pk"), avg=Avg("rating")
+        )
+        rating_count = agg["count"] or 0
+        avg = agg["avg"]
         Event.objects.filter(pk=event.pk).update(
             attendance_count=going,
             interested_count=interested,
             rating_count=rating_count,
+            avg_rating=avg,
         )
