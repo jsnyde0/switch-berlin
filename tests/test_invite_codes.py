@@ -14,7 +14,8 @@ from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, override_settings
+from django.core.cache import cache
+from django.test import RequestFactory
 from django.utils import timezone
 
 User = get_user_model()
@@ -23,6 +24,30 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def invites_enabled(db):
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="INVITES_ENABLED", defaults={"enabled": True}
+    )
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture
+def invites_disabled(db):
+    from a_core.models import FeatureFlag
+
+    FeatureFlag.objects.update_or_create(
+        key="INVITES_ENABLED", defaults={"enabled": False}
+    )
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.fixture
@@ -176,8 +201,7 @@ def test_invite_code_unique_code(creator):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_adapter_open_with_valid_code_in_get(invite_code):
+def test_adapter_open_with_valid_code_in_get(invites_enabled, invite_code):
     """is_open_for_signup returns True when valid code is in GET params."""
     from accounts.adapter import NoSignupAdapter
 
@@ -189,8 +213,7 @@ def test_adapter_open_with_valid_code_in_get(invite_code):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_adapter_open_with_valid_code_in_session(invite_code):
+def test_adapter_open_with_valid_code_in_session(invites_enabled, invite_code):
     """is_open_for_signup returns True when valid code is in session."""
     from accounts.adapter import NoSignupAdapter
 
@@ -202,8 +225,7 @@ def test_adapter_open_with_valid_code_in_session(invite_code):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_adapter_closed_with_no_code(invite_code):
+def test_adapter_closed_with_no_code(invites_enabled, invite_code):
     """is_open_for_signup returns False when no code in GET or session."""
     from accounts.adapter import NoSignupAdapter
 
@@ -215,8 +237,7 @@ def test_adapter_closed_with_no_code(invite_code):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_adapter_closed_with_invalid_code():
+def test_adapter_closed_with_invalid_code(invites_enabled):
     """is_open_for_signup returns False for unknown code."""
     from accounts.adapter import NoSignupAdapter
 
@@ -228,8 +249,7 @@ def test_adapter_closed_with_invalid_code():
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_adapter_closed_with_expired_code(expired_invite):
+def test_adapter_closed_with_expired_code(invites_enabled, expired_invite):
     """is_open_for_signup returns False for expired code."""
     from accounts.adapter import NoSignupAdapter
 
@@ -241,8 +261,7 @@ def test_adapter_closed_with_expired_code(expired_invite):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_adapter_closed_with_redeemed_code(redeemed_invite):
+def test_adapter_closed_with_redeemed_code(invites_enabled, redeemed_invite):
     """is_open_for_signup returns False when code is already redeemed."""
     from accounts.adapter import NoSignupAdapter
 
@@ -254,8 +273,7 @@ def test_adapter_closed_with_redeemed_code(redeemed_invite):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=False)
-def test_adapter_closed_when_invites_disabled(invite_code):
+def test_adapter_closed_when_invites_disabled(invites_disabled, invite_code):
     """is_open_for_signup returns False when INVITES_ENABLED=False.
 
     Even a valid invite code is rejected when invites are disabled.
@@ -270,8 +288,7 @@ def test_adapter_closed_when_invites_disabled(invite_code):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_adapter_stores_code_in_session(invite_code):
+def test_adapter_stores_code_in_session(invites_enabled, invite_code):
     """is_open_for_signup stores the validated code in session for later redemption."""
     from accounts.adapter import NoSignupAdapter
 
@@ -289,8 +306,7 @@ def test_adapter_stores_code_in_session(invite_code):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_save_user_redeems_invite_code(creator, invite_code):
+def test_save_user_redeems_invite_code(invites_enabled, creator, invite_code):
     """save_user atomically marks the invite code as redeemed."""
     from unittest.mock import MagicMock
 
@@ -322,8 +338,9 @@ def test_save_user_redeems_invite_code(creator, invite_code):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_save_user_clears_invite_code_from_session(creator, invite_code):
+def test_save_user_clears_invite_code_from_session(
+    invites_enabled, creator, invite_code
+):
     """save_user removes invite_code from session after successful redemption."""
     from unittest.mock import MagicMock
 
@@ -351,8 +368,7 @@ def test_save_user_clears_invite_code_from_session(creator, invite_code):
 
 
 @pytest.mark.django_db
-@override_settings(INVITES_ENABLED=True)
-def test_save_user_race_condition_logs_warning(creator, invite_code):
+def test_save_user_race_condition_logs_warning(invites_enabled, creator, invite_code):
     """save_user handles race condition gracefully (logs warning, doesn't crash)."""
     from unittest.mock import MagicMock, patch
 

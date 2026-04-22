@@ -36,6 +36,10 @@ class EventAdmin(admin.ModelAdmin):
         "published_at",
         "raw_message_preview",
         "suggested_tags_display",
+        "attendance_count",
+        "interested_count",
+        "rating_count",
+        "avg_rating",
     ]
     actions = ["publish_events", "reject_events", "archive_events"]
 
