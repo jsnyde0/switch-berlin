@@ -140,8 +140,9 @@ class FeatureFlagNumericValueTest(TestCase):
         """get_flag and get_numeric both read from feature_flag_row:{key} cache."""
         from a_core.models import FeatureFlag, get_flag, get_numeric
 
-        FeatureFlag.objects.create(
-            key="threshold.auto_hide_flag", enabled=True, numeric_value=3
+        FeatureFlag.objects.update_or_create(
+            key="threshold.auto_hide_flag",
+            defaults={"enabled": True, "numeric_value": 3},
         )
         # Warm cache via get_flag
         flag_result = get_flag("threshold.auto_hide_flag", default=False)

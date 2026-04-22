@@ -931,9 +931,10 @@ def test_auto_hide_threshold_from_feature_flag_not_constant(
 
     from a_core.models import FeatureFlag
 
-    # Set threshold to 5 in DB (higher than default 3)
-    FeatureFlag.objects.create(
-        key="threshold.auto_hide_flag", enabled=True, numeric_value=5
+    # Set threshold to 5 in DB (higher than default 3; seed row exists from 0005)
+    FeatureFlag.objects.update_or_create(
+        key="threshold.auto_hide_flag",
+        defaults={"enabled": True, "numeric_value": 5},
     )
     cache.clear()
 
