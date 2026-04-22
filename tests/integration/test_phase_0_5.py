@@ -510,7 +510,15 @@ def test_rating_shown_at_threshold(client, approved_organizer, feature_flag_publ
 
 @pytest.mark.django_db
 def test_event_rating_creates_review(approved_user, published_event):
-    """POST /reviews/submit/ with target_type=event -> Review row with event FK."""
+    """POST /reviews/submit/ with target_type=event -> Review row with event FK.
+
+    An Attendance(status='went') record is required by the authorship gate
+    added in feat(reviews): step-7b. Without it the view returns 429.
+    """
+    from events.models import Attendance
+
+    Attendance.objects.create(user=approved_user, event=published_event, status="went")
+
     c = Client()
     c.force_login(approved_user)
     c.post(

@@ -218,6 +218,23 @@ def isolate_logfire_token(monkeypatch):
     monkeypatch.setenv("LOGFIRE_TOKEN", "")
 
 
+@pytest.fixture(autouse=True)
+def clear_cache_between_tests():
+    """Clear Django's cache before every test.
+
+    django-ratelimit stores counters in the default cache (LocMemCache in tests).
+    Without this fixture, rate-limit state leaks across tests because the
+    in-process cache is never reset between test functions, causing false 429
+    responses when tests share rate-limit keys (e.g. same user PK across DB
+    resets).
+    """
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
 @pytest.fixture
 def staff_user(db):
     """Staff user for login-wall tests."""
