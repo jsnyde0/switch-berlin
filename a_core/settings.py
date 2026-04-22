@@ -201,3 +201,5 @@ DJANGO_VITE = {
 TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
 
 LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="claude-opus-4-7")
+
+RATELIMIT_ENABLE = env.bool("RATELIMIT_ENABLE", default=True)

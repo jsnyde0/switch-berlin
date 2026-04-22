@@ -6,13 +6,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from accounts.views import me_view
+from accounts.views import RateLimitedSignupView, me_view
 from pages.views import age_check_view, robots_txt_view
 from reviews.views import organizer_opt_out_view, takedown_view
 
 urlpatterns = [
     path("", include("pages.urls")),
     path("admin/", admin.site.urls),
+    path("accounts/signup/", RateLimitedSignupView.as_view(), name="account_signup"),
     path("accounts/", include("allauth.urls")),
     path("events/", include("events.urls")),
     path("o/", include("organizers.urls")),

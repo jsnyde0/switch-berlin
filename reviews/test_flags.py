@@ -358,8 +358,8 @@ def test_takedown_no_url_and_no_body_shows_error():
     RATELIMIT_ENABLE=True,
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
-def test_takedown_rate_limit_6th_request_returns_429(published_event):
-    """POST /takedown/ 6 times from same IP -> 6th blocked by ratelimit (429)."""
+def test_takedown_rate_limit_11th_request_returns_429(published_event):
+    """POST /takedown/ 11 times from same IP -> 11th blocked by ratelimit (10/h)."""
     from django.core.cache import cache
 
     cache.clear()
@@ -374,8 +374,8 @@ def test_takedown_rate_limit_6th_request_returns_429(published_event):
     full_url = f"http://testserver{event_url}"
     url = reverse("takedown")
     c = Client()
-    # First 5 should succeed
-    for _ in range(5):
+    # First 10 should succeed (rate bumped to 10/h)
+    for _ in range(10):
         resp = c.post(
             url,
             {
@@ -388,7 +388,7 @@ def test_takedown_rate_limit_6th_request_returns_429(published_event):
         )
         assert resp.status_code == 200
 
-    # 6th should be blocked
+    # 11th should be blocked
     resp = c.post(
         url,
         {
@@ -705,32 +705,37 @@ def test_schedule_tasks_command_is_idempotent():
 
 
 # ---------------------------------------------------------------------------
-# Test: rate limiting on flag_target — 10/day per user
+# Test: rate limiting on flag_target — uses django-ratelimit (5/h per user)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_flag_target_rate_limit_per_day(
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+)
+def test_flag_target_rate_limit_per_hour(
     client_approved, approved_user, published_event
 ):
-    """User cannot flag more than FLAG_RATE_LIMIT_PER_USER (10) times per day."""
-    from django.utils import timezone
+    """6th flag POST in same hour from same user -> 429 via django-ratelimit."""
+    from django.core.cache import cache
 
-    from reviews.views import FLAG_RATE_LIMIT_PER_USER
-
-    today_start = timezone.localtime(timezone.now()).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    # Pre-create FLAG_RATE_LIMIT_PER_USER existing flags (simulating prior usage)
-    for _ in range(FLAG_RATE_LIMIT_PER_USER):
-        Flag.objects.create(
-            reporter=approved_user,
-            event=published_event,
-            reason="spam",
-            created_at=today_start,
-        )
-
+    cache.clear()
     url = reverse("flag-target")
+
+    # First 5 should succeed (rate is 5/h)
+    for _ in range(5):
+        resp = client_approved.post(
+            url,
+            {
+                "target_type": "event",
+                "target_id": str(published_event.pk),
+                "reason": "spam",
+            },
+        )
+        assert resp.status_code == 200
+
+    # 6th should be rate-limited
     resp = client_approved.post(
         url,
         {
@@ -740,6 +745,8 @@ def test_flag_target_rate_limit_per_day(
         },
     )
     assert resp.status_code == 429
+
+    cache.clear()
 
 
 # ---------------------------------------------------------------------------

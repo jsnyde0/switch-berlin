@@ -228,7 +228,7 @@ def test_takedown_creates_anonymous_flag(client, published_event):
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
 def test_takedown_rate_limit(client, published_event):
-    """POST /takedown/ 6 times from same IP -> 6th returns 429 (rate limited)."""
+    """POST /takedown/ 11 times from same IP -> 11th returns 429 (rate 10/h)."""
     from django.urls import reverse
 
     cache.clear()
@@ -242,8 +242,8 @@ def test_takedown_rate_limit(client, published_event):
     )
     full_url = f"http://testserver{event_url}"
 
-    # First 5 succeed
-    for _ in range(5):
+    # First 10 succeed (rate bumped to 10/h)
+    for _ in range(10):
         resp = client.post(
             "/takedown/",
             {
@@ -256,7 +256,7 @@ def test_takedown_rate_limit(client, published_event):
         )
         assert resp.status_code == 200
 
-    # 6th must be blocked
+    # 11th must be blocked
     resp = client.post(
         "/takedown/",
         {

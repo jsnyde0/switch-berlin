@@ -6,7 +6,9 @@ from django.db.models import Avg, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import Resolver404, resolve
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
+from django_ratelimit.core import is_ratelimited
 from django_ratelimit.decorators import ratelimit
 
 from a_core.models import get_numeric
@@ -17,7 +19,28 @@ from organizers.models import Organizer
 from .models import Flag, Review
 
 MIN_RATINGS_FOR_DISPLAY = 3
-FLAG_RATE_LIMIT_PER_USER = 10  # flags per day per user
+
+
+def _user_rate_key(group, request):
+    """Rate-limit key: PK string for authenticated non-staff, REMOTE_ADDR for anon.
+    Staff bypass is handled by _is_ratelimited_for_user before this is called."""
+    if not request.user.is_authenticated:
+        return str(request.META.get("REMOTE_ADDR", "anon"))
+    return str(request.user.pk)
+
+
+def _is_ratelimited_for_user(request, fn, rate, method="POST"):
+    """Call is_ratelimited, bypassing for staff users."""
+    if request.user.is_authenticated and request.user.is_staff:
+        return False
+    return is_ratelimited(
+        request,
+        fn=fn,
+        key=_user_rate_key,
+        rate=rate,
+        method=method,
+        increment=True,
+    )
 
 
 @require_POST
@@ -33,6 +56,14 @@ def submit_review(request):
             "reviews/_rating_form.html",
             {"error": "Ratings are temporarily disabled."},
             status=503,
+        )
+
+    if _is_ratelimited_for_user(request, fn=submit_review, rate="10/d"):
+        return render(
+            request,
+            "reviews/_rating_form.html",
+            {"error": _("Rate limit reached, try again later.")},
+            status=429,
         )
 
     target_type = request.POST.get("target_type")
@@ -118,19 +149,13 @@ def flag_target(request):
     if not get_flag("FLAGS_ENABLED", default=True):
         return HttpResponse("Flagging is temporarily disabled.", status=503)
 
-    from django.utils import timezone
-
-    today_start = timezone.localtime(timezone.now()).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    daily_count = Flag.objects.filter(
-        reporter=request.user, created_at__gte=today_start
-    ).count()
-    if daily_count >= FLAG_RATE_LIMIT_PER_USER:
+    limited_hourly = _is_ratelimited_for_user(request, fn=flag_target, rate="5/h")
+    limited_daily = _is_ratelimited_for_user(request, fn=flag_target, rate="20/d")
+    if limited_hourly or limited_daily:
         return render(
             request,
             "reviews/_flag_button.html",
-            {"error": "Daily flag limit reached."},
+            {"error": _("Rate limit reached, try again later.")},
             status=429,
         )
 
@@ -150,7 +175,9 @@ def flag_target(request):
 
         elif target_type == "organizer":
             organizer = get_object_or_404(Organizer, pk=target_id)
-            Flag.objects.create(reporter=request.user, organizer=organizer, reason=reason)
+            Flag.objects.create(
+                reporter=request.user, organizer=organizer, reason=reason
+            )
             auth_flag_count = Flag.objects.filter(
                 organizer=organizer, reporter__isnull=False
             ).count()
@@ -167,13 +194,11 @@ def takedown_view(request):
     Resolves submitted URL to a DB entity for the Flag target FK."""
     # Apply rate limiting on POST only
     if request.method == "POST":
-        from django_ratelimit.core import is_ratelimited
-
         is_limited = is_ratelimited(
             request,
             fn=takedown_view,
             key="ip",
-            rate="5/h",
+            rate="10/h",
             method="POST",
             increment=True,
         )

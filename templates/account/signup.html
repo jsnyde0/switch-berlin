@@ -10,6 +10,9 @@
       Already have an account?
       <a class="link link-secondary" href="{% url 'account_login' %}">Log in</a>
     </span>
+    {% if error %}
+      <div class="alert alert-error"><span>{{ error }}</span></div>
+    {% endif %}
     <form method="post"
           action="{% url 'account_signup' %}"
           class="flex flex-col gap-4">
