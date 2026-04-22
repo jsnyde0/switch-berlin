@@ -6,8 +6,16 @@ from django.views.decorators.http import require_POST
 from a_core.models import get_numeric
 from accounts.decorators import approved_required
 from events.models import Attendance, Event
+from reviews.models import Review
 
 from .models import Organizer, OrganizerFollow
+
+# Valid sort options and their corresponding ORM orderings.
+_SORT_ORDERINGS = {
+    "recent": ("-created_at",),
+    "highest": ("-rating", "-created_at"),
+    "lowest": ("rating", "-created_at"),
+}
 
 
 def organizer_profile(request, slug):
@@ -57,6 +65,17 @@ def organizer_profile(request, slug):
     threshold = get_numeric("threshold.organizer_ratings_display", default=3)
     show_rating = rating_count >= threshold
 
+    # Parse ?sort query param; fall back to 'recent' for unknown values.
+    sort = request.GET.get("sort", "recent")
+    if sort not in _SORT_ORDERINGS:
+        sort = "recent"
+    ordering = _SORT_ORDERINGS[sort]
+    reviews = (
+        Review.objects.filter(organizer=organizer, hidden=False)
+        .select_related("author")
+        .order_by(*ordering)
+    )
+
     user_review = None
     if request.user.is_authenticated:
         try:
@@ -73,6 +92,8 @@ def organizer_profile(request, slug):
         "rating_count": rating_count,
         "avg_rating": avg_rating,
         "show_rating": show_rating,
+        "reviews": reviews,
+        "sort": sort,
         "user_review": user_review,
         "MIN_RATINGS_FOR_DISPLAY": threshold,
     }

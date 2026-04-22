@@ -86,6 +86,17 @@ def submit_review(request):
     with transaction.atomic():
         if target_type == "organizer":
             organizer = get_object_or_404(Organizer, pk=target_id, status="approved")
+            existing = Review.objects.filter(
+                author=request.user, organizer=organizer
+            ).only("hidden", "id").first()
+            if existing and existing.hidden:
+                return render(
+                    request,
+                    "reviews/_rating_form.html",
+                    {"error": _("This review was hidden by a moderator."
+                                " Contact support to appeal.")},
+                    status=403,
+                )
             review, created = Review.objects.update_or_create(
                 author=request.user,
                 organizer=organizer,
@@ -121,6 +132,17 @@ def submit_review(request):
                     "reviews/_rating_form.html",
                     {"error": _("You can review this event after attending.")},
                     status=429,
+                )
+            existing_event = Review.objects.filter(
+                author=request.user, event=event
+            ).only("hidden", "id").first()
+            if existing_event and existing_event.hidden:
+                return render(
+                    request,
+                    "reviews/_rating_form.html",
+                    {"error": _("This review was hidden by a moderator."
+                                " Contact support to appeal.")},
+                    status=403,
                 )
             review, created = Review.objects.update_or_create(
                 author=request.user,

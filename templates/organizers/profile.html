@@ -51,13 +51,6 @@
     {% if user.is_authenticated %}
       {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
     {% endif %}
-    {% if show_rating %}
-      <div class="flex items-center gap-2">
-        <span class="text-2xl font-bold">{{ avg_rating|floatformat:1 }}</span>
-        <span class="text-base-content/60">/ 5</span>
-        <span class="text-sm text-base-content/50">({{ rating_count }} {% trans "reviews" %})</span>
-      </div>
-    {% endif %}
     {% if user.is_authenticated and user.is_approved and FLAGS_ENABLED and RATINGS_ENABLED %}
       {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
     {% endif %}
@@ -83,6 +76,61 @@
           {% for event in past_events %}<c-event-card :event="event" />{% endfor %}
         </div>
       </details>
+    {% endif %}
+    {% if show_rating %}
+      <section id="{{ organizer.slug }}-reviews">
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-semibold">{% trans "Reviews" %}</h2>
+            <span class="text-base-content/60 text-sm">
+              {{ avg_rating|floatformat:1 }} / 5
+              ({{ rating_count }} {% trans "reviews" %})
+            </span>
+          </div>
+          {# Sort chips — server-side href links, no JS #}
+          <div class="flex gap-2" role="tablist">
+            <a href="?sort=recent"
+               class="badge cursor-pointer {% if sort == 'recent' %}badge-primary{% else %}badge-outline{% endif %}"
+               role="tab"
+               aria-selected="{% if sort == 'recent' %}true{% else %}false{% endif %}">
+              {% trans "Recent" %}
+            </a>
+            <a href="?sort=highest"
+               class="badge cursor-pointer {% if sort == 'highest' %}badge-primary{% else %}badge-outline{% endif %}"
+               role="tab"
+               aria-selected="{% if sort == 'highest' %}true{% else %}false{% endif %}">
+              {% trans "Highest" %}
+            </a>
+            <a href="?sort=lowest"
+               class="badge cursor-pointer {% if sort == 'lowest' %}badge-primary{% else %}badge-outline{% endif %}"
+               role="tab"
+               aria-selected="{% if sort == 'lowest' %}true{% else %}false{% endif %}">
+              {% trans "Lowest" %}
+            </a>
+          </div>
+          {# Per-review rows #}
+          <div class="flex flex-col gap-4">
+            {% for review in reviews %}
+              <div class="border border-base-300 rounded-lg p-4 flex flex-col gap-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-sm">{{ review.author.get_full_name|default:review.author.username }}</span>
+                  <div class="rating rating-sm" aria-label="{% blocktrans with rating=review.rating %}{{ rating }} stars{% endblocktrans %}">
+                    {% for i in "12345" %}
+                      <span class="mask mask-star-2 {% if forloop.counter <= review.rating %}bg-orange-400{% else %}bg-base-300{% endif %} w-4 h-4"></span>
+                    {% endfor %}
+                  </div>
+                  <span class="text-xs text-base-content/50">{{ review.created_at|date:"Y-m-d" }}</span>
+                </div>
+                {% if review.body %}
+                  <p class="text-sm text-base-content/80">{{ review.body }}</p>
+                {% endif %}
+              </div>
+            {% empty %}
+              <p class="text-base-content/60 text-sm">{% trans "No reviews yet." %}</p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
     {% endif %}
   </div>
 {% endblock layout %}
