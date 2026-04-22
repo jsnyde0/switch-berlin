@@ -1,7 +1,7 @@
 # Bundle A — Post-0.5 code sprint
 
 **Date:** 2026-04-21
-**Status:** Reviewed (ready for `/send-it`)
+**Status:** Shipped 2026-04-22 (epic kb-8qn closed, 15/15 beads complete, review fixes applied)
 **Parent roadmap:** [Bundle A in roadmap](2026-04-17-roadmap-0.1-to-1.0.md)
 **Decisions:** [ADR-005 Bundle post-0.5 execution](../decisions/ADR-005-bundle-post-0.5-execution.md)
 **Upstream ADRs:** [ADR-001 D3](../decisions/ADR-001-core-product-and-stack.md), [ADR-002 D4](../decisions/ADR-002-phased-rollout-and-legal-gate.md), [ADR-003 F2, F6, F8, F9](../decisions/ADR-003-cheap-foresight-patterns.md), [ADR-004 D3](../decisions/ADR-004-htmx-vs-island-default-plus-tripwire.md)
