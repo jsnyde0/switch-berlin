@@ -15,6 +15,23 @@
 <div class="flex flex-col gap-6">
   <h1 class="text-2xl font-bold">{% trans "Events" %}</h1>
 
+  {% if trending_enabled %}
+  <div class="flex gap-2" role="tablist">
+    <a href="?"
+       class="badge cursor-pointer {% if sort != 'trending' %}badge-primary{% else %}badge-outline{% endif %}"
+       role="tab"
+       aria-selected="{% if sort != 'trending' %}true{% else %}false{% endif %}">
+      {% trans "Latest" %}
+    </a>
+    <a href="?sort=trending"
+       class="badge cursor-pointer {% if sort == 'trending' %}badge-primary{% else %}badge-outline{% endif %}"
+       role="tab"
+       aria-selected="{% if sort == 'trending' %}true{% else %}false{% endif %}">
+      {% trans "Trending" %}
+    </a>
+  </div>
+  {% endif %}
+
   <form id="filter-form"
         hx-get="{% url 'event-list' %}"
         hx-target="#event-list"

@@ -1,8 +1,11 @@
 import time
 import urllib.parse
 
+import logfire
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import ExpressionWrapper, F, FloatField, Value
+from django.db.models.functions import Greatest
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -26,8 +29,39 @@ def event_list(request):
         .filter(status="published", start__gte=now)
         .select_related("organizer", "venue")
         .prefetch_related("tags")
-        .order_by("start")
     )
+
+    # Sort: trending or default chronological
+    sort = request.GET.get("sort", "date")
+    trending_enabled = get_flag("TRENDING_SORT_ENABLED", default=True)
+
+    if sort == "trending" and trending_enabled:
+        with logfire.span("events.trending_query"):
+            from django.db.models.expressions import RawSQL
+
+            now_ts = timezone.now()
+            # RawSQL used for days_until_start: PostgreSQL does not support
+            # interval / interval directly, so we convert to epoch seconds.
+            qs = qs.annotate(
+                days_until_start=ExpressionWrapper(
+                    Greatest(
+                        RawSQL(
+                            "EXTRACT(EPOCH FROM (start - %s)) / 86400.0",
+                            [now_ts],
+                        ),
+                        Value(1.0),
+                    ),
+                    output_field=FloatField(),
+                )
+            ).annotate(
+                trending_score=ExpressionWrapper(
+                    F("interested_count") * (1.0 / F("days_until_start"))
+                    + F("attendance_count") * 2.0,
+                    output_field=FloatField(),
+                )
+            ).order_by("-trending_score")
+    else:
+        qs = qs.order_by("start")
 
     # Filter: tags (OR semantics, comma-separated slugs)
     tags_param = request.GET.get("tags", "")
@@ -193,6 +227,8 @@ def event_list(request):
         ),
         "following_events": following_events,
         "filter_param": filter_param,
+        "sort": sort,
+        "trending_enabled": trending_enabled,
     }
 
     if request.htmx:
