@@ -13,7 +13,7 @@ from django_ratelimit.decorators import ratelimit
 
 from a_core.models import get_numeric
 from accounts.decorators import approved_required
-from events.models import Event
+from events.models import Attendance, Event
 from organizers.models import Organizer
 
 from .models import Flag, Review
@@ -113,6 +113,15 @@ def submit_review(request):
 
         elif target_type == "event":
             event = get_object_or_404(Event, pk=target_id, status="published")
+            if not Attendance.objects.filter(
+                user=request.user, event=event, status="went"
+            ).exists():
+                return render(
+                    request,
+                    "reviews/_rating_form.html",
+                    {"error": _("You can review this event after attending.")},
+                    status=429,
+                )
             review, created = Review.objects.update_or_create(
                 author=request.user,
                 event=event,

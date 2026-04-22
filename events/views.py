@@ -291,6 +291,12 @@ def event_detail(request, org_slug, event_slug):
         attendance = None
         user_going = False
     event_past = event.start < timezone.now()
+    if request.user.is_authenticated:
+        user_has_went_attendance = Attendance.objects.filter(
+            user=request.user, event=event, status="went"
+        ).exists()
+    else:
+        user_has_went_attendance = False
     event_reviews = (
         Review.objects.filter(event=event, hidden=False)
         .select_related("author")
@@ -302,6 +308,7 @@ def event_detail(request, org_slug, event_slug):
         "user_going": user_going,
         "attendance": attendance,
         "event_past": event_past,
+        "user_has_went_attendance": user_has_went_attendance,
         "event_reviews": event_reviews,
         "EVENT_REVIEWS_DISPLAYED": get_flag(
             "EVENT_REVIEWS_DISPLAYED", default=False

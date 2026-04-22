@@ -88,6 +88,16 @@ def published_event(db, rl_organizer):
     )
 
 
+@pytest.fixture
+def went_attendance_for_rl_event(db, approved_user, published_event):
+    """Went attendance so the authorship gate doesn't block the rate-limit test."""
+    from events.models import Attendance
+
+    return Attendance.objects.create(
+        user=approved_user, event=published_event, status="went"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests: _user_rate_key() helper
 # ---------------------------------------------------------------------------
@@ -266,7 +276,7 @@ def test_flag_target_ratelimit_disabled_allows_many_posts(
     RATINGS_ENABLED=True,
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
-def test_submit_review_11th_post_returns_429(approved_client, published_event):
+def test_submit_review_11th_post_returns_429(approved_client, published_event, went_attendance_for_rl_event):
     """11th review POST in same day -> 429 with _rating_form.html."""
     from django.core.cache import cache
 

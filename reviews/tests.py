@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from events.models import Event
+from events.models import Attendance, Event
 from organizers.models import Organizer
 from reviews.models import Review
 
@@ -60,6 +60,15 @@ def past_event(db, organizer):
 
 @pytest.fixture
 def client_logged_in(approved_user):
+    client = Client()
+    client.force_login(approved_user)
+    return client
+
+
+@pytest.fixture
+def client_logged_in_with_went(approved_user, past_event):
+    """Client logged in as approved_user who has went attendance for past_event."""
+    Attendance.objects.create(user=approved_user, event=past_event, status="went")
     client = Client()
     client.force_login(approved_user)
     return client
@@ -181,10 +190,10 @@ def test_submit_review_invalid_target_type_returns_400(client_logged_in):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.django_db
-def test_submit_event_review_creates_review(client_logged_in, past_event):
+def test_submit_event_review_creates_review(client_logged_in_with_went, past_event):
     """POST with target_type=event creates a Review row tied to the event."""
     url = reverse("review-submit")
-    resp = client_logged_in.post(url, {
+    resp = client_logged_in_with_went.post(url, {
         "target_type": "event",
         "target_id": str(past_event.pk),
         "rating": "5",
@@ -194,10 +203,10 @@ def test_submit_event_review_creates_review(client_logged_in, past_event):
 
 
 @pytest.mark.django_db
-def test_submit_event_review_updates_rating_count(client_logged_in, past_event):
+def test_submit_event_review_updates_rating_count(client_logged_in_with_went, past_event):
     """After event review, Event.rating_count is updated."""
     url = reverse("review-submit")
-    client_logged_in.post(url, {
+    client_logged_in_with_went.post(url, {
         "target_type": "event",
         "target_id": str(past_event.pk),
         "rating": "3",
