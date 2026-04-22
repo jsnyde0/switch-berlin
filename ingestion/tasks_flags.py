@@ -1,17 +1,36 @@
 """Django-q2 tasks for flag digest and nightly aggregate recomputation."""
 
 import time
+from collections import defaultdict
 
 import logfire
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db.models import Avg, Count
+from django.urls import reverse
 
 from a_core.models import EmailFailure
 
 
+def _suggest_action(target_type, reason):
+    """Return a suggested admin action string for a flag.
+
+    Used to pre-fill the ?action= query param in the daily digest admin URLs.
+    The admin can override this suggestion in the change view.
+    """
+    if target_type == "review":
+        return "delete"
+    if target_type == "organizer" and reason == "harmful":
+        return "suspend"
+    return "hide"
+
+
 def daily_flag_digest():
-    """Daily django-q2 task: send summary of unresolved flags to admin."""
+    """Daily django-q2 task: send summary of unresolved flags to admin.
+
+    Flags are grouped by target in the email body. Each flag entry includes
+    a pre-filled admin URL with ?action= for quick triage.
+    """
     from reviews.models import Flag
 
     unresolved = Flag.objects.filter(resolved=False).order_by("created_at")
@@ -19,10 +38,32 @@ def daily_flag_digest():
     if count == 0:
         return
 
-    lines = [f"Unresolved flags: {count}\n"]
+    groups = defaultdict(list)
     for flag in unresolved[:50]:
-        target = flag.organizer or flag.event or flag.review or "(anonymous takedown)"
-        lines.append(f"- [{flag.reason}] {target} (reporter: {flag.reporter})")
+        if flag.event:
+            key = ("event", flag.event.pk, str(flag.event))
+        elif flag.organizer:
+            key = ("organizer", flag.organizer.pk, str(flag.organizer))
+        elif flag.review:
+            key = ("review", flag.review.pk, str(flag.review))
+        else:
+            key = ("unknown", 0, "(anonymous takedown)")
+        groups[key].append(flag)
+
+    lines = [f"Unresolved flags: {count}\n"]
+    for (target_type, _target_id, target_label), flags_in_group in groups.items():
+        lines.append(
+            f"\n{target_type.title()} \"{target_label}\" ({len(flags_in_group)} flags):"
+        )
+        for flag in flags_in_group:
+            admin_url = reverse("admin:reviews_flag_change", args=[flag.pk])
+            suggested = _suggest_action(target_type, flag.reason)
+            lines.append(
+                f"  - [{flag.reason}] reporter: {flag.reporter or 'anonymous'}"
+            )
+            lines.append(
+                f"    Admin: {settings.SITE_URL}{admin_url}?action={suggested}"
+            )
 
     body = "\n".join(lines)
     try:

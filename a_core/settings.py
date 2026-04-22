@@ -1,5 +1,6 @@
 """Django settings for kinky-bubbles."""
 
+import os
 from pathlib import Path
 
 import dj_database_url
@@ -24,6 +25,8 @@ if DEBUG:
     INTERNAL_IPS.extend([ip[:-1] + "1" for ip in ips])
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+
+SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000")
 
 
 AUTH_USER_MODEL = "accounts.User"
