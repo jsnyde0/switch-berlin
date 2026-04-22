@@ -1,0 +1,68 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block content %}
+  {% if allowed_actions %}
+    <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f8f8; border: 1px solid #ddd; border-radius: 4px;">
+      <h3 style="margin-top: 0;">{% trans "Moderation actions" %}</h3>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% if "no_action" in allowed_actions %}
+          <form method="post" action="{{ flag_action_url }}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              name="action"
+              value="no_action"
+              class="button{% if pre_selected_action == 'no_action' %} default{% endif %}"
+            >{% trans "No action" %}</button>
+          </form>
+        {% endif %}
+        {% if "hide" in allowed_actions %}
+          <form method="post" action="{{ flag_action_url }}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              name="action"
+              value="hide"
+              class="button{% if pre_selected_action == 'hide' %} default{% endif %}"
+            >{% trans "Hide target" %}</button>
+          </form>
+        {% endif %}
+        {% if "suspend" in allowed_actions %}
+          <form method="post" action="{{ flag_action_url }}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              name="action"
+              value="suspend"
+              class="button{% if pre_selected_action == 'suspend' %} default{% endif %}"
+            >{% trans "Suspend organizer" %}</button>
+          </form>
+        {% endif %}
+        {% if "delete" in allowed_actions %}
+          <form method="post" action="{{ flag_action_url }}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              name="action"
+              value="delete"
+              class="button{% if pre_selected_action == 'delete' %} default{% endif %}"
+            >{% trans "Delete review (soft)" %}</button>
+          </form>
+        {% endif %}
+        {% if "resolved" in allowed_actions %}
+          <form method="post" action="{{ flag_action_url }}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              name="action"
+              value="resolved"
+              class="button{% if pre_selected_action == 'resolved' %} default{% endif %}"
+            >{% trans "Mark resolved" %}</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
