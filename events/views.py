@@ -9,7 +9,9 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
+from a_core.models import get_flag, get_numeric
 from accounts.decorators import approved_required
+from reviews.models import Review
 from venues.serializers import venue_to_geojson
 
 from .models import Attendance, Event, Tag
@@ -151,6 +153,12 @@ def event_list(request):
         "markers_geojson": markers_geojson,
         "bounds_param": bounds_param,
         "going_venue_id_list": going_venue_id_list,
+        "EVENT_REVIEWS_DISPLAYED": get_flag(
+            "EVENT_REVIEWS_DISPLAYED", default=False
+        ),
+        "EVENT_RATING_THRESHOLD": get_numeric(
+            "threshold.event_ratings_display", default=3
+        ),
     }
 
     if request.htmx:
@@ -213,12 +221,24 @@ def event_detail(request, org_slug, event_slug):
         attendance = None
         user_going = False
     event_past = event.start < timezone.now()
+    event_reviews = (
+        Review.objects.filter(event=event, hidden=False)
+        .select_related("author")
+        .order_by("-created_at")
+    )
     context = {
         "event": event,
         "cover_image": cover_image,
         "user_going": user_going,
         "attendance": attendance,
         "event_past": event_past,
+        "event_reviews": event_reviews,
+        "EVENT_REVIEWS_DISPLAYED": get_flag(
+            "EVENT_REVIEWS_DISPLAYED", default=False
+        ),
+        "EVENT_RATING_THRESHOLD": get_numeric(
+            "threshold.event_ratings_display", default=3
+        ),
     }
     return render(request, "events/detail.html", context)
 

@@ -99,6 +99,27 @@
     {% if user.is_authenticated and user.is_approved and event_past and RATINGS_ENABLED %}
       {% include "reviews/_rating_form.html" with target_type="event" target_id=event.pk form_id="event-detail-rating-form" %}
     {% endif %}
+    {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
+      <section aria-label="{% trans 'Reviews' %}">
+        <h2 class="text-xl font-semibold mb-4">{% trans "Reviews" %}</h2>
+        {% for review in event_reviews %}
+          <div class="flex flex-col gap-1 py-3 border-b last:border-b-0">
+            <div class="flex items-center gap-2">
+              <strong class="text-sm">{{ review.author.get_full_name|default:review.author.username }}</strong>
+              <span class="text-sm text-base-content/70">{{ review.rating }}/5</span>
+              <time class="text-xs text-base-content/50" datetime="{{ review.created_at|date:'Y-m-d' }}">
+                {{ review.created_at|date:"Y-m-d" }}
+              </time>
+            </div>
+            {% if review.body %}
+              <p class="text-sm">{{ review.body }}</p>
+            {% endif %}
+          </div>
+        {% empty %}
+          <p class="text-base-content/60">{% trans "No reviews yet." %}</p>
+        {% endfor %}
+      </section>
+    {% endif %}
     <footer class="text-xs text-base-content/50 border-t pt-4">
       {% trans "Safety first. Consent is mandatory. Look out for each other." %}
     </footer>

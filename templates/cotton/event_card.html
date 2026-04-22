@@ -31,6 +31,11 @@
           {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
         </span>
       {% endif %}
+      {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
+        <span class="badge badge-outline badge-sm" aria-label="{% trans 'Average rating' %}">
+          &#9733; {{ event.avg_rating|floatformat:1 }} ({{ event.rating_count }})
+        </span>
+      {% endif %}
     </div>
   </div>
 </div>
