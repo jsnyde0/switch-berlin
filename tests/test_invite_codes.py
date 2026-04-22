@@ -474,13 +474,14 @@ def test_generate_invite_codes_sets_notes(creator):
 
 @pytest.mark.django_db
 def test_generate_invite_codes_missing_user_raises(db):
-    """generate_invite_codes with unknown username raises User.DoesNotExist."""
+    """generate_invite_codes with unknown username raises CommandError."""
     from io import StringIO
 
     from django.core.management import call_command
+    from django.core.management.base import CommandError
 
     out = StringIO()
-    with pytest.raises(User.DoesNotExist):
+    with pytest.raises(CommandError):
         call_command(
             "generate_invite_codes",
             count=1,
