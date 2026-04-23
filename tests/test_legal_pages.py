@@ -506,3 +506,104 @@ def test_privacy_de_renders_widerruf(client, public_read_on):
         response = client.get("/privacy/")
     assert response.status_code == 200
     assert b"Widerruf" in response.content
+
+
+# ---------------------------------------------------------------------------
+# Group 10: LIA inline text present (Fix kb-9kh.6)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_privacy_lia_inline_text_present(client, public_read_on):
+    """Privacy page must describe LIA inline — no dead .md link."""
+    response = client.get("/privacy/")
+    content = response.content
+    # The inline LIA text must mention key concepts: organizer events are public,
+    # curation serves legitimate interest, objection via /takedown/
+    assert b"organizer-lia.md" not in content, (
+        "Dead link to organizer-lia.md must not appear on privacy page"
+    )
+    # Must still mention the LIA/legitimate interest concepts inline
+    assert b"Art. 6(1)(f)" in content
+    assert b"/takedown/" in content
+
+
+@pytest.mark.django_db
+def test_privacy_de_lia_inline_text_present(client, public_read_on):
+    """With LANGUAGE_CODE='de', privacy page LIA inline text has no dead .md link."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/privacy/")
+    assert response.status_code == 200
+    assert b"organizer-lia.md" not in response.content, (
+        "Dead link to organizer-lia.md must not appear in German privacy page"
+    )
+
+
+# ===========================================================================
+# Takedown tests (kb-9kh.5, kb-9kh.7)
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Group 11: Takedown mailto not hardcoded (Fix kb-9kh.5)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_takedown_no_hardcoded_email(client, public_read_on):
+    """Takedown page must NOT contain hardcoded takedown@kinkybubbles.de."""
+    response = client.get("/takedown/")
+    assert response.status_code == 200
+    assert b"takedown@kinkybubbles.de" not in response.content, (
+        "Hardcoded mailto takedown@kinkybubbles.de must not appear; use legal_contact.dsa_email"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Group 12: Takedown DE translations present (Fix kb-9kh.7)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_takedown_de_title_translated(client, public_read_on):
+    """With LANGUAGE_CODE='de', takedown page title appears in German."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/takedown/")
+    assert response.status_code == 200
+    # German title must be present
+    assert "Inhalt melden".encode() in response.content
+
+
+@pytest.mark.django_db
+def test_takedown_de_false_report_warning_translated(client, public_read_on):
+    """With LANGUAGE_CODE='de', false-report warning appears in German."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/takedown/")
+    assert response.status_code == 200
+    # Must contain German warning text
+    assert "falsch" in response.content.decode("utf-8").lower()
+
+
+@pytest.mark.django_db
+def test_takedown_de_submit_button_translated(client, public_read_on):
+    """With LANGUAGE_CODE='de', submit button label appears in German."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/takedown/")
+    assert response.status_code == 200
+    content_decoded = response.content.decode("utf-8")
+    assert "Meldung absenden" in content_decoded
+
+
+@pytest.mark.django_db
+def test_takedown_de_gdpr_notice_translated(client, public_read_on):
+    """With LANGUAGE_CODE='de', GDPR processing notice appears in German."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/takedown/")
+    assert response.status_code == 200
+    content_decoded = response.content.decode("utf-8")
+    # Must mention DSGVO or Art. 6(1)(c) in German context
+    assert "DSGVO" in content_decoded or "Datenschutz" in content_decoded

@@ -139,7 +139,7 @@
 
       <p class="mt-6 text-sm text-base-content/60">
         {% trans "You can also contact us directly by email:" %}
-        <a href="mailto:takedown@kinkybubbles.de" class="link">takedown@kinkybubbles.de</a>
+        <a href="mailto:{{ legal_contact.dsa_email }}" class="link">{{ legal_contact.dsa_email }}</a>
       </p>
     {% endif %}
   </div>

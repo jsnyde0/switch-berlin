@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-23 10:21+0200\n"
+"POT-Creation-Date: 2026-04-23 10:40+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -172,6 +172,8 @@ msgid ""
 "I confirm the information above is accurate to the best of my knowledge (DSA "
 "Art. 16(2))."
 msgstr ""
+"Ich bestätige, dass die oben genannten Angaben nach bestem Wissen korrekt "
+"sind (DSA Art. 16(2))."
 
 #: reviews/forms.py:39
 msgid "Required for illegal-content reports (DSA Art. 16)."
@@ -779,8 +781,8 @@ msgid ""
 "withdrawal permanently deletes all attendance records."
 msgstr ""
 "Die Teilnahme an Kink-/Queer-Veranstaltungen kann Rückschlüsse auf die "
-"sexuelle Orientierung ermöglichen. Vor dem ersten Teilnahmeeintrag wird "
-"eine ausdrückliche Einwilligung eingeholt. Der Widerruf der Einwilligung ist "
+"sexuelle Orientierung ermöglichen. Vor dem ersten Teilnahmeeintrag wird eine "
+"ausdrückliche Einwilligung eingeholt. Der Widerruf der Einwilligung ist "
 "jederzeit im Profil (<a href=\"/me/\">/me/</a>) möglich; beim Widerruf "
 "werden alle Teilnahmeeinträge dauerhaft gelöscht."
 
@@ -796,45 +798,48 @@ msgstr "Veröffentlichung von Veranstalterveranstaltungen"
 msgid ""
 "Event listings sourced from public Telegram channels. Berechtigtes "
 "Interesse: curating publicly circulated event announcements for a community-"
-"serving, searchable directory. See our <a href=\"/docs/compliance/organizer-"
-"lia.md\">Legitimate Interests Assessment (LIA)</a> for the full balancing "
-"test."
+"serving, searchable directory. Organizer events are already public; curation "
+"serves legitimate interest. Organizers may object to inclusion at any time "
+"via <a href=\"/takedown/\">/takedown/</a> (Art. 21 GDPR) — no login required."
 msgstr ""
 "Veranstaltungsankündigungen aus öffentlichen Telegram-Kanälen. Berechtigtes "
 "Interesse: Kuration öffentlich verbreiteter Veranstaltungsankündigungen für "
-"ein gemeinschaftsorientiertes, durchsuchbares Verzeichnis. Siehe unsere "
-"<a href=\"/docs/compliance/organizer-lia.md\">Interessenabwägung (LIA)</a> "
-"für die vollständige Abwägung."
+"ein gemeinschaftsorientiertes, durchsuchbares Verzeichnis. Veranstaltungen "
+"von Organisator:innen sind bereits öffentlich; die Kuration dient einem "
+"berechtigten Interesse. Organisator:innen können der Aufnahme jederzeit über "
+"<a href=\"/takedown/\">/takedown/</a> (Art. 21 DSGVO) widersprechen – keine "
+"Anmeldung erforderlich."
 
-#: templates/pages/privacy.html:71
+#: templates/pages/privacy.html:72
 msgid "legitimate interest"
 msgstr "berechtigtes Interesse"
 
-#: templates/pages/privacy.html:71
+#: templates/pages/privacy.html:72
 msgid "Berechtigtes Interesse"
 msgstr "Berechtigtes Interesse"
 
-#: templates/pages/privacy.html:74
+#: templates/pages/privacy.html:75
 msgid "Flag and takedown reports"
 msgstr "Meldungen und Takedown-Berichte"
 
-#: templates/pages/privacy.html:75
+#: templates/pages/privacy.html:76
 msgid "legal obligation (DSA compliance)"
 msgstr "rechtliche Verpflichtung (DSA-Konformität)"
 
-#: templates/pages/privacy.html:78
+#: templates/pages/privacy.html:79
 msgid "Email delivery (transactional)"
 msgstr "E-Mail-Versand (transaktional)"
 
-#: templates/pages/privacy.html:79
+#: templates/pages/privacy.html:80
 msgid "necessary for the requested service"
 msgstr "zur Erbringung des beantragten Dienstes erforderlich"
 
-#: templates/pages/privacy.html:88
+#: templates/pages/privacy.html:89
 msgid "Special-category data — attendance (Art. 9 GDPR)"
-msgstr "Besondere Kategorien personenbezogener Daten — Teilnahme (Art. 9 DSGVO)"
+msgstr ""
+"Besondere Kategorien personenbezogener Daten — Teilnahme (Art. 9 DSGVO)"
 
-#: templates/pages/privacy.html:90
+#: templates/pages/privacy.html:91
 msgid ""
 "Attendance on kink and queer events constitutes special-category data under "
 "Art. 9 GDPR because it may reveal your sexual orientation. We process this "
@@ -847,24 +852,24 @@ msgstr ""
 "Ihrer ausdrücklichen Einwilligung (Art. 9 Abs. 2 lit. a DSGVO). Die "
 "Einwilligung wird einmalig vor dem ersten Teilnahmeeintrag eingeholt."
 
-#: templates/pages/privacy.html:98
+#: templates/pages/privacy.html:99
 msgid ""
 "You may withdraw consent at any time from your profile page (<a href=\"/me/"
 "\">/me/</a>). Withdrawal is immediate and irreversible: all attendance "
 "records are permanently deleted (Art. 17 erasure). Withdrawal does not "
 "affect your account or other data."
 msgstr ""
-"Der Widerruf der Einwilligung ist jederzeit auf der Profilseite "
-"(<a href=\"/me/\">/me/</a>) möglich. Der Widerruf ist sofort wirksam und "
-"unwiderruflich: alle Teilnahmeeinträge werden dauerhaft gelöscht (Art. 17 "
-"DSGVO). Der Widerruf berührt nicht die Rechtmäßigkeit der bis dahin "
-"erfolgten Verarbeitung."
+"Der Widerruf der Einwilligung ist jederzeit auf der Profilseite (<a href=\"/"
+"me/\">/me/</a>) möglich. Der Widerruf ist sofort wirksam und unwiderruflich: "
+"alle Teilnahmeeinträge werden dauerhaft gelöscht (Art. 17 DSGVO). Der "
+"Widerruf berührt nicht die Rechtmäßigkeit der bis dahin erfolgten "
+"Verarbeitung."
 
-#: templates/pages/privacy.html:108
+#: templates/pages/privacy.html:109
 msgid "Recipients and processors (Art. 13(1)(e) GDPR)"
 msgstr "Empfänger und Auftragsverarbeiter (Art. 13 Abs. 1 lit. e DSGVO)"
 
-#: templates/pages/privacy.html:109
+#: templates/pages/privacy.html:110
 msgid ""
 "We share data with the following processors under appropriate data "
 "processing agreements (DPAs):"
@@ -872,24 +877,24 @@ msgstr ""
 "Wir geben Daten an folgende Auftragsverarbeiter weiter, mit denen "
 "entsprechende Auftragsverarbeitungsverträge (AVV) abgeschlossen wurden:"
 
-#: templates/pages/privacy.html:112
+#: templates/pages/privacy.html:113
 msgid "Hosting"
 msgstr "Hosting"
 
-#: templates/pages/privacy.html:113
+#: templates/pages/privacy.html:114
 msgid ""
 "Hetzner Online GmbH, Gunzenhausen, Germany — server infrastructure. EU-"
 "based; DPA in place. Your data is processed exclusively within the EU/EEA."
 msgstr ""
-"Hetzner Online GmbH, Gunzenhausen, Deutschland — Server-Infrastruktur. "
-"EU-ansässig; AVV abgeschlossen. Ihre Daten werden ausschließlich innerhalb "
-"der EU/des EWR verarbeitet."
+"Hetzner Online GmbH, Gunzenhausen, Deutschland — Server-Infrastruktur. EU-"
+"ansässig; AVV abgeschlossen. Ihre Daten werden ausschließlich innerhalb der "
+"EU/des EWR verarbeitet."
 
-#: templates/pages/privacy.html:119
+#: templates/pages/privacy.html:120
 msgid "Email (transactional)"
 msgstr "E-Mail (transaktional)"
 
-#: templates/pages/privacy.html:120
+#: templates/pages/privacy.html:121
 msgid ""
 "SMTP provider for transactional emails (account notifications). EU or SCC-"
 "covered transfer."
@@ -897,11 +902,11 @@ msgstr ""
 "SMTP-Anbieter für transaktionale E-Mails (Kontobenachrichtigungen). EU oder "
 "SCC-gedeckte Übermittlung."
 
-#: templates/pages/privacy.html:123
+#: templates/pages/privacy.html:124
 msgid "LLM processing"
 msgstr "KI-Sprachmodell-Verarbeitung"
 
-#: templates/pages/privacy.html:124
+#: templates/pages/privacy.html:125
 msgid ""
 "OpenAI (OpenAI OpCo, LLC, USA) and / or Anthropic (Anthropic PBC, USA): "
 "large language model (LLM) extraction of event data from Telegram messages. "
@@ -911,14 +916,14 @@ msgid ""
 "personal data is included."
 msgstr ""
 "OpenAI (OpenAI OpCo, LLC, USA) und/oder Anthropic (Anthropic PBC, USA): "
-"Extraktion von Veranstaltungsdaten aus Telegram-Nachrichten mittels "
-"KI-Sprachmodell (LLM). Diese Anbieter haben ihren Sitz in den USA. "
-"Übermittlungen erfolgen auf Basis von Standardvertragsklauseln (SCC) "
-"gemäß Art. 44 ff. DSGVO. Es werden ausschließlich öffentliche "
-"Veranstaltungsdaten (Titel, Termine, Veranstaltungsorte) an LLM-Anbieter "
-"übermittelt; keine personenbezogenen Nutzerdaten."
+"Extraktion von Veranstaltungsdaten aus Telegram-Nachrichten mittels KI-"
+"Sprachmodell (LLM). Diese Anbieter haben ihren Sitz in den USA. "
+"Übermittlungen erfolgen auf Basis von Standardvertragsklauseln (SCC) gemäß "
+"Art. 44 ff. DSGVO. Es werden ausschließlich öffentliche Veranstaltungsdaten "
+"(Titel, Termine, Veranstaltungsorte) an LLM-Anbieter übermittelt; keine "
+"personenbezogenen Nutzerdaten."
 
-#: templates/pages/privacy.html:135
+#: templates/pages/privacy.html:136
 msgid ""
 "Telegram Messenger Inc.: ingestion channel for event announcements forwarded "
 "by organizers. Telegram is an independent data controller for the source "
@@ -929,7 +934,7 @@ msgstr ""
 "Quellkanäle ein eigenständiger Verantwortlicher; diese Plattform ist "
 "Empfänger weitergeleiteter öffentlicher Nachrichten."
 
-#: templates/pages/privacy.html:143
+#: templates/pages/privacy.html:144
 msgid ""
 "OpenStreetMap Foundation (OSMF): map tile delivery for event location maps. "
 "Your IP address is transmitted per map load under the <a href=\"https://"
@@ -937,131 +942,140 @@ msgid ""
 "MapLibre is an open-source rendering library; no data is shared with "
 "MapLibre itself."
 msgstr ""
-"OpenStreetMap Foundation (OSMF): Kartenkachellieferung für Veranstaltungsortkarten. "
-"Ihre IP-Adresse wird bei jedem Kartenladen gemäß der "
-"<a href=\"https://operations.osmfoundation.org/policies/tiles/\">OSM-Kachelnutzungsrichtlinie</a> "
-"übermittelt. MapLibre ist eine Open-Source-Rendering-Bibliothek; es werden "
-"keine Daten an MapLibre selbst übermittelt."
+"OpenStreetMap Foundation (OSMF): Kartenkachellieferung für "
+"Veranstaltungsortkarten. Ihre IP-Adresse wird bei jedem Kartenladen gemäß "
+"der <a href=\"https://operations.osmfoundation.org/policies/tiles/\">OSM-"
+"Kachelnutzungsrichtlinie</a> übermittelt. MapLibre ist eine Open-Source-"
+"Rendering-Bibliothek; es werden keine Daten an MapLibre selbst übermittelt."
 
-#: templates/pages/privacy.html:155
+#: templates/pages/privacy.html:156
 msgid "Retention schedule (Aufbewahrungsdauer)"
 msgstr "Aufbewahrungsfristen (Aufbewahrungsdauer)"
 
-#: templates/pages/privacy.html:161
+#: templates/pages/privacy.html:162
 msgid "Data category"
 msgstr "Datenkategorie"
 
-#: templates/pages/privacy.html:162
+#: templates/pages/privacy.html:163
 msgid "Retention period"
 msgstr "Aufbewahrungsfrist"
 
-#: templates/pages/privacy.html:167
+#: templates/pages/privacy.html:168
 msgid "Attendance records"
 msgstr "Teilnahmeeinträge"
 
-#: templates/pages/privacy.html:168
+#: templates/pages/privacy.html:169
 msgid ""
 "Until consent is withdrawn; deleted immediately on withdrawal (Art. 17)."
 msgstr ""
-"Bis zum Widerruf der Einwilligung; bei Widerruf sofortige Löschung (Art. 17 DSGVO)."
+"Bis zum Widerruf der Einwilligung; bei Widerruf sofortige Löschung (Art. 17 "
+"DSGVO)."
 
-#: templates/pages/privacy.html:171
+#: templates/pages/privacy.html:172
 msgid "Ratings and reviews"
 msgstr "Bewertungen und Rezensionen"
 
-#: templates/pages/privacy.html:172
+#: templates/pages/privacy.html:173
 msgid "Until user account is deleted or the review is removed on request."
 msgstr "Bis zur Löschung des Nutzerkontos oder der Bewertung auf Anfrage."
 
-#: templates/pages/privacy.html:175
+#: templates/pages/privacy.html:176
 msgid "Flag / takedown reports"
 msgstr "Meldungen / Takedown-Berichte"
 
-#: templates/pages/privacy.html:176
+#: templates/pages/privacy.html:177
 msgid "3 years (DSA record-keeping obligation)."
 msgstr "3 Jahre (Aufzeichnungspflicht des DSA)."
 
-#: templates/pages/privacy.html:179
+#: templates/pages/privacy.html:180
 msgid "Telegram ingestion"
 msgstr "Telegram-Aufnahme"
 
-#: templates/pages/privacy.html:180
+#: templates/pages/privacy.html:181
 msgid "90 days after the event date, then purged."
 msgstr "90 Tage nach dem Veranstaltungsdatum, dann gelöscht."
 
-#: templates/pages/privacy.html:184
+#: templates/pages/privacy.html:185
 msgid "30 days, then purged."
 msgstr "30 Tage, dann gelöscht."
 
-#: templates/pages/privacy.html:187
+#: templates/pages/privacy.html:188
 msgid "User accounts"
 msgstr "Nutzerkonten"
 
-#: templates/pages/privacy.html:188
+#: templates/pages/privacy.html:189
 msgid "Until account deletion is requested by the user or by an administrator."
-msgstr "Bis zur Löschung des Kontos auf Anfrage des Nutzers oder eines Administrators."
+msgstr ""
+"Bis zur Löschung des Kontos auf Anfrage des Nutzers oder eines "
+"Administrators."
 
-#: templates/pages/privacy.html:191
+#: templates/pages/privacy.html:192
 msgid "Session cookies"
 msgstr "Sitzungs-Cookies"
 
-#: templates/pages/privacy.html:192
+#: templates/pages/privacy.html:193
 msgid "Session duration (browser close) or login expiry."
 msgstr "Sitzungsdauer (Browser schließen) oder Ablauf der Anmeldung."
 
-#: templates/pages/privacy.html:201
+#: templates/pages/privacy.html:202
 msgid "Your rights (Betroffenenrechte)"
 msgstr "Ihre Rechte (Betroffenenrechte)"
 
-#: templates/pages/privacy.html:202
+#: templates/pages/privacy.html:203
 msgid "Under GDPR, you have the following rights:"
 msgstr "Unter der DSGVO haben Sie folgende Rechte:"
 
-#: templates/pages/privacy.html:205
+#: templates/pages/privacy.html:206
 msgid "Access"
 msgstr "Auskunft"
 
-#: templates/pages/privacy.html:206
+#: templates/pages/privacy.html:207
 msgid "Request a copy of the personal data we hold about you."
-msgstr "Verlangen Sie eine Kopie der von uns über Sie gespeicherten personenbezogenen Daten."
+msgstr ""
+"Verlangen Sie eine Kopie der von uns über Sie gespeicherten "
+"personenbezogenen Daten."
 
-#: templates/pages/privacy.html:209
+#: templates/pages/privacy.html:210
 msgid "Rectification"
 msgstr "Berichtigung"
 
-#: templates/pages/privacy.html:210
+#: templates/pages/privacy.html:211
 msgid "Request correction of inaccurate or incomplete data."
 msgstr "Verlangen Sie die Berichtigung unrichtiger oder unvollständiger Daten."
 
-#: templates/pages/privacy.html:213
+#: templates/pages/privacy.html:214
 msgid "Erasure"
 msgstr "Löschung"
 
-#: templates/pages/privacy.html:214
+#: templates/pages/privacy.html:215
 msgid "Request deletion of your data ('right to be forgotten')."
-msgstr "Verlangen Sie die Löschung Ihrer Daten (\"Recht auf Vergessenwerden\")."
+msgstr ""
+"Verlangen Sie die Löschung Ihrer Daten (\"Recht auf Vergessenwerden\")."
 
-#: templates/pages/privacy.html:217
+#: templates/pages/privacy.html:218
 msgid "Restriction"
 msgstr "Einschränkung"
 
-#: templates/pages/privacy.html:218
+#: templates/pages/privacy.html:219
 msgid "Request we restrict processing of your data in certain circumstances."
-msgstr "Verlangen Sie in bestimmten Fällen die Einschränkung der Verarbeitung Ihrer Daten."
+msgstr ""
+"Verlangen Sie in bestimmten Fällen die Einschränkung der Verarbeitung Ihrer "
+"Daten."
 
-#: templates/pages/privacy.html:221
+#: templates/pages/privacy.html:222
 msgid "Portability"
 msgstr "Datenübertragbarkeit"
 
-#: templates/pages/privacy.html:222
+#: templates/pages/privacy.html:223
 msgid "Request your data in a structured, machine-readable format."
-msgstr "Verlangen Sie Ihre Daten in einem strukturierten, maschinenlesbaren Format."
+msgstr ""
+"Verlangen Sie Ihre Daten in einem strukturierten, maschinenlesbaren Format."
 
-#: templates/pages/privacy.html:225
+#: templates/pages/privacy.html:226
 msgid "Objection"
 msgstr "Widerspruch"
 
-#: templates/pages/privacy.html:226
+#: templates/pages/privacy.html:227
 msgid ""
 "Object to processing based on legitimate interest (Art. 6(1)(f)). "
 "<strong>For organizers:</strong> you have the right to object at any time to "
@@ -1069,29 +1083,29 @@ msgid ""
 "request at <a href=\"/takedown/\">/takedown/</a> — no login required. "
 "Objections are processed within 72 hours."
 msgstr ""
-"Widerspruch gegen die Verarbeitung auf Basis berechtigter Interessen "
-"(Art. 6 Abs. 1 lit. f DSGVO). <strong>Für Veranstalter:innen:</strong> Sie "
-"haben das Recht, der Aufnahme Ihrer Veranstaltungen in diese Plattform "
-"jederzeit zu widersprechen. Stellen Sie einen Takedown-Antrag unter "
-"<a href=\"/takedown/\">/takedown/</a> — keine Anmeldung erforderlich. "
-"Widersprüche werden innerhalb von 72 Stunden bearbeitet."
+"Widerspruch gegen die Verarbeitung auf Basis berechtigter Interessen (Art. 6 "
+"Abs. 1 lit. f DSGVO). <strong>Für Veranstalter:innen:</strong> Sie haben das "
+"Recht, der Aufnahme Ihrer Veranstaltungen in diese Plattform jederzeit zu "
+"widersprechen. Stellen Sie einen Takedown-Antrag unter <a href=\"/takedown/"
+"\">/takedown/</a> — keine Anmeldung erforderlich. Widersprüche werden "
+"innerhalb von 72 Stunden bearbeitet."
 
-#: templates/pages/privacy.html:235
+#: templates/pages/privacy.html:236
 msgid "Withdraw consent"
 msgstr "Widerruf der Einwilligung"
 
-#: templates/pages/privacy.html:236
+#: templates/pages/privacy.html:237
 msgid ""
 "You may withdraw your Art. 9 attendance consent at any time via your profile "
 "page (<a href=\"/me/\">/me/</a>). Withdrawal does not affect the lawfulness "
 "of processing carried out before withdrawal."
 msgstr ""
 "Der Widerruf der Einwilligung nach Art. 9 DSGVO bezüglich der "
-"Teilnahmeaufzeichnung ist jederzeit auf der Profilseite "
-"(<a href=\"/me/\">/me/</a>) möglich. Der Widerruf berührt nicht die "
-"Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung."
+"Teilnahmeaufzeichnung ist jederzeit auf der Profilseite (<a href=\"/me/\">/"
+"me/</a>) möglich. Der Widerruf berührt nicht die Rechtmäßigkeit der bis zum "
+"Widerruf erfolgten Verarbeitung."
 
-#: templates/pages/privacy.html:244
+#: templates/pages/privacy.html:245
 msgid ""
 "To exercise rights other than consent withdrawal and organizer objection, "
 "contact us at"
@@ -1099,11 +1113,11 @@ msgstr ""
 "Zur Ausübung anderer Rechte als des Widerrufs der Einwilligung und des "
 "Widerspruchs von Veranstalter:innen wenden Sie sich an"
 
-#: templates/pages/privacy.html:248
+#: templates/pages/privacy.html:249
 msgid "Right to lodge a complaint"
 msgstr "Beschwerderecht"
 
-#: templates/pages/privacy.html:250
+#: templates/pages/privacy.html:251
 msgid ""
 "You have the right to lodge a complaint with the competent supervisory "
 "authority (BlnBDI):"
@@ -1111,11 +1125,11 @@ msgstr ""
 "Sie haben das Recht, eine Beschwerde bei der zuständigen Aufsichtsbehörde "
 "(BlnBDI) einzulegen:"
 
-#: templates/pages/privacy.html:265
+#: templates/pages/privacy.html:266
 msgid "Automated processing (Art. 13(2)(f) GDPR)"
 msgstr "Automatisierte Verarbeitung (Art. 13 Abs. 2 lit. f DSGVO)"
 
-#: templates/pages/privacy.html:267
+#: templates/pages/privacy.html:268
 msgid ""
 "Event data is extracted from Telegram messages using a large language model "
 "(LLM). This process is used only for structuring publicly available event "
@@ -1123,14 +1137,14 @@ msgid ""
 "human reviewer approves all published event listings before they are "
 "displayed."
 msgstr ""
-"Veranstaltungsdaten werden aus Telegram-Nachrichten mittels eines "
-"KI-Sprachmodells (LLM) extrahiert. Dieses Verfahren dient ausschließlich "
-"der Strukturierung öffentlich verfügbarer Veranstaltungsinformationen und "
-"trifft keine rechtlich bedeutsamen Entscheidungen über Nutzer:innen. "
-"Alle veröffentlichten Veranstaltungseinträge werden zuvor von einem Menschen "
+"Veranstaltungsdaten werden aus Telegram-Nachrichten mittels eines KI-"
+"Sprachmodells (LLM) extrahiert. Dieses Verfahren dient ausschließlich der "
+"Strukturierung öffentlich verfügbarer Veranstaltungsinformationen und trifft "
+"keine rechtlich bedeutsamen Entscheidungen über Nutzer:innen. Alle "
+"veröffentlichten Veranstaltungseinträge werden zuvor von einem Menschen "
 "geprüft und freigegeben."
 
-#: templates/pages/privacy.html:274
+#: templates/pages/privacy.html:275
 msgid ""
 "No automated decision-making with legal effect (Art. 22 GDPR) is applied to "
 "users."
@@ -1138,11 +1152,11 @@ msgstr ""
 "Eine automatisierte Entscheidungsfindung mit rechtlicher Wirkung (Art. 22 "
 "DSGVO) wird gegenüber Nutzer:innen nicht eingesetzt."
 
-#: templates/pages/privacy.html:279
+#: templates/pages/privacy.html:280
 msgid "Cookies (TTDSG §25)"
 msgstr "Cookies (TTDSG § 25)"
 
-#: templates/pages/privacy.html:281
+#: templates/pages/privacy.html:282
 msgid ""
 "This platform uses a single session cookie for the age gate. The age-gate "
 "cookie is strictly necessary to provide the service you have explicitly "
@@ -1157,11 +1171,11 @@ msgstr ""
 "erforderlich. Es werden keine Tracking-, Analyse- oder Werbe-Cookies "
 "verwendet."
 
-#: templates/pages/privacy.html:293
+#: templates/pages/privacy.html:294
 msgid "Minimum age (JuSchG)"
 msgstr "Mindestalter (JuSchG)"
 
-#: templates/pages/privacy.html:295
+#: templates/pages/privacy.html:296
 msgid ""
 "This platform is restricted to users aged 18 and over (JuSchG §§ 4, 5). By "
 "passing the age gate, you confirm you are at least 18 years old. We do not "
@@ -1169,12 +1183,12 @@ msgid ""
 "that a minor has registered, the account will be suspended immediately."
 msgstr ""
 "Diese Plattform ist Nutzer:innen ab 18 Jahren vorbehalten (JuSchG §§ 4, 5). "
-"Mit dem Passieren des Altersgates bestätigen Sie, mindestens 18 Jahre alt "
-"zu sein. Wir erheben wissentlich keine personenbezogenen Daten von Personen "
+"Mit dem Passieren des Altersgates bestätigen Sie, mindestens 18 Jahre alt zu "
+"sein. Wir erheben wissentlich keine personenbezogenen Daten von Personen "
 "unter 18 Jahren. Sollten wir Kenntnis erlangen, dass sich eine minderjährige "
 "Person registriert hat, wird das Konto unverzüglich gesperrt."
 
-#: templates/pages/privacy.html:307 templates/pages/terms.html:16
+#: templates/pages/privacy.html:308 templates/pages/terms.html:16
 msgid "Last updated"
 msgstr "Zuletzt aktualisiert"
 
@@ -1471,34 +1485,34 @@ msgstr ""
 #: templates/reviews/_flag_button.html:13 templates/reviews/takedown.html:65
 #: tmp/bead6_desc.txt:372
 msgid "Reason"
-msgstr ""
+msgstr "Grund"
 
 #: templates/reviews/_flag_button.html:14 templates/reviews/takedown.html:69
 #: tmp/bead6_desc.txt:373
 msgid "Spam"
-msgstr ""
+msgstr "Spam"
 
 #: templates/reviews/_flag_button.html:15 tmp/bead6_desc.txt:374
 msgid "Inaccurate"
-msgstr ""
+msgstr "Unzutreffend"
 
 #: templates/reviews/_flag_button.html:16 tmp/bead6_desc.txt:375
 msgid "Harmful"
-msgstr ""
+msgstr "Schädlicher Inhalt"
 
 #: templates/reviews/_flag_button.html:17 templates/reviews/takedown.html:72
 #: tmp/bead6_desc.txt:376
 msgid "Safety concern"
-msgstr ""
+msgstr "Sicherheitsbedenken"
 
 #: templates/reviews/_flag_button.html:18 templates/reviews/takedown.html:73
 #: tmp/bead6_desc.txt:377
 msgid "Other"
-msgstr ""
+msgstr "Sonstiges"
 
 #: templates/reviews/_flag_button.html:20 tmp/bead6_desc.txt:379
 msgid "Report"
-msgstr ""
+msgstr "Melden"
 
 #: templates/reviews/_organizer_rating_display.html:11 tmp/bead5_desc.txt:260
 msgid "Your review has been saved."
@@ -1545,7 +1559,7 @@ msgstr ""
 #: templates/reviews/organizer_opt_out.html:18
 #: templates/reviews/takedown.html:18 tmp/bead4_desc.txt:92
 msgid "takedown form"
-msgstr ""
+msgstr "Meldeformular"
 
 #: templates/reviews/organizer_opt_out.html:19
 msgid "to request manual processing."
@@ -1576,17 +1590,19 @@ msgstr ""
 
 #: templates/reviews/takedown.html:6
 msgid "Report Content (DSA Takedown)"
-msgstr ""
+msgstr "Inhalt melden (DSA-Takedown)"
 
 #: templates/reviews/takedown.html:10
 msgid ""
 "Your report has been submitted. We aim to review takedown requests within 72 "
 "hours."
 msgstr ""
+"Ihre Meldung wurde eingereicht. Wir bemühen uns, Takedown-Anfragen innerhalb "
+"von 72 Stunden zu bearbeiten."
 
 #: templates/reviews/takedown.html:17
 msgid "You can also contact us directly:"
-msgstr ""
+msgstr "Sie können uns auch direkt kontaktieren:"
 
 #: templates/reviews/takedown.html:39
 msgid ""
@@ -1594,64 +1610,74 @@ msgid ""
 "class='link'>Terms of Service</a> or applicable law. Your report will be "
 "reviewed within 72 hours."
 msgstr ""
+"Verwenden Sie dieses Formular, um Inhalte zu melden, die gegen unsere "
+"<a href='/terms/' class='link'>Nutzungsbedingungen</a> oder geltendes Recht "
+"verstoßen. Ihre Meldung wird innerhalb von 72 Stunden geprüft."
 
 #: templates/reviews/takedown.html:43
 msgid ""
 "Warning: Knowingly false reports may be rejected and escalated per DSA Art. "
 "16(6)."
 msgstr ""
+"Warnung: Wissentlich falsche Meldungen können abgelehnt und gemäß DSA Art. "
+"16(6) eskaliert werden."
 
 #: templates/reviews/takedown.html:51
 msgid "URL of the content you are reporting"
-msgstr ""
+msgstr "URL des gemeldeten Inhalts"
 
 #: templates/reviews/takedown.html:68
 msgid "Illegal content — specify law (DSA Art. 16)"
-msgstr ""
+msgstr "Rechtswidriger Inhalt – Gesetz angeben (DSA Art. 16)"
 
 #: templates/reviews/takedown.html:70
 msgid "Inaccurate information"
-msgstr ""
+msgstr "Unzutreffende Informationen"
 
 #: templates/reviews/takedown.html:71
 msgid "Harmful content"
-msgstr ""
+msgstr "Schädlicher Inhalt"
 
 #: templates/reviews/takedown.html:79
 msgid ""
 "Which law or legal provision is violated? (required for illegal-content "
 "reports)"
 msgstr ""
+"Welches Gesetz oder welche Rechtsvorschrift wird verletzt? (Pflichtfeld bei "
+"Meldungen wegen rechtswidriger Inhalte)"
 
 #: templates/reviews/takedown.html:86
 msgid "e.g. NetzDG §1, GDPR Art. 17, StGB §86"
-msgstr ""
+msgstr "z. B. NetzDG §1, DSGVO Art. 17, StGB §86"
 
 #: templates/reviews/takedown.html:93
 msgid "Description"
-msgstr ""
+msgstr "Beschreibung"
 
 #: templates/reviews/takedown.html:100
 msgid "Please describe the issue..."
-msgstr ""
+msgstr "Bitte beschreiben Sie das Problem ..."
 
 #: templates/reviews/takedown.html:106
 msgid "Your email address (required for illegal-content reports)"
-msgstr ""
+msgstr "Ihre E-Mail-Adresse (Pflichtfeld bei Meldungen wegen rechtswidriger Inhalte)"
 
 #: templates/reviews/takedown.html:134
 msgid ""
 "Your contact details are processed to handle this report under Art. 6(1)(c) "
 "GDPR. See our <a href='/privacy/' class='link'>Privacy Policy</a>."
 msgstr ""
+"Ihre Kontaktdaten werden zur Bearbeitung dieser Meldung gemäß Art. 6(1)(c) "
+"DSGVO verarbeitet. Weitere Informationen finden Sie in unserer "
+"<a href='/privacy/' class='link'>Datenschutzerklärung</a>."
 
 #: templates/reviews/takedown.html:137
 msgid "Submit Report"
-msgstr ""
+msgstr "Meldung absenden"
 
 #: templates/reviews/takedown.html:141
 msgid "You can also contact us directly by email:"
-msgstr ""
+msgstr "Sie können uns auch direkt per E-Mail kontaktieren:"
 
 #: tmp/bead4_desc.txt:85
 msgid "Impressum / Legal Notice"
