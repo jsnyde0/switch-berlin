@@ -2,6 +2,7 @@ services:
   app:
     build: .
     image: kinky-bubbles-app
+    env_file: .env
     ports:
       - "8000:8000"
     depends_on:
@@ -10,6 +11,7 @@ services:
 
   qcluster:
     image: kinky-bubbles-app
+    env_file: .env
     entrypoint: ["python", "manage.py", "qcluster"]
     depends_on:
       app:
@@ -19,6 +21,7 @@ services:
 
   bot:
     image: kinky-bubbles-app
+    env_file: .env
     entrypoint: ["python", "manage.py", "run_bot"]
     depends_on:
       app:
