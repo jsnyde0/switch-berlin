@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     "django_q",
     "template_partials.apps.SimpleAppConfig",
     # local
-    "a_core",
+    "a_core.apps.ACoreConfig",
     "accounts",
     "pages",
     "organizers",
@@ -90,6 +90,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "a_core.context_processors.feature_flags",
+                "a_core.context_processors.legal_contact_processor",
             ],
             "loaders": [
                 (
@@ -202,3 +203,36 @@ TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
 LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="claude-opus-4-7")
 
 RATELIMIT_ENABLE = env.bool("RATELIMIT_ENABLE", default=True)
+
+# ---------------------------------------------------------------------------
+# Legal contact / Impressum settings (D3: ship structure now, fill at deploy)
+# ---------------------------------------------------------------------------
+# Required for public deployment (E006 blocks if empty when PUBLIC_READ_ENABLED=True).
+IMPRESSUM_NAME = env.str("IMPRESSUM_NAME", default="")
+IMPRESSUM_ADDRESS = env.str("IMPRESSUM_ADDRESS", default="")
+IMPRESSUM_EMAIL = env.str("IMPRESSUM_EMAIL", default="")
+
+# Optional — second contact channel (renders "contact form" fallback when empty).
+IMPRESSUM_PHONE = env.str("IMPRESSUM_PHONE", default="")
+
+# §18 MStV responsible person (defaults to IMPRESSUM_* if unset).
+RESPONSIBLE_PERSON_NAME = (
+    env.str("RESPONSIBLE_PERSON_NAME", default="") or IMPRESSUM_NAME
+)
+RESPONSIBLE_PERSON_ADDRESS = (
+    env.str("RESPONSIBLE_PERSON_ADDRESS", default="") or IMPRESSUM_ADDRESS
+)
+
+# DSA Art. 11/12 contact point (defaults to IMPRESSUM_EMAIL if unset).
+DSA_CONTACT_EMAIL = env.str("DSA_CONTACT_EMAIL", default="") or IMPRESSUM_EMAIL
+
+# Assembled dict — used by context processor and templates.
+LEGAL_CONTACT = {
+    "name": IMPRESSUM_NAME,
+    "address": IMPRESSUM_ADDRESS,
+    "email": IMPRESSUM_EMAIL,
+    "phone": IMPRESSUM_PHONE,
+    "responsible_name": RESPONSIBLE_PERSON_NAME,
+    "responsible_address": RESPONSIBLE_PERSON_ADDRESS,
+    "dsa_email": DSA_CONTACT_EMAIL,
+}
