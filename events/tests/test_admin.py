@@ -113,6 +113,36 @@ class EventAdminTest(TestCase):
         self.assertIsNotNone(self.organizer.consent_recorded_at)
         self.assertEqual(self.organizer.consent_method, "telegram_forward_implied")
 
+    def test_publish_selected_action_publishes_draft_events(self):
+        """publish_selected action sets draft events to published status."""
+        event = self._make_event(status="draft", slug="draft-to-publish-admin")
+        self.client.post(
+            "/admin/events/event/",
+            data={
+                "action": "publish_selected",
+                "_selected_action": [str(event.pk)],
+                "select_across": "0",
+                "index": "0",
+            },
+        )
+        event.refresh_from_db()
+        self.assertEqual(event.status, "published")
+
+    def test_publish_selected_action_skips_non_draft_events(self):
+        """publish_selected action does not change non-draft events."""
+        event = self._make_event(status="review", slug="review-event-admin")
+        self.client.post(
+            "/admin/events/event/",
+            data={
+                "action": "publish_selected",
+                "_selected_action": [str(event.pk)],
+                "select_across": "0",
+                "index": "0",
+            },
+        )
+        event.refresh_from_db()
+        self.assertEqual(event.status, "review")
+
     def test_consent_not_overwritten_on_second_publish(self):
         original_time = timezone.now() - timedelta(days=10)
         self.organizer.consent_recorded_at = original_time

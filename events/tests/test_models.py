@@ -67,3 +67,34 @@ class EventNewSchemaFieldsTest(TestCase):
     def test_registration_email_defaults_to_empty_string(self):
         event = Event()
         self.assertEqual(event.registration_email, "")
+
+
+class EventCapacityRegistrationFieldsTest(TestCase):
+    """Event has capacity, registration_required, registration_url optional fields."""
+
+    def test_capacity_field_exists_and_is_nullable(self):
+        f = Event._meta.get_field("capacity")
+        self.assertTrue(f.null)
+        self.assertTrue(f.blank)
+
+    def test_capacity_defaults_to_none(self):
+        event = Event()
+        self.assertIsNone(event.capacity)
+
+    def test_registration_required_field_exists(self):
+        f = Event._meta.get_field("registration_required")
+        self.assertFalse(f.null)
+        self.assertFalse(f.blank)
+
+    def test_registration_required_defaults_to_false(self):
+        event = Event()
+        self.assertFalse(event.registration_required)
+
+    def test_registration_url_field_exists_and_is_blank(self):
+        f = Event._meta.get_field("registration_url")
+        self.assertTrue(f.blank)
+        self.assertFalse(f.null)
+
+    def test_registration_url_defaults_to_empty_string(self):
+        event = Event()
+        self.assertEqual(event.registration_url, "")

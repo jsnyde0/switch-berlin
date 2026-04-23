@@ -85,6 +85,22 @@ class Event(models.Model):
         help_text="Primary language(s) of the event",
     )
 
+    # Capacity
+    capacity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Max attendees; null = no cap / drop-in",
+    )
+
+    # Registration
+    registration_required = models.BooleanField(
+        default=False,
+    )
+    registration_url = models.URLField(
+        blank=True,
+        help_text="External registration page distinct from tickets_url",
+    )
+
     # External
     external_url = models.URLField(blank=True)
     tickets_url = models.URLField(blank=True)

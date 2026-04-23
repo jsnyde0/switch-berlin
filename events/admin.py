@@ -28,7 +28,7 @@ class EventImageInline(admin.TabularInline):
 class EventAdmin(admin.ModelAdmin):
     list_display = ["title", "organizer", "start", "status"]
     list_filter = ["status", "start", "tags", "organizer"]
-    search_fields = ["title", "description"]
+    search_fields = ["title", "description", "organizer__name"]
     inlines = [EventImageInline]
     fieldsets = [
         (
@@ -68,6 +68,9 @@ class EventAdmin(admin.ModelAdmin):
                     "external_url",
                     "tickets_url",
                     "registration_email",
+                    "registration_required",
+                    "registration_url",
+                    "capacity",
                     "language",
                 ]
             },
@@ -110,7 +113,7 @@ class EventAdmin(admin.ModelAdmin):
         "rating_count",
         "avg_rating",
     ]
-    actions = ["publish_events", "reject_events", "archive_events"]
+    actions = ["publish_events", "publish_selected", "reject_events", "archive_events"]
 
     def raw_message_preview(self, obj):
         if not obj.raw_message:
@@ -205,6 +208,11 @@ class EventAdmin(admin.ModelAdmin):
         # Capture GDPR consent for each organizer on their first event publish.
         for organizer in organizers_to_notify:
             _capture_organizer_consent(organizer, request.user)
+
+    @admin.action(description=_("Publish selected (draft only)"))
+    def publish_selected(self, request, queryset):
+        count = queryset.filter(status="draft").update(status="published")
+        self.message_user(request, _("%(count)d event(s) published.") % {"count": count})
 
     @admin.action(description=_("Reject selected events"))
     def reject_events(self, request, queryset):
