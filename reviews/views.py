@@ -16,6 +16,7 @@ from accounts.decorators import approved_required
 from events.models import Attendance, Event
 from organizers.models import Organizer
 
+from .forms import TakedownForm
 from .models import Flag, Review
 
 MIN_RATINGS_FOR_DISPLAY = 3
@@ -252,15 +253,26 @@ def takedown_view(request):
             )
 
         event_url = request.POST.get("event_url", "").strip()
-        reason = request.POST.get("reason", "other")
-        body = request.POST.get("body", "").strip()
-        contact_email = request.POST.get("contact_email", "").strip()
+        form = TakedownForm(data=request.POST)
+
+        if not form.is_valid():
+            return render(
+                request,
+                "reviews/takedown.html",
+                {"form": form, "values": request.POST},
+            )
+
+        reason = form.cleaned_data["reason"]
+        body = form.cleaned_data.get("body", "")
+        contact_email = form.cleaned_data.get("contact_email", "")
+        law_reference = form.cleaned_data.get("law_reference", "")
+        good_faith_confirmed = form.cleaned_data.get("good_faith_confirmed", False)
 
         if not event_url and not body:
             return render(
                 request,
                 "reviews/takedown.html",
-                {"error": "Please describe what you are reporting."},
+                {"form": form, "error": "Please describe what you are reporting."},
             )
 
         # Resolve URL to DB entity
@@ -288,23 +300,20 @@ def takedown_view(request):
                     request,
                     "reviews/takedown.html",
                     {
+                        "form": form,
                         "error": (
                             "We could not identify the content at that URL. "
                             "Please check the URL or contact us directly "
                             "at the email below."
                         ),
-                        "values": {
-                            "event_url": event_url,
-                            "reason": reason,
-                            "body": body,
-                            "contact_email": contact_email,
-                        },
+                        "values": request.POST,
                     },
                 )
             return render(
                 request,
                 "reviews/takedown.html",
                 {
+                    "form": form,
                     "error": "Please provide the URL of the content you are reporting.",
                 },
             )
@@ -316,6 +325,8 @@ def takedown_view(request):
             reason=reason,
             body=f"URL: {event_url}\n\n{body}" if body else f"URL: {event_url}",
             contact_email=contact_email,
+            law_reference=law_reference,
+            good_faith_confirmed=good_faith_confirmed,
         )
         from django_q.tasks import async_task
 
@@ -328,7 +339,8 @@ def takedown_view(request):
         )
         return render(request, "reviews/takedown.html", {"submitted": True})
 
-    return render(request, "reviews/takedown.html", {})
+    form = TakedownForm()
+    return render(request, "reviews/takedown.html", {"form": form})
 
 
 @ratelimit(key="ip", rate="3/h", method="POST", block=False)

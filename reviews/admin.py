@@ -52,7 +52,14 @@ class FlagAdmin(admin.ModelAdmin):
         "reporter", "organizer", "event", "reason", "resolved", "created_at"
     ]
     list_filter = ["resolved", "reason"]
-    readonly_fields = ["created_at"]
+    readonly_fields = ["created_at", "good_faith_confirmed"]
+    fields = [
+        "reporter", "organizer", "event", "review",
+        "reason", "body", "law_reference", "contact_email",
+        "good_faith_confirmed",
+        "resolved", "resolution_notes", "resolved_by",
+        "created_at",
+    ]
     change_form_template = "admin/reviews/flag/change_form.html"
 
     def get_urls(self):

@@ -78,6 +78,7 @@ class Flag(models.Model):
     reason = models.CharField(
         max_length=30,
         choices=[
+            ("illegal", "Illegal content — specify law"),
             ("spam", "Spam"), ("inaccurate", "Inaccurate"),
             ("harmful", "Harmful"), ("safety", "Safety concern"),
             ("other", "Other"),
@@ -85,6 +86,8 @@ class Flag(models.Model):
     )
     body = models.TextField(blank=True)
     contact_email = models.EmailField(blank=True)
+    law_reference = models.CharField(max_length=200, blank=True)
+    good_faith_confirmed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     resolved = models.BooleanField(default=False)
     resolution_notes = models.TextField(blank=True)

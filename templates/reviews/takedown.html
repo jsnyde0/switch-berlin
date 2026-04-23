@@ -20,8 +20,27 @@
         </div>
       {% endif %}
 
+      {% if form.errors %}
+        <div class="alert alert-error mb-4">
+          <ul>
+            {% for field in form %}
+              {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+              {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
       <p class="mb-4 text-sm text-base-content/70">
-        {% trans "Use this form to report content that violates our terms of service or applicable law. Your report will be reviewed within 72 hours." %}
+        {% trans "Use this form to report content that violates our <a href='/terms/' class='link'>Terms of Service</a> or applicable law. Your report will be reviewed within 72 hours." %}
+      </p>
+
+      <p class="mb-4 text-sm text-warning font-semibold">
+        {% trans "Warning: Knowingly false reports may be rejected and escalated per DSA Art. 16(6)." %}
       </p>
 
       <form method="post" class="flex flex-col gap-4">
@@ -46,12 +65,27 @@
             <span class="label-text">{% trans "Reason" %}</span>
           </label>
           <select id="reason" name="reason" class="select select-bordered w-full">
+            <option value="illegal" {% if values.reason == "illegal" %}selected{% endif %}>{% trans "Illegal content — specify law (DSA Art. 16)" %}</option>
             <option value="spam" {% if values.reason == "spam" %}selected{% endif %}>{% trans "Spam" %}</option>
             <option value="inaccurate" {% if values.reason == "inaccurate" %}selected{% endif %}>{% trans "Inaccurate information" %}</option>
             <option value="harmful" {% if values.reason == "harmful" %}selected{% endif %}>{% trans "Harmful content" %}</option>
             <option value="safety" {% if values.reason == "safety" %}selected{% endif %}>{% trans "Safety concern" %}</option>
             <option value="other" {% if values.reason == "other" or not values.reason %}selected{% endif %}>{% trans "Other" %}</option>
           </select>
+        </div>
+
+        <div class="form-control">
+          <label class="label" for="law_reference">
+            <span class="label-text">{% trans "Which law or legal provision is violated? (required for illegal-content reports)" %}</span>
+          </label>
+          <input
+            type="text"
+            id="law_reference"
+            name="law_reference"
+            class="input input-bordered w-full"
+            placeholder="{% trans 'e.g. NetzDG §1, GDPR Art. 17, StGB §86' %}"
+            value="{{ values.law_reference|default:'' }}"
+          >
         </div>
 
         <div class="form-control">
@@ -69,7 +103,7 @@
 
         <div class="form-control">
           <label class="label" for="contact_email">
-            <span class="label-text">{% trans "Your email address (optional)" %}</span>
+            <span class="label-text">{% trans "Your email address (required for illegal-content reports)" %}</span>
           </label>
           <input
             type="email"
@@ -81,8 +115,32 @@
           >
         </div>
 
+        <div class="form-control">
+          <label class="label cursor-pointer gap-3 justify-start">
+            <input
+              type="checkbox"
+              id="good_faith_confirmed"
+              name="good_faith_confirmed"
+              class="checkbox"
+              {% if values.good_faith_confirmed %}checked{% endif %}
+            >
+            <span class="label-text">
+              {% trans "I confirm the information above is accurate to the best of my knowledge (DSA Art. 16(2))." %}
+            </span>
+          </label>
+        </div>
+
+        <p class="text-sm text-base-content/60">
+          {% trans "Your contact details are processed to handle this report under Art. 6(1)(c) GDPR. See our <a href='/privacy/' class='link'>Privacy Policy</a>." %}
+        </p>
+
         <button type="submit" class="btn btn-primary">{% trans "Submit Report" %}</button>
       </form>
+
+      <p class="mt-6 text-sm text-base-content/60">
+        {% trans "You can also contact us directly by email:" %}
+        <a href="mailto:takedown@kinkybubbles.de" class="link">takedown@kinkybubbles.de</a>
+      </p>
     {% endif %}
   </div>
 {% endblock content %}
