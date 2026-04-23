@@ -1,4 +1,16 @@
 services:
+  # One-shot bootstrap: runs migrate + createsuperuser + collectstatic once on
+  # 'docker compose up'. Skipped automatically on 'docker compose run --rm app'
+  # because 'app' does not depend on this service.
+  init:
+    build: .
+    image: kinky-bubbles-app
+    env_file: .env
+    entrypoint: ["/app/bin/init.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
   app:
     build: .
     image: kinky-bubbles-app
@@ -14,20 +26,20 @@ services:
     env_file: .env
     entrypoint: ["python", "manage.py", "qcluster"]
     depends_on:
-      app:
-        condition: service_started
       db:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
 
   bot:
     image: kinky-bubbles-app
     env_file: .env
     entrypoint: ["python", "manage.py", "run_bot"]
     depends_on:
-      app:
-        condition: service_started
       db:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
 
