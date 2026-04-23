@@ -30,6 +30,75 @@ class EventAdmin(admin.ModelAdmin):
     list_filter = ["status", "start", "tags", "organizer"]
     search_fields = ["title", "description"]
     inlines = [EventImageInline]
+    fieldsets = [
+        (
+            None,
+            {
+                "fields": [
+                    "title",
+                    "slug",
+                    "organizer",
+                    "venue",
+                    "tags",
+                    "suggested_tags_display",
+                    "description",
+                    "status",
+                    "start",
+                    "end",
+                ]
+            },
+        ),
+        (
+            _("Price"),
+            {
+                "fields": [
+                    "is_free",
+                    "sliding_scale",
+                    "price_min_cents",
+                    "price_max_cents",
+                    "currency",
+                    "price_description",
+                ]
+            },
+        ),
+        (
+            _("Registration & Links"),
+            {
+                "fields": [
+                    "external_url",
+                    "tickets_url",
+                    "registration_email",
+                    "language",
+                ]
+            },
+        ),
+        (
+            _("Visibility & Stats"),
+            {
+                "classes": ["collapse"],
+                "fields": [
+                    "hidden",
+                    "published_at",
+                    "attendance_count",
+                    "interested_count",
+                    "rating_count",
+                    "avg_rating",
+                ],
+            },
+        ),
+        (
+            _("Provenance"),
+            {
+                "classes": ["collapse"],
+                "fields": [
+                    "raw_message",
+                    "raw_message_preview",
+                    "created_at",
+                    "updated_at",
+                ],
+            },
+        ),
+    ]
     readonly_fields = [
         "created_at",
         "updated_at",

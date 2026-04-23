@@ -65,9 +65,34 @@ class Event(models.Model):
     is_free = models.BooleanField(default=False)
     sliding_scale = models.BooleanField(default=False)
 
+    # Price (human-readable tiers, supplementing price_min/max_cents)
+    price_description = models.TextField(
+        blank=True,
+        help_text=(
+            'Free-form price tiers, e.g. "Supporter 250€ / Normal 200€ / Social 150€"'
+        ),
+    )
+
+    # Language
+    language = models.CharField(
+        max_length=10,
+        blank=True,
+        choices=[
+            ("de", "Deutsch"),
+            ("en", "English"),
+            ("bilingual", "DE+EN"),
+        ],
+        help_text="Primary language(s) of the event",
+    )
+
     # External
     external_url = models.URLField(blank=True)
     tickets_url = models.URLField(blank=True)
+    # Registration by email (alternative to tickets_url)
+    registration_email = models.EmailField(
+        blank=True,
+        help_text="If organizers take registration by email rather than ticket link",
+    )
 
     # Lifecycle
     status = models.CharField(
