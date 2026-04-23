@@ -1,8 +1,11 @@
 from allauth.account.views import SignupView
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.http import HttpResponse
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 from django_ratelimit.core import is_ratelimited
 
 from events.models import Attendance
@@ -71,3 +74,34 @@ def me_view(request):
             "past": past,
         },
     )
+
+
+@login_required
+@require_POST
+def art9_consent_view(request):
+    """Set Art. 9(2)(a) consent timestamp. Idempotent — safe to POST twice.
+
+    Returns an HTMX-compatible 200 response with HX-Redirect header so the
+    client reloads to the original URL after consent is given.
+    """
+    if not request.user.art9_consent_given_at:
+        request.user.art9_consent_given_at = timezone.now()
+        request.user.save(update_fields=["art9_consent_given_at"])
+    next_url = request.POST.get("next", "/")
+    response = HttpResponse()
+    response["HX-Redirect"] = next_url
+    return response
+
+
+@login_required
+@require_POST
+def art9_consent_withdraw_view(request):
+    """Withdraw Art. 9 consent: clears timestamp AND deletes all Attendance rows."""
+    from accounts.consent import revoke_art9_consent
+
+    revoke_art9_consent(request.user)
+    messages.success(
+        request,
+        _("Attendance consent withdrawn. All attendance records deleted."),
+    )
+    return redirect("me")

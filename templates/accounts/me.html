@@ -7,6 +7,25 @@
 <div class="max-w-2xl mx-auto flex flex-col gap-8">
   <h1 class="text-2xl font-bold">{% trans "My Profile" %}</h1>
 
+  {# ── Attendance Consent (Art. 9 GDPR) ── #}
+  {% if user.art9_consent_given_at %}
+  <section class="border border-warning rounded-box p-4">
+    <h2 class="text-lg font-semibold mb-2">{% trans "Attendance Consent" %}</h2>
+    <p class="text-sm text-base-content/70 mb-4">
+      {% blocktrans trimmed with date=user.art9_consent_given_at|date:"Y-m-d" %}
+        You gave consent to store your event attendance (GDPR Art. 9) on {{ date }}.
+        Withdrawing consent permanently deletes all attendance records.
+      {% endblocktrans %}
+    </p>
+    <form method="post" action="{% url 'art9-consent-withdraw' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-warning btn-outline">
+        {% trans "Withdraw attendance consent (deletes all attendance records)" %}
+      </button>
+    </form>
+  </section>
+  {% endif %}
+
   {# ── Followed Organizers ── #}
   <section>
     <h2 class="text-xl font-semibold mb-4">{% trans "Followed Organizers" %}</h2>

@@ -16,6 +16,15 @@ class User(AbstractUser):
         on_delete=models.SET_NULL,
         related_name="approved_users",
     )
+    art9_consent_given_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Timestamp when the user gave Art. 9(2)(a) GDPR consent for "
+            "storing attendance data (kink/queer event attendance may reveal "
+            "sexual orientation). Null = no consent; attendance writes blocked."
+        ),
+    )
 
     class Meta(AbstractUser.Meta):
         verbose_name = _("user")

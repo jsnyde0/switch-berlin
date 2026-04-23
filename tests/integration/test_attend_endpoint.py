@@ -83,31 +83,41 @@ def draft_event(db, approved_organizer):
 
 @pytest.fixture
 def staff_user(db):
-    """Staff user that can pass the login wall."""
+    """Staff user that can pass the login wall, with Art. 9 consent."""
     from django.contrib.auth import get_user_model
+    from django.utils import timezone
 
     User = get_user_model()
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="attend_staff",
         email="attend_staff@example.com",
         password="x",
         is_staff=True,
     )
+    # Art. 9 consent required for attend gate
+    user.art9_consent_given_at = timezone.now()
+    user.save(update_fields=["art9_consent_given_at"])
+    return user
 
 
 @pytest.fixture
 def approved_user(db):
-    """Approved non-staff user."""
+    """Approved non-staff user with Art. 9 consent."""
     from django.contrib.auth import get_user_model
+    from django.utils import timezone
 
     User = get_user_model()
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="attend_approved",
         email="attend_approved@example.com",
         password="x",
         is_staff=False,
         is_approved=True,
     )
+    # Art. 9 consent required for attend gate
+    user.art9_consent_given_at = timezone.now()
+    user.save(update_fields=["art9_consent_given_at"])
+    return user
 
 
 # ---------------------------------------------------------------------------

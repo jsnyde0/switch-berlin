@@ -332,6 +332,11 @@ def event_detail(request, org_slug, event_slug):
 @login_required
 @approved_required
 def event_attend(request, org_slug, event_slug):
+    # Art. 9(2)(a) GDPR gate — attendance on kink/queer events may reveal
+    # sexual orientation. Explicit consent is required before storing any row.
+    if not request.user.art9_consent_given_at:
+        return render(request, "events/_consent_required.html", {}, status=200)
+
     event = get_object_or_404(
         Event.objects.visible(),
         organizer__slug=org_slug,
