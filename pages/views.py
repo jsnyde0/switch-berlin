@@ -59,7 +59,11 @@ def impressum_view(request):
 
 
 def privacy_view(request):
-    return render(request, "pages/privacy.html", {})
+    return render(
+        request,
+        "pages/privacy.html",
+        {"privacy_last_updated": "2026-04-22"},
+    )
 
 
 def terms_view(request):

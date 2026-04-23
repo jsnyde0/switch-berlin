@@ -317,3 +317,192 @@ def test_terms_de_renders_german_key_phrases(client, public_read_on):
     assert "Salvatorische Klausel".encode() in response.content
     # Widerrufsrecht N/A must be stated in German legal prose
     assert "unentgeltlich".encode() in response.content
+
+
+# ===========================================================================
+# Privacy tests (kb-nyr)
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Group 7: HTTP smoke — /privacy/ under both PUBLIC_READ_ENABLED states
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_privacy_returns_200_public_read_on(client, public_read_on):
+    """Anonymous GET /privacy/ with PUBLIC_READ_ENABLED=True -> 200."""
+    response = client.get("/privacy/")
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_privacy_returns_200_public_read_off(client, public_read_off):
+    """Anonymous GET /privacy/ with PUBLIC_READ_ENABLED=False -> 200."""
+    response = client.get("/privacy/")
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Group 8: Required sections present (EN, default language)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_privacy_has_controller_identity(client, public_read_on):
+    """Privacy page must include controller identity block from legal_contact."""
+    response = client.get("/privacy/")
+    # The controller section renders legal_contact.name and legal_contact.email
+    assert b"Verantwortlicher" in response.content or b"Controller" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_art_6_1_b(client, public_read_on):
+    """Privacy page must reference Art. 6(1)(b) for account management."""
+    response = client.get("/privacy/")
+    assert b"Art. 6(1)(b)" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_art_9_2_a(client, public_read_on):
+    """Privacy page must reference Art. 9(2)(a) explicit consent for attendance data."""
+    response = client.get("/privacy/")
+    assert b"Art. 9(2)(a)" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_art_6_1_f(client, public_read_on):
+    """Privacy page must reference Art. 6(1)(f) legitimate interest."""
+    response = client.get("/privacy/")
+    assert b"Art. 6(1)(f)" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_art_7_3_withdrawal(client, public_read_on):
+    """Privacy page must reference Art. 7(3) consent withdrawal right."""
+    response = client.get("/privacy/")
+    assert b"Art. 7(3)" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_art_21_objection_for_organizers(client, public_read_on):
+    """Privacy page must include Art. 21 objection right for organizers."""
+    response = client.get("/privacy/")
+    assert b"Art. 21" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_blnbdi_complaint_authority(client, public_read_on):
+    """Privacy page must include BlnBDI supervisory authority complaint information."""
+    response = client.get("/privacy/")
+    assert b"BlnBDI" in response.content or b"datenschutz-berlin" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_hosting_provider(client, public_read_on):
+    """Privacy page must mention hosting provider (Hetzner or EU hosting)."""
+    response = client.get("/privacy/")
+    # Must mention either Hetzner specifically or some EU hosting reference
+    content_lower = response.content.lower()
+    assert b"hetzner" in content_lower or b"hosting" in content_lower
+
+
+@pytest.mark.django_db
+def test_privacy_has_llm_processor_with_scc_transfer(client, public_read_on):
+    """Privacy page must mention LLM processor with Art. 44ff SCC transfer statement."""
+    response = client.get("/privacy/")
+    # OpenAI or Anthropic must be mentioned
+    content = response.content
+    assert b"OpenAI" in content or b"Anthropic" in content
+    # SCC or Standard Contractual Clauses must be mentioned
+    assert (
+        b"SCC" in content
+        or b"Standard Contractual" in content
+        or b"Art. 44" in content
+    )
+
+
+@pytest.mark.django_db
+def test_privacy_has_retention_schedule(client, public_read_on):
+    """Privacy page must include a retention schedule covering key data categories."""
+    response = client.get("/privacy/")
+    content = response.content
+    # Must mention retention periods
+    assert b"90 days" in content or b"90 Tage" in content
+    assert b"30 days" in content or b"30 Tage" in content
+
+
+@pytest.mark.django_db
+def test_privacy_has_ttdsg_cookie_section(client, public_read_on):
+    """Privacy page must include TTDSG §25(2) age-gate cookie explanation."""
+    response = client.get("/privacy/")
+    assert b"TTDSG" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_juschg_minimum_age(client, public_read_on):
+    """Privacy page must include JuSchG 18+ minimum age clause."""
+    response = client.get("/privacy/")
+    assert b"JuSchG" in response.content
+    assert b"18" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_has_last_updated(client, public_read_on):
+    """Privacy page must display a 'Last updated' date."""
+    response = client.get("/privacy/")
+    assert (
+        b"Last updated" in response.content
+        or b"Zuletzt aktualisiert" in response.content
+    )
+
+
+@pytest.mark.django_db
+def test_privacy_has_automated_processing_disclosure(client, public_read_on):
+    """Privacy page must include Art. 13(2)(f) automated processing disclosure."""
+    response = client.get("/privacy/")
+    content = response.content
+    # LLM extraction must be disclosed
+    assert b"LLM" in content or b"language model" in content.lower()
+
+
+@pytest.mark.django_db
+def test_privacy_has_no_placeholder_brackets(client, public_read_on):
+    """Privacy page must NOT contain any placeholder brackets like [CONTACT EMAIL]."""
+    response = client.get("/privacy/")
+    assert b"[CONTACT" not in response.content
+    assert b"[MAINTAINER" not in response.content
+
+
+# ---------------------------------------------------------------------------
+# Group 9: German translation renders
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_privacy_de_renders_verantwortlicher(client, public_read_on):
+    """With LANGUAGE_CODE='de', Verantwortlicher (controller) appears in German."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/privacy/")
+    assert response.status_code == 200
+    assert b"Verantwortlicher" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_de_renders_berechtigtes_interesse(client, public_read_on):
+    """With LANGUAGE_CODE='de', Berechtigtes Interesse appears for organizer LIA."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/privacy/")
+    assert response.status_code == 200
+    assert b"Berechtigtes Interesse" in response.content
+
+
+@pytest.mark.django_db
+def test_privacy_de_renders_widerruf(client, public_read_on):
+    """With LANGUAGE_CODE='de', Widerruf (consent withdrawal) appears."""
+    with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = "de"
+        response = client.get("/privacy/")
+    assert response.status_code == 200
+    assert b"Widerruf" in response.content

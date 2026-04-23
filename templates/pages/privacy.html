@@ -5,93 +5,307 @@
 <article class="prose prose-sm max-w-2xl mx-auto">
   <h1>{% trans "Privacy Policy" %}</h1>
 
-  <h2>{% trans "What data we collect" %}</h2>
+  {# ------------------------------------------------------------------ #}
+  {# 1. Controller identity                                              #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Controller" %}</h2>
+  <p>
+    {% blocktrans trimmed %}
+      Verantwortlicher im Sinne der DSGVO / Controller under GDPR Art. 4(7):
+    {% endblocktrans %}
+  </p>
+  <address class="not-italic">
+    {{ legal_contact.name }}<br>
+    {{ legal_contact.address }}<br>
+    E-Mail: <a href="mailto:{{ legal_contact.email }}">{{ legal_contact.email }}</a>
+  </address>
+
+  {# ------------------------------------------------------------------ #}
+  {# 2. Per-purpose lawful basis table                                   #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Lawful basis for processing" %}</h2>
+  <p>{% trans "We process personal data only where a lawful basis under GDPR Art. 6 or Art. 9 applies:" %}</p>
+
+  <div class="overflow-x-auto">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Purpose" %}</th>
+          <th>{% trans "Legal basis" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{% trans "Account creation and login" %}</td>
+          <td>Art. 6(1)(b) — {% trans "performance of contract" %}</td>
+        </tr>
+        <tr>
+          <td>
+            {% trans "Attendance recording" %}
+            <br>
+            <small>
+              {% blocktrans trimmed %}
+                Attendance on kink/queer events may reveal sexual orientation.
+                Explicit consent is requested before the first attendance record is created.
+                You may withdraw consent at any time from your profile (<a href="/me/">/me/</a>);
+                withdrawal permanently deletes all attendance records.
+              {% endblocktrans %}
+            </small>
+          </td>
+          <td>Art. 9(2)(a) — {% trans "explicit consent" %}</td>
+        </tr>
+        <tr>
+          <td>
+            {% trans "Organizer event publishing" %}
+            <br>
+            <small>
+              {% blocktrans trimmed %}
+                Event listings sourced from public Telegram channels.
+                Berechtigtes Interesse: curating publicly circulated event announcements
+                for a community-serving, searchable directory.
+                See our <a href="/docs/compliance/organizer-lia.md">Legitimate Interests Assessment (LIA)</a>
+                for the full balancing test.
+              {% endblocktrans %}
+            </small>
+          </td>
+          <td>Art. 6(1)(f) — {% trans "legitimate interest" %} ({% trans "Berechtigtes Interesse" %})</td>
+        </tr>
+        <tr>
+          <td>{% trans "Flag and takedown reports" %}</td>
+          <td>Art. 6(1)(c) — {% trans "legal obligation (DSA compliance)" %}</td>
+        </tr>
+        <tr>
+          <td>{% trans "Email delivery (transactional)" %}</td>
+          <td>Art. 6(1)(b) — {% trans "necessary for the requested service" %}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {# ------------------------------------------------------------------ #}
+  {# 3. Art. 9 special-category data section                             #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Special-category data — attendance (Art. 9 GDPR)" %}</h2>
+  <p>
+    {% blocktrans trimmed %}
+      Attendance on kink and queer events constitutes special-category data under
+      Art. 9 GDPR because it may reveal your sexual orientation.
+      We process this data only with your explicit consent (Art. 9(2)(a)).
+      Consent is requested once, before your first attendance record is created.
+    {% endblocktrans %}
+  </p>
+  <p>
+    {% blocktrans trimmed %}
+      You may withdraw consent at any time from your profile page (<a href="/me/">/me/</a>).
+      Withdrawal is immediate and irreversible: all attendance records are permanently
+      deleted (Art. 17 erasure). Withdrawal does not affect your account or other data.
+    {% endblocktrans %}
+  </p>
+
+  {# ------------------------------------------------------------------ #}
+  {# 4. Recipients / processors                                           #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Recipients and processors (Art. 13(1)(e) GDPR)" %}</h2>
+  <p>{% trans "We share data with the following processors under appropriate data processing agreements (DPAs):" %}</p>
   <ul>
     <li>
-      <strong>{% trans "Events" %}</strong>:
-      {% trans "Event listings are publicly visible. We collect event title, date, time, location, and organizer information." %}
+      <strong>{% trans "Hosting" %}</strong> —
+      {% blocktrans trimmed %}
+        Hetzner Online GmbH, Gunzenhausen, Germany — server infrastructure.
+        EU-based; DPA in place. Your data is processed exclusively within the EU/EEA.
+      {% endblocktrans %}
     </li>
     <li>
-      <strong>{% trans "Organizer information" %}</strong>:
-      {% trans "Organizer names, contact details, and social media handles are collected with consent recorded at onboarding." %}
+      <strong>{% trans "Email (transactional)" %}</strong> —
+      {% trans "SMTP provider for transactional emails (account notifications). EU or SCC-covered transfer." %}
     </li>
     <li>
-      <strong>{% trans "User accounts" %}</strong>:
-      {% trans "We collect email addresses for account holders. Accounts are invite-only." %}
+      <strong>{% trans "LLM processing" %}</strong> —
+      {% blocktrans trimmed %}
+        OpenAI (OpenAI OpCo, LLC, USA) and / or Anthropic (Anthropic PBC, USA):
+        large language model (LLM) extraction of event data from Telegram messages.
+        These providers are based in the United States. Transfers are covered by
+        Standard Contractual Clauses (SCC) pursuant to Art. 44ff GDPR.
+        Only public event data (titles, dates, venues) is sent to LLM providers;
+        no user personal data is included.
+      {% endblocktrans %}
     </li>
     <li>
-      <strong>{% trans "Attendance" %}</strong>:
-      {% trans "Attendance records are linked to your account and used to provide your personal event history." %}
+      <strong>Telegram</strong> —
+      {% blocktrans trimmed %}
+        Telegram Messenger Inc.: ingestion channel for event announcements forwarded
+        by organizers. Telegram is an independent data controller for the source channels;
+        this platform acts as a recipient of forwarded public messages.
+      {% endblocktrans %}
+    </li>
+    <li>
+      <strong>MapLibre / OpenStreetMap</strong> —
+      {% blocktrans trimmed %}
+        OpenStreetMap Foundation (OSMF): map tile delivery for event location maps.
+        Your IP address is transmitted per map load under the
+        <a href="https://operations.osmfoundation.org/policies/tiles/">OSM Tile Usage Policy</a>.
+        MapLibre is an open-source rendering library; no data is shared with MapLibre itself.
+      {% endblocktrans %}
     </li>
   </ul>
 
-  <h2>{% trans "Lawful basis" %}</h2>
-  <ul>
-    <li>
-      <strong>{% trans "Events" %}</strong>:
-      {% trans "Legitimate interest — public event listings serve the community purpose of the platform." %}
-    </li>
-    <li>
-      <strong>{% trans "Organizer information" %}</strong>:
-      {% trans "Consent — organizers provide explicit consent when onboarding to the platform." %}
-    </li>
-    <li>
-      <strong>{% trans "User accounts" %}</strong>:
-      {% trans "Contract — email address is required to provide the service (account-based features)." %}
-    </li>
-    <li>
-      <strong>{% trans "Attendance" %}</strong>:
-      {% trans "Contract — attendance data is processed to provide your personal history within the service." %}
-    </li>
-  </ul>
+  {# ------------------------------------------------------------------ #}
+  {# 5. Retention schedule                                               #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Retention schedule (Aufbewahrungsdauer)" %}</h2>
 
-  <h2>{% trans "Data retention" %}</h2>
-  <ul>
-    <li>
-      {% trans "Raw ingestion messages are purged after 90 days." %}
-    </li>
-    <li>
-      {% trans "Account data is retained until you submit a deletion request." %}
-    </li>
-    <li>
-      {% trans "Event listings are retained indefinitely unless removed by an organizer opt-out request." %}
-    </li>
-  </ul>
+  <div class="overflow-x-auto">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Data category" %}</th>
+          <th>{% trans "Retention period" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{% trans "Attendance records" %}</td>
+          <td>{% trans "Until consent is withdrawn; deleted immediately on withdrawal (Art. 17)." %}</td>
+        </tr>
+        <tr>
+          <td>{% trans "Ratings and reviews" %}</td>
+          <td>{% trans "Until user account is deleted or the review is removed on request." %}</td>
+        </tr>
+        <tr>
+          <td>{% trans "Flag / takedown reports" %}</td>
+          <td>{% trans "3 years (DSA record-keeping obligation)." %}</td>
+        </tr>
+        <tr>
+          <td>RawMessage ({% trans "Telegram ingestion" %})</td>
+          <td>{% trans "90 days after the event date, then purged." %}</td>
+        </tr>
+        <tr>
+          <td>EmailFailure</td>
+          <td>{% trans "30 days, then purged." %}</td>
+        </tr>
+        <tr>
+          <td>{% trans "User accounts" %}</td>
+          <td>{% trans "Until account deletion is requested by the user or by an administrator." %}</td>
+        </tr>
+        <tr>
+          <td>{% trans "Session cookies" %}</td>
+          <td>{% trans "Session duration (browser close) or login expiry." %}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-  <h2>{% trans "Your rights (GDPR)" %}</h2>
+  {# ------------------------------------------------------------------ #}
+  {# 6. Data subject rights                                              #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Your rights (Betroffenenrechte)" %}</h2>
   <p>{% trans "Under GDPR, you have the following rights:" %}</p>
   <ul>
-    <li><strong>{% trans "Access" %}</strong>: {% trans "Request a copy of the data we hold about you." %}</li>
-    <li><strong>{% trans "Rectification" %}</strong>: {% trans "Request correction of inaccurate data." %}</li>
-    <li><strong>{% trans "Erasure" %}</strong>: {% trans "Request deletion of your data ('right to be forgotten')." %}</li>
-    <li><strong>{% trans "Restriction" %}</strong>: {% trans "Request we restrict processing of your data." %}</li>
-    <li><strong>{% trans "Portability" %}</strong>: {% trans "Request your data in a machine-readable format." %}</li>
-    <li><strong>{% trans "Objection" %}</strong>: {% trans "Object to processing based on legitimate interest." %}</li>
+    <li>
+      <strong>{% trans "Access" %}</strong> (Art. 15):
+      {% trans "Request a copy of the personal data we hold about you." %}
+    </li>
+    <li>
+      <strong>{% trans "Rectification" %}</strong> (Art. 16):
+      {% trans "Request correction of inaccurate or incomplete data." %}
+    </li>
+    <li>
+      <strong>{% trans "Erasure" %}</strong> (Art. 17):
+      {% trans "Request deletion of your data ('right to be forgotten')." %}
+    </li>
+    <li>
+      <strong>{% trans "Restriction" %}</strong> (Art. 18):
+      {% trans "Request we restrict processing of your data in certain circumstances." %}
+    </li>
+    <li>
+      <strong>{% trans "Portability" %}</strong> (Art. 20):
+      {% trans "Request your data in a structured, machine-readable format." %}
+    </li>
+    <li>
+      <strong>{% trans "Objection" %}</strong> (Art. 21):
+      {% blocktrans trimmed %}
+        Object to processing based on legitimate interest (Art. 6(1)(f)).
+        <strong>For organizers:</strong> you have the right to object at any time
+        to the inclusion of your event listings on this platform.
+        Submit a takedown request at <a href="/takedown/">/takedown/</a> — no login required.
+        Objections are processed within 72 hours.
+      {% endblocktrans %}
+    </li>
+    <li>
+      <strong>{% trans "Withdraw consent" %}</strong> (Art. 7(3)):
+      {% blocktrans trimmed %}
+        You may withdraw your Art. 9 attendance consent at any time via your profile page
+        (<a href="/me/">/me/</a>). Withdrawal does not affect the lawfulness of processing
+        carried out before withdrawal.
+      {% endblocktrans %}
+    </li>
   </ul>
   <p>
-    {% trans "To exercise your rights, contact us at" %} [CONTACT EMAIL].
+    {% trans "To exercise rights other than consent withdrawal and organizer objection, contact us at" %}
+    <a href="mailto:{{ legal_contact.email }}">{{ legal_contact.email }}</a>.
   </p>
 
-  <h2>{% trans "Cookie policy" %}</h2>
+  <h3>{% trans "Right to lodge a complaint" %}</h3>
   <p>
-    {% trans "We use only one persistent cookie: the age-gate cookie, which is strictly necessary under TTDSG §25(2) to comply with age-verification requirements. No tracking cookies are used." %}
+    {% blocktrans trimmed %}
+      You have the right to lodge a complaint with the competent supervisory authority (BlnBDI):
+    {% endblocktrans %}
   </p>
+  <address class="not-italic">
+    Berliner Beauftragte für Datenschutz und Informationsfreiheit (BlnBDI)<br>
+    Alt-Moabit 59–61, 10555 Berlin<br>
+    E-Mail: <a href="mailto:mailbox@datenschutz-berlin.de">mailbox@datenschutz-berlin.de</a><br>
+    Tel: +49 30 13889-0<br>
+    <a href="https://www.datenschutz-berlin.de">https://www.datenschutz-berlin.de</a>
+  </address>
+
+  {# ------------------------------------------------------------------ #}
+  {# 7. Automated processing disclosure (Art. 13(2)(f))                 #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Automated processing (Art. 13(2)(f) GDPR)" %}</h2>
   <p>
-    {% trans "No cookie consent banner is required because we use only strictly necessary cookies." %}
+    {% blocktrans trimmed %}
+      Event data is extracted from Telegram messages using a large language model (LLM).
+      This process is used only for structuring publicly available event information
+      and does not make legally significant decisions about users.
+      A human reviewer approves all published event listings before they are displayed.
+    {% endblocktrans %}
+  </p>
+  <p>{% trans "No automated decision-making with legal effect (Art. 22 GDPR) is applied to users." %}</p>
+
+  {# ------------------------------------------------------------------ #}
+  {# 8. TTDSG §25(2) cookie explanation                                  #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Cookies (TTDSG §25)" %}</h2>
+  <p>
+    {% blocktrans trimmed %}
+      This platform uses a single session cookie for the age gate.
+      The age-gate cookie is strictly necessary to provide the service you have explicitly
+      requested — 18+ content access (TTDSG §25(2) Nr. 2).
+      No consent banner is required for this cookie.
+      No tracking, analytics, or advertising cookies are used.
+    {% endblocktrans %}
   </p>
 
-  <h2>{% trans "Map provider" %}</h2>
+  {# ------------------------------------------------------------------ #}
+  {# 9. Minimum age clause                                               #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Minimum age (JuSchG)" %}</h2>
   <p>
-    {% trans "We use MapLibre with OpenStreetMap tiles for event location maps. MapLibre is an open-source map rendering library. OpenStreetMap is a community-maintained open geographic database. No Google Maps or other proprietary map services are used." %}
+    {% blocktrans trimmed %}
+      This platform is restricted to users aged 18 and over (JuSchG §§ 4, 5).
+      By passing the age gate, you confirm you are at least 18 years old.
+      We do not knowingly collect personal data from persons under 18.
+      If we become aware that a minor has registered, the account will be suspended immediately.
+    {% endblocktrans %}
   </p>
 
-  <h2>{% trans "Contact" %}</h2>
-  <p>
-    {% trans "For data requests or privacy questions, contact" %} [CONTACT EMAIL].
+  {# ------------------------------------------------------------------ #}
+  {# 10. Last updated                                                    #}
+  {# ------------------------------------------------------------------ #}
+  <p class="text-base-content/60 text-sm mt-8">
+    {% trans "Last updated" %}: {{ privacy_last_updated }}
   </p>
-  <p>
-    {% trans "For content removal requests, use our" %}
-    <a href="/takedown/">{% trans "takedown form" %}</a>.
-  </p>
+
 </article>
 {% endblock content %}
