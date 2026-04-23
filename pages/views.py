@@ -63,4 +63,8 @@ def privacy_view(request):
 
 
 def terms_view(request):
-    return render(request, "pages/terms.html", {})
+    return render(
+        request,
+        "pages/terms.html",
+        {"terms_last_updated": "2026-04-22"},
+    )

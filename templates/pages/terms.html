@@ -5,6 +5,29 @@
 <article class="prose prose-sm max-w-2xl mx-auto">
   <h1>{% trans "Terms of Use" %}</h1>
 
+  {# DSA Art. 12 contact point #}
+  <p>
+    {% blocktrans with email=legal_contact.dsa_email %}
+    Contact / Kontaktstelle (DSA Art. 12): {{ email }}, Berlin.
+    {% endblocktrans %}
+    <a href="/impressum/">{% trans "Full operator identity (Impressum)" %}</a>
+  </p>
+
+  <p><em>{% trans "Last updated" %}: {{ terms_last_updated }}</em></p>
+
+  {# Section 1: Age restriction — JuSchG #}
+  <h2>{% trans "Age restriction (JuSchG)" %}</h2>
+  <p>
+    {% blocktrans %}
+    This platform contains adult-oriented content (kink and queer-adjacent events).
+    Access requires self-declaration of age 18+ via the age gate. Use by minors is
+    prohibited (JuSchG §§ 4, 5 / JMStV). No age-verification mechanism replaces this
+    self-declaration; the platform relies on the age-gate cookie to prevent accidental
+    access by persons under 18.
+    {% endblocktrans %}
+  </p>
+
+  {# Section 2: User obligations #}
   <h2>{% trans "User obligations" %}</h2>
   <ul>
     <li>
@@ -21,6 +44,7 @@
     </li>
   </ul>
 
+  {# Section 3: Content policy #}
   <h2>{% trans "Content policy" %}</h2>
   <p>
     {% trans "Kinky Bubbles is a platform for queer, kinky, and conscious events, primarily focused on Berlin. We welcome:" %}
@@ -35,24 +59,80 @@
     {% trans "We do not list events that promote exploitation, lack informed consent, or violate applicable law." %}
   </p>
 
-  <h2>{% trans "Takedown process" %}</h2>
+  {# Section 4: Content moderation — DSA Art. 14 #}
+  <h2>{% trans "Content moderation (DSA Art. 14)" %}</h2>
   <p>
-    {% trans "To report content that violates these terms, use our" %}
-    <a href="/takedown/">{% trans "takedown form" %}</a>.
-    {% trans "We aim to review takedown requests within 72 hours." %}
+    {% blocktrans %}
+    Where content is found to violate these Terms or applicable law, the platform
+    maintainer may take the following actions: hide the content from public view,
+    remove it permanently, suspend the responsible account, or de-list the associated
+    event or organizer.
+    {% endblocktrans %}
+  </p>
+  <p>
+    {% blocktrans %}
+    Moderation decisions are made by the platform maintainer. We aim to review
+    substantiated notices best-effort within 72 hours of receipt.
+    {% endblocktrans %}
   </p>
 
-  <h2>{% trans "Disclaimer" %}</h2>
+  {# Section 5: Appeal path — DSA Art. 20 #}
+  <h2>{% trans "Appeal of moderation decisions (DSA Art. 20)" %}</h2>
   <p>
-    {% trans "Kinky Bubbles is a community-curated platform. Event information is provided by organizers and the community. The operator does not verify, endorse, or guarantee the accuracy of any event listings." %}
-  </p>
-  <p>
-    {% trans "Attendance at any listed event is at your own risk. The operator is not responsible for any loss, injury, or damage arising from attendance at events listed on this platform." %}
+    {% blocktrans %}
+    To appeal a moderation decision, reply to the moderation notification email within
+    14 days of receiving it. Include your reasons for appeal. The maintainer will review
+    the appeal and respond within a reasonable time.
+    {% endblocktrans %}
   </p>
 
+  {# Section 6: User-generated content #}
+  <h2>{% trans "User-generated content" %}</h2>
+  <p>
+    {% blocktrans %}
+    Ratings and flags are user-generated content. By submitting a rating or flag,
+    you warrant that your submission is made in good faith and is accurate to the
+    best of your knowledge. The platform does not endorse user-generated content
+    and will remove content upon substantiated notice.
+    {% endblocktrans %}
+  </p>
+
+  {# Section 7: Governing law and jurisdiction #}
+  <h2>{% trans "Governing law and jurisdiction" %}</h2>
+  <p>
+    {% blocktrans %}
+    German law applies to these Terms and any disputes arising from use of this
+    platform. For disputes with non-consumers, the exclusive place of jurisdiction
+    is Berlin.
+    {% endblocktrans %}
+  </p>
+
+  {# Section 8: No paid product — Widerrufsrecht N/A #}
+  <h2>{% trans "Right of withdrawal" %}</h2>
+  <p>
+    {% blocktrans %}
+    This platform provides a free service. No contract for a paid product is
+    concluded. Accordingly, no right of withdrawal (Widerrufsrecht) arises under
+    § 312g BGB.
+    {% endblocktrans %}
+  </p>
+
+  {# Section 9: Severability + termination #}
+  <h2>{% trans "Severability and termination" %}</h2>
+  <p>
+    {% blocktrans %}
+    If any provision of these Terms is found to be invalid or unenforceable, the
+    remaining provisions shall continue in full force and effect. Either party may
+    terminate use of this platform at any time. Upon termination, existing data will
+    be handled in accordance with our Privacy Policy.
+    {% endblocktrans %}
+  </p>
+
+  {# Changes to terms #}
   <h2>{% trans "Changes to these terms" %}</h2>
   <p>
     {% trans "We may update these terms from time to time. Continued use of the platform constitutes acceptance of any updated terms." %}
   </p>
+
 </article>
 {% endblock content %}

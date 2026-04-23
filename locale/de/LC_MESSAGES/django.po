@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-23 08:36+0200\n"
+"POT-Creation-Date: 2026-04-23 08:45+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -643,7 +643,7 @@ msgstr ""
 "Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren "
 "vor einer Verbraucherschlichtungsstelle teilzunehmen."
 
-#: templates/pages/impressum.html:70 templates/pages/terms.html:45
+#: templates/pages/impressum.html:70
 msgid "Disclaimer"
 msgstr "Haftungsausschluss"
 
@@ -667,12 +667,12 @@ msgstr ""
 "diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8–10 DDG "
 "sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder "
 "gespeicherte fremde Informationen zu überwachen oder nach Umständen zu "
-"forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur "
-"Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen "
-"Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch "
-"erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. "
-"Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese "
-"Inhalte umgehend entfernen."
+"forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen "
+"zur Entfernung oder Sperrung der Nutzung von Informationen nach den "
+"allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung "
+"ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten "
+"Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden "
+"Rechtsverletzungen werden wir diese Inhalte umgehend entfernen."
 
 #: templates/pages/impressum.html:87
 msgid "Liability for links"
@@ -721,13 +721,13 @@ msgstr ""
 "unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, "
 "Verbreitung und jede Art der Verwertung außerhalb der Grenzen des "
 "Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors "
-"bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, "
-"nicht kommerziellen Gebrauch gestattet. Von Nutzer:innen und "
-"Veranstalter:innen eingestellte Inhalte (Veranstaltungsbeschreibungen, Bilder, "
-"Bewertungen) verbleiben im geistigen Eigentum der jeweiligen Nutzer:innen bzw. "
-"Veranstalter:innen. Mit dem Einstellen von Inhalten räumen Nutzer:innen der "
-"Plattform eine nicht-ausschließliche, unentgeltliche Lizenz zur Darstellung "
-"dieser Inhalte im Rahmen des Dienstes ein."
+"bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den "
+"privaten, nicht kommerziellen Gebrauch gestattet. Von Nutzer:innen und "
+"Veranstalter:innen eingestellte Inhalte (Veranstaltungsbeschreibungen, "
+"Bilder, Bewertungen) verbleiben im geistigen Eigentum der jeweiligen "
+"Nutzer:innen bzw. Veranstalter:innen. Mit dem Einstellen von Inhalten räumen "
+"Nutzer:innen der Plattform eine nicht-ausschließliche, unentgeltliche Lizenz "
+"zur Darstellung dieser Inhalte im Rahmen des Dienstes ein."
 
 #: templates/pages/privacy.html:3 templates/pages/privacy.html:6
 msgid "Privacy Policy"
@@ -915,108 +915,300 @@ msgstr ""
 msgid "For content removal requests, use our"
 msgstr ""
 
-#: templates/pages/privacy.html:94 templates/pages/terms.html:41
-#: templates/reviews/organizer_opt_out.html:18
+#: templates/pages/privacy.html:94 templates/reviews/organizer_opt_out.html:18
 #: templates/reviews/takedown.html:18 tmp/bead4_desc.txt:92
 msgid "takedown form"
 msgstr ""
 
 #: templates/pages/terms.html:3 templates/pages/terms.html:6
 msgid "Terms of Use"
-msgstr ""
+msgstr "Nutzungsbedingungen"
 
-#: templates/pages/terms.html:8
+#: templates/pages/terms.html:10
+#, python-format
+msgid ""
+"\n"
+"    Contact / Kontaktstelle (DSA Art. 12): %(email)s, Berlin.\n"
+"    "
+msgstr ""
+"\n"
+"    Kontakt / Kontaktstelle (DSA Art. 12): %(email)s, Berlin.\n"
+"    "
+
+#: templates/pages/terms.html:13
+msgid "Full operator identity (Impressum)"
+msgstr "Vollständige Anbieteridentität (Impressum)"
+
+#: templates/pages/terms.html:16
+msgid "Last updated"
+msgstr "Zuletzt aktualisiert"
+
+#: templates/pages/terms.html:19
+msgid "Age restriction (JuSchG)"
+msgstr "Altersbeschränkung (JuSchG)"
+
+#: templates/pages/terms.html:21
+msgid ""
+"\n"
+"    This platform contains adult-oriented content (kink and queer-adjacent "
+"events).\n"
+"    Access requires self-declaration of age 18+ via the age gate. Use by "
+"minors is\n"
+"    prohibited (JuSchG §§ 4, 5 / JMStV). No age-verification mechanism "
+"replaces this\n"
+"    self-declaration; the platform relies on the age-gate cookie to prevent "
+"accidental\n"
+"    access by persons under 18.\n"
+"    "
+msgstr ""
+"\n"
+"    Diese Plattform enthält Inhalte für Erwachsene (Kink- und queere "
+"Veranstaltungen).\n"
+"    Der Zugang setzt eine Selbstauskunft über ein Mindestalter von 18 Jahren "
+"voraus (Altersgate). Die Nutzung durch Minderjährige ist\n"
+"    untersagt (JuSchG §§ 4, 5 / JMStV). Kein technisches Verfahren ersetzt "
+"diese\n"
+"    Selbstauskunft; die Plattform verlässt sich auf das Altersgate-Cookie, "
+"um den unbeabsichtigten\n"
+"    Zugang von Personen unter 18 Jahren zu verhindern.\n"
+"    "
+
+#: templates/pages/terms.html:31
 msgid "User obligations"
-msgstr ""
+msgstr "Nutzerpflichten"
 
-#: templates/pages/terms.html:11
+#: templates/pages/terms.html:34
 msgid "You must be 18 years of age or older to use this platform."
-msgstr ""
+msgstr "Sie müssen mindestens 18 Jahre alt sein, um diese Plattform zu nutzen."
 
-#: templates/pages/terms.html:14
+#: templates/pages/terms.html:37
 msgid ""
 "You agree to submit only lawful content. Content that is illegal under "
 "German or EU law is prohibited."
 msgstr ""
+"Sie verpflichten sich, ausschließlich rechtmäßige Inhalte einzustellen. "
+"Inhalte, die nach deutschem oder EU-Recht rechtswidrig sind, sind untersagt."
 
-#: templates/pages/terms.html:17
+#: templates/pages/terms.html:40
 msgid ""
 "Harassment, hate speech, and content targeting individuals for harm are "
 "prohibited."
 msgstr ""
+"Belästigung, Hassrede und Inhalte, die auf die Schädigung von Personen "
+"abzielen, sind verboten."
 
-#: templates/pages/terms.html:20
+#: templates/pages/terms.html:43
 msgid ""
 "You are responsible for the accuracy of any event information you submit."
 msgstr ""
+"Sie sind für die Richtigkeit der von Ihnen eingestellten "
+"Veranstaltungsinformationen verantwortlich."
 
-#: templates/pages/terms.html:24
+#: templates/pages/terms.html:48
 msgid "Content policy"
-msgstr ""
+msgstr "Inhaltsrichtlinien"
 
-#: templates/pages/terms.html:26
+#: templates/pages/terms.html:50
 msgid ""
 "Kinky Bubbles is a platform for queer, kinky, and conscious events, "
 "primarily focused on Berlin. We welcome:"
 msgstr ""
+"Kinky Bubbles ist eine Plattform für queere, kinky und bewusste "
+"Veranstaltungen, mit Schwerpunkt Berlin. Willkommen sind:"
 
-#: templates/pages/terms.html:29
+#: templates/pages/terms.html:53
 msgid "LGBTQ+ community events"
-msgstr ""
+msgstr "LGBTQ+-Community-Veranstaltungen"
 
-#: templates/pages/terms.html:30
+#: templates/pages/terms.html:54
 msgid "Kink and fetish events for adults (18+)"
-msgstr ""
+msgstr "Kink- und Fetisch-Veranstaltungen für Erwachsene (ab 18 Jahren)"
 
-#: templates/pages/terms.html:31
+#: templates/pages/terms.html:55
 msgid "Conscious sexuality and intimacy workshops"
-msgstr ""
+msgstr "Workshops zu bewusster Sexualität und Intimität"
 
-#: templates/pages/terms.html:32
+#: templates/pages/terms.html:56
 msgid "Queer arts, culture, and social events"
-msgstr ""
+msgstr "Queere Kunst-, Kultur- und Sozialveranstaltungen"
 
-#: templates/pages/terms.html:35
+#: templates/pages/terms.html:59
 msgid ""
 "We do not list events that promote exploitation, lack informed consent, or "
 "violate applicable law."
 msgstr ""
+"Wir listen keine Veranstaltungen, die Ausbeutung fördern, bei denen "
+"informiertes Einverständnis fehlt oder die gegen geltendes Recht verstoßen."
 
-#: templates/pages/terms.html:38
-msgid "Takedown process"
-msgstr ""
+#: templates/pages/terms.html:63
+msgid "Content moderation (DSA Art. 14)"
+msgstr "Inhaltsmoderation (DSA Art. 14)"
 
-#: templates/pages/terms.html:40
-msgid "To report content that violates these terms, use our"
-msgstr ""
-
-#: templates/pages/terms.html:42 tmp/bead4_desc.txt:94
-msgid "We aim to review takedown requests within 72 hours."
-msgstr ""
-
-#: templates/pages/terms.html:47
+#: templates/pages/terms.html:65
 msgid ""
-"Kinky Bubbles is a community-curated platform. Event information is provided "
-"by organizers and the community. The operator does not verify, endorse, or "
-"guarantee the accuracy of any event listings."
+"\n"
+"    Where content is found to violate these Terms or applicable law, the "
+"platform\n"
+"    maintainer may take the following actions: hide the content from public "
+"view,\n"
+"    remove it permanently, suspend the responsible account, or de-list the "
+"associated\n"
+"    event or organizer.\n"
+"    "
 msgstr ""
+"\n"
+"    Stellt der Plattformbetreiber fest, dass Inhalte gegen diese "
+"Nutzungsbedingungen oder geltendes Recht verstoßen, können folgende "
+"Maßnahmen ergriffen werden: Ausblenden des Inhalts aus der öffentlichen "
+"Ansicht,\n"
+"    dauerhafte Entfernung, Sperrung des verantwortlichen Kontos oder "
+"Auslisten der betreffenden\n"
+"    Veranstaltung oder des Veranstalters.\n"
+"    "
 
-#: templates/pages/terms.html:50
+#: templates/pages/terms.html:73
 msgid ""
-"Attendance at any listed event is at your own risk. The operator is not "
-"responsible for any loss, injury, or damage arising from attendance at "
-"events listed on this platform."
+"\n"
+"    Moderation decisions are made by the platform maintainer. We aim to "
+"review\n"
+"    substantiated notices best-effort within 72 hours of receipt.\n"
+"    "
 msgstr ""
+"\n"
+"    Moderationsentscheidungen werden vom Plattformbetreiber getroffen. Wir "
+"bemühen uns,\n"
+"    begründete Meldungen innerhalb von 72 Stunden nach Eingang nach bestem "
+"Vermögen zu prüfen.\n"
+"    "
 
-#: templates/pages/terms.html:53
+#: templates/pages/terms.html:80
+msgid "Appeal of moderation decisions (DSA Art. 20)"
+msgstr "Widerspruch gegen Moderationsentscheidungen (DSA Art. 20)"
+
+#: templates/pages/terms.html:82
+msgid ""
+"\n"
+"    To appeal a moderation decision, reply to the moderation notification "
+"email within\n"
+"    14 days of receiving it. Include your reasons for appeal. The maintainer "
+"will review\n"
+"    the appeal and respond within a reasonable time.\n"
+"    "
+msgstr ""
+"\n"
+"    Um Widerspruch gegen eine Moderationsentscheidung einzulegen, antworten "
+"Sie innerhalb von\n"
+"    14 Tagen nach Erhalt auf die Moderationsbenachrichtigung per E-Mail. "
+"Legen Sie Ihre Widerspruchsgründe dar. Der Betreiber wird\n"
+"    den Widerspruch prüfen und innerhalb angemessener Frist antworten.\n"
+"    "
+
+#: templates/pages/terms.html:90
+msgid "User-generated content"
+msgstr "Nutzergenerierte Inhalte"
+
+#: templates/pages/terms.html:92
+msgid ""
+"\n"
+"    Ratings and flags are user-generated content. By submitting a rating or "
+"flag,\n"
+"    you warrant that your submission is made in good faith and is accurate "
+"to the\n"
+"    best of your knowledge. The platform does not endorse user-generated "
+"content\n"
+"    and will remove content upon substantiated notice.\n"
+"    "
+msgstr ""
+"\n"
+"    Bewertungen und Meldungen sind nutzergenerierte Inhalte. Mit dem "
+"Absenden einer Bewertung oder Meldung\n"
+"    versichern Sie, dass Ihre Eingabe nach bestem Wissen und Gewissen und "
+"wahrheitsgemäß erfolgt.\n"
+"    Die Plattform macht sich nutzergenerierte Inhalte nicht zu eigen\n"
+"    und entfernt Inhalte bei begründetem Hinweis.\n"
+"    "
+
+#: templates/pages/terms.html:101
+msgid "Governing law and jurisdiction"
+msgstr "Anwendbares Recht und Gerichtsstand"
+
+#: templates/pages/terms.html:103
+msgid ""
+"\n"
+"    German law applies to these Terms and any disputes arising from use of "
+"this\n"
+"    platform. For disputes with non-consumers, the exclusive place of "
+"jurisdiction\n"
+"    is Berlin.\n"
+"    "
+msgstr ""
+"\n"
+"    Für diese Nutzungsbedingungen und alle Streitigkeiten aus der Nutzung "
+"dieser\n"
+"    Plattform gilt deutsches Recht. Für Streitigkeiten mit "
+"Nicht-Verbrauchern ist\n"
+"    der ausschließliche Gerichtsstand Berlin.\n"
+"    "
+
+#: templates/pages/terms.html:111
+msgid "Right of withdrawal"
+msgstr "Widerrufsrecht"
+
+#: templates/pages/terms.html:113
+msgid ""
+"\n"
+"    This platform provides a free service. No contract for a paid product "
+"is\n"
+"    concluded. Accordingly, no right of withdrawal (Widerrufsrecht) arises "
+"under\n"
+"    § 312g BGB.\n"
+"    "
+msgstr ""
+"\n"
+"    Diese Plattform erbringt ihre Leistungen unentgeltlich. Es wird kein "
+"Vertrag über ein entgeltliches Produkt geschlossen.\n"
+"    Ein Widerrufsrecht gemäß § 312g BGB besteht nicht, da das Angebot "
+"unentgeltlich ist.\n"
+"    "
+
+#: templates/pages/terms.html:121
+msgid "Severability and termination"
+msgstr "Salvatorische Klausel und Kündigung"
+
+#: templates/pages/terms.html:123
+msgid ""
+"\n"
+"    If any provision of these Terms is found to be invalid or unenforceable, "
+"the\n"
+"    remaining provisions shall continue in full force and effect. Either "
+"party may\n"
+"    terminate use of this platform at any time. Upon termination, existing "
+"data will\n"
+"    be handled in accordance with our Privacy Policy.\n"
+"    "
+msgstr ""
+"\n"
+"    Sollte eine Bestimmung dieser Nutzungsbedingungen unwirksam oder nicht "
+"durchsetzbar sein,\n"
+"    bleiben die übrigen Bestimmungen unberührt (Salvatorische Klausel). "
+"Jede Partei kann\n"
+"    die Nutzung dieser Plattform jederzeit beenden (Kündigung). Nach der "
+"Kündigung werden vorhandene Daten\n"
+"    gemäß unserer Datenschutzerklärung behandelt.\n"
+"    "
+
+#: templates/pages/terms.html:132
 msgid "Changes to these terms"
-msgstr ""
+msgstr "Änderungen dieser Nutzungsbedingungen"
 
-#: templates/pages/terms.html:55
+#: templates/pages/terms.html:134
 msgid ""
 "We may update these terms from time to time. Continued use of the platform "
 "constitutes acceptance of any updated terms."
 msgstr ""
+"Wir können diese Nutzungsbedingungen von Zeit zu Zeit aktualisieren. Die "
+"fortgesetzte Nutzung der Plattform gilt als Zustimmung zu den jeweils "
+"aktuellen Nutzungsbedingungen."
 
 #: templates/reviews/_flag_button.html:3 tmp/bead6_desc.txt:384
 msgid "Reported. Thank you."
@@ -1216,6 +1408,10 @@ msgstr ""
 
 #: tmp/bead4_desc.txt:91
 msgid "To report content, use our"
+msgstr ""
+
+#: tmp/bead4_desc.txt:94
+msgid "We aim to review takedown requests within 72 hours."
 msgstr ""
 
 #: tmp/bead4_desc.txt:96
