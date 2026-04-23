@@ -40,12 +40,14 @@ class Organizer(models.Model):
 
     # GDPR consent (F5 — pulled forward from 0.2; consumed from 0.5)
     consent_recorded_at = models.DateTimeField(null=True, blank=True)
+    CONSENT_METHOD_CHOICES = [
+        ("legitimate_interest", "Legitimate interest (Art. 6(1)(f))"),
+        ("telegram_forward_implied", "Telegram forward (implied)"),
+        ("explicit_opt_in", "Explicit opt-in"),
+        ("verified_public_source", "Verified public source"),
+    ]
     consent_method = models.CharField(
-        choices=[
-            ("telegram_forward_implied", "Telegram forward (implied)"),
-            ("explicit_opt_in", "Explicit opt-in"),
-            ("verified_public_source", "Verified public source"),
-        ],
+        choices=CONSENT_METHOD_CHOICES,
         blank=True,
     )
     consent_notes = models.TextField(blank=True)
