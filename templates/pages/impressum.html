@@ -1,33 +1,118 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
-{% block title %}{% trans "Impressum" %} — Kinky Bubbles{% endblock title %}
+{% block title %}{% trans "Imprint" %} — Kinky Bubbles{% endblock title %}
 {% block content %}
 <article class="prose prose-sm max-w-2xl mx-auto">
-  <h1>{% trans "Impressum / Legal Notice" %}</h1>
 
-  <h2>{% trans "Responsible party / Verantwortliche Person" %}</h2>
-  <p>[MAINTAINER NAME]<br>[MAINTAINER ADDRESS]</p>
-  <p>{% trans "Contact" %}: [CONTACT EMAIL]</p>
+  {# ------------------------------------------------------------------ #}
+  {# §5 DDG Heading                                                      #}
+  {# ------------------------------------------------------------------ #}
+  <h1>Angaben gemäß § 5 DDG</h1>
+  <p class="text-base-content/60 -mt-4">{% trans "Imprint" %}</p>
 
-  <h2>{% trans "Report content / DSA-Kontakt" %}</h2>
+  {# ------------------------------------------------------------------ #}
+  {# Operator identity block                                             #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Operator" %}</h2>
+  <address class="not-italic">
+    {{ legal_contact.name }}<br>
+    {{ legal_contact.address }}<br>
+    E-Mail: <a href="mailto:{{ legal_contact.email }}">{{ legal_contact.email }}</a><br>
+    {% if legal_contact.phone %}
+      {% trans "Phone" %}: {{ legal_contact.phone }}
+    {% else %}
+      {% trans "Contact" %}: <a href="/takedown/">{% trans "contact form" %}</a>
+      ({% trans "response within 72 hours" %})
+    {% endif %}
+  </address>
+
+  {# ------------------------------------------------------------------ #}
+  {# §18 Abs. 2 MStV responsible person                                 #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Responsible for content pursuant to § 18 Abs. 2 MStV" %}</h2>
+  <address class="not-italic">
+    {{ legal_contact.responsible_name }}<br>
+    {{ legal_contact.responsible_address }}
+  </address>
+
+  {# ------------------------------------------------------------------ #}
+  {# DSA Art. 11/12 contact point                                       #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "DSA contact point (Art. 11/12 DSA)" %}</h2>
   <p>
-    {% trans "To report content, use our" %}
-    <a href="/takedown/">{% trans "takedown form" %}</a>.
+    {% blocktrans trimmed %}
+      Contact point for authorities and users pursuant to Art. 11/12 of the Digital Services Act (DSA):
+    {% endblocktrans %}
   </p>
-  <p>{% trans "We aim to review takedown requests within 72 hours." %}</p>
-  <p class="text-sm text-base-content/70">
-    {% trans "Wir bemühen uns, Takedown-Anfragen innerhalb von 72 Stunden zu bearbeiten." %}
+  <p>
+    E-Mail: <a href="mailto:{{ legal_contact.dsa_email }}">{{ legal_contact.dsa_email }}</a><br>
+    {% trans "Languages" %}: {% trans "German (DE), English (EN)" %}
   </p>
 
-  <h2>{% trans "Platform information / Plattform-Informationen" %}</h2>
+  {# ------------------------------------------------------------------ #}
+  {# §36 VSBG consumer arbitration                                      #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Consumer dispute resolution / Universal arbitration body" %}</h2>
   <p>
-    {% trans "Kinky Bubbles is a community-curated event platform for queer, kinky, and conscious events in Berlin." %}
+    {% blocktrans trimmed %}
+      We are not willing or obliged to participate in dispute resolution proceedings
+      before a consumer arbitration board.
+    {% endblocktrans %}
   </p>
+  <p class="text-base-content/70 text-sm">
+    Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer
+    Verbraucherschlichtungsstelle teilzunehmen.
+  </p>
+
+  {# ------------------------------------------------------------------ #}
+  {# Haftungsausschluss                                                  #}
+  {# ------------------------------------------------------------------ #}
+  <h2>{% trans "Disclaimer" %}</h2>
+
+  <h3>{% trans "Liability for content" %}</h3>
   <p>
-    {% trans "Online dispute resolution: The European Commission provides a platform for online dispute resolution (ODR) at" %}
-    <a href="https://ec.europa.eu/consumers/odr" rel="noopener noreferrer" target="_blank">
-      https://ec.europa.eu/consumers/odr
-    </a>.
+    {% blocktrans trimmed %}
+      As a service provider we are responsible for our own content on these pages
+      in accordance with § 7 Abs. 1 DDG (formerly TMG) and general laws. According
+      to §§ 8–10 DDG, however, we are not obliged as a service provider to monitor
+      transmitted or stored third-party information, or to investigate circumstances
+      that indicate illegal activity. Obligations to remove or block the use of
+      information under general laws remain unaffected. Any liability in this
+      regard, however, is only possible from the moment of knowledge of a
+      specific infringement. Upon becoming aware of such violations we will
+      remove this content immediately.
+    {% endblocktrans %}
   </p>
+
+  <h3>{% trans "Liability for links" %}</h3>
+  <p>
+    {% blocktrans trimmed %}
+      Our offering contains links to external websites of third parties over
+      whose content we have no influence. Therefore we cannot assume any liability
+      for this external content. The respective provider or operator of the pages
+      is always responsible for the contents of the linked pages. The linked pages
+      were checked for possible legal violations at the time of linking. Illegal
+      content was not recognisable at the time of linking. A permanent control of
+      the contents of linked pages is not reasonable without concrete evidence of
+      an infringement. Upon becoming aware of legal violations, we will remove
+      such links immediately.
+    {% endblocktrans %}
+  </p>
+
+  <h3>{% trans "Copyright" %}</h3>
+  <p>
+    {% blocktrans trimmed %}
+      The content and works created by the site operators on these pages are subject
+      to German copyright law. Duplication, processing, distribution, and any form
+      of commercialisation beyond the scope of copyright law requires the written
+      consent of the respective author or creator. Downloads and copies of this
+      site are only permitted for private, non-commercial use. Content posted by
+      users and organisers (event descriptions, images, ratings) remains the
+      intellectual property of the respective user or organiser. By submitting
+      content, users grant the platform a non-exclusive, royalty-free licence to
+      display that content within the service.
+    {% endblocktrans %}
+  </p>
+
 </article>
 {% endblock content %}

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-17 18:48+0200\n"
+"POT-Creation-Date: 2026-04-23 08:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,59 +18,213 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: events/admin.py:36
+#: accounts/admin.py:11
+msgid "Approval"
+msgstr ""
+
+#: accounts/models.py:30
+msgid "user"
+msgstr ""
+
+#: accounts/models.py:31
+msgid "users"
+msgstr ""
+
+#: accounts/views.py:28
+msgid "Too many signup attempts. Try again later."
+msgstr ""
+
+#: accounts/views.py:105
+msgid "Attendance consent withdrawn. All attendance records deleted."
+msgstr ""
+
+#: events/admin.py:57
+msgid "(not yet enriched)"
+msgstr ""
+
+#: events/admin.py:64
+msgid "Raw text:"
+msgstr ""
+
+#: events/admin.py:66
+msgid "Enriched payload:"
+msgstr ""
+
+#: events/admin.py:70
 msgid "Raw message"
 msgstr ""
 
-#: events/admin.py:38
+#: events/admin.py:75
+msgid "Suggested tags (unmatched)"
+msgstr ""
+
+#: events/admin.py:116
 msgid "Publish selected events"
 msgstr ""
 
-#: events/admin.py:44
+#: events/admin.py:140
 msgid "Reject selected events"
 msgstr ""
 
-#: events/admin.py:48
+#: events/admin.py:144
 msgid "Archive selected events"
 msgstr ""
 
-#: ingestion/admin.py:20
+#: events/models.py:22
+msgid "tag"
+msgstr ""
+
+#: events/models.py:23
+msgid "tags"
+msgstr ""
+
+#: events/models.py:107
+msgid "event"
+msgstr ""
+
+#: events/models.py:108
+msgid "events"
+msgstr ""
+
+#: events/models.py:167
+msgid "event image"
+msgstr ""
+
+#: events/models.py:168
+msgid "event images"
+msgstr ""
+
+#: ingestion/admin.py:25
 msgid "Text preview"
 msgstr ""
 
-#: organizers/admin.py:18
+#: ingestion/models.py:36
+msgid "raw message"
+msgstr ""
+
+#: ingestion/models.py:37
+msgid "raw messages"
+msgstr ""
+
+#: ingestion/models.py:66
+msgid "source failure"
+msgstr ""
+
+#: ingestion/models.py:67
+msgid "source failures"
+msgstr ""
+
+#: ingestion/models.py:79
+msgid "heartbeat log"
+msgstr ""
+
+#: ingestion/models.py:80
+msgid "heartbeat logs"
+msgstr ""
+
+#: ingestion/models.py:109
+msgid "extraction attempt"
+msgstr ""
+
+#: ingestion/models.py:110
+msgid "extraction attempts"
+msgstr ""
+
+#: ingestion/models.py:129
+msgid "approved sender"
+msgstr ""
+
+#: ingestion/models.py:130
+msgid "approved senders"
+msgstr ""
+
+#: organizers/admin.py:26 templates/events/list.html:4
+#: templates/events/list.html:16 templates/pages/privacy.html:11
+#: templates/pages/privacy.html:31
 msgid "Events"
 msgstr ""
 
-#: organizers/admin.py:20
-msgid "Mark approved + record consent"
+#: organizers/admin.py:29
+msgid "Mark approved — explicit opt-in consent"
 msgstr ""
 
-#: reviews/admin.py:18
+#: organizers/admin.py:41
+msgid "Mark approved — Telegram forward (implied consent)"
+msgstr ""
+
+#: organizers/admin.py:53
+msgid "Mark approved — verified public source"
+msgstr ""
+
+#: organizers/models.py:67
+msgid "organizer"
+msgstr ""
+
+#: organizers/models.py:68
+msgid "organizers"
+msgstr ""
+
+#: reviews/admin.py:46
 msgid "Target"
+msgstr ""
+
+#: reviews/forms.py:21 templates/reviews/takedown.html:128
+msgid ""
+"I confirm the information above is accurate to the best of my knowledge (DSA "
+"Art. 16(2))."
+msgstr ""
+
+#: reviews/forms.py:39
+msgid "Required for illegal-content reports (DSA Art. 16)."
+msgstr ""
+
+#: reviews/forms.py:44
+msgid "Specify the law or legal provision violated (DSA Art. 16)."
+msgstr ""
+
+#: reviews/models.py:37
+msgid "review"
+msgstr ""
+
+#: reviews/models.py:38 templates/organizers/profile.html:87
+#: templates/reviews/_organizer_rating_display.html:7 tmp/bead5_desc.txt:181
+#: tmp/bead5_desc.txt:256
+msgid "reviews"
+msgstr ""
+
+#: reviews/views.py:66 reviews/views.py:195
+msgid "Rate limit reached, try again later."
+msgstr ""
+
+#: reviews/views.py:97 reviews/views.py:144
+msgid "This review was hidden by a moderator. Contact support to appeal."
+msgstr ""
+
+#: reviews/views.py:134
+msgid "You can review this event after attending."
 msgstr ""
 
 #: templates/account/email_confirm.html:6
 msgid "Confirm Email Address"
 msgstr ""
 
-#: templates/account/login.html:5 templates/account/login.html:60
+#: templates/account/login.html:5 templates/account/login.html:56
 msgid "Sign In"
 msgstr ""
 
-#: templates/account/login.html:25
+#: templates/account/login.html:21
 msgid "E-mail"
 msgstr ""
 
-#: templates/account/login.html:36 templates/account/signup.html:39
+#: templates/account/login.html:32 templates/account/signup.html:42
 msgid "Password"
 msgstr ""
 
-#: templates/account/login.html:38
+#: templates/account/login.html:34
 msgid "Forgot Password?"
 msgstr ""
 
-#: templates/account/login.html:51
+#: templates/account/login.html:47
 msgid "Remember Me"
 msgstr ""
 
@@ -82,14 +236,997 @@ msgstr ""
 msgid "Signup"
 msgstr ""
 
-#: templates/account/signup.html:32
+#: templates/account/signup.html:35
 msgid "Email"
 msgstr ""
 
-#: templates/account/signup.html:49
+#: templates/account/signup.html:52
 msgid "Confirm Password"
 msgstr ""
 
-#: templates/account/signup.html:62
+#: templates/account/signup.html:65
 msgid "Create Account"
+msgstr ""
+
+#: templates/accounts/me.html:4 templates/accounts/me.html:8
+msgid "My Profile"
+msgstr ""
+
+#: templates/accounts/me.html:13
+msgid "Attendance Consent"
+msgstr ""
+
+#: templates/accounts/me.html:15
+#, python-format
+msgid ""
+"You gave consent to store your event attendance (GDPR Art. 9) on %(date)s. "
+"Withdrawing consent permanently deletes all attendance records."
+msgstr ""
+
+#: templates/accounts/me.html:23
+msgid "Withdraw attendance consent (deletes all attendance records)"
+msgstr ""
+
+#: templates/accounts/me.html:31
+msgid "Followed Organizers"
+msgstr ""
+
+#: templates/accounts/me.html:43
+msgid "Unfollow"
+msgstr ""
+
+#: templates/accounts/me.html:50 templates/events/list.html:63
+msgid "You're not following anyone yet."
+msgstr ""
+
+#: templates/accounts/me.html:56
+msgid "Upcoming Events"
+msgstr ""
+
+#: templates/accounts/me.html:64 templates/organizers/profile.html:69
+msgid "No upcoming events."
+msgstr ""
+
+#: templates/accounts/me.html:70
+msgid "Past Events"
+msgstr ""
+
+#: templates/accounts/me.html:78
+msgid "No past events."
+msgstr ""
+
+#: templates/admin/events/event/change_form.html:7
+msgid "Source data"
+msgstr ""
+
+#: templates/admin/events/event/change_form.html:9
+msgid "Raw text"
+msgstr ""
+
+#: templates/admin/events/event/change_form.html:18
+msgid "Extraction confidence"
+msgstr ""
+
+#: templates/admin/events/event/change_form.html:23
+msgid "Apply draft values to form"
+msgstr ""
+
+#: templates/admin/events/event/change_form.html:26
+msgid "No raw message linked."
+msgstr ""
+
+#: templates/admin/reviews/flag/change_form.html:7
+msgid "Moderation actions"
+msgstr ""
+
+#: templates/admin/reviews/flag/change_form.html:17
+msgid "No action"
+msgstr ""
+
+#: templates/admin/reviews/flag/change_form.html:28
+msgid "Hide target"
+msgstr ""
+
+#: templates/admin/reviews/flag/change_form.html:39
+msgid "Suspend organizer"
+msgstr ""
+
+#: templates/admin/reviews/flag/change_form.html:50
+msgid "Delete review (soft)"
+msgstr ""
+
+#: templates/admin/reviews/flag/change_form.html:61
+msgid "Mark resolved"
+msgstr ""
+
+#: templates/age_check.html:3 tmp/bead2_desc.txt:230
+msgid "Age Verification"
+msgstr ""
+
+#: templates/age_check.html:10 tmp/bead2_desc.txt:237
+msgid "Age Verification / Altersverifizierung"
+msgstr ""
+
+#: templates/age_check.html:13 tmp/bead2_desc.txt:240
+msgid "This site contains adult content. You must be 18 or older to enter."
+msgstr ""
+
+#: templates/age_check.html:16 tmp/bead2_desc.txt:243
+msgid ""
+"Diese Seite enthält Inhalte für Erwachsene. Du musst 18 Jahre oder älter "
+"sein, um einzutreten."
+msgstr ""
+
+#: templates/age_check.html:23 tmp/bead2_desc.txt:250
+msgid "Remember for 1 year / 1 Jahr merken"
+msgstr ""
+
+#: templates/age_check.html:27 tmp/bead2_desc.txt:254
+msgid "Yes, I am 18+ / Ja, ich bin 18+"
+msgstr ""
+
+#: templates/age_check.html:31 tmp/bead2_desc.txt:258
+msgid "Leave / Verlassen"
+msgstr ""
+
+#: templates/cotton/event_card.html:20 templates/events/_event_drawer.html:16
+#: templates/events/detail.html:45
+msgid "Private venue"
+msgstr ""
+
+#: templates/cotton/event_card.html:28 templates/cotton/filter_chips.html:29
+#: templates/cotton/filter_chips.html:33 templates/events/detail.html:55
+msgid "Free"
+msgstr ""
+
+#: templates/cotton/event_card.html:35
+msgid "Average rating"
+msgstr ""
+
+#: templates/cotton/filter_chips.html:39
+msgid "From"
+msgstr ""
+
+#: templates/cotton/filter_chips.html:43
+msgid "To"
+msgstr ""
+
+#: templates/cotton/footer.html:4 tmp/bead4_desc.txt:82 tmp/bead4_desc.txt:134
+msgid "Impressum"
+msgstr ""
+
+#: templates/cotton/footer.html:5 tmp/bead4_desc.txt:135
+msgid "Privacy"
+msgstr ""
+
+#: templates/cotton/footer.html:6 tmp/bead4_desc.txt:136
+msgid "Terms"
+msgstr ""
+
+#: templates/cotton/footer.html:7 tmp/bead4_desc.txt:137
+msgid "Report content"
+msgstr ""
+
+#: templates/cotton/footer.html:10 tmp/bead4_desc.txt:140
+msgid "Kinky Bubbles — Berlin queer, kinky, and conscious events"
+msgstr ""
+
+#: templates/cotton/organizer_mini_card.html:8
+#: templates/organizers/profile.html:37
+msgid "Verified"
+msgstr ""
+
+#: templates/cotton/pagination.html:21
+#, python-format
+msgid ""
+"\n"
+"      Page %(num)s of %(total)s\n"
+"    "
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:4
+#: templates/errors/403_pending_approval.html:10
+msgid "Account Pending Approval"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:12
+msgid ""
+"Your account is pending approval. You will receive an email when approved."
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:16
+msgid "Log out"
+msgstr ""
+
+#: templates/events/_attend_button.html:9
+msgid "Interested"
+msgstr ""
+
+#: templates/events/_attend_button.html:13
+msgid "Going"
+msgstr ""
+
+#: templates/events/_attend_button.html:18
+msgid "Went"
+msgstr ""
+
+#: templates/events/_consent_required.html:8
+msgid "Attendance Consent Required"
+msgstr ""
+
+#: templates/events/_consent_required.html:13
+msgid ""
+"Recording your attendance on kink/queer events may reveal your "
+"<strong>sexual orientation</strong> (GDPR Art.&nbsp;9 special-category "
+"data). By clicking <em>I consent</em> you allow this platform to store your "
+"attendance. You can withdraw at any time from your profile; withdrawal "
+"deletes all records."
+msgstr ""
+
+#: templates/events/_consent_required.html:21
+msgid ""
+"Die Speicherung deiner Teilnahme an Kink-/Queer-Veranstaltungen kann "
+"Rückschlüsse auf deine <strong>sexuelle Orientierung</strong> ermöglichen "
+"(Art.&nbsp;9 DSGVO besondere Kategorien). Mit <em>Ich stimme zu</em> "
+"erlaubst du die Speicherung. Widerruf jederzeit unter Mein Profil; Widerruf "
+"löscht alle Einträge."
+msgstr ""
+
+#: templates/events/_consent_required.html:37
+msgid "I consent / Ich stimme zu"
+msgstr ""
+
+#: templates/events/_consent_required.html:44
+msgid "Not now"
+msgstr ""
+
+#: templates/events/_event_drawer.html:7
+msgid "Close"
+msgstr ""
+
+#: templates/events/_event_drawer.html:27 templates/events/detail.html:95
+msgid "More info"
+msgstr ""
+
+#: templates/events/_event_list.html:12
+msgid "No events found."
+msgstr ""
+
+#: templates/events/detail.html:34
+msgid "Date"
+msgstr ""
+
+#: templates/events/detail.html:37
+msgid "Time"
+msgstr ""
+
+#: templates/events/detail.html:43
+msgid "Venue"
+msgstr ""
+
+#: templates/events/detail.html:53
+msgid "Price"
+msgstr ""
+
+#: templates/events/detail.html:60
+msgid "sliding scale"
+msgstr ""
+
+#: templates/events/detail.html:63
+msgid "See event page"
+msgstr ""
+
+#: templates/events/detail.html:89
+msgid "Get tickets"
+msgstr ""
+
+#: templates/events/detail.html:103 templates/events/detail.html:104
+#: templates/organizers/profile.html:84
+msgid "Reviews"
+msgstr ""
+
+#: templates/events/detail.html:119 templates/organizers/profile.html:129
+msgid "No reviews yet."
+msgstr ""
+
+#: templates/events/detail.html:124
+msgid "Safety first. Consent is mandatory. Look out for each other."
+msgstr ""
+
+#: templates/events/list.html:24
+msgid "Latest"
+msgstr ""
+
+#: templates/events/list.html:30
+msgid "Trending"
+msgstr ""
+
+#: templates/events/list.html:54
+msgid "From organizers you follow"
+msgstr ""
+
+#: templates/events/list.html:61
+msgid "View all"
+msgstr ""
+
+#: templates/organizers/_follow_button.html:8
+msgid "Following"
+msgstr ""
+
+#: templates/organizers/_follow_button.html:10
+msgid "Follow"
+msgstr ""
+
+#: templates/organizers/profile.html:63
+msgid "Upcoming events"
+msgstr ""
+
+#: templates/organizers/profile.html:74
+msgid "Past events"
+msgstr ""
+
+#: templates/organizers/profile.html:96
+msgid "Recent"
+msgstr ""
+
+#: templates/organizers/profile.html:102
+msgid "Highest"
+msgstr ""
+
+#: templates/organizers/profile.html:108
+msgid "Lowest"
+msgstr ""
+
+#: templates/organizers/profile.html:117
+#, python-format
+msgid "%(rating)s stars"
+msgstr ""
+
+#: templates/pages/impressum.html:3 templates/pages/impressum.html:11
+msgid "Imprint"
+msgstr "Impressum"
+
+#: templates/pages/impressum.html:16
+msgid "Operator"
+msgstr "Anbieter"
+
+#: templates/pages/impressum.html:22
+msgid "Phone"
+msgstr "Telefon"
+
+#: templates/pages/impressum.html:24 templates/pages/privacy.html:88
+#: tmp/bead4_desc.txt:88
+msgid "Contact"
+msgstr ""
+
+#: templates/pages/impressum.html:24
+msgid "contact form"
+msgstr "Kontaktformular"
+
+#: templates/pages/impressum.html:25
+msgid "response within 72 hours"
+msgstr "Antwort innerhalb von 72 Stunden"
+
+#: templates/pages/impressum.html:32
+msgid "Responsible for content pursuant to § 18 Abs. 2 MStV"
+msgstr "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV"
+
+#: templates/pages/impressum.html:41
+msgid "DSA contact point (Art. 11/12 DSA)"
+msgstr "DSA-Kontaktstelle (Art. 11/12 DSA)"
+
+#: templates/pages/impressum.html:43
+msgid ""
+"Contact point for authorities and users pursuant to Art. 11/12 of the "
+"Digital Services Act (DSA):"
+msgstr ""
+"Kontaktstelle für Behörden und Nutzer:innen nach Art. 11/12 des Digital "
+"Services Act (DSA):"
+
+#: templates/pages/impressum.html:49
+msgid "Languages"
+msgstr "Sprachen"
+
+#: templates/pages/impressum.html:49
+msgid "German (DE), English (EN)"
+msgstr "Deutsch (DE), Englisch (EN)"
+
+#: templates/pages/impressum.html:55
+msgid "Consumer dispute resolution / Universal arbitration body"
+msgstr "Streitschlichtung / Verbraucherschlichtungsstelle"
+
+#: templates/pages/impressum.html:57
+msgid ""
+"We are not willing or obliged to participate in dispute resolution "
+"proceedings before a consumer arbitration board."
+msgstr ""
+"Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren "
+"vor einer Verbraucherschlichtungsstelle teilzunehmen."
+
+#: templates/pages/impressum.html:70 templates/pages/terms.html:45
+msgid "Disclaimer"
+msgstr "Haftungsausschluss"
+
+#: templates/pages/impressum.html:72
+msgid "Liability for content"
+msgstr "Haftung für Inhalte"
+
+#: templates/pages/impressum.html:74
+msgid ""
+"As a service provider we are responsible for our own content on these pages "
+"in accordance with § 7 Abs. 1 DDG (formerly TMG) and general laws. According "
+"to §§ 8–10 DDG, however, we are not obliged as a service provider to monitor "
+"transmitted or stored third-party information, or to investigate "
+"circumstances that indicate illegal activity. Obligations to remove or block "
+"the use of information under general laws remain unaffected. Any liability "
+"in this regard, however, is only possible from the moment of knowledge of a "
+"specific infringement. Upon becoming aware of such violations we will remove "
+"this content immediately."
+msgstr ""
+"Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG für eigene Inhalte auf "
+"diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8–10 DDG "
+"sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder "
+"gespeicherte fremde Informationen zu überwachen oder nach Umständen zu "
+"forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur "
+"Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen "
+"Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch "
+"erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. "
+"Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese "
+"Inhalte umgehend entfernen."
+
+#: templates/pages/impressum.html:87
+msgid "Liability for links"
+msgstr "Haftung für Links"
+
+#: templates/pages/impressum.html:89
+msgid ""
+"Our offering contains links to external websites of third parties over whose "
+"content we have no influence. Therefore we cannot assume any liability for "
+"this external content. The respective provider or operator of the pages is "
+"always responsible for the contents of the linked pages. The linked pages "
+"were checked for possible legal violations at the time of linking. Illegal "
+"content was not recognisable at the time of linking. A permanent control of "
+"the contents of linked pages is not reasonable without concrete evidence of "
+"an infringement. Upon becoming aware of legal violations, we will remove "
+"such links immediately."
+msgstr ""
+"Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte "
+"wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch "
+"keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der "
+"jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten "
+"Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße "
+"überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht "
+"erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist "
+"jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. "
+"Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend "
+"entfernen."
+
+#: templates/pages/impressum.html:102
+msgid "Copyright"
+msgstr "Urheberrecht"
+
+#: templates/pages/impressum.html:104
+msgid ""
+"The content and works created by the site operators on these pages are "
+"subject to German copyright law. Duplication, processing, distribution, and "
+"any form of commercialisation beyond the scope of copyright law requires the "
+"written consent of the respective author or creator. Downloads and copies of "
+"this site are only permitted for private, non-commercial use. Content posted "
+"by users and organisers (event descriptions, images, ratings) remains the "
+"intellectual property of the respective user or organiser. By submitting "
+"content, users grant the platform a non-exclusive, royalty-free licence to "
+"display that content within the service."
+msgstr ""
+"Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten "
+"unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, "
+"Verbreitung und jede Art der Verwertung außerhalb der Grenzen des "
+"Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors "
+"bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, "
+"nicht kommerziellen Gebrauch gestattet. Von Nutzer:innen und "
+"Veranstalter:innen eingestellte Inhalte (Veranstaltungsbeschreibungen, Bilder, "
+"Bewertungen) verbleiben im geistigen Eigentum der jeweiligen Nutzer:innen bzw. "
+"Veranstalter:innen. Mit dem Einstellen von Inhalten räumen Nutzer:innen der "
+"Plattform eine nicht-ausschließliche, unentgeltliche Lizenz zur Darstellung "
+"dieser Inhalte im Rahmen des Dienstes ein."
+
+#: templates/pages/privacy.html:3 templates/pages/privacy.html:6
+msgid "Privacy Policy"
+msgstr ""
+
+#: templates/pages/privacy.html:8
+msgid "What data we collect"
+msgstr ""
+
+#: templates/pages/privacy.html:12
+msgid ""
+"Event listings are publicly visible. We collect event title, date, time, "
+"location, and organizer information."
+msgstr ""
+
+#: templates/pages/privacy.html:15 templates/pages/privacy.html:35
+msgid "Organizer information"
+msgstr ""
+
+#: templates/pages/privacy.html:16
+msgid ""
+"Organizer names, contact details, and social media handles are collected "
+"with consent recorded at onboarding."
+msgstr ""
+
+#: templates/pages/privacy.html:19 templates/pages/privacy.html:39
+msgid "User accounts"
+msgstr ""
+
+#: templates/pages/privacy.html:20
+msgid ""
+"We collect email addresses for account holders. Accounts are invite-only."
+msgstr ""
+
+#: templates/pages/privacy.html:23 templates/pages/privacy.html:43
+msgid "Attendance"
+msgstr ""
+
+#: templates/pages/privacy.html:24
+msgid ""
+"Attendance records are linked to your account and used to provide your "
+"personal event history."
+msgstr ""
+
+#: templates/pages/privacy.html:28
+msgid "Lawful basis"
+msgstr ""
+
+#: templates/pages/privacy.html:32
+msgid ""
+"Legitimate interest — public event listings serve the community purpose of "
+"the platform."
+msgstr ""
+
+#: templates/pages/privacy.html:36
+msgid ""
+"Consent — organizers provide explicit consent when onboarding to the "
+"platform."
+msgstr ""
+
+#: templates/pages/privacy.html:40
+msgid ""
+"Contract — email address is required to provide the service (account-based "
+"features)."
+msgstr ""
+
+#: templates/pages/privacy.html:44
+msgid ""
+"Contract — attendance data is processed to provide your personal history "
+"within the service."
+msgstr ""
+
+#: templates/pages/privacy.html:48
+msgid "Data retention"
+msgstr ""
+
+#: templates/pages/privacy.html:51
+msgid "Raw ingestion messages are purged after 90 days."
+msgstr ""
+
+#: templates/pages/privacy.html:54
+msgid "Account data is retained until you submit a deletion request."
+msgstr ""
+
+#: templates/pages/privacy.html:57
+msgid ""
+"Event listings are retained indefinitely unless removed by an organizer opt-"
+"out request."
+msgstr ""
+
+#: templates/pages/privacy.html:61
+msgid "Your rights (GDPR)"
+msgstr ""
+
+#: templates/pages/privacy.html:62
+msgid "Under GDPR, you have the following rights:"
+msgstr ""
+
+#: templates/pages/privacy.html:64
+msgid "Access"
+msgstr ""
+
+#: templates/pages/privacy.html:64
+msgid "Request a copy of the data we hold about you."
+msgstr ""
+
+#: templates/pages/privacy.html:65
+msgid "Rectification"
+msgstr ""
+
+#: templates/pages/privacy.html:65
+msgid "Request correction of inaccurate data."
+msgstr ""
+
+#: templates/pages/privacy.html:66
+msgid "Erasure"
+msgstr ""
+
+#: templates/pages/privacy.html:66
+msgid "Request deletion of your data ('right to be forgotten')."
+msgstr ""
+
+#: templates/pages/privacy.html:67
+msgid "Restriction"
+msgstr ""
+
+#: templates/pages/privacy.html:67
+msgid "Request we restrict processing of your data."
+msgstr ""
+
+#: templates/pages/privacy.html:68
+msgid "Portability"
+msgstr ""
+
+#: templates/pages/privacy.html:68
+msgid "Request your data in a machine-readable format."
+msgstr ""
+
+#: templates/pages/privacy.html:69
+msgid "Objection"
+msgstr ""
+
+#: templates/pages/privacy.html:69
+msgid "Object to processing based on legitimate interest."
+msgstr ""
+
+#: templates/pages/privacy.html:72
+msgid "To exercise your rights, contact us at"
+msgstr ""
+
+#: templates/pages/privacy.html:75
+msgid "Cookie policy"
+msgstr ""
+
+#: templates/pages/privacy.html:77
+msgid ""
+"We use only one persistent cookie: the age-gate cookie, which is strictly "
+"necessary under TTDSG §25(2) to comply with age-verification requirements. "
+"No tracking cookies are used."
+msgstr ""
+
+#: templates/pages/privacy.html:80
+msgid ""
+"No cookie consent banner is required because we use only strictly necessary "
+"cookies."
+msgstr ""
+
+#: templates/pages/privacy.html:83
+msgid "Map provider"
+msgstr ""
+
+#: templates/pages/privacy.html:85
+msgid ""
+"We use MapLibre with OpenStreetMap tiles for event location maps. MapLibre "
+"is an open-source map rendering library. OpenStreetMap is a community-"
+"maintained open geographic database. No Google Maps or other proprietary map "
+"services are used."
+msgstr ""
+
+#: templates/pages/privacy.html:90
+msgid "For data requests or privacy questions, contact"
+msgstr ""
+
+#: templates/pages/privacy.html:93
+msgid "For content removal requests, use our"
+msgstr ""
+
+#: templates/pages/privacy.html:94 templates/pages/terms.html:41
+#: templates/reviews/organizer_opt_out.html:18
+#: templates/reviews/takedown.html:18 tmp/bead4_desc.txt:92
+msgid "takedown form"
+msgstr ""
+
+#: templates/pages/terms.html:3 templates/pages/terms.html:6
+msgid "Terms of Use"
+msgstr ""
+
+#: templates/pages/terms.html:8
+msgid "User obligations"
+msgstr ""
+
+#: templates/pages/terms.html:11
+msgid "You must be 18 years of age or older to use this platform."
+msgstr ""
+
+#: templates/pages/terms.html:14
+msgid ""
+"You agree to submit only lawful content. Content that is illegal under "
+"German or EU law is prohibited."
+msgstr ""
+
+#: templates/pages/terms.html:17
+msgid ""
+"Harassment, hate speech, and content targeting individuals for harm are "
+"prohibited."
+msgstr ""
+
+#: templates/pages/terms.html:20
+msgid ""
+"You are responsible for the accuracy of any event information you submit."
+msgstr ""
+
+#: templates/pages/terms.html:24
+msgid "Content policy"
+msgstr ""
+
+#: templates/pages/terms.html:26
+msgid ""
+"Kinky Bubbles is a platform for queer, kinky, and conscious events, "
+"primarily focused on Berlin. We welcome:"
+msgstr ""
+
+#: templates/pages/terms.html:29
+msgid "LGBTQ+ community events"
+msgstr ""
+
+#: templates/pages/terms.html:30
+msgid "Kink and fetish events for adults (18+)"
+msgstr ""
+
+#: templates/pages/terms.html:31
+msgid "Conscious sexuality and intimacy workshops"
+msgstr ""
+
+#: templates/pages/terms.html:32
+msgid "Queer arts, culture, and social events"
+msgstr ""
+
+#: templates/pages/terms.html:35
+msgid ""
+"We do not list events that promote exploitation, lack informed consent, or "
+"violate applicable law."
+msgstr ""
+
+#: templates/pages/terms.html:38
+msgid "Takedown process"
+msgstr ""
+
+#: templates/pages/terms.html:40
+msgid "To report content that violates these terms, use our"
+msgstr ""
+
+#: templates/pages/terms.html:42 tmp/bead4_desc.txt:94
+msgid "We aim to review takedown requests within 72 hours."
+msgstr ""
+
+#: templates/pages/terms.html:47
+msgid ""
+"Kinky Bubbles is a community-curated platform. Event information is provided "
+"by organizers and the community. The operator does not verify, endorse, or "
+"guarantee the accuracy of any event listings."
+msgstr ""
+
+#: templates/pages/terms.html:50
+msgid ""
+"Attendance at any listed event is at your own risk. The operator is not "
+"responsible for any loss, injury, or damage arising from attendance at "
+"events listed on this platform."
+msgstr ""
+
+#: templates/pages/terms.html:53
+msgid "Changes to these terms"
+msgstr ""
+
+#: templates/pages/terms.html:55
+msgid ""
+"We may update these terms from time to time. Continued use of the platform "
+"constitutes acceptance of any updated terms."
+msgstr ""
+
+#: templates/reviews/_flag_button.html:3 tmp/bead6_desc.txt:384
+msgid "Reported. Thank you."
+msgstr ""
+
+#: templates/reviews/_flag_button.html:13 templates/reviews/takedown.html:65
+#: tmp/bead6_desc.txt:372
+msgid "Reason"
+msgstr ""
+
+#: templates/reviews/_flag_button.html:14 templates/reviews/takedown.html:69
+#: tmp/bead6_desc.txt:373
+msgid "Spam"
+msgstr ""
+
+#: templates/reviews/_flag_button.html:15 tmp/bead6_desc.txt:374
+msgid "Inaccurate"
+msgstr ""
+
+#: templates/reviews/_flag_button.html:16 tmp/bead6_desc.txt:375
+msgid "Harmful"
+msgstr ""
+
+#: templates/reviews/_flag_button.html:17 templates/reviews/takedown.html:72
+#: tmp/bead6_desc.txt:376
+msgid "Safety concern"
+msgstr ""
+
+#: templates/reviews/_flag_button.html:18 templates/reviews/takedown.html:73
+#: tmp/bead6_desc.txt:377
+msgid "Other"
+msgstr ""
+
+#: templates/reviews/_flag_button.html:20 tmp/bead6_desc.txt:379
+msgid "Report"
+msgstr ""
+
+#: templates/reviews/_organizer_rating_display.html:11 tmp/bead5_desc.txt:260
+msgid "Your review has been saved."
+msgstr ""
+
+#: templates/reviews/_rating_form.html:3 tmp/bead5_desc.txt:212
+msgid "Review submitted. Thank you!"
+msgstr ""
+
+#: templates/reviews/_rating_form.html:15 tmp/bead5_desc.txt:224
+msgid "Rate this"
+msgstr ""
+
+#: templates/reviews/_rating_form.html:16 tmp/bead5_desc.txt:225
+msgid "Rating"
+msgstr ""
+
+#: templates/reviews/_rating_form.html:21 tmp/bead5_desc.txt:230
+msgid "stars"
+msgstr ""
+
+#: templates/reviews/_rating_form.html:25 tmp/bead5_desc.txt:234
+msgid "Optional comment..."
+msgstr ""
+
+#: templates/reviews/_rating_form.html:26 tmp/bead5_desc.txt:235
+msgid "Submit review"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:6
+msgid "Organizer Data Removal (GDPR Opt-Out)"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:10
+msgid ""
+"Your opt-out request has been processed. Your organizer account has been "
+"suspended."
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:17
+msgid "If you cannot verify via Telegram, please use the"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:19
+msgid "to request manual processing."
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:25
+msgid ""
+"As an organizer, you may request removal of your data from our platform. "
+"Identity is verified via your Telegram user ID to prevent unauthorized "
+"removals."
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:33
+msgid "Your Telegram User ID"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:43
+msgid "Find your user ID by messaging @userinfobot on Telegram."
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:49
+msgid "Your organizer slug (from your profile URL)"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:60
+msgid "Request Data Removal"
+msgstr ""
+
+#: templates/reviews/takedown.html:6
+msgid "Report Content (DSA Takedown)"
+msgstr ""
+
+#: templates/reviews/takedown.html:10
+msgid ""
+"Your report has been submitted. We aim to review takedown requests within 72 "
+"hours."
+msgstr ""
+
+#: templates/reviews/takedown.html:17
+msgid "You can also contact us directly:"
+msgstr ""
+
+#: templates/reviews/takedown.html:39
+msgid ""
+"Use this form to report content that violates our <a href='/terms/' "
+"class='link'>Terms of Service</a> or applicable law. Your report will be "
+"reviewed within 72 hours."
+msgstr ""
+
+#: templates/reviews/takedown.html:43
+msgid ""
+"Warning: Knowingly false reports may be rejected and escalated per DSA Art. "
+"16(6)."
+msgstr ""
+
+#: templates/reviews/takedown.html:51
+msgid "URL of the content you are reporting"
+msgstr ""
+
+#: templates/reviews/takedown.html:68
+msgid "Illegal content — specify law (DSA Art. 16)"
+msgstr ""
+
+#: templates/reviews/takedown.html:70
+msgid "Inaccurate information"
+msgstr ""
+
+#: templates/reviews/takedown.html:71
+msgid "Harmful content"
+msgstr ""
+
+#: templates/reviews/takedown.html:79
+msgid ""
+"Which law or legal provision is violated? (required for illegal-content "
+"reports)"
+msgstr ""
+
+#: templates/reviews/takedown.html:86
+msgid "e.g. NetzDG §1, GDPR Art. 17, StGB §86"
+msgstr ""
+
+#: templates/reviews/takedown.html:93
+msgid "Description"
+msgstr ""
+
+#: templates/reviews/takedown.html:100
+msgid "Please describe the issue..."
+msgstr ""
+
+#: templates/reviews/takedown.html:106
+msgid "Your email address (required for illegal-content reports)"
+msgstr ""
+
+#: templates/reviews/takedown.html:134
+msgid ""
+"Your contact details are processed to handle this report under Art. 6(1)(c) "
+"GDPR. See our <a href='/privacy/' class='link'>Privacy Policy</a>."
+msgstr ""
+
+#: templates/reviews/takedown.html:137
+msgid "Submit Report"
+msgstr ""
+
+#: templates/reviews/takedown.html:141
+msgid "You can also contact us directly by email:"
+msgstr ""
+
+#: tmp/bead4_desc.txt:85
+msgid "Impressum / Legal Notice"
+msgstr ""
+
+#: tmp/bead4_desc.txt:86
+msgid "Responsible party / Verantwortliche Person"
+msgstr ""
+
+#: tmp/bead4_desc.txt:89
+msgid "Report content / DSA-Kontakt"
+msgstr ""
+
+#: tmp/bead4_desc.txt:91
+msgid "To report content, use our"
+msgstr ""
+
+#: tmp/bead4_desc.txt:96
+msgid ""
+"Wir bemühen uns, Takedown-Anfragen innerhalb von 72 Stunden zu bearbeiten."
+msgstr ""
+
+#: venues/models.py:36
+msgid "venue"
+msgstr ""
+
+#: venues/models.py:37
+msgid "venues"
 msgstr ""
