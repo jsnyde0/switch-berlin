@@ -1,13 +1,12 @@
 """Custom context processors for kinky-bubbles."""
 
-from django.conf import settings
-
+from a_core.legal import get_legal_contact
 from a_core.models import get_flag, get_numeric
 
 
 def legal_contact_processor(request):
     """Make legal_contact dict available in all template contexts."""
-    return {"legal_contact": settings.LEGAL_CONTACT}
+    return {"legal_contact": get_legal_contact()}
 
 
 def feature_flags(request):

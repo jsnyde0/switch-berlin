@@ -219,6 +219,48 @@ class TestLegalCheckNoFireWhenBothFalse(TestCase):
         self.assertEqual(errors, [])
 
 
+class TestCheckSafeOnFreshDb(TestCase):
+    """check_legal_contact must not crash when the DB table doesn't exist yet."""
+
+    def test_check_safe_on_fresh_db_before_migrations(self):
+        """Patching get_flag to raise ProgrammingError simulates pre-migrate state.
+
+        The check must return [] instead of propagating the exception, so that
+        `manage.py migrate` on a fresh DB is not aborted by its own system checks.
+        """
+        from unittest.mock import patch
+
+        from django.db.utils import ProgrammingError
+
+        from a_core.checks import check_legal_contact
+
+        # get_flag is imported inside the function body, so patch the source module
+        with patch(
+            "a_core.models.get_flag",
+            side_effect=ProgrammingError("table does not exist"),
+        ):
+            errors = check_legal_contact(app_configs=None)
+
+        self.assertEqual(errors, [])
+
+    def test_check_safe_on_fresh_db_operational_error(self):
+        """Patching get_flag to raise OperationalError (SQLite fresh DB) returns []."""
+        from unittest.mock import patch
+
+        from django.db.utils import OperationalError
+
+        from a_core.checks import check_legal_contact
+
+        # get_flag is imported inside the function body, so patch the source module
+        with patch(
+            "a_core.models.get_flag",
+            side_effect=OperationalError("no such table"),
+        ):
+            errors = check_legal_contact(app_configs=None)
+
+        self.assertEqual(errors, [])
+
+
 class TestLegalContactDict(TestCase):
     """Unit tests for legal_contact dict assembly from settings."""
 

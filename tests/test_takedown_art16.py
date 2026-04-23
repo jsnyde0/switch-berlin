@@ -178,6 +178,22 @@ def test_admin_shows_law_reference(superuser, approved_organizer):
     assert "law_reference" in content
 
 
+@pytest.mark.django_db
+def test_flag_admin_list_display_includes_law_reference():
+    """FlagAdmin.list_display must include 'law_reference' for audit visibility."""
+    from reviews.admin import FlagAdmin
+
+    assert "law_reference" in FlagAdmin.list_display
+
+
+@pytest.mark.django_db
+def test_flag_admin_list_filter_includes_good_faith():
+    """FlagAdmin.list_filter must include 'good_faith_confirmed' for DSA audit."""
+    from reviews.admin import FlagAdmin
+
+    assert "good_faith_confirmed" in FlagAdmin.list_filter
+
+
 # ---------------------------------------------------------------------------
 # Integration: view saves new fields
 # ---------------------------------------------------------------------------

@@ -35,7 +35,7 @@ These have different cadences (code sprint → drafting review → ops). Bundlin
 - **Django system check** (`a_core/checks.py`) — `W006` warning if any required var is empty and `DEBUG=True`; `E006` error if empty and `PUBLIC_READ_ENABLED=True`. Registered via `apps.py` so `manage.py check --deploy` catches it before production start.
 - **Attendance consent (Art. 9 D1)** —
   - `User.art9_consent_given_at: DateTimeField(null=True)` migration.
-  - Pre-attend gate: `views.attend` and `views.interested` check `user.art9_consent_given_at is not None` before creating `Attendance`; otherwise return `_consent_required.html` partial with the consent modal.
+  - Pre-attend gate: `views.event_attend` (a single view dispatching on POST `status`) checks `user.art9_consent_given_at is not None` before creating `Attendance`; otherwise returns `_consent_required.html` partial with the consent modal.
   - Consent endpoint: `POST /accounts/art9-consent/` sets the timestamp.
   - Withdrawal on `/me`: "Withdraw attendance consent" button → clears timestamp AND deletes all `Attendance` rows for that user (hard delete; Art. 17 erasure). Idempotent.
   - Consent modal copy (EN + DE) explicitly names "sexual orientation" as a possible inference per Art. 9 plain-language requirement.

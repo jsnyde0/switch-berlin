@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django_ratelimit.core import is_ratelimited
@@ -88,6 +89,10 @@ def art9_consent_view(request):
         request.user.art9_consent_given_at = timezone.now()
         request.user.save(update_fields=["art9_consent_given_at"])
     next_url = request.POST.get("next", "/")
+    if not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}
+    ):
+        next_url = "/"
     response = HttpResponse()
     response["HX-Redirect"] = next_url
     return response

@@ -1,5 +1,7 @@
 # Legitimate Interests Assessment — Organizer Event Data
 
+> **Sync note:** If this balancing changes, sync `templates/pages/privacy.html` lines 58-73.
+
 **Legal basis:** Art. 6(1)(f) GDPR — Legitimate interest of the controller  
 **Data category:** Organizer identity and public event listings  
 **Controller:** Kinky Bubbles (operator details in Impressum)  

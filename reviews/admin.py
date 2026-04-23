@@ -49,9 +49,10 @@ class ReviewAdmin(admin.ModelAdmin):
 @admin.register(Flag)
 class FlagAdmin(admin.ModelAdmin):
     list_display = [
-        "reporter", "organizer", "event", "reason", "resolved", "created_at"
+        "reporter", "organizer", "event", "reason",
+        "law_reference", "resolved", "created_at",
     ]
-    list_filter = ["resolved", "reason"]
+    list_filter = ["resolved", "reason", "good_faith_confirmed"]
     readonly_fields = ["created_at", "good_faith_confirmed"]
     fields = [
         "reporter", "organizer", "event", "review",

@@ -8,6 +8,7 @@ Registered via ACoreConfig.ready() in a_core/apps.py.
 
 from django.conf import settings
 from django.core.checks import Error, Warning, register
+from django.db.utils import OperationalError, ProgrammingError
 
 REQUIRED_LEGAL_VARS = ["IMPRESSUM_NAME", "IMPRESSUM_ADDRESS", "IMPRESSUM_EMAIL"]
 
@@ -19,11 +20,18 @@ def check_legal_contact(app_configs, **kwargs):
     - E006 if PUBLIC_READ_ENABLED=True and any required var is missing.
     - W006 if DEBUG=True (and PUBLIC_READ_ENABLED=False) and any required var missing.
     - Silent if neither condition applies (internal cohort, neither flag set).
+
+    On a fresh DB (pre-migrate), FeatureFlag table does not exist yet.
+    In that case we return no errors — the check will re-run after migrations.
     """
     from a_core.models import get_flag
 
     errors = []
-    public_read = get_flag("PUBLIC_READ_ENABLED", default=False)
+    try:
+        public_read = get_flag("PUBLIC_READ_ENABLED", default=False)
+    except (ProgrammingError, OperationalError):
+        # Pre-migrate state: DB table doesn't exist yet. Not a deploy violation.
+        return []
     missing = [v for v in REQUIRED_LEGAL_VARS if not getattr(settings, v, "")]
 
     if not missing:

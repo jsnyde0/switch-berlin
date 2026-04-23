@@ -193,6 +193,27 @@ def test_withdrawal_endpoint_revokes_and_redirects(
 
 
 # ---------------------------------------------------------------------------
+# Open redirect protection
+# ---------------------------------------------------------------------------
+
+
+def test_consent_next_rejects_external_url(client, approved_user):
+    """POST art9-consent with next=https://evil.com must redirect to '/' not evil."""
+    client.force_login(approved_user)
+    response = client.post(reverse("art9-consent"), data={"next": "https://evil.com"})
+    assert response.status_code == 200
+    assert response.get("HX-Redirect") == "/"
+
+
+def test_consent_next_accepts_safe_internal_url(client, approved_user):
+    """POST art9-consent with next=/events/ (safe internal URL) redirects there."""
+    client.force_login(approved_user)
+    response = client.post(reverse("art9-consent"), data={"next": "/events/"})
+    assert response.status_code == 200
+    assert response.get("HX-Redirect") == "/events/"
+
+
+# ---------------------------------------------------------------------------
 # Account deletion path (belt + suspenders)
 # ---------------------------------------------------------------------------
 
