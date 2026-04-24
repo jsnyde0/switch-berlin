@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.db.models import F
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -17,6 +18,9 @@ _SORT_ORDERINGS = {
     "lowest": ("rating", "-created_at"),
 }
 
+# Valid event sort options for the organizer profile event lists.
+_EVENT_SORT_OPTIONS = {"date", "lowest_rated", "most_reviewed"}
+
 
 def organizer_profile(request, slug):
     organizer = get_object_or_404(
@@ -24,7 +28,12 @@ def organizer_profile(request, slug):
     )
     now = timezone.now()
 
-    upcoming_events = (
+    # Parse ?event_sort query param; fall back to 'date' for unknown values.
+    event_sort = request.GET.get("event_sort", "date")
+    if event_sort not in _EVENT_SORT_OPTIONS:
+        event_sort = "date"
+
+    upcoming_events_qs = (
         Event.objects.visible()
         .filter(
             organizer=organizer,
@@ -33,8 +42,19 @@ def organizer_profile(request, slug):
         )
         .select_related("organizer", "venue")
         .prefetch_related("tags")
-        .order_by("start")[:50]
     )
+    if event_sort == "lowest_rated":
+        upcoming_events_qs = upcoming_events_qs.order_by(
+            F("avg_rating").asc(nulls_last=True), "start"
+        )
+    elif event_sort == "most_reviewed":
+        upcoming_events_qs = upcoming_events_qs.order_by(
+            F("rating_count").desc(), "start"
+        )
+    else:
+        upcoming_events_qs = upcoming_events_qs.order_by("start")
+    upcoming_events = upcoming_events_qs[:50]
+
     past_events = (
         Event.objects.visible()
         .filter(
@@ -94,6 +114,7 @@ def organizer_profile(request, slug):
         "show_rating": show_rating,
         "reviews": reviews,
         "sort": sort,
+        "event_sort": event_sort,
         "user_review": user_review,
         "MIN_RATINGS_FOR_DISPLAY": threshold,
     }

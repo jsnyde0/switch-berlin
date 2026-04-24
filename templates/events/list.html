@@ -1,86 +1,74 @@
 {% extends "_base.html" %}
 {% load i18n %}
-
-{% block title %}{% trans "Events" %} — Kinky Bubbles{% endblock title %}
-
+{% block title %}
+  {% trans "Events" %} — Kinky Bubbles
+{% endblock title %}
 {% block extra_head %}
-{% if MAP_ENABLED %}
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.css"
-      integrity="sha384-Nq6PQ+9vJPvw7U/VfDELyrWoGQMsy0gi6QShhaSrGzkpF5KkM40csg2leky+YMTd"
-      crossorigin="anonymous">
-{% endif %}
+  {% if MAP_ENABLED %}
+    <link rel="stylesheet"
+          href="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.css"
+          integrity="sha384-Nq6PQ+9vJPvw7U/VfDELyrWoGQMsy0gi6QShhaSrGzkpF5KkM40csg2leky+YMTd"
+          crossorigin="anonymous">
+  {% endif %}
 {% endblock extra_head %}
-
 {% block layout %}
-<div class="flex flex-col gap-6">
-  <h1 class="text-2xl font-bold">{% trans "Events" %}</h1>
-
-  {% if trending_enabled %}
-  <div class="flex gap-2" role="tablist">
-    <a href="?"
-       class="badge cursor-pointer {% if sort != 'trending' %}badge-primary{% else %}badge-outline{% endif %}"
-       role="tab"
-       aria-selected="{% if sort != 'trending' %}true{% else %}false{% endif %}">
-      {% trans "Latest" %}
-    </a>
-    <a href="?sort=trending"
-       class="badge cursor-pointer {% if sort == 'trending' %}badge-primary{% else %}badge-outline{% endif %}"
-       role="tab"
-       aria-selected="{% if sort == 'trending' %}true{% else %}false{% endif %}">
-      {% trans "Trending" %}
-    </a>
-  </div>
-  {% endif %}
-
-  <form id="filter-form"
-        hx-get="{% url 'event-list' %}"
-        hx-target="#event-list"
-        hx-push-url="true"
-        hx-trigger="submit">
-    <c-filter-chips
-      :all_tags="all_tags"
-      :active_tag_slugs="active_tag_slugs"
-      :from_param="from_param"
-      :to_param="to_param"
-      :organizer_param="organizer_param"
-      :price_param="price_param"
-    />
-  </form>
-
-  {% if MAP_ENABLED %}<div id="map" hx-preserve="true" style="height: 500px; width: 100%;"></div>{% endif %}
-
-  {% if user.is_authenticated %}
-  <section class="flex flex-col gap-3">
-    <h2 class="text-xl font-semibold">{% trans "From organizers you follow" %}</h2>
-    {% if following_events %}
-      <div class="flex flex-col gap-3">
-        {% for event in following_events %}
-          <c-event-card :event="event" />
-        {% endfor %}
-      </div>
-      <a href="?filter=following" class="link text-sm">{% trans "View all" %}</a>
-    {% else %}
-      <p class="text-base-content/60">{% trans "You're not following anyone yet." %}</p>
+  <div class="flex flex-col gap-6">
+    <h1 class="text-2xl font-bold">{% trans "Events" %}</h1>
+    <div class="flex gap-2 flex-wrap" role="tablist">
+      <a href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}"
+         class="badge cursor-pointer {% if sort == 'date' or sort == '' %}badge-primary{% else %}badge-outline{% endif %}"
+         role="tab"
+         aria-selected="{% if sort == 'date' or sort == '' %}true{% else %}false{% endif %}">{% trans "Latest" %}</a>
+      {% if trending_enabled %}
+        <a href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+           class="badge cursor-pointer {% if sort == 'trending' %}badge-primary{% else %}badge-outline{% endif %}"
+           role="tab"
+           aria-selected="{% if sort == 'trending' %}true{% else %}false{% endif %}">{% trans "Trending" %}</a>
+      {% endif %}
+      <a href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+         class="badge cursor-pointer {% if sort == 'lowest_rated' %}badge-primary{% else %}badge-outline{% endif %}"
+         role="tab"
+         aria-selected="{% if sort == 'lowest_rated' %}true{% else %}false{% endif %}">{% trans "Lowest rated" %}</a>
+      <a href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+         class="badge cursor-pointer {% if sort == 'most_reviewed' %}badge-primary{% else %}badge-outline{% endif %}"
+         role="tab"
+         aria-selected="{% if sort == 'most_reviewed' %}true{% else %}false{% endif %}">{% trans "Most reviewed" %}</a>
+    </div>
+    <form id="filter-form"
+          hx-get="{% url 'event-list' %}"
+          hx-target="#event-list"
+          hx-push-url="true"
+          hx-trigger="submit">
+      <c-filter-chips :all_tags="all_tags" :active_tag_slugs="active_tag_slugs" :from_param="from_param" :to_param="to_param" :organizer_param="organizer_param" :price_param="price_param" />
+    </form>
+    {% if MAP_ENABLED %}
+      <div id="map" hx-preserve="true" style="height: 500px; width: 100%;"></div>
     {% endif %}
-  </section>
-  {% endif %}
-
-  <div id="event-list">
-    {% include "events/_event_list.html" %}
+    {% if user.is_authenticated %}
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-semibold">{% trans "From organizers you follow" %}</h2>
+        {% if following_events %}
+          <div class="flex flex-col gap-3">
+            {% for event in following_events %}<c-event-card :event="event" />{% endfor %}
+          </div>
+          <a href="?filter=following" class="link text-sm">{% trans "View all" %}</a>
+        {% else %}
+          <p class="text-base-content/60">{% trans "You're not following anyone yet." %}</p>
+        {% endif %}
+      </section>
+    {% endif %}
+    <div id="event-list">{% include "events/_event_list.html" %}</div>
+    <div id="drawer"></div>
   </div>
-
-  <div id="drawer"></div>
-</div>
 {% endblock layout %}
-
 {% block extra_js %}
-{% if MAP_ENABLED %}
-<script src="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.js"
-        integrity="sha384-VMpBpZqwtNOdABxFshfUPnyuqncfZtE0j1evmoWakxTDQ+me3EE4G48K/+dSDxSX"
-        crossorigin="anonymous"></script>
-{% load static %}
-<script src="{% static 'js/events/store.js' %}"></script>
-<script src="{% static 'js/events/map.js' %}"></script>
-<script src="{% static 'js/events/bridge.js' %}"></script>
-{% endif %}
+  {% if MAP_ENABLED %}
+    <script src="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.js"
+            integrity="sha384-VMpBpZqwtNOdABxFshfUPnyuqncfZtE0j1evmoWakxTDQ+me3EE4G48K/+dSDxSX"
+            crossorigin="anonymous"></script>
+    {% load static %}
+    <script src="{% static 'js/events/store.js' %}"></script>
+    <script src="{% static 'js/events/map.js' %}"></script>
+    <script src="{% static 'js/events/bridge.js' %}"></script>
+  {% endif %}
 {% endblock extra_js %}

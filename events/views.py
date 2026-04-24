@@ -31,8 +31,11 @@ def event_list(request):
         .prefetch_related("tags")
     )
 
-    # Sort: trending or default chronological
+    # Sort: trending, lowest_rated, most_reviewed, or default chronological
+    _VALID_SORT_OPTIONS = {"date", "trending", "lowest_rated", "most_reviewed"}
     sort = request.GET.get("sort", "date")
+    if sort not in _VALID_SORT_OPTIONS:
+        sort = "date"
     trending_enabled = get_flag("TRENDING_SORT_ENABLED", default=True)
 
     if sort == "trending" and trending_enabled:
@@ -41,24 +44,33 @@ def event_list(request):
         now_ts = timezone.now()
         # RawSQL used for days_until_start: PostgreSQL does not support
         # interval / interval directly, so we convert to epoch seconds.
-        qs = qs.annotate(
-            days_until_start=ExpressionWrapper(
-                Greatest(
-                    RawSQL(
-                        "EXTRACT(EPOCH FROM (start - %s)) / 86400.0",
-                        [now_ts],
+        qs = (
+            qs.annotate(
+                days_until_start=ExpressionWrapper(
+                    Greatest(
+                        RawSQL(
+                            "EXTRACT(EPOCH FROM (start - %s)) / 86400.0",
+                            [now_ts],
+                        ),
+                        Value(1.0),
                     ),
-                    Value(1.0),
-                ),
-                output_field=FloatField(),
+                    output_field=FloatField(),
+                )
             )
-        ).annotate(
-            trending_score=ExpressionWrapper(
-                F("interested_count") * (1.0 / F("days_until_start"))
-                + F("attendance_count") * 2.0,
-                output_field=FloatField(),
+            .annotate(
+                trending_score=ExpressionWrapper(
+                    F("interested_count") * (1.0 / F("days_until_start"))
+                    + F("attendance_count") * 2.0,
+                    output_field=FloatField(),
+                )
             )
-        ).order_by("-trending_score", "-start", "pk")
+            .order_by("-trending_score", "-start", "pk")
+        )
+    elif sort == "lowest_rated":
+        # Events with no reviews (avg_rating=None) come last.
+        qs = qs.order_by(F("avg_rating").asc(nulls_last=True), "start")
+    elif sort == "most_reviewed":
+        qs = qs.order_by(F("rating_count").desc(), "start")
     else:
         qs = qs.order_by("start")
 
@@ -222,9 +234,7 @@ def event_list(request):
         "markers_geojson": markers_geojson,
         "bounds_param": bounds_param,
         "going_venue_id_list": going_venue_id_list,
-        "EVENT_REVIEWS_DISPLAYED": get_flag(
-            "EVENT_REVIEWS_DISPLAYED", default=False
-        ),
+        "EVENT_REVIEWS_DISPLAYED": get_flag("EVENT_REVIEWS_DISPLAYED", default=False),
         "EVENT_RATING_THRESHOLD": get_numeric(
             "threshold.event_ratings_display", default=3
         ),
@@ -318,9 +328,7 @@ def event_detail(request, org_slug, event_slug):
         "event_past": event_past,
         "user_has_went_attendance": user_has_went_attendance,
         "event_reviews": event_reviews,
-        "EVENT_REVIEWS_DISPLAYED": get_flag(
-            "EVENT_REVIEWS_DISPLAYED", default=False
-        ),
+        "EVENT_REVIEWS_DISPLAYED": get_flag("EVENT_REVIEWS_DISPLAYED", default=False),
         "EVENT_RATING_THRESHOLD": get_numeric(
             "threshold.event_ratings_display", default=3
         ),

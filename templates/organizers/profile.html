@@ -60,7 +60,27 @@
       </section>
     {% endif %}
     <section>
-      <h2 class="text-xl font-semibold mb-4">{% trans "Upcoming events" %}</h2>
+      <div class="flex items-center gap-3 mb-4 flex-wrap">
+        <h2 class="text-xl font-semibold">{% trans "Upcoming events" %}</h2>
+        <div class="flex gap-2" role="tablist">
+          <a href="?event_sort=date{% if sort %}&sort={{ sort }}{% endif %}"
+             class="badge cursor-pointer {% if event_sort == 'date' %}badge-primary{% else %}badge-outline{% endif %}"
+             role="tab"
+             aria-selected="{% if event_sort == 'date' %}true{% else %}false{% endif %}">{% trans "Latest" %}</a>
+          <a href="?event_sort=lowest_rated{% if sort %}&sort={{ sort }}{% endif %}"
+             class="badge cursor-pointer {% if event_sort == 'lowest_rated' %}badge-primary{% else %}badge-outline{% endif %}"
+             role="tab"
+             aria-selected="{% if event_sort == 'lowest_rated' %}true{% else %}false{% endif %}">
+            {% trans "Lowest rated" %}
+          </a>
+          <a href="?event_sort=most_reviewed{% if sort %}&sort={{ sort }}{% endif %}"
+             class="badge cursor-pointer {% if event_sort == 'most_reviewed' %}badge-primary{% else %}badge-outline{% endif %}"
+             role="tab"
+             aria-selected="{% if event_sort == 'most_reviewed' %}true{% else %}false{% endif %}">
+            {% trans "Most reviewed" %}
+          </a>
+        </div>
+      </div>
       {% if upcoming_events %}
         <div class="flex flex-col gap-3">
           {% for event in upcoming_events %}<c-event-card :event="event" />{% endfor %}
@@ -89,24 +109,18 @@
           </div>
           {# Sort chips — server-side href links, no JS #}
           <div class="flex gap-2" role="tablist">
-            <a href="?sort=recent"
+            <a href="?sort=recent{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
                class="badge cursor-pointer {% if sort == 'recent' %}badge-primary{% else %}badge-outline{% endif %}"
                role="tab"
-               aria-selected="{% if sort == 'recent' %}true{% else %}false{% endif %}">
-              {% trans "Recent" %}
-            </a>
-            <a href="?sort=highest"
+               aria-selected="{% if sort == 'recent' %}true{% else %}false{% endif %}">{% trans "Recent" %}</a>
+            <a href="?sort=highest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
                class="badge cursor-pointer {% if sort == 'highest' %}badge-primary{% else %}badge-outline{% endif %}"
                role="tab"
-               aria-selected="{% if sort == 'highest' %}true{% else %}false{% endif %}">
-              {% trans "Highest" %}
-            </a>
-            <a href="?sort=lowest"
+               aria-selected="{% if sort == 'highest' %}true{% else %}false{% endif %}">{% trans "Highest" %}</a>
+            <a href="?sort=lowest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
                class="badge cursor-pointer {% if sort == 'lowest' %}badge-primary{% else %}badge-outline{% endif %}"
                role="tab"
-               aria-selected="{% if sort == 'lowest' %}true{% else %}false{% endif %}">
-              {% trans "Lowest" %}
-            </a>
+               aria-selected="{% if sort == 'lowest' %}true{% else %}false{% endif %}">{% trans "Lowest" %}</a>
           </div>
           {# Per-review rows #}
           <div class="flex flex-col gap-4">
@@ -114,16 +128,15 @@
               <div class="border border-base-300 rounded-lg p-4 flex flex-col gap-1">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="font-medium text-sm">{{ review.author.get_full_name|default:review.author.username }}</span>
-                  <div class="rating rating-sm" aria-label="{% blocktrans with rating=review.rating %}{{ rating }} stars{% endblocktrans %}">
+                  <div class="rating rating-sm"
+                       aria-label="{% blocktrans with rating=review.rating %}{{ rating }} stars{% endblocktrans %}">
                     {% for i in "12345" %}
                       <span class="mask mask-star-2 {% if forloop.counter <= review.rating %}bg-orange-400{% else %}bg-base-300{% endif %} w-4 h-4"></span>
                     {% endfor %}
                   </div>
                   <span class="text-xs text-base-content/50">{{ review.created_at|date:"Y-m-d" }}</span>
                 </div>
-                {% if review.body %}
-                  <p class="text-sm text-base-content/80">{{ review.body }}</p>
-                {% endif %}
+                {% if review.body %}<p class="text-sm text-base-content/80">{{ review.body }}</p>{% endif %}
               </div>
             {% empty %}
               <p class="text-base-content/60 text-sm">{% trans "No reviews yet." %}</p>
