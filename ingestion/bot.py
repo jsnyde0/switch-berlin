@@ -6,7 +6,7 @@ from django_q.tasks import async_task
 from telegram import Update
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
-from ingestion.models import ApprovedSender, RawMessage
+from ingestion.models import ApprovedSender, RawMessage, RejectedMessageAttempt
 
 # Rate limiting: in-memory, resets on restart. Acceptable for single-worker -- resets
 # on restart, which is fine since the limit is a safety valve, not a billing control.
@@ -70,6 +70,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ApprovedSender.objects.filter(telegram_user_id=sender_id).exists
     )()
     if not exists:
+        message_text = (update.message.text or "")[:500] if update.message else ""
+        await sync_to_async(RejectedMessageAttempt.objects.create)(
+            telegram_user_id=update.effective_user.id,
+            telegram_username=update.effective_user.username or "",
+            chat_id=update.message.chat.id if update.message else None,
+            message_text=message_text,
+        )
         await update.message.reply_text(
             "This bot only accepts forwards from approved organizers. "
             "To request access, DM @jsnyde0."

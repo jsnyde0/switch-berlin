@@ -6,11 +6,15 @@ from django.test import TestCase, TransactionTestCase
 
 from a_core.models import FeatureFlag
 from ingestion.bot import _bot_enabled, _is_rate_limited, _rate_buckets, handle_message
-from ingestion.models import ApprovedSender, RawMessage
+from ingestion.models import ApprovedSender, RawMessage, RejectedMessageAttempt
 
 
 def make_update(
-    text="Test event", user_id=123456789, message_id=42, has_forward_chat=False
+    text="Test event",
+    user_id=123456789,
+    message_id=42,
+    has_forward_chat=False,
+    username=None,
 ):
     """Build a minimal mock Telegram Update.
     Note: user_id is passed as int (matching real Telegram API), but the bot
@@ -18,8 +22,10 @@ def make_update(
     user_id=123456789 must have ApprovedSender.telegram_user_id='123456789'."""
     update = MagicMock()
     update.effective_user.id = user_id
+    update.effective_user.username = username
     update.message.text = text
     update.message.message_id = message_id
+    update.message.chat.id = 100
     update.message.forward_from_chat = MagicMock(id=999) if has_forward_chat else None
     update.message.to_dict.return_value = {"text": text or "", "message_id": message_id}
     update.message.reply_text = AsyncMock()
@@ -122,6 +128,27 @@ class BotHandlerTest(TestCase):
         async_to_sync(handle_message)(update, context)
         reply_text = update.message.reply_text.call_args[0][0]
         self.assertIn("approved organizers", reply_text)
+
+    def test_rejected_sender_creates_rejected_message_attempt(self):
+        """Unapproved sender -> RejectedMessageAttempt row persisted for audit."""
+        update = make_update(user_id=777777, message_id=55, text="Some event info")
+        context = MagicMock()
+        # No ApprovedSender for 777777
+        async_to_sync(handle_message)(update, context)
+        attempt = RejectedMessageAttempt.objects.filter(telegram_user_id=777777).first()
+        self.assertIsNotNone(attempt)
+        self.assertEqual(attempt.telegram_user_id, 777777)
+
+    def test_rejected_sender_message_text_truncated_to_500_chars(self):
+        """message_text stored on RejectedMessageAttempt is truncated to 500 chars."""
+        long_text = "A" * 600
+        update = make_update(user_id=666666, message_id=56, text=long_text)
+        context = MagicMock()
+        # No ApprovedSender for 666666
+        async_to_sync(handle_message)(update, context)
+        attempt = RejectedMessageAttempt.objects.filter(telegram_user_id=666666).first()
+        self.assertIsNotNone(attempt)
+        self.assertEqual(len(attempt.message_text), 500)
 
     def test_rate_limit_enforced(self):
         _rate_buckets.clear()

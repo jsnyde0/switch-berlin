@@ -1,7 +1,12 @@
 from django.db import IntegrityError
 from django.test import TestCase
 
-from ingestion.models import ApprovedSender, ExtractionAttempt, RawMessage
+from ingestion.models import (
+    ApprovedSender,
+    ExtractionAttempt,
+    RawMessage,
+    RejectedMessageAttempt,
+)
 
 
 class RawMessageNeedsReviewChoiceTest(TestCase):
@@ -167,3 +172,15 @@ class ApprovedSenderModelTest(TestCase):
         )
         self.assertIn("123", str(sender))
         self.assertIn("myhandle", str(sender))
+
+
+class RejectedMessageAttemptModelTest(TestCase):
+    """RejectedMessageAttempt model-level behaviour."""
+
+    def test_save_truncates_message_text_to_500_chars(self):
+        row = RejectedMessageAttempt.objects.create(
+            telegram_user_id=1,
+            message_text="A" * 600,
+        )
+        row.refresh_from_db()
+        self.assertEqual(len(row.message_text), 500)

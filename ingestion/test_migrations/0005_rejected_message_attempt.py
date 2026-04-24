@@ -1,0 +1,34 @@
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+    dependencies = [
+        ("ingestion", "0004_enable_pg_trgm"),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="RejectedMessageAttempt",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("telegram_user_id", models.BigIntegerField()),
+                ("telegram_username", models.CharField(blank=True, max_length=100)),
+                ("chat_id", models.BigIntegerField(blank=True, null=True)),
+                ("message_text", models.TextField(blank=True)),
+                ("attempted_at", models.DateTimeField(auto_now_add=True)),
+            ],
+            options={
+                "verbose_name": "rejected message attempt",
+                "verbose_name_plural": "rejected message attempts",
+                "ordering": ["-attempted_at"],
+            },
+        ),
+    ]

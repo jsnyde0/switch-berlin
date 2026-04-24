@@ -113,6 +113,26 @@ class ExtractionAttempt(models.Model):
         return f"ExtractionAttempt({self.raw_message_id}) @ {self.attempted_at}"
 
 
+class RejectedMessageAttempt(models.Model):
+    telegram_user_id = models.BigIntegerField()
+    telegram_username = models.CharField(max_length=100, blank=True)
+    chat_id = models.BigIntegerField(null=True, blank=True)
+    message_text = models.TextField(blank=True)
+    attempted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-attempted_at"]
+        verbose_name = _("rejected message attempt")
+        verbose_name_plural = _("rejected message attempts")
+
+    def __str__(self):
+        return f"Rejected({self.telegram_user_id}) @ {self.attempted_at}"
+
+    def save(self, *args, **kwargs):
+        self.message_text = self.message_text[:500]
+        super().save(*args, **kwargs)
+
+
 class ApprovedSender(models.Model):
     telegram_user_id = models.CharField(max_length=100, unique=True)
     telegram_handle = models.CharField(max_length=100, blank=True)

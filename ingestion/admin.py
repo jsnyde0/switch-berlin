@@ -6,6 +6,7 @@ from .models import (
     ExtractionAttempt,
     HeartbeatLog,
     RawMessage,
+    RejectedMessageAttempt,
     SourceFailure,
 )
 
@@ -51,6 +52,27 @@ class ExtractionAttemptAdmin(admin.ModelAdmin):
     list_filter = ["success", "model_name", "prompt_version"]
     search_fields = ["raw_message__text", "error"]
     readonly_fields = ["attempted_at"]
+
+
+@admin.register(RejectedMessageAttempt)
+class RejectedMessageAttemptAdmin(admin.ModelAdmin):
+    list_display = ["telegram_user_id", "telegram_username", "chat_id", "attempted_at"]
+    readonly_fields = [
+        "telegram_user_id",
+        "telegram_username",
+        "chat_id",
+        "message_text",
+        "attempted_at",
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ApprovedSender)
