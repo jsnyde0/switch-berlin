@@ -115,6 +115,9 @@ class EventAdmin(admin.ModelAdmin):
     ]
     actions = ["publish_events", "publish_selected", "reject_events", "archive_events"]
 
+    class Media:
+        js = ["admin/js/review_shortcuts.js"]
+
     def raw_message_preview(self, obj):
         if not obj.raw_message:
             return "—"

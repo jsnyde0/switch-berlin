@@ -62,6 +62,26 @@ class FlagAdmin(admin.ModelAdmin):
         "created_at",
     ]
     change_form_template = "admin/reviews/flag/change_form.html"
+    actions = ["resolve_approved", "resolve_rejected"]
+
+    class Media:
+        js = ["admin/js/review_shortcuts.js"]
+
+    @admin.action(description=_("Mark selected flags resolved — approved"))
+    def resolve_approved(self, request, queryset):
+        queryset.update(
+            resolved=True,
+            resolved_by=request.user,
+            resolution_notes="Bulk approved via admin shortcut",
+        )
+
+    @admin.action(description=_("Mark selected flags resolved — rejected"))
+    def resolve_rejected(self, request, queryset):
+        queryset.update(
+            resolved=True,
+            resolved_by=request.user,
+            resolution_notes="Bulk rejected via admin shortcut",
+        )
 
     def get_urls(self):
         urls = super().get_urls()
