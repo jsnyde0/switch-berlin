@@ -25,14 +25,16 @@
            role="tab"
            aria-selected="{% if sort == 'trending' %}true{% else %}false{% endif %}">{% trans "Trending" %}</a>
       {% endif %}
-      <a href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-         class="badge cursor-pointer {% if sort == 'lowest_rated' %}badge-primary{% else %}badge-outline{% endif %}"
-         role="tab"
-         aria-selected="{% if sort == 'lowest_rated' %}true{% else %}false{% endif %}">{% trans "Lowest rated" %}</a>
-      <a href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-         class="badge cursor-pointer {% if sort == 'most_reviewed' %}badge-primary{% else %}badge-outline{% endif %}"
-         role="tab"
-         aria-selected="{% if sort == 'most_reviewed' %}true{% else %}false{% endif %}">{% trans "Most reviewed" %}</a>
+      {% if EVENT_REVIEWS_DISPLAYED %}
+        <a href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+           class="badge cursor-pointer {% if sort == 'lowest_rated' %}badge-primary{% else %}badge-outline{% endif %}"
+           role="tab"
+           aria-selected="{% if sort == 'lowest_rated' %}true{% else %}false{% endif %}">{% trans "Lowest rated" %}</a>
+        <a href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+           class="badge cursor-pointer {% if sort == 'most_reviewed' %}badge-primary{% else %}badge-outline{% endif %}"
+           role="tab"
+           aria-selected="{% if sort == 'most_reviewed' %}true{% else %}false{% endif %}">{% trans "Most reviewed" %}</a>
+      {% endif %}
     </div>
     <form id="filter-form"
           hx-get="{% url 'event-list' %}"

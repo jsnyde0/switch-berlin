@@ -20,6 +20,9 @@ from venues.serializers import venue_to_geojson
 
 from .models import Attendance, Event, Tag
 
+_VALID_SORT_OPTIONS = {"date", "trending", "lowest_rated", "most_reviewed"}
+_RATING_SORT_OPTIONS = {"lowest_rated", "most_reviewed"}
+
 
 def event_list(request):
     _t0 = time.perf_counter()
@@ -31,10 +34,13 @@ def event_list(request):
         .prefetch_related("tags")
     )
 
-    # Sort: trending, lowest_rated, most_reviewed, or default chronological
-    _VALID_SORT_OPTIONS = {"date", "trending", "lowest_rated", "most_reviewed"}
+    # Sort: trending, lowest_rated, most_reviewed, or default chronological.
+    # Rating-based sorts are gated by EVENT_REVIEWS_DISPLAYED (ADR-002/005).
     sort = request.GET.get("sort", "date")
     if sort not in _VALID_SORT_OPTIONS:
+        sort = "date"
+    event_reviews_displayed = get_flag("EVENT_REVIEWS_DISPLAYED", default=False)
+    if sort in _RATING_SORT_OPTIONS and not event_reviews_displayed:
         sort = "date"
     trending_enabled = get_flag("TRENDING_SORT_ENABLED", default=True)
 
@@ -148,6 +154,12 @@ def event_list(request):
     if price_param:
         filter_params["price"] = price_param
     filter_query_string = urllib.parse.urlencode(filter_params)
+    # Pagination links must preserve the active sort; chip links must not,
+    # so they can switch sort without duplicating the param.
+    pagination_params = dict(filter_params)
+    if sort and sort != "date":
+        pagination_params["sort"] = sort
+    pagination_query_string = urllib.parse.urlencode(pagination_params)
 
     # Markers queryset — non-paginated, same filters as qs, plus optional bounds filter
     markers_qs = qs
@@ -231,10 +243,11 @@ def event_list(request):
         "organizer_param": organizer_param,
         "price_param": price_param,
         "filter_query_string": filter_query_string,
+        "pagination_query_string": pagination_query_string,
         "markers_geojson": markers_geojson,
         "bounds_param": bounds_param,
         "going_venue_id_list": going_venue_id_list,
-        "EVENT_REVIEWS_DISPLAYED": get_flag("EVENT_REVIEWS_DISPLAYED", default=False),
+        "EVENT_REVIEWS_DISPLAYED": event_reviews_displayed,
         "EVENT_RATING_THRESHOLD": get_numeric(
             "threshold.event_ratings_display", default=3
         ),

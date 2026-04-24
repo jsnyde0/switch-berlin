@@ -77,10 +77,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             chat_id=update.message.chat.id if update.message else None,
             message_text=message_text,
         )
-        await update.message.reply_text(
-            "This bot only accepts forwards from approved organizers. "
-            "To request access, DM @jsnyde0."
-        )
+        if update.message:
+            await update.message.reply_text(
+                "This bot only accepts forwards from approved organizers. "
+                "To request access, DM @jsnyde0."
+            )
         return
 
     # 5. Non-text message check (only reached by approved senders)

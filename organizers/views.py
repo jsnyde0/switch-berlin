@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from a_core.models import get_numeric
+from a_core.models import get_flag, get_numeric
 from accounts.decorators import approved_required
 from events.models import Attendance, Event
 from reviews.models import Review
@@ -20,6 +20,7 @@ _SORT_ORDERINGS = {
 
 # Valid event sort options for the organizer profile event lists.
 _EVENT_SORT_OPTIONS = {"date", "lowest_rated", "most_reviewed"}
+_EVENT_RATING_SORT_OPTIONS = {"lowest_rated", "most_reviewed"}
 
 
 def organizer_profile(request, slug):
@@ -29,8 +30,12 @@ def organizer_profile(request, slug):
     now = timezone.now()
 
     # Parse ?event_sort query param; fall back to 'date' for unknown values.
+    # Rating-based sorts gated by EVENT_REVIEWS_DISPLAYED (ADR-002/005).
     event_sort = request.GET.get("event_sort", "date")
     if event_sort not in _EVENT_SORT_OPTIONS:
+        event_sort = "date"
+    event_reviews_displayed = get_flag("EVENT_REVIEWS_DISPLAYED", default=False)
+    if event_sort in _EVENT_RATING_SORT_OPTIONS and not event_reviews_displayed:
         event_sort = "date"
 
     upcoming_events_qs = (
@@ -116,6 +121,7 @@ def organizer_profile(request, slug):
         "sort": sort,
         "event_sort": event_sort,
         "user_review": user_review,
+        "EVENT_REVIEWS_DISPLAYED": event_reviews_displayed,
         "MIN_RATINGS_FOR_DISPLAY": threshold,
     }
     return render(request, "organizers/profile.html", context)

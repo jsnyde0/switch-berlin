@@ -67,20 +67,42 @@ class FlagAdmin(admin.ModelAdmin):
     class Media:
         js = ["admin/js/review_shortcuts.js"]
 
+    def _bulk_resolve(self, request, queryset, *, resolution_notes):
+        """Resolve each flag AND write a ModerationAction row per flag.
+
+        Bulk shortcuts must not diverge from process_action's audit surface —
+        ModerationAction is the DSA/GDPR audit trail.
+        """
+        with transaction.atomic():
+            for flag in queryset.select_for_update():
+                target_type, target = _derive_target(flag)
+                if target is None:
+                    continue
+                ModerationAction.objects.create(
+                    moderator=request.user,
+                    flag=flag,
+                    target_type=target_type,
+                    target_id=target.pk,
+                    target_repr=str(target),
+                    action="resolved",
+                )
+                flag.resolved = True
+                flag.resolved_by = request.user
+                flag.resolution_notes = resolution_notes
+                flag.save(
+                    update_fields=["resolved", "resolved_by", "resolution_notes"]
+                )
+
     @admin.action(description=_("Mark selected flags resolved — approved"))
     def resolve_approved(self, request, queryset):
-        queryset.update(
-            resolved=True,
-            resolved_by=request.user,
-            resolution_notes="Bulk approved via admin shortcut",
+        self._bulk_resolve(
+            request, queryset, resolution_notes="Bulk approved via admin shortcut"
         )
 
     @admin.action(description=_("Mark selected flags resolved — rejected"))
     def resolve_rejected(self, request, queryset):
-        queryset.update(
-            resolved=True,
-            resolved_by=request.user,
-            resolution_notes="Bulk rejected via admin shortcut",
+        self._bulk_resolve(
+            request, queryset, resolution_notes="Bulk rejected via admin shortcut"
         )
 
     def get_urls(self):

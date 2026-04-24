@@ -1,11 +1,13 @@
 {% load i18n %}
 {% if page_obj.has_other_pages %}
+{# Prefer pagination_query_string (includes sort); fall back to filter_query_string for callers that don't set it. #}
+{% with qs=pagination_query_string|default:filter_query_string %}
 <div class="join mt-4">
   {% if page_obj.has_previous %}
-    {% if filter_query_string %}
-      <a href="?{{ filter_query_string }}&page={{ page_obj.previous_page_number }}"
+    {% if qs %}
+      <a href="?{{ qs }}&page={{ page_obj.previous_page_number }}"
          class="join-item btn btn-sm"
-         hx-get="?{{ filter_query_string }}&page={{ page_obj.previous_page_number }}"
+         hx-get="?{{ qs }}&page={{ page_obj.previous_page_number }}"
          hx-target="#event-list"
          hx-push-url="true">‹</a>
     {% else %}
@@ -24,10 +26,10 @@
   </span>
 
   {% if page_obj.has_next %}
-    {% if filter_query_string %}
-      <a href="?{{ filter_query_string }}&page={{ page_obj.next_page_number }}"
+    {% if qs %}
+      <a href="?{{ qs }}&page={{ page_obj.next_page_number }}"
          class="join-item btn btn-sm"
-         hx-get="?{{ filter_query_string }}&page={{ page_obj.next_page_number }}"
+         hx-get="?{{ qs }}&page={{ page_obj.next_page_number }}"
          hx-target="#event-list"
          hx-push-url="true">›</a>
     {% else %}
@@ -39,4 +41,5 @@
     {% endif %}
   {% endif %}
 </div>
+{% endwith %}
 {% endif %}

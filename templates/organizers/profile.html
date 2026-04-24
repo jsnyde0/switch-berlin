@@ -62,24 +62,26 @@
     <section>
       <div class="flex items-center gap-3 mb-4 flex-wrap">
         <h2 class="text-xl font-semibold">{% trans "Upcoming events" %}</h2>
-        <div class="flex gap-2" role="tablist">
-          <a href="?event_sort=date{% if sort %}&sort={{ sort }}{% endif %}"
-             class="badge cursor-pointer {% if event_sort == 'date' %}badge-primary{% else %}badge-outline{% endif %}"
-             role="tab"
-             aria-selected="{% if event_sort == 'date' %}true{% else %}false{% endif %}">{% trans "Latest" %}</a>
-          <a href="?event_sort=lowest_rated{% if sort %}&sort={{ sort }}{% endif %}"
-             class="badge cursor-pointer {% if event_sort == 'lowest_rated' %}badge-primary{% else %}badge-outline{% endif %}"
-             role="tab"
-             aria-selected="{% if event_sort == 'lowest_rated' %}true{% else %}false{% endif %}">
-            {% trans "Lowest rated" %}
-          </a>
-          <a href="?event_sort=most_reviewed{% if sort %}&sort={{ sort }}{% endif %}"
-             class="badge cursor-pointer {% if event_sort == 'most_reviewed' %}badge-primary{% else %}badge-outline{% endif %}"
-             role="tab"
-             aria-selected="{% if event_sort == 'most_reviewed' %}true{% else %}false{% endif %}">
-            {% trans "Most reviewed" %}
-          </a>
-        </div>
+        {% if EVENT_REVIEWS_DISPLAYED %}
+          <div class="flex gap-2" role="tablist">
+            <a href="?event_sort=date{% if sort %}&sort={{ sort }}{% endif %}"
+               class="badge cursor-pointer {% if event_sort == 'date' %}badge-primary{% else %}badge-outline{% endif %}"
+               role="tab"
+               aria-selected="{% if event_sort == 'date' %}true{% else %}false{% endif %}">{% trans "Latest" %}</a>
+            <a href="?event_sort=lowest_rated{% if sort %}&sort={{ sort }}{% endif %}"
+               class="badge cursor-pointer {% if event_sort == 'lowest_rated' %}badge-primary{% else %}badge-outline{% endif %}"
+               role="tab"
+               aria-selected="{% if event_sort == 'lowest_rated' %}true{% else %}false{% endif %}">
+              {% trans "Lowest rated" %}
+            </a>
+            <a href="?event_sort=most_reviewed{% if sort %}&sort={{ sort }}{% endif %}"
+               class="badge cursor-pointer {% if event_sort == 'most_reviewed' %}badge-primary{% else %}badge-outline{% endif %}"
+               role="tab"
+               aria-selected="{% if event_sort == 'most_reviewed' %}true{% else %}false{% endif %}">
+              {% trans "Most reviewed" %}
+            </a>
+          </div>
+        {% endif %}
       </div>
       {% if upcoming_events %}
         <div class="flex flex-col gap-3">

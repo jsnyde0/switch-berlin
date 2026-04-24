@@ -11,11 +11,21 @@ Covers:
 
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
 
+from a_core.models import FeatureFlag
 from events.models import Event
 from organizers.models import Organizer
+
+
+def _enable_event_reviews():
+    """Flip EVENT_REVIEWS_DISPLAYED=True so rating-based sorts are exposed."""
+    cache.clear()
+    FeatureFlag.objects.update_or_create(
+        key="EVENT_REVIEWS_DISPLAYED", defaults={"enabled": True}
+    )
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -57,6 +67,7 @@ class LowestRatedSortTest(TestCase):
     """?sort=lowest_rated returns events ordered by avg_rating ascending, nulls last."""
 
     def setUp(self):
+        _enable_event_reviews()
         self.org = _make_organizer("lr-org")
         # avg_rating values:  3.0,  5.0,  1.0,  None (no reviews)
         self.event_mid = _make_event(self.org, "lr-mid", avg_rating=3.0, rating_count=2)
@@ -108,6 +119,7 @@ class MostReviewedSortTest(TestCase):
     """?sort=most_reviewed returns events ordered by rating_count descending."""
 
     def setUp(self):
+        _enable_event_reviews()
         self.org = _make_organizer("mr-org")
         self.event_few = _make_event(self.org, "mr-few", rating_count=2, avg_rating=4.0)
         self.event_many = _make_event(
@@ -168,3 +180,34 @@ class InvalidSortFallbackTest(TestCase):
         page_pks = [e.pk for e in response.context["page_obj"]]
         expected = [self.event_first.pk, self.event_second.pk]
         self.assertEqual(page_pks, expected)
+
+
+# ---------------------------------------------------------------------------
+# Events list: rating-based sorts are gated by EVENT_REVIEWS_DISPLAYED
+# ---------------------------------------------------------------------------
+
+
+class RatingSortFlagGateTest(TestCase):
+    """With EVENT_REVIEWS_DISPLAYED=False, ?sort=lowest_rated/most_reviewed
+    must fall back to 'date' (ADR-002 Non-goals, ADR-005 Bundle A)."""
+
+    def setUp(self):
+        # Flag is default False — do NOT enable it. Clear cache so a prior
+        # test's enabled-flag state doesn't leak via the 60s TTL.
+        cache.clear()
+        self.org = _make_organizer("gate-org")
+        self.event_a = _make_event(self.org, "gate-a", days_from_now=1)
+        self.event_b = _make_event(self.org, "gate-b", days_from_now=5)
+
+    def test_lowest_rated_falls_back_when_flag_off(self):
+        response = self.client.get("/events/?sort=lowest_rated")
+        self.assertEqual(response.context["sort"], "date")
+
+    def test_most_reviewed_falls_back_when_flag_off(self):
+        response = self.client.get("/events/?sort=most_reviewed")
+        self.assertEqual(response.context["sort"], "date")
+
+    def test_chips_hidden_when_flag_off(self):
+        response = self.client.get("/events/")
+        self.assertNotContains(response, "?sort=lowest_rated")
+        self.assertNotContains(response, "?sort=most_reviewed")
