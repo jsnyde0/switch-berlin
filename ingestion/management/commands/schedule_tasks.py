@@ -39,4 +39,23 @@ class Command(BaseCommand):
                 "repeats": -1,
             },
         )
+        # Runs nightly: archives published events that ended > 24 h ago.
+        Schedule.objects.update_or_create(
+            name="archive_past_events",
+            defaults={
+                "func": "ingestion.tasks.archive_past_events",
+                "schedule_type": Schedule.DAILY,
+                "repeats": -1,
+            },
+        )
+        # Runs weekly: nullifies PII-bearing raw content on RawMessages older
+        # than 90 days while preserving the row and audit trail.
+        Schedule.objects.update_or_create(
+            name="soft_purge_rawmessages",
+            defaults={
+                "func": "ingestion.tasks.soft_purge_rawmessages",
+                "schedule_type": Schedule.WEEKLY,
+                "repeats": -1,
+            },
+        )
         self.stdout.write(self.style.SUCCESS("Scheduled tasks registered."))
