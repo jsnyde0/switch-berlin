@@ -1,4 +1,4 @@
-"""Django settings for kinky-bubbles."""
+"""Django settings for Switch."""
 
 from pathlib import Path
 
@@ -155,11 +155,11 @@ if EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_PORT = 587
     EMAIL_USE_TLS = True
-    DEFAULT_FROM_EMAIL = f"Kinky Bubbles <{EMAIL_HOST_USER}>"
-    ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Kinky Bubbles] "
+    DEFAULT_FROM_EMAIL = f"Switch <{EMAIL_HOST_USER}>"
+    ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Switch] "
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    DEFAULT_FROM_EMAIL = "Kinky Bubbles <noreply@localhost>"
+    DEFAULT_FROM_EMAIL = "Switch <noreply@localhost>"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Europe/Berlin"
@@ -179,7 +179,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Django-Q2: use ORM broker on Postgres (no Redis)
 Q_CLUSTER = {
-    "name": "kinky-bubbles",
+    "name": "switch",
     "workers": 2,
     "recycle": 500,
     "timeout": 300,

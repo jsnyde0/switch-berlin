@@ -1,6 +1,8 @@
-# Kinky Bubbles
+# Switch
 
 A Berlin queer / kinky / conscious events aggregator. Trust-first, organizer-centric, scraping-powered.
+
+Public domain: [switch.berlin](https://switch.berlin)
 
 See [`docs/project_brief.md`](docs/project_brief.md), [`docs/plans/2026-04-17-v0-design.md`](docs/plans/2026-04-17-v0-design.md), and [`docs/decisions/ADR-001-core-product-and-stack.md`](docs/decisions/ADR-001-core-product-and-stack.md) for the why.
 

@@ -1,4 +1,4 @@
-"""URL configuration for kinky-bubbles."""
+"""URL configuration for Switch."""
 
 from debug_toolbar.toolbar import debug_toolbar_urls
 from django.conf import settings

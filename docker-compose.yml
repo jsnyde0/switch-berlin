@@ -4,7 +4,7 @@ services:
   # because 'app' does not depend on this service.
   init:
     build: .
-    image: kinky-bubbles-app
+    image: switch-app
     env_file: .env
     entrypoint: ["/app/bin/init.sh"]
     depends_on:
@@ -13,7 +13,7 @@ services:
 
   app:
     build: .
-    image: kinky-bubbles-app
+    image: switch-app
     env_file: .env
     ports:
       - "8000:8000"
@@ -22,7 +22,7 @@ services:
         condition: service_healthy
 
   qcluster:
-    image: kinky-bubbles-app
+    image: switch-app
     env_file: .env
     entrypoint: ["python", "manage.py", "qcluster"]
     depends_on:
@@ -32,7 +32,7 @@ services:
         condition: service_completed_successfully
 
   bot:
-    image: kinky-bubbles-app
+    image: switch-app
     env_file: .env
     entrypoint: ["python", "manage.py", "run_bot"]
     depends_on:

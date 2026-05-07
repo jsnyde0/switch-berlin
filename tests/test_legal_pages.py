@@ -551,11 +551,16 @@ def test_privacy_de_lia_inline_text_present(client, public_read_on):
 
 @pytest.mark.django_db
 def test_takedown_no_hardcoded_email(client, public_read_on):
-    """Takedown page must NOT contain hardcoded takedown@kinkybubbles.de."""
+    """Takedown page must NOT contain a hardcoded takedown@ email."""
     response = client.get("/takedown/")
     assert response.status_code == 200
+    assert b"takedown@switch.berlin" not in response.content, (
+        "Hardcoded mailto takedown@switch.berlin must not appear; "
+        "use legal_contact.dsa_email"
+    )
     assert b"takedown@kinkybubbles.de" not in response.content, (
-        "Hardcoded mailto takedown@kinkybubbles.de must not appear; use legal_contact.dsa_email"
+        "Legacy hardcoded mailto takedown@kinkybubbles.de must not appear; "
+        "use legal_contact.dsa_email"
     )
 
 

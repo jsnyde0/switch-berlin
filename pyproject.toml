@@ -1,5 +1,5 @@
 [project]
-name = "kinky-bubbles"
+name = "switch"
 version = "0.1.0"
 description = "Berlin queer/kinky/conscious events aggregator — Django + HTMX + React island."
 readme = "README.md"

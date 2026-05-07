@@ -1,4 +1,4 @@
-"""Accounts middleware for kinky-bubbles."""
+"""Accounts middleware for Switch."""
 
 import urllib.parse
 

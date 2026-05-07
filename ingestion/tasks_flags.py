@@ -70,7 +70,7 @@ def daily_flag_digest():
     body = "\n".join(lines)
     try:
         send_mail(
-            subject=f"[Kinky Bubbles] Daily flag digest — {count} unresolved",
+            subject=f"[Switch] Daily flag digest — {count} unresolved",
             message=body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[settings.DEFAULT_FROM_EMAIL],

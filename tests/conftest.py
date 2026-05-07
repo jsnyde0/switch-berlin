@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for the kinky-bubbles test suite."""
+"""Shared pytest fixtures for the Switch test suite."""
 
 import pytest
 

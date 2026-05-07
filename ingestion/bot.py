@@ -39,12 +39,12 @@ def _bot_enabled() -> bool:
 
 CONSENT_TEXT_EN = (
     "By forwarding messages to this bot, you confirm you have the right to share "
-    "this information and consent to it being used for event listings on kinky-bubbles."
+    "this information and consent to it being used for event listings on Switch."
 )
 CONSENT_TEXT_DE = (
     "Mit dem Weiterleiten von Nachrichten an diesen Bot bestätigst du, dass du das "
     "Recht hast, diese Informationen zu teilen, und stimmst ihrer Nutzung für "
-    "Veranstaltungslistings auf kinky-bubbles zu."
+    "Veranstaltungslistings auf Switch zu."
 )
 
 

@@ -1,4 +1,4 @@
-"""Custom context processors for kinky-bubbles."""
+"""Custom context processors for Switch."""
 
 from a_core.legal import get_legal_contact
 from a_core.models import get_flag, get_numeric
