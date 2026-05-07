@@ -53,4 +53,4 @@ issue-prefix: "kb"
 # - github.org
 # - github.repo
 
-sync.remote: "git+ssh://git@github.com/jsnyde0/kinky-bubbles.git"
+sync.remote: "git+ssh://git@github.com/jsnyde0/switch-berlin.git"
