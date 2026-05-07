@@ -66,3 +66,29 @@ Recurring series with stated cadence got a concrete inferred date (e.g. "Last Th
 - New: `events/management/commands/seed_real_events.py`
 - Log: `history/kb-lqw-seed-log-20260423.md` (this file)
 - Scraped raw markdown (transient, in /tmp): `/tmp/iksk_batch1.md`, `/tmp/iksk_batch2.md`, `/tmp/kachenka.md`, `/tmp/karada_batch{1,2,3}.md`
+
+## 2026-05-07 refresh — IKSK +9 specials
+
+Re-scraped `https://www.iksk-berlin.de/Program` (covers May–Sep 2026). 9 new IKSK specials added; existing 23 untouched. Total seed set is now **32 events / 3 organizers**. Idempotent re-run confirmed (0/0 created).
+
+Added (all status=draft, venue=None):
+
+| Slug | Date(s) | Source URL |
+|---|---|---|
+| venus-unbound-mary-magdalene-mai-2026 | May 23 | /venus-unbound-2-anna-valeska-pohl |
+| visceral-touch-dandelion-mai-2026 | May 17 | /visceral-touch |
+| getting-good-at-being-bad-felix-mai-2026 | May 30 | /getting-good-at-being-bad |
+| juliette-dragon-intensive-jun-2026 | Jun 4–7 | /juliette-dragon-intensive |
+| turning-men-into-furniture-jun-2026 | Jun 17 | /men-as-furniture-beataf9d4ba79 |
+| silly-play-joris-jun-2026 | Jun 27–28 | /silly-play |
+| self-deconstruction-fakeera-jul-2026 | Jul 3–5 | /self-deconstruction-fakeera |
+| tease-and-torment-ena-roxu-sep-2026 | Sep 13–14 | /ena-roxu |
+| pain-processing-jay-sep-2026 | Sep 25–27 | /pain-processing |
+
+**Skipped** during this refresh:
+
+- `playparty/juliette-springtime` (DRAGON'S CABARET, May 22) — page returns 404 although still linked from program calendar.
+- All weekly recurring drop-ins (Bondage Basics, Bondage Jam, Dance Expression, Cali Sessions, Creative Mornings, Raum für Sein, Jaw Release, Tantra Massage Practice, Massage Austausch, Tantastisch, Polyamorie Abend, etc.) — no recurrence model yet (schema gap #4 from original log); one-Event-per-instance would just spam the DB.
+- ~10 standalone evenings on the program page that didn't warrant the per-page Firecrawl spend (Texts as Bodies, Creative Evening, Girls With Cocks, Philosophical Colloquium, Tangle Mingle, Kinky Life Drawing, Silly Play Party, Slap Me Soft, Feline Wisdom, Full Moon Party).
+
+**Scraped raw markdown (transient):** `/tmp/iksk_program_20260507.md`, `/tmp/iksk_specials_20260507.md`.

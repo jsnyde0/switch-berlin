@@ -1,8 +1,9 @@
 """Seed real Berlin kink/queer events as draft Events (bead kb-lqw).
 
-Creates 3 approved Organizers (IKSK Berlin, Kachenka, Karada House) and 23
+Creates 3 approved Organizers (IKSK Berlin, Kachenka, Karada House) and 32
 draft Events with titles, descriptions, start datetimes, and suggested_tags
-scraped from public organizer websites on 2026-04-23.
+scraped from public organizer websites on 2026-04-23 and refreshed
+2026-05-07 (9 additional IKSK specials covering May–Sep 2026).
 
 Consent: ``legitimate_interest`` per docs/compliance/organizer-lia.md.
 
@@ -234,6 +235,178 @@ EVENTS: list[dict] = [
             "scale 25/30/35€. No registration, just drop in."
         ),
         "suggested_tags": ["kissing", "workshop", "drop-in", "monthly"],
+    },
+    # --- IKSK Berlin: 2026-05-07 refresh batch -------------------------------
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "venus-unbound-mary-magdalene-mai-2026",
+        "external_url": (
+            "https://www.iksk-berlin.de/venus-unbound-2-anna-valeska-pohl"
+        ),
+        "title": "Venus Unbound — Ritual II: Mary Magdalene & The Lover",
+        "start": dt(2026, 5, 23, 11, 0),
+        "end": dt(2026, 5, 23, 16, 0),
+        "description": (
+            "A lab for archetypes, desire and radical self-authorship with "
+            "Anna Valeska Pohl (English). Working with Mary Magdalene and "
+            "The Lover archetypes through writing, embodiment and ritual — "
+            "questions of devotion, desire, shame, voice and the politics "
+            "of love. Drawing on Audre Lorde and bell hooks. Sliding scale "
+            "30/50/70€."
+        ),
+        "suggested_tags": ["ritual", "workshop", "feminism", "english"],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "visceral-touch-dandelion-mai-2026",
+        "external_url": "https://www.iksk-berlin.de/visceral-touch",
+        "title": "Visceral Touch — with Alexandre Dandelion",
+        "start": dt(2026, 5, 17, 18, 30),
+        "end": dt(2026, 5, 17, 22, 30),
+        "description": (
+            "Drop-in workshop in English & français with Alexandre "
+            "Dandelion (physiotherapist + Taoist/tantric massage). "
+            "Exploration of sensing, attunement and depth through touch, "
+            "breath, movement and sound — inspired by Mantak Chia's Chi "
+            "Nei Tsang abdominal massage and tantric bodywork. Solo or "
+            "partnered. Sliding scale 15/30/50€."
+        ),
+        "suggested_tags": ["bodywork", "tantra", "drop-in", "workshop"],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "getting-good-at-being-bad-felix-mai-2026",
+        "external_url": "https://www.iksk-berlin.de/getting-good-at-being-bad",
+        "title": "Getting Good at Being Bad — The Art of Impact Play (Felix Ruckert)",
+        "start": dt(2026, 5, 30, 15, 0),
+        "end": dt(2026, 5, 30, 22, 0),
+        "description": (
+            "Bilingual (DE/EN) impact-play workshop + ritual + open play "
+            "with Felix Ruckert. Floggers, whips, canes — empowerment, "
+            "anger as valve, trance, presence. Practical learning of "
+            "physical communication and consent. Final ritual + open play "
+            "21:00. Drop-in or registration. Normal 60€ / Social & "
+            "Members 30€."
+        ),
+        "suggested_tags": ["bdsm", "impact", "workshop", "play-party"],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "juliette-dragon-intensive-jun-2026",
+        "external_url": "https://www.iksk-berlin.de/juliette-dragon-intensive",
+        "title": "Juliette Dragon Intensive — Neo Burlesque & Cabaret on High Heels",
+        "start": dt(2026, 6, 4, 12, 0),
+        "end": dt(2026, 6, 7, 23, 30),
+        "description": (
+            "Four-day intensive (English with French accent) with Juliette "
+            "Dragon — Le Cabaret des Filles de Joie. Neo burlesque, "
+            "striptease and cabaret on high heels: studying retro pin-up "
+            "and femme fatale archetypes, reclaiming codes of seduction "
+            "with humour and feminist critique. Sun Jun 7: rehearsal + "
+            "evening performance & play party (also open to non-WS, 20€). "
+            "All four days: 160/200/240€. Single day: 50/60/70€. "
+            "Registration: jana.felixruckert@gmx.de."
+        ),
+        "suggested_tags": [
+            "burlesque",
+            "performance",
+            "workshop",
+            "intensive",
+            "play-party",
+        ],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "turning-men-into-furniture-jun-2026",
+        "external_url": (
+            "https://www.iksk-berlin.de/men-as-furniture-beataf9d4ba79"
+        ),
+        "title": "Turning Men Into Furniture — with Beata & Becky",
+        "start": dt(2026, 6, 17, 20, 0),
+        "end": dt(2026, 6, 17, 23, 30),
+        "description": (
+            "English-language objectification workshop + house party with "
+            "Beata & Becky (luhmen d'arc). Men+ become chairs, lamps, "
+            "rugs, sofas; flintas use the furniture under negotiated care "
+            "tags. Trained in somatics, performative arts, BDSM and queer "
+            "theory. Drop-in. Sliding scale 30–80€."
+        ),
+        "suggested_tags": ["bdsm", "objectification", "play-party", "queer"],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "silly-play-joris-jun-2026",
+        "external_url": "https://www.iksk-berlin.de/silly-play",
+        "title": "Playful Sexy Mischief — with Joris Kern",
+        "start": dt(2026, 6, 27, 11, 0),
+        "end": dt(2026, 6, 28, 17, 0),
+        "description": (
+            "Two-day workshop with Joris Kern (consent author, "
+            "konsenskultur.net) reclaiming playfulness, absurdity and "
+            "silliness in sex and BDSM. Games with varying degrees of "
+            "nudity, sensuality and roleplay. Single cis men only welcome "
+            "if willing to do exercises with other men. Sliding scale "
+            "130–150€. Registration: jana.felixruckert@gmx.de."
+        ),
+        "suggested_tags": ["consent", "workshop", "play", "weekend"],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "self-deconstruction-fakeera-jul-2026",
+        "external_url": "https://www.iksk-berlin.de/self-deconstruction-fakeera",
+        "title": "Self Deconstruction — with Fakeera",
+        "start": dt(2026, 7, 3, 18, 0),
+        "end": dt(2026, 7, 5, 18, 0),
+        "description": (
+            "Three-day workshop in English with Fakeera (intuitive guide, "
+            "20+ years working with the emotional body). Inner inquiry "
+            "through parts work, shamanic psychodrama and movement "
+            "metaphors — meeting the inner critic, child, envious self, "
+            "loving self with awareness. Tiers: Social 150€ / Basic 200€ "
+            "/ Supporter 250€. Registration: jana.felixruckert@gmx.de."
+        ),
+        "suggested_tags": ["workshop", "weekend", "embodiment", "english"],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "tease-and-torment-ena-roxu-sep-2026",
+        "external_url": "https://www.iksk-berlin.de/ena-roxu",
+        "title": "Tease & Torment — Erotic Tension in Ropes (Roxu & Ena Dahl)",
+        "start": dt(2026, 9, 13, 11, 0),
+        "end": dt(2026, 9, 14, 18, 0),
+        "description": (
+            "Weekend rope intensive (English) with Roxu and Ena Dahl. "
+            "Saturday 'Charm Me. Furiously.': seductive floorwork, tease "
+            "and denial, building anticipation. Sunday 'Torment Me. In "
+            "Detail.': spicy partials and predicaments where pleasure and "
+            "torment intertwine. Intermediate level — riggers need single/"
+            "double column ties + safe uplines (Sat) and solid TK + semi-"
+            "suspension knowledge (Sun). 150€/pair (one day) — 300€/pair "
+            "(two days). Members 25% off. Registration: "
+            "jana.felixruckert@gmx.de."
+        ),
+        "suggested_tags": ["shibari", "rope", "workshop", "weekend", "intermediate"],
+    },
+    {
+        "organizer_slug": "iksk-berlin",
+        "slug": "pain-processing-jay-sep-2026",
+        "external_url": "https://www.iksk-berlin.de/pain-processing",
+        "title": "Pain Processing Exploration — with Jay",
+        "start": dt(2026, 9, 25, 18, 0),
+        "end": dt(2026, 9, 27, 20, 0),
+        "description": (
+            "Three-day workshop in English with Jay (conscious kink + "
+            "embodiment facilitator, molecular biology background, "
+            "ritualsofsurrender.com). Neuroscience of pain meets ecstatic "
+            "trance through deep surrender — pain as information, energy "
+            "to move and transform. Topics include neurobiology, safety "
+            "and red flags, pain in D/S, breathing techniques, energy "
+            "discharges and full-body orgasms. Open to BDSM-experienced "
+            "and newcomers; designed for switching. Tiers: Social & "
+            "Members 150€ / Normal 200€ / Support 250€. Registration: "
+            "jana.felixruckert@gmx.de."
+        ),
+        "suggested_tags": ["bdsm", "pain-play", "workshop", "weekend", "english"],
     },
     # --- Kachenka ------------------------------------------------------------
     {
