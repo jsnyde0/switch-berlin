@@ -409,7 +409,7 @@ msgid "Report content"
 msgstr ""
 
 #: templates/cotton/footer.html:10 tmp/bead4_desc.txt:140
-msgid "Switch — Berlin queer, kinky, and conscious events"
+msgid "Switch Berlin — queer, kinky, and conscious events"
 msgstr ""
 
 #: templates/cotton/organizer_mini_card.html:8
@@ -1278,10 +1278,10 @@ msgstr "Inhaltsrichtlinien"
 
 #: templates/pages/terms.html:50
 msgid ""
-"Switch is a platform for queer, kinky, and conscious events, "
+"Switch Berlin is a platform for queer, kinky, and conscious events, "
 "primarily focused on Berlin. We welcome:"
 msgstr ""
-"Switch ist eine Plattform für queere, kinky und bewusste "
+"Switch Berlin ist eine Plattform für queere, kinky und bewusste "
 "Veranstaltungen, mit Schwerpunkt Berlin. Willkommen sind:"
 
 #: templates/pages/terms.html:53

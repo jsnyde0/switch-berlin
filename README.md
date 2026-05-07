@@ -1,6 +1,6 @@
-# Switch
+# Switch Berlin
 
-A Berlin queer / kinky / conscious events aggregator. Trust-first, organizer-centric, scraping-powered.
+A queer / kinky / conscious events aggregator for Berlin. Trust-first, organizer-centric, scraping-powered.
 
 Public domain: [switch.berlin](https://switch.berlin)
 

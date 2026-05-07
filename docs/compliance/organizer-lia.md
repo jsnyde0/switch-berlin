@@ -4,7 +4,7 @@
 
 **Legal basis:** Art. 6(1)(f) GDPR — Legitimate interest of the controller  
 **Data category:** Organizer identity and public event listings  
-**Controller:** Switch (operator details in Impressum)  
+**Controller:** Switch Berlin (operator details in Impressum)  
 **Date:** 2026-04-22  
 **Review trigger:** Re-assess if 3 or more organizer objections per calendar quarter, or if processing purposes change materially.
 
@@ -12,7 +12,7 @@
 
 ## 1. Purpose
 
-Switch curates public listings of queer and kink events in Berlin sourced from public Telegram channels and Instagram accounts operated by or on behalf of event organizers. The purpose is to make existing, publicly circulated event announcements more discoverable to the Berlin queer/kink community via a structured, searchable platform.
+Switch Berlin curates public listings of queer and kink events sourced from public Telegram channels and Instagram accounts operated by or on behalf of event organizers. The purpose is to make existing, publicly circulated event announcements more discoverable to the Berlin queer/kink community via a structured, searchable platform.
 
 No additional personal data is collected about organizers beyond what they have already made public in their source channels. Processed data consists of: organizer name/pseudonym, event title, date, venue, and any promotional text or images included in the public announcement.
 
@@ -22,7 +22,7 @@ No additional personal data is collected about organizers beyond what they have 
 
 There is no less privacy-intrusive way to achieve the stated purpose while maintaining the quality of a curated, searchable event index:
 
-- **Events are already public.** Organizers have voluntarily published their events on Telegram channels and Instagram, which are accessible without login to any member of the public. Switch does not expose any data that was not already in public circulation.
+- **Events are already public.** Organizers have voluntarily published their events on Telegram channels and Instagram, which are accessible without login to any member of the public. Switch Berlin does not expose any data that was not already in public circulation.
 - **Manual curation is proportionate.** A fully anonymised or aggregated listing (e.g., without organizer identity) would prevent users from making informed attendance decisions and would undermine the trust-based, community-serving nature of the platform.
 - **Opt-in alternative is disproportionately burdensome.** Requiring explicit consent from every organizer before their already-public events appear in a curated listing would require us to contact each organizer, obtain a documented record of consent, and block listing on non-response — creating friction and data-management overhead not justified by any additional privacy protection, since the events are already publicly available.
 
