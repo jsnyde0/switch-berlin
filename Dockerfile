@@ -24,6 +24,9 @@ RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Collect static files at build time (D7: Whitenoise serves them; no runtime collectstatic needed)
+RUN python manage.py collectstatic --noinput
+
 EXPOSE 8000
 
 COPY entrypoint.sh ./

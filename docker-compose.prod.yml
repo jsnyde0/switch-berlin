@@ -1,0 +1,19 @@
+services:
+  app:
+    restart: unless-stopped
+
+  qcluster:
+    restart: unless-stopped
+
+  bot:
+    restart: unless-stopped
+
+  db:
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /opt/switch-berlin/db
+        target: /var/lib/postgresql/data
+
+volumes:
+  postgres_data: !reset null
