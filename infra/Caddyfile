@@ -1,0 +1,8 @@
+switch.berlin {
+	encode zstd gzip
+	reverse_proxy localhost:8000
+}
+
+www.switch.berlin {
+	redir https://switch.berlin{uri} 308
+}

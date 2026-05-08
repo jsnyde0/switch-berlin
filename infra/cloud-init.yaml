@@ -1,0 +1,75 @@
+#cloud-config
+# Cloud-init for Switch Berlin production VPS (kb-6nq.1).
+# Idempotent first-boot config: deploy user, Docker, Caddy, firewall, app dirs.
+
+users:
+  - name: switch
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMszTrmxyJRH2d8pe3BsJH3gJ8OzaC3Os3U+8dcqgSfu jonatansnyders@gmail.com
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - debian-keyring
+  - debian-archive-keyring
+  - apt-transport-https
+  - ufw
+
+write_files:
+  - path: /etc/caddy/Caddyfile
+    permissions: "0644"
+    owner: root:root
+    content: |
+      switch.berlin {
+      	encode zstd gzip
+      	reverse_proxy localhost:8000
+      }
+
+      www.switch.berlin {
+      	redir https://switch.berlin{uri} 308
+      }
+
+runcmd:
+  # --- Caddy system user (the .deb postinst is unreliable on Ubuntu 24.04 — pre-create) ---
+  - getent group caddy >/dev/null || groupadd --system caddy
+  - id caddy >/dev/null 2>&1 || useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin --comment "Caddy web server" caddy
+  # --- Docker (official repo) ---
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release; echo $VERSION_CODENAME) stable" \
+      > /etc/apt/sources.list.d/docker.list
+  # --- Caddy (cloudsmith repo) ---
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' -o /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin caddy
+  # --- App dirs ---
+  - install -d -o switch -g switch -m 0755 /opt/switch-berlin
+  - install -d -o switch -g switch -m 0755 /opt/switch-berlin/app
+  - install -d -o switch -g switch -m 0755 /opt/switch-berlin/db
+  # --- Firewall ---
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+  # --- Services ---
+  - systemctl enable --now docker
+  - systemctl reload caddy || systemctl restart caddy
+  - touch /var/lib/cloud/instance/cloud-init.done
+
+ssh_pwauth: false
+
+power_state:
+  mode: reboot
+  condition: false
