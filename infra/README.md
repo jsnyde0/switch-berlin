@@ -9,6 +9,7 @@ This directory holds infrastructure-as-code for the production deploy target
 |---|---|
 | `Caddyfile` | Host-installed Caddy config: TLS termination + `www → apex` redirect (308). Mirrored into `cloud-init.yaml` for first-boot provisioning. |
 | `cloud-init.yaml` | First-boot config for the Hetzner VPS. Creates `switch` deploy user, installs Docker + Caddy, sets up `/opt/switch-berlin/`, configures UFW firewall. |
+| `../.github/workflows/deploy.yml` | GH Actions deploy workflow. Slot-4 records non-secret env + verifies secret-name presence; slot-5 implements actual deploy steps. |
 
 ## VPS provisioning runbook (kb-6nq.1)
 
@@ -77,3 +78,40 @@ curl -sI https://www.switch.berlin/ | head -5
 # /opt/switch-berlin/ owned by deploy user
 ssh switch@switch.berlin 'stat -c "%U:%G %n" /opt/switch-berlin'
 ```
+
+## GH Actions secrets & env inventory (kb-6nq.4)
+
+### Secrets (set via `gh secret set <NAME>`, value never echoed)
+
+App secrets — consumed by Django via `.env` rendered on the VPS:
+
+| Name | Source | Notes |
+|---|---|---|
+| `SECRET_KEY` | repo `.env` | Django session signing key |
+| `DATABASE_URL` | repo `.env` | `postgres://postgres:postgres@db:5432/postgres` (refine in slot-5 if rotating db pw) |
+| `IMPRESSUM_NAME` | repo `.env` | Operator legal name |
+| `IMPRESSUM_ADDRESS` | repo `.env` | Operator legal address |
+| `IMPRESSUM_EMAIL` | repo `.env` | `kinkybubbles@protonmail.com` per ADR-006 D3 (rotated by kb-9hw) |
+| `IMPRESSUM_PHONE` | repo `.env` (empty) | Optional contact channel |
+| `RESPONSIBLE_PERSON_NAME` | empty | Falls back to `IMPRESSUM_NAME` (settings.py) |
+| `RESPONSIBLE_PERSON_ADDRESS` | empty | Falls back to `IMPRESSUM_ADDRESS` (settings.py) |
+| `DSA_CONTACT_EMAIL` | repo `.env` | Falls back to `IMPRESSUM_EMAIL` if empty |
+| `TELEGRAM_BOT_TOKEN` | empty placeholder | Real value tracked by `kb-6ep` (blocks `kb-6nq.6`) |
+| `FIRECRAWL_API_KEY` | empty placeholder | Not yet referenced in code |
+
+Deploy-channel secrets — consumed by the workflow itself:
+
+| Name | Value | Notes |
+|---|---|---|
+| `VPS_HOST` | `128.140.56.30` | IPv4 of `switch-berlin-prod` (Hetzner ID 129964122) |
+| `VPS_USER` | `switch` | Deploy user created by `cloud-init.yaml` |
+| `VPS_SSH_KEY` | `~/.ssh/switch-berlin-deploy` (private) | Pubkey installed on VPS as `switch`'s `authorized_keys` |
+
+### Non-secret workflow env (declared in `.github/workflows/deploy.yml`)
+
+| Name | Value |
+|---|---|
+| `ALLOWED_HOSTS` | `switch.berlin,www.switch.berlin` |
+| `CSRF_TRUSTED_ORIGINS` | `https://switch.berlin,https://www.switch.berlin` |
+| `DEBUG` | `False` |
+| `DJANGO_SETTINGS_MODULE` | `a_core.settings` |

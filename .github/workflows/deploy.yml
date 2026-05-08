@@ -1,0 +1,63 @@
+name: deploy
+
+# Production deploy workflow for switch.berlin.
+#
+# Slot-4 (kb-6nq.4) records non-secret workflow env entries here and confirms
+# all D5 secrets are present by name in the repo Secrets store.
+#
+# Slot-5 (kb-6nq.5) replaces the placeholder job with the D4 ordered steps
+# (SSH pull, render .env, compose build/up, migrate, check --deploy, kb-backup
+# trigger). Until then this workflow is manual-only and prints the inventory.
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]   # enabled by slot-5
+
+env:
+  ALLOWED_HOSTS: switch.berlin,www.switch.berlin
+  CSRF_TRUSTED_ORIGINS: https://switch.berlin,https://www.switch.berlin
+  DEBUG: "False"
+  DJANGO_SETTINGS_MODULE: a_core.settings
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print non-secret workflow env (slot-4 inventory)
+        run: |
+          echo "ALLOWED_HOSTS=$ALLOWED_HOSTS"
+          echo "CSRF_TRUSTED_ORIGINS=$CSRF_TRUSTED_ORIGINS"
+          echo "DEBUG=$DEBUG"
+          echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
+      - name: Confirm required secret names are present
+        env:
+          # Reference each D5 secret so a missing one surfaces as an error
+          # at workflow runtime (gh action does not pre-validate names).
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          IMPRESSUM_NAME: ${{ secrets.IMPRESSUM_NAME }}
+          IMPRESSUM_ADDRESS: ${{ secrets.IMPRESSUM_ADDRESS }}
+          IMPRESSUM_EMAIL: ${{ secrets.IMPRESSUM_EMAIL }}
+          IMPRESSUM_PHONE: ${{ secrets.IMPRESSUM_PHONE }}
+          RESPONSIBLE_PERSON_NAME: ${{ secrets.RESPONSIBLE_PERSON_NAME }}
+          RESPONSIBLE_PERSON_ADDRESS: ${{ secrets.RESPONSIBLE_PERSON_ADDRESS }}
+          DSA_CONTACT_EMAIL: ${{ secrets.DSA_CONTACT_EMAIL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          for name in SECRET_KEY DATABASE_URL IMPRESSUM_NAME IMPRESSUM_ADDRESS \
+                      IMPRESSUM_EMAIL IMPRESSUM_PHONE RESPONSIBLE_PERSON_NAME \
+                      RESPONSIBLE_PERSON_ADDRESS DSA_CONTACT_EMAIL \
+                      TELEGRAM_BOT_TOKEN FIRECRAWL_API_KEY \
+                      VPS_HOST VPS_USER VPS_SSH_KEY; do
+            # We only check that the variable is *set*, not its value (don't print).
+            if [ -z "${!name+x}" ]; then
+              echo "MISSING: $name"
+              exit 1
+            fi
+            echo "present: $name"
+          done
