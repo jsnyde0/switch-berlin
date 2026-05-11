@@ -115,3 +115,53 @@ Deploy-channel secrets — consumed by the workflow itself:
 | `CSRF_TRUSTED_ORIGINS` | `https://switch.berlin,https://www.switch.berlin` |
 | `DEBUG` | `False` |
 | `DJANGO_SETTINGS_MODULE` | `a_core.settings` |
+
+## Backup subsystem (kb-6nq.3)
+
+Nightly `pg_dump | restic backup` to Hetzner BX11 (provisioned by `kb-eac`).
+All artifacts live on the VPS — nothing in the repo runs the backup.
+
+### Files on `switch-berlin-prod`
+
+| Path | Owner / mode | Purpose |
+|---|---|---|
+| `/usr/local/bin/kb-backup.sh` | `root:root 0755` | Detects compose db container via `com.docker.compose.service=db` label; dumps with `pg_dump -Fc` piped to `restic backup --stdin`. Falls back to a `no-db-marker.txt` snapshot when no db container is running — keeps pipeline exercisable before/between deploys. |
+| `/etc/kb-backup/env` | `root:switch 0640` | systemd `EnvironmentFile`. Contains `RESTIC_REPOSITORY=sftp:bx11:restic` and `RESTIC_PASSWORD=<32-byte hex>` (mirrored locally as `RESTIC_ENCRYPTION_PASSWORD` in repo `.env` — DR key). |
+| `/etc/systemd/system/kb-backup.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch`, requires `docker.service`. |
+| `/etc/systemd/system/kb-backup.timer` | `root:root 0644` | `OnCalendar=*-*-* 03:00:00`, `RandomizedDelaySec=900`, `Persistent=true`. Enabled at `timers.target`. |
+| `~switch/.ssh/restic-bx11` | `switch:switch 0600` | SSH key authorised on BX11 (port 23). |
+| `~switch/.ssh/config` | `switch:switch 0600` | Defines `Host bx11 → u590899.your-storagebox.de:23` so restic URL `sftp:bx11:restic` Just Works. |
+
+### Hetzner Storage Box quirks
+
+- Username is chrooted — repo path must be **relative** (`sftp:bx11:restic`, not `sftp:bx11:/restic`). Absolute paths return `SSH_FX_FAILURE`.
+- SSH support on the box is a panel toggle (port 23), separate from password-based SMB/WebDAV. Must be on for restic-over-SFTP — see `kb-eac`.
+
+### Operations
+
+```bash
+# Manual trigger (oneshot — re-uses the timer's unit)
+sudo systemctl start kb-backup.service
+
+# Tail recent runs
+sudo journalctl -u kb-backup.service --since="1 hour ago"
+
+# Show next scheduled trigger
+systemctl list-timers kb-backup.timer
+
+# List snapshots (auth via env file)
+sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- restic snapshots'
+
+# Disaster recovery — restore latest db snapshot into a scratch container
+sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- restic restore latest --target /tmp/kb-restore --tag db'
+docker exec -i <scratch-pg> pg_restore -U postgres -d postgres --clean --if-exists < /tmp/kb-restore/db-*.dump
+```
+
+### Validation (kb-6nq.3 acceptance, 2026-05-08)
+
+- Timer enabled, `systemctl is-enabled kb-backup.timer` → `enabled`; NEXT trigger surfaced via `systemctl list-timers`.
+- `restic init` on empty repo → repo ID `6de8e15bd2`; `restic snapshots` on initialised empty repo exited 0 with no rows.
+- Manual one-shot run with no db container produced no-db marker snapshot `6790673b`.
+- Manual one-shot run with a synthetic 3-row `events_event` table produced db snapshot `a4c9240e` (1.5 KiB pg_dump). Roundtrip via `restic restore` + `pg_restore` into a scratch `pgvector/pgvector:pg17` container yielded row count `3` — matches live.
+
+The first-deploy auto-trigger that populates the timer's `LAST` column is `kb-6nq.5`'s job.
