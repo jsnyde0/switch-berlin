@@ -5,6 +5,11 @@ WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci
 COPY frontend/ ./frontend/
+# Tailwind v4 @source directives in frontend/src/app.css scan
+# ../../templates/**/*.html and ../../**/templates/**/*.html — those dirs
+# must exist in the build stage or no utility classes get generated.
+COPY templates/ ./templates/
+COPY pages/templates/ ./pages/templates/
 # vite.config.ts: outDir = ../static/dist, so artifacts land at /build/static/dist.
 RUN cd frontend && npm run build
 
