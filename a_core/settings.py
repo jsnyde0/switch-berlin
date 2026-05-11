@@ -16,6 +16,14 @@ SECRET_KEY = env.str(
 )
 
 DEBUG = env.bool("DEBUG", default=False)
+
+# Behind Caddy TLS termination: trust X-Forwarded-Proto so request.is_secure()
+# returns True. Without this, CsrfViewMiddleware sees an http:// scheme and
+# rejects POSTs that arrive with Origin: https://switch.berlin (403).
+# Caddy's reverse_proxy sets X-Forwarded-Proto by default.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 if DEBUG:
     import socket
 
@@ -190,10 +198,14 @@ Q_CLUSTER = {
 }
 
 # django-vite: React island on /events
+# Vite builds to static/dist/, so static_url_prefix="dist" makes generated URLs
+# include /dist/ (e.g. /static/dist/assets/app-<hash>.css) — matches the path
+# WhiteNoise serves after collectstatic.
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,
         "dev_server_port": 5173,
+        "static_url_prefix": "dist",
         "manifest_path": BASE_DIR / "static" / "dist" / ".vite" / "manifest.json",
     }
 }
