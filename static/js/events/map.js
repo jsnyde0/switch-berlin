@@ -1,4 +1,15 @@
 window.initMap = function (containerEl, store) {
+  // kb-xia: tile-loading skeleton — injected as sibling, removed on map load
+  var skeletonEl = document.createElement('div')
+  skeletonEl.setAttribute('style',
+    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
+    'pointer-events:none;background:#f3f4f6;z-index:10;'
+  )
+  skeletonEl.innerHTML = '<span style="color:#9ca3af;font-size:0.875rem;font-family:sans-serif;">Loading map…</span>'
+  var mapParent = containerEl.parentElement || containerEl
+  mapParent.style.position = mapParent.style.position || 'relative'
+  mapParent.appendChild(skeletonEl)
+
   // Read initial markers from DOM data island
   var markersDataEl = document.getElementById('markers-data')
   var markersGeoJSON = markersDataEl
@@ -24,7 +35,37 @@ window.initMap = function (containerEl, store) {
     fitBoundsOptions: { padding: 20 },
   })
 
+  // Track current hover / selection state for paint expressions
+  var _hoveredKey = null
+  var _selectedKey = ''
+
+  function buildMarkerRadiusExpression(hoveredKey) {
+    if (!hoveredKey) return 8
+    return [
+      'case',
+      ['==', ['concat', ['get', 'org_slug'], '/', ['get', 'event_slug']], hoveredKey],
+      12,
+      8,
+    ]
+  }
+
+  function buildMarkerColorExpression(selectedKey) {
+    if (!selectedKey) return '#a855f7'
+    return [
+      'case',
+      ['==', ['concat', ['get', 'org_slug'], '/', ['get', 'event_slug']], selectedKey],
+      '#f59e0b',
+      '#a855f7',
+    ]
+  }
+
+  // Active popup reference so we can close on next cluster click
+  var _clusterPopup = null
+
   map.on('load', function () {
+    // kb-xia: remove skeleton once tiles are ready
+    if (skeletonEl.parentElement) skeletonEl.remove()
+
     map.addSource('events', {
       type: 'geojson',
       data: markersGeoJSON,
@@ -87,6 +128,29 @@ window.initMap = function (containerEl, store) {
         'circle-opacity': 0.9,
       },
     })
+
+    // kb-0da: cursor affordance for event-markers
+    map.on('mouseenter', 'event-markers', function (e) {
+      map.getCanvas().style.cursor = 'pointer'
+      var feature = e.features && e.features[0]
+      if (!feature) return
+      var key = feature.properties.org_slug + '/' + feature.properties.event_slug
+      // source='map' prevents the hover-changed listener from re-dispatching
+      store.hoverEvent(key, 'map')
+    })
+
+    map.on('mouseleave', 'event-markers', function () {
+      map.getCanvas().style.cursor = ''
+      store.hoverEvent(null, 'map')
+    })
+
+    map.on('mouseenter', 'event-clusters', function () {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+
+    map.on('mouseleave', 'event-clusters', function () {
+      map.getCanvas().style.cursor = ''
+    })
   })
 
   map.on('moveend', function () {
@@ -112,19 +176,84 @@ window.initMap = function (containerEl, store) {
     })
   })
 
+  // kb-k7a: cluster click — popup for co-located events, zoom for spread clusters
+  map.on('click', 'event-clusters', function (e) {
+    var feature = e.features && e.features[0]
+    if (!feature) return
+
+    var clusterId = feature.properties.cluster_id
+    var pointCount = feature.properties.point_count
+    var clusterCoord = e.lngLat
+
+    // Close any open cluster popup
+    if (_clusterPopup) { _clusterPopup.remove(); _clusterPopup = null }
+
+    var eventsSource = map.getSource('events')
+    if (!eventsSource) return
+
+    eventsSource.getClusterLeaves(clusterId, pointCount, 0, function (err, leaves) {
+      if (err || !leaves || !leaves.length) return
+
+      // Check if all leaves share the same coordinate (within ~0.00001 deg ≈ 1 m)
+      var firstLng = leaves[0].geometry.coordinates[0]
+      var firstLat = leaves[0].geometry.coordinates[1]
+      var allSameCoord = leaves.every(function (leaf) {
+        return (
+          Math.abs(leaf.geometry.coordinates[0] - firstLng) < 0.00001 &&
+          Math.abs(leaf.geometry.coordinates[1] - firstLat) < 0.00001
+        )
+      })
+
+      if (allSameCoord) {
+        // Build popup HTML with one link per event
+        var listItems = leaves.map(function (leaf) {
+          var p = leaf.properties
+          var href = '/events/' + p.org_slug + '/' + p.event_slug + '/'
+          var title = p.title || (p.org_slug + '/' + p.event_slug)
+          return (
+            '<li>' +
+            '<a href="' + href + '" ' +
+            'class="block py-1 text-indigo-600 hover:text-indigo-800 hover:underline text-sm" ' +
+            'onclick="event.preventDefault();Alpine.store(\'map\').selectEvent(\'' + p.org_slug + '/' + p.event_slug + '\');' +
+            'htmx.ajax(\'GET\',\'' + href + 'drawer/\',{target:\'#drawer\',swap:\'innerHTML\'});">' +
+            _escapeHtml(title) +
+            '</a>' +
+            '</li>'
+          )
+        }).join('')
+
+        var popupHtml =
+          '<div style="max-height:240px;overflow-y:auto;min-width:180px;">' +
+          '<p class="text-xs font-semibold text-base-content/60 mb-1">' + leaves.length + ' events at this venue</p>' +
+          '<ul class="list-none m-0 p-0">' + listItems + '</ul>' +
+          '</div>'
+
+        _clusterPopup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+          .setLngLat(clusterCoord)
+          .setHTML(popupHtml)
+          .addTo(map)
+      } else {
+        // Different coords — zoom to expand cluster
+        eventsSource.getClusterExpansionZoom(clusterId, function (zErr, zoom) {
+          if (zErr) return
+          map.easeTo({ center: clusterCoord, zoom: zoom + 1 })
+        })
+      }
+    })
+  })
+
   window.addEventListener('events:selection-changed', function (e) {
-    // Visual highlight — set feature state on the selected event marker
-    // MapLibre feature state requires a numeric feature id; use a filter layer instead
-    var selectedKey = e.detail.selectedKey || ''
-    map.setPaintProperty('event-markers', 'circle-color', [
-      'case',
-      ['==',
-        ['concat', ['get', 'org_slug'], '/', ['get', 'event_slug']],
-        selectedKey
-      ],
-      '#f59e0b',
-      '#a855f7',
-    ])
+    _selectedKey = e.detail.selectedKey || ''
+    map.setPaintProperty('event-markers', 'circle-color', buildMarkerColorExpression(_selectedKey))
+  })
+
+  // kb-0da: react to hover-changed from the list (source='list'), update map paint
+  window.addEventListener('events:hover-changed', function (e) {
+    // Only react when the source is the list to avoid loop
+    // (map→store→event→here→map would loop; we guard via source flag)
+    if (e.detail.source === 'map') return
+    _hoveredKey = e.detail.hoveredEventId || null
+    map.setPaintProperty('event-markers', 'circle-radius', buildMarkerRadiusExpression(_hoveredKey))
   })
 
   window.addEventListener('events:filter-changed', function () {
@@ -138,4 +267,13 @@ window.initMap = function (containerEl, store) {
   return {
     destroy: function () { map.remove() },
   }
+}
+
+// kb-k7a: minimal HTML escaping for popup content
+function _escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }

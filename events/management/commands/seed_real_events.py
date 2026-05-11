@@ -86,11 +86,15 @@ ORGANIZERS = [
 VENUES: list[dict] = [
     {
         "slug": "iksk-holzmarkt",
-        "name": "IKSK Berlin (Holzmarkt 25)",
-        "address": "Holzmarktstraße 25, 10243 Berlin",
+        "name": "IKSK Berlin (Holzmarkt 25, Haus 2)",
+        "address": "Holzmarktstraße 25, Haus 2, 10243 Berlin",
         "neighborhood": "Friedrichshain",
-        "latitude": Decimal("52.511903"),
-        "longitude": Decimal("13.425365"),
+        # OSM node 12168600798 — dedicated IKSK node, distinct from Kater Blau entrance.
+        # Previous coord (52.511903, 13.425365) resolved to the Kater Blau / complex
+        # entrance. IKSK website confirms Haus 2, 4. Etage; OSM places the studio ~80m
+        # east of that entrance at the coordinates below.
+        "latitude": Decimal("52.511692"),
+        "longitude": Decimal("13.426321"),
         "privacy_mode": "public",
         "url": "https://www.iksk-berlin.de",
     },

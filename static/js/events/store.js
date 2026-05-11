@@ -18,8 +18,10 @@ document.addEventListener('alpine:init', function () {
       window.dispatchEvent(new CustomEvent('events:selection-changed', { detail: { selectedKey: compositeKey } }))
     },
 
-    hoverEvent: function (eventId) {
+    hoverEvent: function (eventId, _source) {
+      if (this.hoveredEventId === eventId) return
       this.hoveredEventId = eventId
+      window.dispatchEvent(new CustomEvent('events:hover-changed', { detail: { hoveredEventId: eventId, source: _source || 'list' } }))
     },
 
     setBounds: function (bounds) {

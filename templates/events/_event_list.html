@@ -5,7 +5,10 @@
   {% for event in page_obj %}
     <div data-event-slug="{{ event.organizer.slug }}/{{ event.slug }}"
          class="cursor-pointer"
-         onclick="Alpine.store('map').selectEvent('{{ event.organizer.slug }}/{{ event.slug }}')">
+         :class="$store.map.hoveredEventId === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'ring-2 ring-indigo-400 rounded-lg' : ''"
+         onclick="Alpine.store('map').selectEvent('{{ event.organizer.slug }}/{{ event.slug }}')"
+         @mouseenter="$store.map.hoverEvent('{{ event.organizer.slug }}/{{ event.slug }}')"
+         @mouseleave="$store.map.hoverEvent(null)">
       <c-event-card :event="event" :going_venue_id_list="going_venue_id_list" />
     </div>
   {% empty %}
