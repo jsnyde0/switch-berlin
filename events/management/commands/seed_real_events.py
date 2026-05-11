@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import zoneinfo
 from datetime import datetime
+from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from events.models import Event
 from organizers.models import Organizer
+from venues.models import Venue
 
 BERLIN_TZ = zoneinfo.ZoneInfo("Europe/Berlin")
 
@@ -71,6 +73,95 @@ ORGANIZERS = [
         ),
     },
 ]
+
+
+# ---------------------------------------------------------------------------
+# Venues
+# ---------------------------------------------------------------------------
+# Lat/lng geocoded via Nominatim (OpenStreetMap) on 2026-05-11.
+# Kachenka does not publish a fixed venue; events list addresses after
+# registration — represented as a private (blurred) Berlin-centre pin so the
+# event still appears on the map until per-event venues are sourced.
+
+VENUES: list[dict] = [
+    {
+        "slug": "iksk-holzmarkt",
+        "name": "IKSK Berlin (Holzmarkt 25)",
+        "address": "Holzmarktstraße 25, 10243 Berlin",
+        "neighborhood": "Friedrichshain",
+        "latitude": Decimal("52.511903"),
+        "longitude": Decimal("13.425365"),
+        "privacy_mode": "public",
+        "url": "https://www.iksk-berlin.de",
+    },
+    {
+        "slug": "karada-house",
+        "name": "Karada House",
+        "address": "Perleberger Straße 59, 10559 Berlin",
+        "neighborhood": "Moabit",
+        "latitude": Decimal("52.532669"),
+        "longitude": Decimal("13.351356"),
+        "privacy_mode": "public",
+        "url": "https://karada-house.de",
+    },
+    {
+        "slug": "kachenka-tba-berlin",
+        "name": "Kachenka — venue announced after registration",
+        "address": "",
+        "neighborhood": "Berlin",
+        "latitude": Decimal("52.520000"),
+        "longitude": Decimal("13.405000"),
+        "privacy_mode": "private",
+        "blur_radius_m": 1500,
+        "url": "https://www.kachenka.org",
+        "notes": (
+            "Kachenka uses varying Berlin venues per event; shown as a "
+            "blurred pin until per-event venues are sourced."
+        ),
+    },
+]
+
+# Per-event venue assignment. Events absent from this dict get venue=None
+# (no map marker) — used for online series (e.g. Karada's delving-into-
+# dominance online sessions).
+VENUE_BY_EVENT_SLUG: dict[str, str] = {
+    # --- IKSK Berlin (Holzmarkt 25) -----------------------------------------
+    "tantra-trifft-bdsm-mai-2026": "iksk-holzmarkt",
+    "desire-andy-buru-mai-2026": "iksk-holzmarkt",
+    "ika-eska-kink-bodywork": "iksk-holzmarkt",
+    "sexual-empowerement-micha-stella": "iksk-holzmarkt",
+    "shibari-life-drawing": "iksk-holzmarkt",
+    "silent-hunger-the-feeding-mai-2026": "iksk-holzmarkt",
+    "speed-fucking-beate-mai-2026": "iksk-holzmarkt",
+    "the-art-of-kinky-kissing-mai-2026": "iksk-holzmarkt",
+    "the-art-of-kissing-mai-2026": "iksk-holzmarkt",
+    "venus-unbound-mary-magdalene-mai-2026": "iksk-holzmarkt",
+    "visceral-touch-dandelion-mai-2026": "iksk-holzmarkt",
+    "getting-good-at-being-bad-felix-mai-2026": "iksk-holzmarkt",
+    "juliette-dragon-intensive-jun-2026": "iksk-holzmarkt",
+    "turning-men-into-furniture-jun-2026": "iksk-holzmarkt",
+    "silly-play-joris-jun-2026": "iksk-holzmarkt",
+    "self-deconstruction-fakeera-jul-2026": "iksk-holzmarkt",
+    "tease-and-torment-ena-roxu-sep-2026": "iksk-holzmarkt",
+    "pain-processing-jay-sep-2026": "iksk-holzmarkt",
+    # --- Kachenka (TBA Berlin) ----------------------------------------------
+    "orgasmic-dance-temple-night-mai-2026": "kachenka-tba-berlin",
+    # --- Karada House (Perleberger 59) — physical sessions only -------------
+    "first-aid-for-kink-rope": "karada-house",
+    "how-to-plan-an-orgy": "karada-house",
+    "sm-weekend-caning-and-flogging": "karada-house",
+    "sm-weekend-face-slapping-biting-scratching": "karada-house",
+    "sm-weekend-genital-nipple-torment": "karada-house",
+    "sm-weekend-pain-processing-theory": "karada-house",
+    "sm-weekend-painful-rope": "karada-house",
+    "sm-weekend-spanking": "karada-house",
+    "sm-weekend-thuddy-impact-kicking-punching": "karada-house",
+    "sm-weekend-wax-play": "karada-house",
+    # Karada online series (no venue → no map marker):
+    #   delving-into-dominance-archetypes
+    #   delving-into-dominance-series-2
+    #   delving-into-dominance-styles
+}
 
 
 # ---------------------------------------------------------------------------
@@ -653,15 +744,20 @@ class Command(BaseCommand):
         verbosity = options["verbosity"]
 
         org_slugs = {o["slug"] for o in ORGANIZERS}
+        venue_slugs = {v["slug"] for v in VENUES}
         event_keys = {(e["organizer_slug"], e["slug"]) for e in EVENTS}
 
         if wipe:
             if verbosity >= 1:
-                self.stdout.write("Wiping previously seeded events + organizers…")
+                self.stdout.write(
+                    "Wiping previously seeded events + venues + organizers…"
+                )
+            # Events first (Event.venue is on_delete=PROTECT), then venues, then orgs.
             for org_slug, ev_slug in event_keys:
                 Event.objects.filter(
                     organizer__slug=org_slug, slug=ev_slug
                 ).delete()
+            Venue.objects.filter(slug__in=venue_slugs).delete()
             Organizer.objects.filter(slug__in=org_slugs).delete()
 
         now = timezone.now()
@@ -690,10 +786,34 @@ class Command(BaseCommand):
             if created:
                 orgs_created += 1
 
+        venues_created = 0
+        venues_by_slug: dict[str, Venue] = {}
+        for vd in VENUES:
+            venue, created = Venue.objects.get_or_create(
+                slug=vd["slug"],
+                defaults={
+                    "name": vd["name"],
+                    "address": vd.get("address", ""),
+                    "neighborhood": vd.get("neighborhood", ""),
+                    "latitude": vd.get("latitude"),
+                    "longitude": vd.get("longitude"),
+                    "privacy_mode": vd.get("privacy_mode", "public"),
+                    "blur_radius_m": vd.get("blur_radius_m", 250),
+                    "url": vd.get("url", ""),
+                    "notes": vd.get("notes", ""),
+                },
+            )
+            venues_by_slug[vd["slug"]] = venue
+            if created:
+                venues_created += 1
+
         events_created = 0
         events_published = 0
+        events_relinked = 0
         for ev in EVENTS:
             org = orgs_by_slug[ev["organizer_slug"]]
+            venue_slug = VENUE_BY_EVENT_SLUG.get(ev["slug"])
+            venue = venues_by_slug[venue_slug] if venue_slug else None
             obj, created = Event.objects.get_or_create(
                 organizer=org,
                 slug=ev["slug"],
@@ -705,7 +825,7 @@ class Command(BaseCommand):
                     "external_url": ev["external_url"],
                     "suggested_tags": ev["suggested_tags"],
                     "status": "published" if publish else "draft",
-                    "venue": None,
+                    "venue": venue,
                 },
             )
             if created:
@@ -714,12 +834,18 @@ class Command(BaseCommand):
                     self.stdout.write(
                         f"  + {org.slug}/{obj.slug}  ({obj.start.isoformat()})"
                     )
-            elif publish and obj.status == "draft":
-                # Re-run with --publish: flip pre-existing drafts to published
-                # so the command is idempotent regardless of first-run state.
-                obj.status = "published"
-                obj.save(update_fields=["status"])
-                events_published += 1
+            else:
+                # Backfill venue on rows seeded before per-event venues existed.
+                if venue is not None and obj.venue_id != venue.pk:
+                    obj.venue = venue
+                    obj.save(update_fields=["venue"])
+                    events_relinked += 1
+                if publish and obj.status == "draft":
+                    # Re-run with --publish: flip pre-existing drafts to published
+                    # so the command is idempotent regardless of first-run state.
+                    obj.status = "published"
+                    obj.save(update_fields=["status"])
+                    events_published += 1
 
         if verbosity >= 1:
             published_msg = (
@@ -727,12 +853,19 @@ class Command(BaseCommand):
                 if events_published
                 else ""
             )
+            relinked_msg = (
+                f" Backfilled venue link on {events_relinked} pre-existing event(s)."
+                if events_relinked
+                else ""
+            )
             self.stdout.write(
                 self.style.SUCCESS(
                     f"Seeded {orgs_created} new organizers "
-                    f"({len(ORGANIZERS)} total in seed set) and "
+                    f"({len(ORGANIZERS)} total in seed set), "
+                    f"{venues_created} new venues "
+                    f"({len(VENUES)} total in seed set) and "
                     f"{events_created} new events "
                     f"({len(EVENTS)} total in seed set)."
-                    f"{published_msg}"
+                    f"{published_msg}{relinked_msg}"
                 )
             )
