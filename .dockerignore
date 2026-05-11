@@ -21,3 +21,6 @@ build
 dist
 docker-compose.yml
 staticfiles
+node_modules
+frontend/node_modules
+static/dist

@@ -1,3 +1,14 @@
+# ---- Frontend builder stage ----
+# Builds Vite assets (incl. .vite/manifest.json) consumed by django_vite tags.
+FROM node:22-slim AS frontend
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN cd frontend && npm ci
+COPY frontend/ ./frontend/
+# vite.config.ts: outDir = ../static/dist, so artifacts land at /build/static/dist.
+RUN cd frontend && npm run build
+
+# ---- Python app stage ----
 FROM python:3.13-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -18,6 +29,9 @@ RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy project
 COPY . /app
+
+# Overlay built frontend artifacts (manifest + bundles) onto the source tree.
+COPY --from=frontend /build/static/dist /app/static/dist
 
 # Install project itself
 RUN uv sync --frozen --no-dev
