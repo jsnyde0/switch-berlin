@@ -1,18 +1,15 @@
 name: deploy
 
-# Production deploy workflow for switch.berlin.
+# Production deploy workflow for switch.berlin (kb-6nq.5).
 #
-# Slot-4 (kb-6nq.4) records non-secret workflow env entries here and confirms
-# all D5 secrets are present by name in the repo Secrets store.
-#
-# Slot-5 (kb-6nq.5) replaces the placeholder job with the D4 ordered steps
-# (SSH pull, render .env, compose build/up, migrate, check --deploy, kb-backup
-# trigger). Until then this workflow is manual-only and prints the inventory.
+# Pulls main into /opt/switch-berlin/app on the VPS, renders .env from GH
+# Secrets, builds + brings up the compose stack, applies migrations, runs
+# check --deploy, and triggers a backup to populate the timer's LAST column.
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]   # enabled by slot-5
+  push:
+    branches: [main]
 
 env:
   ALLOWED_HOSTS: switch.berlin,www.switch.berlin
@@ -21,19 +18,44 @@ env:
   DJANGO_SETTINGS_MODULE: a_core.settings
 
 jobs:
-  preflight:
+  deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
     steps:
-      - name: Print non-secret workflow env (slot-4 inventory)
-        run: |
-          echo "ALLOWED_HOSTS=$ALLOWED_HOSTS"
-          echo "CSRF_TRUSTED_ORIGINS=$CSRF_TRUSTED_ORIGINS"
-          echo "DEBUG=$DEBUG"
-          echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
-      - name: Confirm required secret names are present
+      - name: Setup SSH client
         env:
-          # Reference each D5 secret so a missing one surfaces as an error
-          # at workflow runtime (gh action does not pre-validate names).
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull triggering SHA into /opt/switch-berlin/app
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" "DEPLOY_SHA=${DEPLOY_SHA} bash -s" <<'EOF'
+          set -euo pipefail
+          cd /opt/switch-berlin/app
+          if [ ! -d .git ]; then
+            git clone https://github.com/jsnyde0/switch-berlin.git .
+          fi
+          git fetch --prune origin "${DEPLOY_SHA}"
+          git reset --hard "${DEPLOY_SHA}"
+          echo "deployed-sha=$(git rev-parse --short HEAD)"
+          EOF
+
+      - name: Render /opt/switch-berlin/app/.env on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           IMPRESSUM_NAME: ${{ secrets.IMPRESSUM_NAME }}
@@ -45,19 +67,61 @@ jobs:
           DSA_CONTACT_EMAIL: ${{ secrets.DSA_CONTACT_EMAIL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: |
+          umask 077
+          tmpfile=$(mktemp)
+          {
+            printf 'ENVIRONMENT=production\n'
+            printf 'DEBUG=%s\n' "$DEBUG"
+            printf 'ALLOWED_HOSTS=%s\n' "$ALLOWED_HOSTS"
+            printf 'CSRF_TRUSTED_ORIGINS=%s\n' "$CSRF_TRUSTED_ORIGINS"
+            printf 'DJANGO_SETTINGS_MODULE=%s\n' "$DJANGO_SETTINGS_MODULE"
+            printf 'SECRET_KEY=%s\n' "$SECRET_KEY"
+            printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
+            printf 'POSTGRES_DB=postgres\n'
+            printf 'POSTGRES_USER=postgres\n'
+            printf 'POSTGRES_PASSWORD=postgres\n'
+            printf 'IMPRESSUM_NAME=%s\n' "$IMPRESSUM_NAME"
+            printf 'IMPRESSUM_ADDRESS=%s\n' "$IMPRESSUM_ADDRESS"
+            printf 'IMPRESSUM_EMAIL=%s\n' "$IMPRESSUM_EMAIL"
+            printf 'IMPRESSUM_PHONE=%s\n' "$IMPRESSUM_PHONE"
+            printf 'RESPONSIBLE_PERSON_NAME=%s\n' "$RESPONSIBLE_PERSON_NAME"
+            printf 'RESPONSIBLE_PERSON_ADDRESS=%s\n' "$RESPONSIBLE_PERSON_ADDRESS"
+            printf 'DSA_CONTACT_EMAIL=%s\n' "$DSA_CONTACT_EMAIL"
+            printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
+            printf 'FIRECRAWL_API_KEY=%s\n' "$FIRECRAWL_API_KEY"
+          } > "$tmpfile"
+          scp -i ~/.ssh/deploy_key "$tmpfile" "${VPS_USER}@${VPS_HOST}:/opt/switch-berlin/app/.env"
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'chmod 600 /opt/switch-berlin/app/.env'
+          rm -f "$tmpfile"
+
+      - name: Compose build, up, migrate, check --deploy
+        env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          for name in SECRET_KEY DATABASE_URL IMPRESSUM_NAME IMPRESSUM_ADDRESS \
-                      IMPRESSUM_EMAIL IMPRESSUM_PHONE RESPONSIBLE_PERSON_NAME \
-                      RESPONSIBLE_PERSON_ADDRESS DSA_CONTACT_EMAIL \
-                      TELEGRAM_BOT_TOKEN FIRECRAWL_API_KEY \
-                      VPS_HOST VPS_USER VPS_SSH_KEY; do
-            # We only check that the variable is *set*, not its value (don't print).
-            if [ -z "${!name+x}" ]; then
-              echo "MISSING: $name"
-              exit 1
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'bash -s' <<'EOF'
+          set -euo pipefail
+          cd /opt/switch-berlin/app
+          COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+          $COMPOSE build app
+          $COMPOSE up -d --remove-orphans
+          # Wait for app container to accept exec (container running).
+          for i in $(seq 1 30); do
+            if $COMPOSE exec -T app true 2>/dev/null; then
+              break
             fi
-            echo "present: $name"
+            sleep 2
           done
+          $COMPOSE exec -T app python manage.py migrate --no-input
+          $COMPOSE exec -T app python manage.py migrate --check
+          $COMPOSE exec -T app python manage.py check --deploy
+          $COMPOSE ps
+          EOF
+
+      - name: Trigger kb-backup (populates timer LAST)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'sudo systemctl start kb-backup.service && sudo systemctl status --no-pager -n 20 kb-backup.service || true'
