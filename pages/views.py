@@ -1,7 +1,9 @@
 import time
 
+from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
@@ -9,9 +11,15 @@ from a_core.models import get_flag
 
 
 def home_view(request):
+    return redirect(reverse("event-list"))
+
+
+@staff_member_required
+def debug_smoketest_view(request):
     return render(request, "pages/home.html", {})
 
 
+@staff_member_required
 def test_partial_view(request):
     if request.htmx:
         return render(request, "pages/home.html#test-partial")
@@ -20,6 +28,7 @@ def test_partial_view(request):
     )
 
 
+@staff_member_required
 def test_skeleton_hx(request):
     time.sleep(1)
     return render(request, "pages/home.html#skeleton-partial")

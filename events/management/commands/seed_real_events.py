@@ -637,9 +637,19 @@ class Command(BaseCommand):
                 "seed set before re-seeding."
             ),
         )
+        parser.add_argument(
+            "--publish",
+            action="store_true",
+            default=False,
+            help=(
+                "Create events with status='published' so they appear on the "
+                "public event list. Without this flag, events are 'draft'."
+            ),
+        )
 
     def handle(self, *args, **options):
         wipe = options["wipe"]
+        publish = options["publish"]
         verbosity = options["verbosity"]
 
         org_slugs = {o["slug"] for o in ORGANIZERS}
@@ -681,6 +691,7 @@ class Command(BaseCommand):
                 orgs_created += 1
 
         events_created = 0
+        events_published = 0
         for ev in EVENTS:
             org = orgs_by_slug[ev["organizer_slug"]]
             obj, created = Event.objects.get_or_create(
@@ -693,7 +704,7 @@ class Command(BaseCommand):
                     "end": ev.get("end"),
                     "external_url": ev["external_url"],
                     "suggested_tags": ev["suggested_tags"],
-                    "status": "draft",
+                    "status": "published" if publish else "draft",
                     "venue": None,
                 },
             )
@@ -703,13 +714,25 @@ class Command(BaseCommand):
                     self.stdout.write(
                         f"  + {org.slug}/{obj.slug}  ({obj.start.isoformat()})"
                     )
+            elif publish and obj.status == "draft":
+                # Re-run with --publish: flip pre-existing drafts to published
+                # so the command is idempotent regardless of first-run state.
+                obj.status = "published"
+                obj.save(update_fields=["status"])
+                events_published += 1
 
         if verbosity >= 1:
+            published_msg = (
+                f" Published {events_published} pre-existing draft(s)."
+                if events_published
+                else ""
+            )
             self.stdout.write(
                 self.style.SUCCESS(
                     f"Seeded {orgs_created} new organizers "
                     f"({len(ORGANIZERS)} total in seed set) and "
                     f"{events_created} new events "
                     f"({len(EVENTS)} total in seed set)."
+                    f"{published_msg}"
                 )
             )
