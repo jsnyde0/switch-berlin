@@ -176,7 +176,10 @@ window.initMap = function (containerEl, store) {
     })
   })
 
-  // kb-k7a: cluster click — popup for co-located events, zoom for spread clusters
+  // kb-k7a: cluster click — popup for co-located events, zoom for spread clusters.
+  // kb-6ow: maplibre-gl 5.x dropped the callback signature on getClusterLeaves /
+  // getClusterExpansionZoom — they only return Promises now. Trailing callbacks
+  // are silently ignored, so the previous version silently no-opped on prod.
   map.on('click', 'event-clusters', function (e) {
     var feature = e.features && e.features[0]
     if (!feature) return
@@ -185,14 +188,13 @@ window.initMap = function (containerEl, store) {
     var pointCount = feature.properties.point_count
     var clusterCoord = e.lngLat
 
-    // Close any open cluster popup
     if (_clusterPopup) { _clusterPopup.remove(); _clusterPopup = null }
 
     var eventsSource = map.getSource('events')
     if (!eventsSource) return
 
-    eventsSource.getClusterLeaves(clusterId, pointCount, 0, function (err, leaves) {
-      if (err || !leaves || !leaves.length) return
+    eventsSource.getClusterLeaves(clusterId, pointCount, 0).then(function (leaves) {
+      if (!leaves || !leaves.length) return
 
       // Check if all leaves share the same coordinate (within ~0.00001 deg ≈ 1 m)
       var firstLng = leaves[0].geometry.coordinates[0]
@@ -205,7 +207,6 @@ window.initMap = function (containerEl, store) {
       })
 
       if (allSameCoord) {
-        // Build popup HTML with one link per event
         var listItems = leaves.map(function (leaf) {
           var p = leaf.properties
           var href = '/events/' + p.org_slug + '/' + p.event_slug + '/'
@@ -233,13 +234,11 @@ window.initMap = function (containerEl, store) {
           .setHTML(popupHtml)
           .addTo(map)
       } else {
-        // Different coords — zoom to expand cluster
-        eventsSource.getClusterExpansionZoom(clusterId, function (zErr, zoom) {
-          if (zErr) return
+        eventsSource.getClusterExpansionZoom(clusterId).then(function (zoom) {
           map.easeTo({ center: clusterCoord, zoom: zoom + 1 })
-        })
+        }).catch(function () { /* ignore — cluster may have changed */ })
       }
-    })
+    }).catch(function () { /* ignore — cluster may have changed */ })
   })
 
   window.addEventListener('events:selection-changed', function (e) {
