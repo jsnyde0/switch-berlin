@@ -1,6 +1,13 @@
 services:
   app:
     restart: unless-stopped
+    command:
+      - gunicorn
+      - a_core.wsgi:application
+      - --bind=0.0.0.0:8000
+      - --workers=3
+      - --access-logfile=-
+      - --error-logfile=-
 
   qcluster:
     restart: unless-stopped
