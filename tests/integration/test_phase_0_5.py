@@ -215,6 +215,7 @@ def test_takedown_creates_anonymous_flag(client, published_event):
             "reason": "spam",
             "body": "This is spam.",
             "contact_email": "reporter@example.com",
+            "good_faith_confirmed": True,
         },
     )
     assert response.status_code == 200

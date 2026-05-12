@@ -550,6 +550,17 @@ def test_privacy_de_lia_inline_text_present(client, public_read_on):
 
 
 @pytest.mark.django_db
+@override_settings(
+    LEGAL_CONTACT={
+        "name": "Test Org",
+        "address": "",
+        "email": "hello@example.com",
+        "phone": "",
+        "responsible_name": "",
+        "responsible_address": "",
+        "dsa_email": "dsa@example.com",
+    }
+)
 def test_takedown_no_hardcoded_email(client, public_read_on):
     """Takedown page must NOT contain a hardcoded takedown@ email."""
     response = client.get("/takedown/")

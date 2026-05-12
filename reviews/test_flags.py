@@ -284,6 +284,7 @@ def test_takedown_resolves_event_url_and_creates_flag(published_event):
             "reason": "spam",
             "body": "This is spam.",
             "contact_email": "reporter@example.com",
+            "good_faith_confirmed": True,
         },
     )
     assert resp.status_code == 200
@@ -306,6 +307,7 @@ def test_takedown_resolves_organizer_url_and_creates_flag(organizer):
             "reason": "harmful",
             "body": "Harmful content.",
             "contact_email": "",
+            "good_faith_confirmed": True,
         },
     )
     assert resp.status_code == 200
@@ -940,7 +942,7 @@ def test_reviews_views_has_no_auto_hide_flag_threshold_constant():
     import ast
     import pathlib
 
-    source = pathlib.Path("/workspace/reviews/views.py").read_text()
+    source = (pathlib.Path(__file__).parent / "views.py").read_text()
     tree = ast.parse(source)
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
@@ -956,7 +958,7 @@ def test_reviews_views_uses_get_numeric_for_auto_hide():
     """reviews/views.py must use get_numeric('threshold.auto_hide_flag', ...) not hardcoded constant."""
     import pathlib
 
-    source = pathlib.Path("/workspace/reviews/views.py").read_text()
+    source = (pathlib.Path(__file__).parent / "views.py").read_text()
     assert 'get_numeric("threshold.auto_hide_flag"' in source, (
         "reviews/views.py must call get_numeric('threshold.auto_hide_flag', ...) "
         "but the call was not found"

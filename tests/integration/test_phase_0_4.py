@@ -35,17 +35,24 @@ from venues.models import Venue
 
 @pytest.fixture
 def approved_user(db):
-    """Approved non-staff user — should pass the middleware after 0.4 restructure."""
+    """Approved non-staff user — should pass the middleware after 0.4 restructure.
+
+    Art. 9 consent is granted so the attend endpoint can write Attendance rows.
+    """
     from django.contrib.auth import get_user_model
+    from django.utils import timezone
 
     User = get_user_model()
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="e2e_approved",
         email="e2e_approved@example.com",
         password="x",
         is_staff=False,
         is_approved=True,
     )
+    user.art9_consent_given_at = timezone.now()
+    user.save(update_fields=["art9_consent_given_at"])
+    return user
 
 
 @pytest.fixture
