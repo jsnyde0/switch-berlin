@@ -20,7 +20,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from events.models import Event
-from organizers.models import OrganizerFollow, Profile
+from organizers.models import Follow, Profile
 
 User = get_user_model()
 
@@ -121,7 +121,7 @@ class FollowingSectionPopulatedTest(TestCase):
         self.user = _make_user("followpop")
         self.client.force_login(self.user)
         self.org = _make_organizer("follow-pop-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=self.org)
+        Follow.objects.create(user=self.user, profile=self.org)
 
     def test_future_published_event_from_followed_org_shown(self):
         """Future published event from followed organizer in following_events."""
@@ -178,7 +178,7 @@ class FollowingSectionOrganizerFilterTest(TestCase):
     def test_suspended_organizer_events_excluded(self):
         """Events from suspended organizer not shown in following_events."""
         org = _make_organizer("follow-suspended-org", status="suspended")
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         event = _make_event(org, "follow-suspended-ev", start_delta_days=5)
         response = self.client.get("/events/")
         following_pks = [e.pk for e in response.context["following_events"]]
@@ -187,7 +187,7 @@ class FollowingSectionOrganizerFilterTest(TestCase):
     def test_hidden_organizer_events_excluded(self):
         """Events from hidden organizer not shown in following_events."""
         org = _make_organizer("follow-hidden-org", hidden=True)
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         event = _make_event(org, "follow-hidden-ev", start_delta_days=5)
         response = self.client.get("/events/")
         following_pks = [e.pk for e in response.context["following_events"]]
@@ -196,7 +196,7 @@ class FollowingSectionOrganizerFilterTest(TestCase):
     def test_approved_visible_organizer_events_shown(self):
         """Events from approved, visible organizer are shown."""
         org = _make_organizer("follow-good-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         event = _make_event(org, "follow-good-ev", start_delta_days=5)
         response = self.client.get("/events/")
         following_pks = [e.pk for e in response.context["following_events"]]
@@ -215,7 +215,7 @@ class FollowingSectionCapTest(TestCase):
         self.user = _make_user("followcap")
         self.client.force_login(self.user)
         self.org = _make_organizer("follow-cap-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=self.org)
+        Follow.objects.create(user=self.user, profile=self.org)
 
     def test_cap_at_five_events(self):
         """Even with 8 future events from followed org, only 5 returned."""
@@ -240,7 +240,7 @@ class FollowingSectionOrderTest(TestCase):
         self.user = _make_user("followorder")
         self.client.force_login(self.user)
         self.org = _make_organizer("follow-order-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=self.org)
+        Follow.objects.create(user=self.user, profile=self.org)
 
     def test_events_ordered_start_ascending(self):
         """Nearest-future event first."""
@@ -265,7 +265,7 @@ class FollowingFilterParamTest(TestCase):
         self.user = _make_user("followparam")
         self.client.force_login(self.user)
         self.org = _make_organizer("follow-param-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=self.org)
+        Follow.objects.create(user=self.user, profile=self.org)
         self.other_org = _make_organizer("follow-param-other-org")
 
     def test_filter_following_includes_followed_org_events(self):

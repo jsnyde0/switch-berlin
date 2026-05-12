@@ -15,7 +15,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from events.models import Attendance
-from organizers.models import OrganizerFollow, Profile
+from organizers.models import Follow, Profile
 from reviews.models import Review
 
 User = get_user_model()
@@ -162,13 +162,13 @@ def test_organizer_with_rating_count_zero(organizer_with_rating_count):
 
 @pytest.mark.django_db
 def test_organizer_with_follower_count_creates_organizer(organizer_with_follower_count):
-    """Fixture creates an Organizer with n OrganizerFollow rows."""
+    """Fixture creates an Organizer with n Follow rows."""
     org = organizer_with_follower_count(4)
 
     assert isinstance(org, Profile)
     org.refresh_from_db()
     assert org.follower_count == 4
-    assert OrganizerFollow.objects.filter(organizer=org).count() == 4
+    assert Follow.objects.filter(profile=org).count() == 4
 
 
 @pytest.mark.django_db
@@ -176,7 +176,7 @@ def test_organizer_with_follower_count_distinct_users(organizer_with_follower_co
     """Each follow row has a distinct user."""
     org = organizer_with_follower_count(3)
 
-    follows = OrganizerFollow.objects.filter(organizer=org)
+    follows = Follow.objects.filter(profile=org)
     user_ids = list(follows.values_list("user_id", flat=True))
     assert len(set(user_ids)) == 3, "all follower users must be distinct"
 
@@ -188,4 +188,4 @@ def test_organizer_with_follower_count_zero(organizer_with_follower_count):
 
     org.refresh_from_db()
     assert org.follower_count == 0
-    assert OrganizerFollow.objects.filter(organizer=org).count() == 0
+    assert Follow.objects.filter(profile=org).count() == 0

@@ -286,9 +286,9 @@ def test_profile_reverse_events_queryset():
 
 
 @pytest.mark.django_db
-def test_organizer_follow_model_still_works():
-    """OrganizerFollow still works and its .organizer FK points to Profile."""
-    from organizers.models import OrganizerFollow, Profile
+def test_follow_model_works_with_profile():
+    """Follow model works and its .profile FK points to Profile."""
+    from organizers.models import Follow, Profile
 
     user = User.objects.create_user(
         username="followtest2",
@@ -298,5 +298,5 @@ def test_organizer_follow_model_still_works():
     p = Profile.objects.create(
         name="Follow Target", slug="follow-target", status="approved"
     )
-    follow = OrganizerFollow.objects.create(user=user, organizer=p)
-    assert follow.organizer == p
+    follow = Follow.objects.create(user=user, profile=p)
+    assert follow.profile == p

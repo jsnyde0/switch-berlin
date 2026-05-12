@@ -17,7 +17,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from events.models import Attendance, Event
-from organizers.models import OrganizerFollow, Profile
+from organizers.models import Follow, Profile
 
 User = get_user_model()
 
@@ -132,7 +132,7 @@ class MeViewFollowedOrganizersTest(TestCase):
     def test_followed_organizer_appears(self):
         """After following an organizer, its name appears on /me/."""
         org = _make_organizer(slug="me-followed-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         response = self.client.get("/me/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, org.name)
@@ -140,7 +140,7 @@ class MeViewFollowedOrganizersTest(TestCase):
     def test_followed_section_has_unfollow_form(self):
         """Each followed organizer row has a form pointing to organizer-follow URL."""
         org = _make_organizer(slug="me-unfollow-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         response = self.client.get("/me/")
         self.assertEqual(response.status_code, 200)
         # The unfollow form should POST to /o/<slug>/follow/
@@ -150,7 +150,7 @@ class MeViewFollowedOrganizersTest(TestCase):
         """Follows from another user are not shown."""
         other_user = _make_user("othermeuser")
         org = _make_organizer(slug="me-other-org")
-        OrganizerFollow.objects.create(user=other_user, organizer=org)
+        Follow.objects.create(user=other_user, profile=org)
         response = self.client.get("/me/")
         # org is only followed by other_user, not self.user
         self.assertNotContains(response, org.name)
@@ -285,26 +285,26 @@ class MeViewFollowedOrganizersFilterTest(TestCase):
     def test_suspended_organizer_excluded_from_followed(self):
         """Suspended organizer should not appear in followed list."""
         org = _make_organizer(slug="me-suspended-org", status="suspended")
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         response = self.client.get("/me/")
         self.assertEqual(response.status_code, 200)
         followed = list(response.context["followed"])
-        self.assertNotIn(org, [f.organizer for f in followed])
+        self.assertNotIn(org, [f.profile for f in followed])
 
     def test_hidden_organizer_excluded_from_followed(self):
         """Hidden organizer should not appear in followed list."""
         org = _make_organizer(slug="me-hidden-org", hidden=True)
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         response = self.client.get("/me/")
         self.assertEqual(response.status_code, 200)
         followed = list(response.context["followed"])
-        self.assertNotIn(org, [f.organizer for f in followed])
+        self.assertNotIn(org, [f.profile for f in followed])
 
     def test_approved_visible_organizer_still_appears(self):
         """Approved, visible organizer appears normally in followed list."""
         org = _make_organizer(slug="me-approved-org")
-        OrganizerFollow.objects.create(user=self.user, organizer=org)
+        Follow.objects.create(user=self.user, profile=org)
         response = self.client.get("/me/")
         self.assertEqual(response.status_code, 200)
         followed = list(response.context["followed"])
-        self.assertIn(org, [f.organizer for f in followed])
+        self.assertIn(org, [f.profile for f in followed])

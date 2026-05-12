@@ -1,9 +1,9 @@
 """
-Integration tests for kb-2eu.5 — OrganizerFollow model + follow/unfollow endpoint.
+Integration tests for the follow/unfollow feature (kb-ldo: OrganizerFollow → Follow).
 
-Test plan items:
-1. OrganizerFollow model exists and has correct fields.
-2. POST /o/<slug>/follow/ creates OrganizerFollow row (following=True).
+Test plan items (updated from kb-2eu.5 to reflect unified Follow model):
+1. Follow model exists and has correct fields (user, profile, created_at).
+2. POST /o/<slug>/follow/ creates a Follow row (following=True).
 3. Second POST to same URL deletes the row (toggle/unfollow, following=False).
 4. Unauthenticated POST returns 302 to login page.
 5. POST to non-existent organizer returns 404.
@@ -80,48 +80,48 @@ def regular_approved_user(db):
 
 
 @pytest.mark.django_db
-def test_organizer_follow_model_exists():
-    """OrganizerFollow model is importable from organizers.models."""
-    from organizers.models import OrganizerFollow
+def test_follow_model_exists():
+    """Follow model is importable from organizers.models."""
+    from organizers.models import Follow
 
-    assert OrganizerFollow is not None
+    assert Follow is not None
 
 
 @pytest.mark.django_db
-def test_organizer_follow_model_fields(approved_organizer, staff_user):
-    """OrganizerFollow has user, organizer, created_at fields."""
-    from organizers.models import OrganizerFollow
+def test_follow_model_fields(approved_organizer, staff_user):
+    """Follow has user, profile, created_at fields."""
+    from organizers.models import Follow
 
-    follow = OrganizerFollow.objects.create(
-        user=staff_user, organizer=approved_organizer
+    follow = Follow.objects.create(
+        user=staff_user, profile=approved_organizer
     )
     assert follow.user == staff_user
-    assert follow.organizer == approved_organizer
+    assert follow.profile == approved_organizer
     assert follow.created_at is not None
 
 
 @pytest.mark.django_db
-def test_organizer_follow_unique_together(approved_organizer, staff_user):
-    """Creating duplicate OrganizerFollow raises IntegrityError."""
+def test_follow_unique_together(approved_organizer, staff_user):
+    """Creating duplicate Follow raises IntegrityError."""
     from django.db import IntegrityError
 
-    from organizers.models import OrganizerFollow
+    from organizers.models import Follow
 
-    OrganizerFollow.objects.create(user=staff_user, organizer=approved_organizer)
+    Follow.objects.create(user=staff_user, profile=approved_organizer)
     with pytest.raises(IntegrityError):
-        OrganizerFollow.objects.create(user=staff_user, organizer=approved_organizer)
+        Follow.objects.create(user=staff_user, profile=approved_organizer)
 
 
 @pytest.mark.django_db
-def test_organizer_follow_get_or_create_does_not_raise(approved_organizer, staff_user):
-    """get_or_create on OrganizerFollow is idempotent."""
-    from organizers.models import OrganizerFollow
+def test_follow_get_or_create_does_not_raise(approved_organizer, staff_user):
+    """get_or_create on Follow is idempotent."""
+    from organizers.models import Follow
 
-    follow1, created1 = OrganizerFollow.objects.get_or_create(
-        user=staff_user, organizer=approved_organizer
+    follow1, created1 = Follow.objects.get_or_create(
+        user=staff_user, profile=approved_organizer
     )
-    follow2, created2 = OrganizerFollow.objects.get_or_create(
-        user=staff_user, organizer=approved_organizer
+    follow2, created2 = Follow.objects.get_or_create(
+        user=staff_user, profile=approved_organizer
     )
     assert created1 is True
     assert created2 is False
@@ -135,14 +135,14 @@ def test_organizer_follow_get_or_create_does_not_raise(approved_organizer, staff
 
 @pytest.mark.django_db
 def test_follow_post_creates_row(client, staff_user, approved_organizer):
-    """POST /o/<slug>/follow/ creates an OrganizerFollow row."""
-    from organizers.models import OrganizerFollow
+    """POST /o/<slug>/follow/ creates a Follow row."""
+    from organizers.models import Follow
 
     client.force_login(staff_user)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
-    assert OrganizerFollow.objects.filter(
-        user=staff_user, organizer=approved_organizer
+    assert Follow.objects.filter(
+        user=staff_user, profile=approved_organizer
     ).exists()
 
 
@@ -159,20 +159,20 @@ def test_follow_post_returns_following_true(client, staff_user, approved_organiz
 
 @pytest.mark.django_db
 def test_follow_post_twice_deletes_row(client, staff_user, approved_organizer):
-    """Second POST to the follow endpoint removes the OrganizerFollow row."""
-    from organizers.models import OrganizerFollow
+    """Second POST to the follow endpoint removes the Follow row."""
+    from organizers.models import Follow
 
     client.force_login(staff_user)
     # First POST — creates the follow
     client.post(f"/o/{approved_organizer.slug}/follow/")
-    assert OrganizerFollow.objects.filter(
-        user=staff_user, organizer=approved_organizer
+    assert Follow.objects.filter(
+        user=staff_user, profile=approved_organizer
     ).exists()
     # Second POST — deletes the follow (unfollow)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
-    assert not OrganizerFollow.objects.filter(
-        user=staff_user, organizer=approved_organizer
+    assert not Follow.objects.filter(
+        user=staff_user, profile=approved_organizer
     ).exists()
 
 
@@ -246,9 +246,9 @@ def test_profile_follow_button_shows_following_when_followed(
     client, staff_user, approved_organizer
 ):
     """GET /o/<slug>/ shows Following (btn-active) when user already follows."""
-    from organizers.models import OrganizerFollow
+    from organizers.models import Follow
 
-    OrganizerFollow.objects.create(user=staff_user, organizer=approved_organizer)
+    Follow.objects.create(user=staff_user, profile=approved_organizer)
     client.force_login(staff_user)
     response = client.get(f"/o/{approved_organizer.slug}/")
     assert response.status_code == 200

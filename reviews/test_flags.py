@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Attendance, Event
-from organizers.models import OrganizerFollow, Profile
+from organizers.models import Follow, Profile
 from reviews.models import Flag, Review
 
 User = get_user_model()
@@ -564,7 +564,7 @@ def test_recompute_aggregates_runs_without_exception(
     # Create some attendance and review data
     Attendance.objects.create(user=approved_user, event=published_event, status="going")
     Review.objects.create(author=approved_user, organizer=organizer, rating=4)
-    OrganizerFollow.objects.create(user=approved_user, organizer=organizer)
+    Follow.objects.create(user=approved_user, profile=organizer)
 
     # Should not raise
     recompute_aggregates()

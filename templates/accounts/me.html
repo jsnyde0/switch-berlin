@@ -33,11 +33,11 @@
       <ul class="flex flex-col gap-3">
         {% for follow in followed %}
           <li class="flex items-center justify-between">
-            <a href="{% url 'organizer-profile' follow.organizer.slug %}"
+            <a href="{% url 'organizer-profile' follow.profile.slug %}"
                class="link font-medium">
-              {{ follow.organizer.name }}
+              {{ follow.profile.name }}
             </a>
-            <form method="post" action="{% url 'organizer-follow' follow.organizer.slug %}">
+            <form method="post" action="{% url 'organizer-follow' follow.profile.slug %}">
               {% csrf_token %}
               <button type="submit" class="btn btn-sm btn-outline">
                 {% trans "Unfollow" %}

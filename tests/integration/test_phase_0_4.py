@@ -24,7 +24,7 @@ from django.test import Client
 
 from accounts.models import InviteCode
 from events.models import Attendance
-from organizers.models import OrganizerFollow
+from organizers.models import Follow
 from venues.models import Venue
 
 # ---------------------------------------------------------------------------
@@ -508,12 +508,12 @@ def test_follow_requires_login(client, approved_organizer):
 
 @pytest.mark.django_db
 def test_follow_creates_row(client, approved_user, approved_organizer):
-    """Approved user POST to follow creates OrganizerFollow row."""
+    """Approved user POST to follow creates Follow row."""
     client.force_login(approved_user)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
-    assert OrganizerFollow.objects.filter(
-        user=approved_user, organizer=approved_organizer
+    assert Follow.objects.filter(
+        user=approved_user, profile=approved_organizer
     ).exists()
 
 
@@ -522,12 +522,12 @@ def test_follow_toggle_unfollow(client, approved_user, approved_organizer):
     """Two POSTs to follow endpoint: first follows, second unfollows."""
     client.force_login(approved_user)
     client.post(f"/o/{approved_organizer.slug}/follow/")
-    assert OrganizerFollow.objects.filter(
-        user=approved_user, organizer=approved_organizer
+    assert Follow.objects.filter(
+        user=approved_user, profile=approved_organizer
     ).exists()
     client.post(f"/o/{approved_organizer.slug}/follow/")
-    assert not OrganizerFollow.objects.filter(
-        user=approved_user, organizer=approved_organizer
+    assert not Follow.objects.filter(
+        user=approved_user, profile=approved_organizer
     ).exists()
 
 

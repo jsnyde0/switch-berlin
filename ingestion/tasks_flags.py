@@ -134,13 +134,13 @@ def recompute_aggregates():
     Does NOT update hidden (set synchronously in flag_target view).
     """
     from events.models import Attendance, Event
-    from organizers.models import OrganizerFollow, Profile
+    from organizers.models import Follow, Profile
     from reviews.models import Review
 
     t0 = time.monotonic()
 
     for org in Profile.objects.all():
-        follower_count = OrganizerFollow.objects.filter(organizer=org).count()
+        follower_count = Follow.objects.filter(profile=org).count()
         agg = Review.objects.filter(organizer=org, hidden=False).aggregate(
             count=Count("pk"), avg=Avg("rating")
         )

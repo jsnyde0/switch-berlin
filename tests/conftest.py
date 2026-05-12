@@ -172,7 +172,7 @@ def organizer_with_follower_count(db):
     """
     from django.contrib.auth import get_user_model
 
-    from organizers.models import OrganizerFollow, Profile
+    from organizers.models import Follow, Profile
 
     User = get_user_model()
     _counter = {"n": 0}
@@ -190,7 +190,7 @@ def organizer_with_follower_count(db):
                 email=f"follower_{_counter['n']}_{i}@example.com",
                 password="testpass123",
             )
-            OrganizerFollow.objects.create(user=user, organizer=org)
+            Follow.objects.create(user=user, profile=org)
         Profile.objects.filter(pk=org.pk).update(follower_count=n)
         org.refresh_from_db()
         return org

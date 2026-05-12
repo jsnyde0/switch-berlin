@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.core import is_ratelimited
 
 from events.models import Attendance
-from organizers.models import OrganizerFollow
+from organizers.models import Follow
 
 
 class RateLimitedSignupView(SignupView):
@@ -36,13 +36,13 @@ class RateLimitedSignupView(SignupView):
 def me_view(request):
     now = timezone.now()
     followed = (
-        OrganizerFollow.objects.filter(
+        Follow.objects.filter(
             user=request.user,
-            organizer__hidden=False,
-            organizer__status="approved",
+            profile__hidden=False,
+            profile__status="approved",
         )
-        .select_related("organizer")
-        .order_by("organizer__name")
+        .select_related("profile")
+        .order_by("profile__name")
     )
     upcoming = (
         Attendance.objects.filter(

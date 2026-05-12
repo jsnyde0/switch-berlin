@@ -13,7 +13,7 @@ from django.db import IntegrityError
 from django.test import Client, override_settings
 
 from events.models import Event
-from organizers.models import OrganizerFollow, Profile
+from organizers.models import Follow, Profile
 from reviews.models import Flag, Review
 
 User = get_user_model()
@@ -569,15 +569,15 @@ def test_ratings_flag_off_hides_form(
 
 @pytest.mark.django_db
 def test_recompute_aggregates_runs(approved_user, approved_organizer, published_event):
-    """recompute_aggregates() updates follower_count to match OrganizerFollow count."""
+    """recompute_aggregates() updates follower_count to match Follow count."""
     from ingestion.tasks_flags import recompute_aggregates
 
-    OrganizerFollow.objects.create(user=approved_user, organizer=approved_organizer)
+    Follow.objects.create(user=approved_user, profile=approved_organizer)
 
     recompute_aggregates()
 
     approved_organizer.refresh_from_db()
-    actual_count = OrganizerFollow.objects.filter(organizer=approved_organizer).count()
+    actual_count = Follow.objects.filter(profile=approved_organizer).count()
     assert approved_organizer.follower_count == actual_count
 
 

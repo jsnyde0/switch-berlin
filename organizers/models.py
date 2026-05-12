@@ -107,13 +107,13 @@ class Profile(models.Model):
         return self.events_organized.all()
 
 
-class OrganizerFollow(models.Model):
+class Follow(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="follows",
     )
-    organizer = models.ForeignKey(
+    profile = models.ForeignKey(
         Profile,
         on_delete=models.CASCADE,
         related_name="followers",
@@ -121,7 +121,7 @@ class OrganizerFollow(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = [("user", "organizer")]
+        unique_together = [("user", "profile")]
 
     def __str__(self):
-        return f"{self.user} follows {self.organizer}"
+        return f"{self.user} follows {self.profile}"

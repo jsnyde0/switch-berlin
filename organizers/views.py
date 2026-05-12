@@ -9,7 +9,7 @@ from accounts.decorators import approved_required
 from events.models import Attendance, Event
 from reviews.models import Review
 
-from .models import OrganizerFollow, Profile
+from .models import Follow, Profile
 
 # Valid sort options and their corresponding ORM orderings.
 _SORT_ORDERINGS = {
@@ -77,8 +77,8 @@ def organizer_profile(request, slug):
     )
 
     if request.user.is_authenticated:
-        following = OrganizerFollow.objects.filter(
-            user=request.user, organizer=organizer
+        following = Follow.objects.filter(
+            user=request.user, profile=organizer
         ).exists()
         going_venue_ids = list(
             Attendance.objects.filter(
@@ -136,8 +136,8 @@ def organizer_profile(request, slug):
 @approved_required
 def organizer_follow(request, slug):
     organizer = get_object_or_404(Profile, slug=slug, status="approved")
-    follow, created = OrganizerFollow.objects.get_or_create(
-        user=request.user, organizer=organizer
+    follow, created = Follow.objects.get_or_create(
+        user=request.user, profile=organizer
     )
     if not created:
         follow.delete()
