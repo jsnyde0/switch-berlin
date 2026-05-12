@@ -30,9 +30,9 @@ def approved_user(db):
 
 @pytest.fixture
 def organizer(db):
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Test Organizer",
         slug="test-organizer",
         status="approved",
@@ -67,9 +67,9 @@ def draft_event(db, organizer):
 
 @pytest.fixture
 def candidate_organizer(db):
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Candidate Org",
         slug="candidate-org",
         status="candidate",

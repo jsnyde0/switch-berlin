@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from a_core.models import FeatureFlag
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 
 
 def _enable_event_reviews():
@@ -33,7 +33,7 @@ def _enable_event_reviews():
 
 
 def _make_organizer(slug="review-sort-org"):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name=f"Organizer {slug}",
         slug=slug,
         status="approved",

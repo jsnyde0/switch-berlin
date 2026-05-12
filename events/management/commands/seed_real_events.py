@@ -26,7 +26,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 from venues.models import Venue
 
 BERLIN_TZ = zoneinfo.ZoneInfo("Europe/Berlin")
@@ -762,7 +762,7 @@ class Command(BaseCommand):
                     organizer__slug=org_slug, slug=ev_slug
                 ).delete()
             Venue.objects.filter(slug__in=venue_slugs).delete()
-            Organizer.objects.filter(slug__in=org_slugs).delete()
+            Profile.objects.filter(slug__in=org_slugs).delete()
 
         now = timezone.now()
         consent_notes = (
@@ -771,9 +771,9 @@ class Command(BaseCommand):
         )
 
         orgs_created = 0
-        orgs_by_slug: dict[str, Organizer] = {}
+        orgs_by_slug: dict[str, Profile] = {}
         for od in ORGANIZERS:
-            org, created = Organizer.objects.get_or_create(
+            org, created = Profile.objects.get_or_create(
                 slug=od["slug"],
                 defaults={
                     "name": od["name"],

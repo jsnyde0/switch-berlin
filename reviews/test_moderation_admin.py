@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from a_core.models import ModerationAction
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 from reviews.models import Flag, Review
 
 User = get_user_model()
@@ -56,7 +56,7 @@ def non_staff_client(db):
 
 @pytest.fixture
 def mod_organizer(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Mod Organizer",
         slug="mod-organizer",
         status="approved",

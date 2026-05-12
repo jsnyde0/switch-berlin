@@ -130,7 +130,7 @@ def organizer_with_rating_count(db):
     """
     from django.contrib.auth import get_user_model
 
-    from organizers.models import Organizer
+    from organizers.models import Profile
     from reviews.models import Review
 
     User = get_user_model()
@@ -138,7 +138,7 @@ def organizer_with_rating_count(db):
 
     def _factory(n):
         _counter["n"] += 1
-        org = Organizer.objects.create(
+        org = Profile.objects.create(
             name=f"Rated Organizer {_counter['n']}",
             slug=f"rated-org-{_counter['n']}",
             status="approved",
@@ -150,7 +150,7 @@ def organizer_with_rating_count(db):
                 password="testpass123",
             )
             Review.objects.create(author=author, organizer=org, rating=4, body="")
-        Organizer.objects.filter(pk=org.pk).update(rating_count=n)
+        Profile.objects.filter(pk=org.pk).update(rating_count=n)
         org.refresh_from_db()
         return org
 
@@ -172,14 +172,14 @@ def organizer_with_follower_count(db):
     """
     from django.contrib.auth import get_user_model
 
-    from organizers.models import Organizer, OrganizerFollow
+    from organizers.models import OrganizerFollow, Profile
 
     User = get_user_model()
     _counter = {"n": 0}
 
     def _factory(n):
         _counter["n"] += 1
-        org = Organizer.objects.create(
+        org = Profile.objects.create(
             name=f"Followed Organizer {_counter['n']}",
             slug=f"followed-org-{_counter['n']}",
             status="approved",
@@ -191,7 +191,7 @@ def organizer_with_follower_count(db):
                 password="testpass123",
             )
             OrganizerFollow.objects.create(user=user, organizer=org)
-        Organizer.objects.filter(pk=org.pk).update(follower_count=n)
+        Profile.objects.filter(pk=org.pk).update(follower_count=n)
         org.refresh_from_db()
         return org
 
@@ -260,9 +260,9 @@ def regular_user(db):
 @pytest.fixture
 def approved_organizer(db):
     """Approved organizer for view smoke tests."""
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Test Organizer",
         slug="test-organizer",
         status="approved",

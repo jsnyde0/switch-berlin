@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from events.models import Attendance, Event
-from organizers.models import Organizer
+from organizers.models import Profile
 
 User = get_user_model()
 
@@ -23,7 +23,7 @@ User = get_user_model()
 
 @pytest.fixture
 def organizer(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Test Organizer",
         slug="test-organizer-tasks",
         status="approved",

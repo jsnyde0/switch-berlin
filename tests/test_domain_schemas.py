@@ -28,7 +28,7 @@ def test_domain_apps_in_installed_apps():
 
 
 def test_organizer_model_importable():
-    from organizers.models import Organizer  # noqa: F401
+    from organizers.models import Profile  # noqa: F401
 
 
 def test_venue_model_importable():
@@ -54,10 +54,10 @@ def test_review_model_importable():
 
 @pytest.mark.django_db
 def test_organizer_create_roundtrip():
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    org = Organizer.objects.create(name="Test Org", slug="test-org")
-    fetched = Organizer.objects.get(pk=org.pk)
+    org = Profile.objects.create(name="Test Org", slug="test-org")
+    fetched = Profile.objects.get(pk=org.pk)
     assert fetched.name == "Test Org"
     assert fetched.slug == "test-org"
     assert fetched.status == "candidate"
@@ -71,11 +71,11 @@ def test_organizer_create_roundtrip():
 def test_organizer_slug_is_unique():
     from django.db import IntegrityError
 
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    Organizer.objects.create(name="Org A", slug="unique-slug")
+    Profile.objects.create(name="Org A", slug="unique-slug")
     with pytest.raises(IntegrityError):
-        Organizer.objects.create(name="Org B", slug="unique-slug")
+        Profile.objects.create(name="Org B", slug="unique-slug")
 
 
 @pytest.mark.django_db
@@ -83,17 +83,17 @@ def test_organizer_approved_by_uses_auth_user_model():
     """approved_by FK must point to AUTH_USER_MODEL, not import User directly."""
     from django.contrib.auth import get_user_model
 
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
     User = get_user_model()
     admin_user = User.objects.create_user(
         username="admin_org", email="admin_org@example.com", password="pass"
     )
-    org = Organizer.objects.create(name="Approved Org", slug="approved-org")
+    org = Profile.objects.create(name="Approved Org", slug="approved-org")
     org.approved_by = admin_user
     org.save()
 
-    fetched = Organizer.objects.get(pk=org.pk)
+    fetched = Profile.objects.get(pk=org.pk)
     assert fetched.approved_by_id == admin_user.pk
 
 
@@ -101,17 +101,17 @@ def test_organizer_approved_by_uses_auth_user_model():
 def test_organizer_consent_fields():
     import django.utils.timezone as tz
 
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
     now = tz.now()
-    org = Organizer.objects.create(
+    org = Profile.objects.create(
         name="Consent Org",
         slug="consent-org",
         consent_recorded_at=now,
         consent_method="explicit_opt_in",
         consent_notes="Agreed via form",
     )
-    fetched = Organizer.objects.get(pk=org.pk)
+    fetched = Profile.objects.get(pk=org.pk)
     assert fetched.consent_method == "explicit_opt_in"
     assert fetched.consent_notes == "Agreed via form"
 
@@ -213,9 +213,9 @@ def test_tag_slug_is_unique():
 
 @pytest.fixture
 def organizer():
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(name="Event Organizer", slug="event-organizer")
+    return Profile.objects.create(name="Event Organizer", slug="event-organizer")
 
 
 @pytest.fixture
@@ -272,9 +272,9 @@ def test_event_slug_can_repeat_across_organizers(organizer):
     import django.utils.timezone as tz
 
     from events.models import Event
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    other_org = Organizer.objects.create(name="Other Org", slug="other-org")
+    other_org = Profile.objects.create(name="Other Org", slug="other-org")
     start = tz.now()
     Event.objects.create(
         title="Event A", slug="shared-slug-2", organizer=organizer, start=start
@@ -588,9 +588,9 @@ def test_review_check_constraint_in_db():
 def test_organizer_admin_registered():
     from django.contrib import admin
 
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    assert admin.site.is_registered(Organizer), "Organizer not registered in admin"
+    assert admin.site.is_registered(Profile), "Organizer not registered in admin"
 
 
 def test_venue_admin_registered():
@@ -640,9 +640,9 @@ def test_review_admin_registered():
 
 def test_organizer_approved_by_fk_uses_settings_auth_user_model():
     """Organizer.approved_by FK must reference settings.AUTH_USER_MODEL string."""
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    field = Organizer._meta.get_field("approved_by")
+    field = Profile._meta.get_field("approved_by")
     # The related model should be the AUTH_USER_MODEL (accounts.User)
     assert field.related_model._meta.label == "accounts.User"
 

@@ -14,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from organizers.models import Organizer
+from organizers.models import Profile
 from reviews.models import Review
 
 User = get_user_model()
@@ -32,7 +32,7 @@ def anon_client():
 
 @pytest.fixture
 def org(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Sort Test Organizer",
         slug="sort-test-org",
         status="approved",
@@ -68,7 +68,7 @@ def test_default_sort_is_recent(org):
     r1 = _make_review(org, rating=3, body="oldest")
     r2 = _make_review(org, rating=5, body="newest")
     # Set rating_count so the section is shown (threshold default=3)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
     org.refresh_from_db()
 
     client = Client()
@@ -87,7 +87,7 @@ def test_sort_recent_explicit(org):
     """?sort=recent → ordered by -created_at."""
     r1 = _make_review(org, rating=3)
     r2 = _make_review(org, rating=5)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
     org.refresh_from_db()
 
     client = Client()
@@ -106,7 +106,7 @@ def test_sort_highest_orders_by_rating_desc(org):
     r_low = _make_review(org, rating=1)
     r_mid = _make_review(org, rating=3)
     r_high = _make_review(org, rating=5)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=3.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=3.0)
     org.refresh_from_db()
 
     client = Client()
@@ -126,7 +126,7 @@ def test_sort_lowest_orders_by_rating_asc(org):
     r_low = _make_review(org, rating=1)
     r_mid = _make_review(org, rating=3)
     r_high = _make_review(org, rating=5)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=3.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=3.0)
     org.refresh_from_db()
 
     client = Client()
@@ -145,7 +145,7 @@ def test_invalid_sort_falls_back_to_recent(org):
     """Unknown ?sort value defaults to recent ordering."""
     r1 = _make_review(org, rating=3)
     r2 = _make_review(org, rating=5)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
     org.refresh_from_db()
 
     client = Client()
@@ -169,7 +169,7 @@ def test_hidden_reviews_excluded_from_queryset(org):
     """Reviews with hidden=True must not appear in the reviews context."""
     visible = _make_review(org, rating=4, body="visible")
     _make_review(org, rating=5, body="hidden", hidden=True)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
     org.refresh_from_db()
 
     client = Client()
@@ -196,7 +196,7 @@ def test_reviews_section_hidden_when_below_threshold(org, db):
     _make_review(org, rating=4)
     _make_review(org, rating=5)
     # Set count explicitly below default threshold (3)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=2, avg_rating=4.5)
+    Profile.objects.filter(pk=org.pk).update(rating_count=2, avg_rating=4.5)
     org.refresh_from_db()
 
     client = Client()
@@ -216,7 +216,7 @@ def test_reviews_section_visible_when_at_threshold(org, db):
     _make_review(org, rating=4)
     _make_review(org, rating=5)
     _make_review(org, rating=3)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
     org.refresh_from_db()
 
     client = Client()
@@ -235,7 +235,7 @@ def test_reviews_section_visible_above_threshold(org, db):
     """rating_count > threshold → show_rating True."""
     for rating in [4, 5, 3, 4, 5]:
         _make_review(org, rating=rating)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=5, avg_rating=4.2)
+    Profile.objects.filter(pk=org.pk).update(rating_count=5, avg_rating=4.2)
     org.refresh_from_db()
 
     client = Client()
@@ -262,7 +262,7 @@ def test_gate_respects_db_threshold_flag(org, db):
 
     _make_review(org, rating=4)
     _make_review(org, rating=5)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=2, avg_rating=4.5)
+    Profile.objects.filter(pk=org.pk).update(rating_count=2, avg_rating=4.5)
     org.refresh_from_db()
 
     client = Client()
@@ -285,7 +285,7 @@ def test_anonymous_user_sees_reviews_section(org, anon_client):
     _make_review(org, rating=4)
     _make_review(org, rating=5)
     _make_review(org, rating=3)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
     org.refresh_from_db()
 
     url = reverse("organizer-profile", kwargs={"slug": org.slug})
@@ -303,7 +303,7 @@ def test_anonymous_user_same_visibility_as_authenticated(org, db):
     _make_review(org, rating=4)
     _make_review(org, rating=5)
     _make_review(org, rating=3)
-    Organizer.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
+    Profile.objects.filter(pk=org.pk).update(rating_count=3, avg_rating=4.0)
     org.refresh_from_db()
 
     url = reverse("organizer-profile", kwargs={"slug": org.slug})

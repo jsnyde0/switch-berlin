@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 
 User = get_user_model()
 
@@ -70,7 +70,7 @@ def staff_client(staff_user):
 
 @pytest.fixture
 def rl_organizer(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="RL Test Organizer",
         slug="rl-test-org",
         status="approved",

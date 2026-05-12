@@ -137,7 +137,7 @@ class ApprovedSender(models.Model):
     telegram_user_id = models.CharField(max_length=100, unique=True)
     telegram_handle = models.CharField(max_length=100, blank=True)
     organizer = models.ForeignKey(
-        "organizers.Organizer",
+        "organizers.Profile",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

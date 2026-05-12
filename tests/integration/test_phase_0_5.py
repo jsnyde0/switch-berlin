@@ -3,7 +3,6 @@ Integration tests for Phase 0.5 — public read, legal gate, ratings, flags.
 Covers: docs/plans/2026-04-17-phase-0.5-public-legal-design.md §Test plan
 """
 
-import json
 from datetime import timedelta
 
 import django.utils.timezone as tz
@@ -14,7 +13,7 @@ from django.db import IntegrityError
 from django.test import Client, override_settings
 
 from events.models import Event
-from organizers.models import Organizer, OrganizerFollow
+from organizers.models import OrganizerFollow, Profile
 from reviews.models import Flag, Review
 
 User = get_user_model()
@@ -754,7 +753,7 @@ def test_hidden_event_absent_from_list_visible_manager(
 @pytest.mark.django_db
 def test_hidden_organizer_returns_404(client, feature_flag_public_read_on):
     """Hidden organizer (hidden=True) returns 404 on their profile page."""
-    hidden_org = Organizer.objects.create(
+    hidden_org = Profile.objects.create(
         name="Hidden Organizer",
         slug="hidden-organizer",
         status="approved",

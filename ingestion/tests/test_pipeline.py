@@ -7,7 +7,7 @@ from django.utils import timezone
 from events.models import Event, Tag
 from ingestion.models import ExtractionAttempt, RawMessage
 from ingestion.schemas import EventDraft
-from organizers.models import Organizer
+from organizers.models import Profile
 from venues.models import Venue
 
 
@@ -98,7 +98,7 @@ class EntityMatchingTest(TestCase):
     def test_organizer_exact_match(self):
         from ingestion.extraction import match_entities
 
-        organizer = Organizer.objects.create(name="Test Org", slug="test-org")
+        organizer = Profile.objects.create(name="Test Org", slug="test-org")
         draft = EventDraft(
             title="T",
             organizer_name="Test Org",
@@ -111,7 +111,7 @@ class EntityMatchingTest(TestCase):
     def test_organizer_exact_match_case_insensitive(self):
         from ingestion.extraction import match_entities
 
-        organizer = Organizer.objects.create(name="Test Org", slug="test-org")
+        organizer = Profile.objects.create(name="Test Org", slug="test-org")
         draft = EventDraft(
             title="T",
             organizer_name="test org",
@@ -137,7 +137,7 @@ class EntityMatchingTest(TestCase):
     def test_organizer_fuzzy_match(self):
         from ingestion.extraction import match_entities
 
-        organizer = Organizer.objects.create(
+        organizer = Profile.objects.create(
             name="Queer Collective", slug="queer-collective"
         )
         draft = EventDraft(
@@ -329,7 +329,7 @@ class ScheduledTaskTest(TestCase):
         from ingestion.tasks import archive_past_events
 
         now = timezone.now()
-        org = Organizer.objects.create(name="Org", slug="org-sched")
+        org = Profile.objects.create(name="Org", slug="org-sched")
         e1 = Event.objects.create(
             title="Old",
             slug="old-sched-1",

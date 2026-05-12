@@ -20,7 +20,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from events.models import Event
-from organizers.models import Organizer, OrganizerFollow
+from organizers.models import OrganizerFollow, Profile
 
 User = get_user_model()
 
@@ -42,7 +42,7 @@ def _make_user(username, is_approved=True):
 
 
 def _make_organizer(slug, status="approved", hidden=False):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name=f"Organizer {slug}",
         slug=slug,
         status=status,

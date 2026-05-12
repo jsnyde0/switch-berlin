@@ -37,10 +37,10 @@ def test_user_create():
 @pytest.mark.django_db
 def test_organizer_create():
     """Organizer round-trips with default status=candidate."""
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    Organizer(name="Test Org", slug="test-org-rt", status="candidate").save()
-    fetched = Organizer.objects.get(slug="test-org-rt")
+    Profile(name="Test Org", slug="test-org-rt", status="candidate").save()
+    fetched = Profile.objects.get(slug="test-org-rt")
     assert fetched.name == "Test Org"
     assert fetched.status == "candidate"
     assert fetched.verified_badge is False
@@ -71,9 +71,9 @@ def test_tag_create():
 def test_event_create():
     """Event round-trips with start datetime."""
     from events.models import Event
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    org = Organizer.objects.create(name="Event Org", slug="event-org-rt")
+    org = Profile.objects.create(name="Event Org", slug="event-org-rt")
     start = tz.now()
     Event.objects.create(
         title="Test Event",
@@ -90,9 +90,9 @@ def test_event_create():
 def test_event_image_create():
     """EventImage is correctly attached to an Event."""
     from events.models import Event, EventImage
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    org = Organizer.objects.create(name="Img Org", slug="img-org-rt")
+    org = Profile.objects.create(name="Img Org", slug="img-org-rt")
     event = Event.objects.create(
         title="Img Event", slug="img-event-rt", organizer=org, start=tz.now()
     )
@@ -151,14 +151,14 @@ def test_review_on_event():
     from django.contrib.auth import get_user_model
 
     from events.models import Event
-    from organizers.models import Organizer
+    from organizers.models import Profile
     from reviews.models import Review
 
     User = get_user_model()
     user = User.objects.create_user(
         username="rev-event-user", email="rev-event@example.com", password="x"
     )
-    org = Organizer.objects.create(name="Rev Org", slug="rev-org-rt")
+    org = Profile.objects.create(name="Rev Org", slug="rev-org-rt")
     event = Event.objects.create(
         title="Rev Event", slug="rev-event-rt", organizer=org, start=tz.now()
     )
@@ -173,14 +173,14 @@ def test_review_on_organizer():
     """Review with organizer set and event=None is valid."""
     from django.contrib.auth import get_user_model
 
-    from organizers.models import Organizer
+    from organizers.models import Profile
     from reviews.models import Review
 
     User = get_user_model()
     user = User.objects.create_user(
         username="rev-org-user", email="rev-org@example.com", password="x"
     )
-    org = Organizer.objects.create(name="Rev Org 2", slug="rev-org2-rt")
+    org = Profile.objects.create(name="Rev Org 2", slug="rev-org2-rt")
     review = Review.objects.create(author=user, organizer=org, rating=5)
     fetched = Review.objects.get(pk=review.pk)
     assert fetched.organizer_id == org.pk
@@ -201,14 +201,14 @@ def test_review_xor_both_raises():
     from django.contrib.auth import get_user_model
 
     from events.models import Event
-    from organizers.models import Organizer
+    from organizers.models import Profile
     from reviews.models import Review
 
     User = get_user_model()
     user = User.objects.create_user(
         username="xor-both", email="xor-both@example.com", password="x"
     )
-    org = Organizer.objects.create(name="XOR Org", slug="xor-org-both")
+    org = Profile.objects.create(name="XOR Org", slug="xor-org-both")
     event = Event.objects.create(
         title="XOR Event", slug="xor-event-both", organizer=org, start=tz.now()
     )
@@ -245,9 +245,9 @@ def test_review_xor_neither_raises():
 def test_event_slug_unique_per_organizer():
     """Duplicate (organizer, slug) raises IntegrityError."""
     from events.models import Event
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    org = Organizer.objects.create(name="Slug Org", slug="slug-org-dup")
+    org = Profile.objects.create(name="Slug Org", slug="slug-org-dup")
     start = tz.now()
     Event.objects.create(
         title="Slug Event A", slug="dup-slug", organizer=org, start=start
@@ -266,9 +266,9 @@ def test_event_slug_unique_per_organizer():
 def test_event_dup_guard():
     """Duplicate (organizer, start, title) raises IntegrityError."""
     from events.models import Event
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    org = Organizer.objects.create(name="Dup Org", slug="dup-org-guard")
+    org = Profile.objects.create(name="Dup Org", slug="dup-org-guard")
     start = tz.now()
     Event.objects.create(
         title="Same Title", slug="slug-a-dup-guard", organizer=org, start=start
@@ -292,9 +292,9 @@ def test_event_dup_guard():
 def test_event_status_transitions():
     """Status values draft→review→published→cancelled can all be set in DB."""
     from events.models import Event
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    org = Organizer.objects.create(name="Status Org", slug="status-org-rt")
+    org = Profile.objects.create(name="Status Org", slug="status-org-rt")
     event = Event.objects.create(
         title="Status Event", slug="status-event-rt", organizer=org, start=tz.now()
     )
@@ -334,8 +334,8 @@ def test_admin_authenticated_ok(superuser):
     "url",
     [
         "/admin/accounts/user/",
-        "/admin/organizers/organizer/",
-        "/admin/organizers/organizer/add/",
+        "/admin/organizers/profile/",
+        "/admin/organizers/profile/add/",
         "/admin/venues/venue/",
         "/admin/venues/venue/add/",
         "/admin/events/event/",
@@ -361,13 +361,13 @@ def test_raw_message_extracted_events_reverse():
     """Event.raw_message FK exposes reverse accessor as 'extracted_events'."""
     from events.models import Event
     from ingestion.models import RawMessage
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
     rm = RawMessage.objects.create(
         source_type="telegram_bot_forward",
         raw_payload={"text": "x"},
     )
-    org = Organizer.objects.create(name="Reverse Org", slug="reverse-org-rt")
+    org = Profile.objects.create(name="Reverse Org", slug="reverse-org-rt")
     Event.objects.create(
         organizer=org,
         slug="from-rm",
@@ -433,7 +433,7 @@ def test_end_to_end_orm_flow():
     from django.contrib.auth import get_user_model
 
     from events.models import Event, EventImage
-    from organizers.models import Organizer
+    from organizers.models import Profile
     from reviews.models import Review
     from venues.models import Venue
 
@@ -443,7 +443,7 @@ def test_end_to_end_orm_flow():
     user = User.objects.create_user(
         username="e2e-user", email="e2e@example.com", password="x"
     )
-    org = Organizer.objects.create(name="E2E Org", slug="e2e-org")
+    org = Profile.objects.create(name="E2E Org", slug="e2e-org")
     venue = Venue.objects.create(name="E2E Venue", slug="e2e-venue")
     event = Event.objects.create(
         title="E2E Event",

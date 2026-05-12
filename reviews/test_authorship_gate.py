@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Attendance, Event
-from organizers.models import Organizer
+from organizers.models import Profile
 from reviews.models import Review
 
 User = get_user_model()
@@ -26,7 +26,7 @@ User = get_user_model()
 
 @pytest.fixture
 def organizer(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Gate Test Organizer",
         slug="gate-test-organizer",
         status="approved",
@@ -316,7 +316,7 @@ def test_submit_organizer_review_unaffected_by_attendance_gate(
     approved_user_without_attendance,
 ):
     """Attendance gate only applies to event target_type; organizer reviews still work."""
-    org = Organizer.objects.create(
+    org = Profile.objects.create(
         name="Unrelated Organizer", slug="unrelated-org", status="approved"
     )
     client = Client()

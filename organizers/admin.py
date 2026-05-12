@@ -2,14 +2,14 @@ from django.contrib import admin
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
-from .models import Organizer
+from .models import Profile
 
 
-@admin.register(Organizer)
-class OrganizerAdmin(admin.ModelAdmin):
-    list_display = ["name", "status", "verified_badge", "event_count"]
-    list_filter = ["status", "verified_badge"]
-    search_fields = ["name", "slug", "telegram_channel"]
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ["name", "kind", "status", "verified_badge", "event_count"]
+    list_filter = ["kind", "status", "verified_badge"]
+    search_fields = ["name", "slug", "telegram_link"]
     readonly_fields = ["created_at", "updated_at", "approved_at"]
     actions = [
         "mark_approved_explicit_opt_in",

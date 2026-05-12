@@ -25,7 +25,7 @@ def _make_venue(**kwargs):
 
 
 def _make_organizer(**kwargs):
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
     defaults = dict(
         name="Privacy Org",
@@ -33,7 +33,7 @@ def _make_organizer(**kwargs):
         status="approved",
     )
     defaults.update(kwargs)
-    return Organizer.objects.create(**defaults)
+    return Profile.objects.create(**defaults)
 
 
 def _make_event(organizer, venue=None, **kwargs):

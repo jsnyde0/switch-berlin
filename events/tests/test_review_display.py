@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from a_core.models import FeatureFlag
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 from reviews.models import Review
 
 User = get_user_model()
@@ -28,7 +28,7 @@ User = get_user_model()
 
 
 def _make_organizer(slug="test-org-rd"):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Test Org RD",
         slug=slug,
         status="approved",

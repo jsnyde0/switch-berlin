@@ -29,10 +29,10 @@ class EventDrawerContextTest(TestCase):
     """event_drawer view sets user_has_went_attendance correctly in context."""
 
     def setUp(self):
-        from organizers.models import Organizer
         from events.models import Event
+        from organizers.models import Profile
 
-        self.organizer = Organizer.objects.create(
+        self.organizer = Profile.objects.create(
             name="Drawer Test Org", slug="drawer-test-org", status="approved"
         )
         self.event = Event.objects.create(

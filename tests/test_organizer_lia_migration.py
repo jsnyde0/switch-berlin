@@ -20,9 +20,9 @@ from django.test import TestCase  # noqa: E402
 
 def _make_organizer(slug, consent_method, consent_notes=""):
     """Create an Organizer with the given consent_method."""
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    org = Organizer(
+    org = Profile(
         name=f"Organizer {slug}",
         slug=slug,
         consent_method=consent_method,
@@ -164,9 +164,9 @@ class TestAdminDropdown(TestCase):
 
     def test_admin_dropdown_shows_new_choice(self):
         """The Organizer model's consent_method field includes legitimate_interest."""
-        from organizers.models import Organizer
+        from organizers.models import Profile
 
-        field = Organizer._meta.get_field("consent_method")
+        field = Profile._meta.get_field("consent_method")
         choices_dict = dict(field.choices)
 
         assert "legitimate_interest" in choices_dict, (
@@ -179,9 +179,9 @@ class TestAdminDropdown(TestCase):
 
     def test_legitimate_interest_is_first_choice(self):
         """legitimate_interest must appear first in the choices list."""
-        from organizers.models import Organizer
+        from organizers.models import Profile
 
-        field = Organizer._meta.get_field("consent_method")
+        field = Profile._meta.get_field("consent_method")
         first_key, first_label = field.choices[0]
         assert first_key == "legitimate_interest", (
             f"Expected legitimate_interest first, got {first_key!r}"

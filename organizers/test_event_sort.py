@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -27,7 +27,7 @@ from organizers.models import Organizer
 
 @pytest.fixture
 def org(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Event Sort Org",
         slug="event-sort-org",
         status="approved",

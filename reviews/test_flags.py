@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Attendance, Event
-from organizers.models import Organizer, OrganizerFollow
+from organizers.models import OrganizerFollow, Profile
 from reviews.models import Flag, Review
 
 User = get_user_model()
@@ -61,7 +61,7 @@ def approved_user3(db):
 
 @pytest.fixture
 def organizer(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Test Organizer",
         slug="test-org",
         status="approved",
@@ -717,10 +717,10 @@ def test_organizer_opt_out_cannot_suspend_unrelated_organizer():
     from ingestion.models import ApprovedSender
 
     User = get_user_model()
-    organizer_a = Organizer.objects.create(
+    organizer_a = Profile.objects.create(
         name="Organizer A", slug="org-a", status="approved"
     )
-    organizer_b = Organizer.objects.create(
+    organizer_b = Profile.objects.create(
         name="Organizer B", slug="org-b", status="approved"
     )
     # Sender is linked to org-A only
@@ -799,7 +799,6 @@ def test_organizer_opt_out_rate_limit_4th_request_blocked():
 @pytest.mark.django_db
 def test_feature_flag_save_invalidates_cache():
     """Toggling FeatureFlag via .save() immediately invalidates the cache."""
-    from django.core.cache import cache
 
     from a_core.models import FeatureFlag, get_flag
 
@@ -825,7 +824,6 @@ def test_feature_flag_save_invalidates_cache():
 @pytest.mark.django_db
 def test_feature_flag_delete_invalidates_cache():
     """Deleting a FeatureFlag via .delete() falls back to default immediately."""
-    from django.core.cache import cache
 
     from a_core.models import FeatureFlag, get_flag
 

@@ -13,7 +13,6 @@ from datetime import timedelta
 import django.utils.timezone as tz
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -34,9 +33,9 @@ def staff_user(db):
 
 @pytest.fixture
 def organizer_alpha(db):
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Alpha Org",
         slug="alpha-org",
         status="approved",
@@ -45,9 +44,9 @@ def organizer_alpha(db):
 
 @pytest.fixture
 def organizer_beta(db):
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Beta Org",
         slug="beta-org",
         status="approved",

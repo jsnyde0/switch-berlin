@@ -30,9 +30,9 @@ from django.utils import timezone
 @pytest.fixture
 def approved_organizer(db):
     """Approved organizer for attend tests."""
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Attend Test Organizer",
         slug="attend-test-organizer",
         status="approved",

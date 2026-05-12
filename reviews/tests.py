@@ -6,7 +6,7 @@ from django.test import Client
 from django.urls import reverse
 
 from events.models import Attendance, Event
-from organizers.models import Organizer
+from organizers.models import Profile
 from reviews.models import Review
 
 User = get_user_model()
@@ -37,7 +37,7 @@ def unapproved_user(db):
 
 @pytest.fixture
 def organizer(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Test Organizer",
         slug="test-organizer",
         status="approved",
@@ -47,6 +47,7 @@ def organizer(db):
 @pytest.fixture
 def past_event(db, organizer):
     from datetime import timedelta
+
     from django.utils import timezone
 
     return Event.objects.create(

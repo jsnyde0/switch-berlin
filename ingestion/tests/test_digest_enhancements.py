@@ -35,9 +35,9 @@ def _get_body(mock_send):
 
 @pytest.fixture
 def organizer(db):
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Test Organizer Digest",
         slug="test-organizer-digest",
         status="approved",

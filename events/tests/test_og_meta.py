@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 
 User = get_user_model()
 
@@ -15,7 +15,7 @@ class EventDetailOGMetaTest(TestCase):
     """OG meta tags appear on event detail when PUBLIC_READ_ENABLED=True."""
 
     def setUp(self):
-        self.organizer = Organizer.objects.create(
+        self.organizer = Profile.objects.create(
             name="Test Org",
             slug="test-org",
             status="approved",

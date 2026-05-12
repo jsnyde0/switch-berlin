@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 
 from a_core.models import ModerationAction
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 
 from .models import Flag, Review
 
@@ -150,9 +150,9 @@ class FlagAdmin(admin.ModelAdmin):
             if action == "hide" and target_type == "event":
                 Event.objects.filter(pk=target.pk).update(hidden=True)
             elif action == "hide" and target_type == "organizer":
-                Organizer.objects.filter(pk=target.pk).update(hidden=True)
+                Profile.objects.filter(pk=target.pk).update(hidden=True)
             elif action == "suspend":
-                Organizer.objects.filter(pk=target.pk).update(status="suspended")
+                Profile.objects.filter(pk=target.pk).update(status="suspended")
             elif action == "delete":
                 Review.objects.filter(pk=target.pk).update(hidden=True)
 

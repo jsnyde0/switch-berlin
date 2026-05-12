@@ -38,7 +38,7 @@ class Event(models.Model):
     slug = models.SlugField(max_length=200)  # unique per-organizer, see Meta
     description = models.TextField(blank=True)
     organizer = models.ForeignKey(
-        "organizers.Organizer",
+        "organizers.Profile",
         on_delete=models.PROTECT,
         null=True,
         blank=True,

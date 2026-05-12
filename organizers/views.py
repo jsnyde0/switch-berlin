@@ -9,7 +9,7 @@ from accounts.decorators import approved_required
 from events.models import Attendance, Event
 from reviews.models import Review
 
-from .models import Organizer, OrganizerFollow
+from .models import OrganizerFollow, Profile
 
 # Valid sort options and their corresponding ORM orderings.
 _SORT_ORDERINGS = {
@@ -25,7 +25,7 @@ _EVENT_RATING_SORT_OPTIONS = {"lowest_rated", "most_reviewed"}
 
 def organizer_profile(request, slug):
     organizer = get_object_or_404(
-        Organizer.objects.visible(), slug=slug, status="approved"
+        Profile.objects.visible(), slug=slug, status="approved"
     )
     now = timezone.now()
 
@@ -131,7 +131,7 @@ def organizer_profile(request, slug):
 @login_required
 @approved_required
 def organizer_follow(request, slug):
-    organizer = get_object_or_404(Organizer, slug=slug, status="approved")
+    organizer = get_object_or_404(Profile, slug=slug, status="approved")
     follow, created = OrganizerFollow.objects.get_or_create(
         user=request.user, organizer=organizer
     )

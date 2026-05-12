@@ -23,7 +23,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from events.models import Event, Tag
-from organizers.models import Organizer
+from organizers.models import Profile
 from venues.models import Venue
 
 # ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ class Command(BaseCommand):
         wipe = options["wipe"]
         verbosity = options["verbosity"]
 
-        seed_data_exists = Organizer.objects.filter(
+        seed_data_exists = Profile.objects.filter(
             name__startswith=SEED_PREFIX
         ).exists()
 
@@ -191,7 +191,7 @@ class Command(BaseCommand):
             # Events reference organizers (PROTECT) — delete events first.
             Event.objects.filter(organizer__name__startswith=SEED_PREFIX).delete()
             Venue.objects.filter(name__startswith=SEED_PREFIX).delete()
-            Organizer.objects.filter(name__startswith=SEED_PREFIX).delete()
+            Profile.objects.filter(name__startswith=SEED_PREFIX).delete()
 
         rng = _rng(42)
         now = timezone.now()
@@ -209,7 +209,7 @@ class Command(BaseCommand):
             suffix = _ORGANIZER_SUFFIXES[i % len(_ORGANIZER_SUFFIXES)]
             name = f"{SEED_PREFIX}{i + 1:02d} {suffix}"
             slug = _slug_from(name)
-            org = Organizer.objects.create(
+            org = Profile.objects.create(
                 name=name,
                 slug=slug,
                 status="approved",

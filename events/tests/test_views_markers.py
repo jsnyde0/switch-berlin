@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from events.models import Event, Tag
-from organizers.models import Organizer
+from organizers.models import Profile
 from venues.models import Venue
 
 User = get_user_model()
@@ -26,7 +26,7 @@ class EventListMarkersTest(TestCase):
         )
         self.client.force_login(self.staff_user)
 
-        self.organizer = Organizer.objects.create(
+        self.organizer = Profile.objects.create(
             name="Test Org",
             slug="test-org",
             status="approved",
@@ -170,7 +170,8 @@ class EventListMarkersTest(TestCase):
             {"bounds": "52.50,13.38,52.55,13.45"},
         )
         self.assertEqual(response.status_code, 200)
-        import re, json
+        import json
+        import re
         content = response.content.decode()
         match = re.search(
             r'id="markers-data" type="application/json">(.*?)</script>',
@@ -194,7 +195,8 @@ class EventListMarkersTest(TestCase):
             {"bounds": "51.00,12.00,51.50,12.50"},
         )
         self.assertEqual(response.status_code, 200)
-        import re, json
+        import json
+        import re
         content = response.content.decode()
         match = re.search(
             r'id="markers-data" type="application/json">(.*?)</script>',
@@ -212,7 +214,8 @@ class EventListMarkersTest(TestCase):
         """Malformed bounds param must be silently ignored (all events returned)."""
         response = self.client.get("/events/", {"bounds": "not,a,valid,bounds"})
         self.assertEqual(response.status_code, 200)
-        import re, json
+        import json
+        import re
         content = response.content.decode()
         match = re.search(
             r'id="markers-data" type="application/json">(.*?)</script>',

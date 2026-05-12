@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from organizers.models import Organizer
+from organizers.models import Profile
 
 User = get_user_model()
 
@@ -13,7 +13,7 @@ class OrganizerProfileOGMetaTest(TestCase):
     """OG meta tags appear on organizer profile when PUBLIC_READ_ENABLED=True."""
 
     def setUp(self):
-        self.organizer = Organizer.objects.create(
+        self.organizer = Profile.objects.create(
             name="Kinky Collective",
             slug="kinky-collective",
             status="approved",

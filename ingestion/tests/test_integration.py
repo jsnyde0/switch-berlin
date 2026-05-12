@@ -11,7 +11,7 @@ from ingestion.bot import handle_message
 from ingestion.models import ApprovedSender, ExtractionAttempt, RawMessage
 from ingestion.schemas import EventDraft
 from ingestion.tasks import process_raw_message
-from organizers.models import Organizer
+from organizers.models import Profile
 
 User = get_user_model()
 
@@ -43,7 +43,7 @@ class FullIngestionLoopTest(TestCase):
             username="admin_integ", email="admin@test.com", password="pw"
         )
         self.client.force_login(self.superuser)
-        self.organizer = Organizer.objects.create(
+        self.organizer = Profile.objects.create(
             name="Test Org", slug="test-org-integ"
         )
         self.approved = ApprovedSender.objects.create(telegram_user_id="123456789")

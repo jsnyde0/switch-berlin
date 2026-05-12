@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from events.models import Event
 from ingestion.models import ExtractionAttempt, RawMessage
-from organizers.models import Organizer
+from organizers.models import Profile
 
 User = get_user_model()
 
@@ -17,7 +17,7 @@ class EventAdminTest(TestCase):
             username="admin", email="admin@example.com", password="password"
         )
         self.client.force_login(self.superuser)
-        self.organizer = Organizer.objects.create(
+        self.organizer = Profile.objects.create(
             name="Test Org", slug="test-org-admin"
         )
 

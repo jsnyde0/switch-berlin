@@ -4,7 +4,7 @@ import pytest
 from django.core.management import call_command
 
 from events.models import Event, Tag
-from organizers.models import Organizer
+from organizers.models import Profile
 from venues.models import Venue
 
 
@@ -19,7 +19,7 @@ def test_seed_creates_500_plus_events():
 def test_seed_creates_8_plus_organizers():
     """seed_spike_data creates at least 8 organizers."""
     call_command("seed_spike_data", force=True)
-    assert Organizer.objects.filter(name__startswith="SpikeSeed-").count() >= 8
+    assert Profile.objects.filter(name__startswith="SpikeSeed-").count() >= 8
 
 
 @pytest.mark.django_db

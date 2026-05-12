@@ -24,9 +24,9 @@ import pytest
 @pytest.fixture
 def approved_organizer(db):
     """Approved organizer used in follow tests."""
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Follow Test Organizer",
         slug="follow-test-organizer",
         status="approved",
@@ -36,9 +36,9 @@ def approved_organizer(db):
 @pytest.fixture
 def candidate_organizer(db):
     """Non-approved (candidate) organizer — follow endpoint must 404."""
-    from organizers.models import Organizer
+    from organizers.models import Profile
 
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Candidate Organizer",
         slug="candidate-organizer",
         status="candidate",

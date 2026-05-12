@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('events', '0003_event_suggested_tags_alter_event_organizer'),
         ('ingestion', '0002_alter_heartbeatlog_options_alter_rawmessage_options_and_more'),
-        ('organizers', '0002_alter_organizer_options'),
+        ('organizers', '0007_rename_organizer_to_profile'),
     ]
 
     operations = [
@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='approvedsender',
             name='organizer',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='organizers.organizer'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='organizers.profile'),
         ),
         migrations.AddField(
             model_name='extractionattempt',

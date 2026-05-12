@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from a_core.models import ModerationAction
 from events.models import Event
-from organizers.models import Organizer
+from organizers.models import Profile
 from reviews.admin import FlagAdmin
 from reviews.models import Flag
 
@@ -27,7 +27,7 @@ class BulkResolveAuditTest(TestCase):
             username="mod", password="x", is_staff=True, is_superuser=True
         )
         self.reporter = User.objects.create_user(username="rep", password="x")
-        self.organizer = Organizer.objects.create(
+        self.organizer = Profile.objects.create(
             name="Org", slug="org", status="approved"
         )
         self.event = Event.objects.create(

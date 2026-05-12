@@ -29,10 +29,10 @@ def extract_event_draft(
 ) -> tuple[EventDraft, str]:
     """Returns (draft, prompt_version). Runs synchronously inside a django-q2 worker."""
     from events.models import Tag
-    from organizers.models import Organizer
+    from organizers.models import Profile
     from venues.models import Venue
 
-    organizer_names = list(Organizer.objects.values_list("name", flat=True))
+    organizer_names = list(Profile.objects.values_list("name", flat=True))
     venue_names = list(Venue.objects.values_list("name", flat=True))
     tag_slugs = list(Tag.objects.values_list("slug", flat=True))
 
@@ -69,14 +69,14 @@ def match_entities(draft: EventDraft) -> dict:
     from django.contrib.postgres.search import TrigramSimilarity
 
     from events.models import Tag
-    from organizers.models import Organizer
+    from organizers.models import Profile
     from venues.models import Venue
 
-    # Organizer matching: exact first, then trigram fuzzy
-    organizer = Organizer.objects.filter(name__iexact=draft.organizer_name).first()
+    # Profile matching: exact first, then trigram fuzzy
+    organizer = Profile.objects.filter(name__iexact=draft.organizer_name).first()
     if organizer is None:
         candidates = (
-            Organizer.objects.annotate(
+            Profile.objects.annotate(
                 sim=TrigramSimilarity("name", draft.organizer_name)
             )
             .filter(sim__gte=0.6)

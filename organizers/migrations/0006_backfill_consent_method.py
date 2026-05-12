@@ -12,8 +12,12 @@ _ADR_NOTE = "\nMigrated to Art. 6(1)(f) per ADR-006 on 2026-04-22."
 
 
 def backfill_consent_method(apps, schema_editor):
-    Organizer = apps.get_model("organizers", "Organizer")
-    for org in Organizer.objects.filter(consent_method="telegram_forward_implied"):
+    # Try Profile first (post-rename), fall back to Organizer (pre-rename)
+    try:
+        Model = apps.get_model("organizers", "Profile")
+    except LookupError:
+        Model = apps.get_model("organizers", "Organizer")
+    for org in Model.objects.filter(consent_method="telegram_forward_implied"):
         org.consent_method = "legitimate_interest"
         existing_notes = org.consent_notes or ""
         # Idempotency guard: don't double-append if already contains the note
@@ -23,8 +27,12 @@ def backfill_consent_method(apps, schema_editor):
 
 
 def reverse_backfill(apps, schema_editor):
-    Organizer = apps.get_model("organizers", "Organizer")
-    for org in Organizer.objects.filter(consent_method="legitimate_interest"):
+    # Try Profile first (post-rename), fall back to Organizer (pre-rename)
+    try:
+        Model = apps.get_model("organizers", "Profile")
+    except LookupError:
+        Model = apps.get_model("organizers", "Organizer")
+    for org in Model.objects.filter(consent_method="legitimate_interest"):
         org.consent_method = "telegram_forward_implied"
         org.save(update_fields=["consent_method"])
 

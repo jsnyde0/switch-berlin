@@ -12,7 +12,7 @@ class Review(models.Model):
         related_name="reviews",
     )
     organizer = models.ForeignKey(
-        "organizers.Organizer",
+        "organizers.Profile",
         null=True,
         blank=True,
         on_delete=models.CASCADE,
@@ -64,7 +64,7 @@ class Flag(models.Model):
         related_name="flags_reported",
     )
     organizer = models.ForeignKey(
-        "organizers.Organizer", null=True, blank=True, on_delete=models.CASCADE,
+        "organizers.Profile", null=True, blank=True, on_delete=models.CASCADE,
         related_name="flags",
     )
     event = models.ForeignKey(

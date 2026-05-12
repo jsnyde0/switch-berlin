@@ -3,13 +3,25 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
-class OrganizerManager(models.Manager):
+class ProfileManager(models.Manager):
     def visible(self):
         return self.filter(hidden=False)
 
 
-class Organizer(models.Model):
-    objects = OrganizerManager()
+class Profile(models.Model):
+    objects = ProfileManager()
+
+    KIND_CHOICES = [
+        ("person", "Person"),
+        ("collective", "Collective"),
+    ]
+
+    # Discriminator
+    kind = models.CharField(
+        max_length=20,
+        choices=KIND_CHOICES,
+        default="collective",
+    )
 
     # Identity
     name = models.CharField(max_length=200)
@@ -17,7 +29,20 @@ class Organizer(models.Model):
     description = models.TextField(blank=True)
     avatar = models.ImageField(upload_to="organizers/", blank=True, null=True)
     website = models.URLField(blank=True)
-    telegram_channel = models.CharField(max_length=200, blank=True)
+    telegram_link = models.CharField(max_length=200, blank=True)
+
+    # Person-specific (optional for either kind)
+    pronouns = models.CharField(max_length=100, blank=True)
+
+    # Claim mechanism (ADR-007 D5)
+    claimed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="claimed_profiles",
+    )
+    claimed_at = models.DateTimeField(null=True, blank=True)
 
     # Trust tier
     status = models.CharField(
@@ -35,7 +60,7 @@ class Organizer(models.Model):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="approved_organizers",
+        related_name="approved_profiles",
     )
 
     # GDPR consent (F5 — pulled forward from 0.2; consumed from 0.5)
@@ -64,8 +89,8 @@ class Organizer(models.Model):
 
     class Meta:
         ordering = ["name"]
-        verbose_name = _("organizer")
-        verbose_name_plural = _("organizers")
+        verbose_name = _("profile")
+        verbose_name_plural = _("profiles")
 
     def __str__(self):
         return self.name
@@ -78,7 +103,7 @@ class OrganizerFollow(models.Model):
         related_name="follows",
     )
     organizer = models.ForeignKey(
-        Organizer,
+        Profile,
         on_delete=models.CASCADE,
         related_name="followers",
     )

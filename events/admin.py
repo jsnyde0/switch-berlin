@@ -197,9 +197,9 @@ class EventAdmin(admin.ModelAdmin):
                 "organizer_id", flat=True
             )
         )
-        from organizers.models import Organizer  # noqa: PLC0415
+        from organizers.models import Profile  # noqa: PLC0415
 
-        organizers_to_notify = list(Organizer.objects.filter(pk__in=organizer_pks))
+        organizers_to_notify = list(Profile.objects.filter(pk__in=organizer_pks))
 
         # Only set published_at on first publish; do not overwrite if already set.
         now = timezone.now()

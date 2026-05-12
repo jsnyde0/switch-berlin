@@ -15,7 +15,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from events.models import Attendance
-from organizers.models import Organizer, OrganizerFollow
+from organizers.models import OrganizerFollow, Profile
 from reviews.models import Review
 
 User = get_user_model()
@@ -139,7 +139,7 @@ def test_organizer_with_rating_count_creates_organizer(organizer_with_rating_cou
     """Fixture creates an Organizer with n Review rows and denormalized rating_count."""
     org = organizer_with_rating_count(5)
 
-    assert isinstance(org, Organizer)
+    assert isinstance(org, Profile)
     org.refresh_from_db()
     assert org.rating_count == 5
     assert Review.objects.filter(organizer=org).count() == 5
@@ -165,7 +165,7 @@ def test_organizer_with_follower_count_creates_organizer(organizer_with_follower
     """Fixture creates an Organizer with n OrganizerFollow rows."""
     org = organizer_with_follower_count(4)
 
-    assert isinstance(org, Organizer)
+    assert isinstance(org, Profile)
     org.refresh_from_db()
     assert org.follower_count == 4
     assert OrganizerFollow.objects.filter(organizer=org).count() == 4

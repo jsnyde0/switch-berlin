@@ -14,7 +14,7 @@ from django_ratelimit.decorators import ratelimit
 from a_core.models import get_numeric
 from accounts.decorators import approved_required
 from events.models import Attendance, Event
-from organizers.models import Organizer
+from organizers.models import Profile
 
 from .forms import TakedownForm
 from .models import Flag, Review
@@ -86,7 +86,7 @@ def submit_review(request):
 
     with transaction.atomic():
         if target_type == "organizer":
-            organizer = get_object_or_404(Organizer, pk=target_id, status="approved")
+            organizer = get_object_or_404(Profile, pk=target_id, status="approved")
             existing = Review.objects.filter(
                 author=request.user, organizer=organizer
             ).only("hidden", "id").first()
@@ -106,7 +106,7 @@ def submit_review(request):
             agg = Review.objects.filter(organizer=organizer).aggregate(
                 count=Count("pk"), avg=Avg("rating")
             )
-            Organizer.objects.filter(pk=organizer.pk).update(
+            Profile.objects.filter(pk=organizer.pk).update(
                 rating_count=agg["count"] or 0,
                 avg_rating=agg["avg"],
             )
@@ -216,7 +216,7 @@ def flag_target(request):
                 Event.objects.filter(pk=event.pk).update(hidden=True)
 
         elif target_type == "organizer":
-            organizer = get_object_or_404(Organizer, pk=target_id)
+            organizer = get_object_or_404(Profile, pk=target_id)
             flag, created = Flag.objects.get_or_create(
                 reporter=request.user, organizer=organizer,
                 defaults={"reason": reason},
@@ -227,7 +227,7 @@ def flag_target(request):
                 organizer=organizer, reporter__isnull=False, resolved=False
             ).count()
             if auth_flag_count >= get_numeric("threshold.auto_hide_flag", default=3):
-                Organizer.objects.filter(pk=organizer.pk).update(hidden=True)
+                Profile.objects.filter(pk=organizer.pk).update(hidden=True)
         else:
             return HttpResponse("Invalid target.", status=400)
 
@@ -288,7 +288,7 @@ def takedown_view(request):
                         slug=match.kwargs["event_slug"],
                     ).first()
                 elif match.url_name == "organizer-profile":
-                    target_organizer = Organizer.objects.filter(
+                    target_organizer = Profile.objects.filter(
                         slug=match.kwargs["slug"],
                     ).first()
             except (Resolver404, KeyError):
@@ -361,7 +361,7 @@ def organizer_opt_out_view(request):
             # Require the ApprovedSender to be linked to the submitted organizer slug.
             # This prevents any approved sender from suspending an unrelated organizer
             # (IDOR fix: the sender must own the organizer they are opting out).
-            organizer = Organizer.objects.get(slug=organizer_slug)
+            organizer = Profile.objects.get(slug=organizer_slug)
             ApprovedSender.objects.get(
                 telegram_user_id=telegram_user_id,
                 organizer=organizer,
@@ -371,7 +371,7 @@ def organizer_opt_out_view(request):
             return render(
                 request, "reviews/organizer_opt_out.html", {"submitted": True}
             )
-        except (ApprovedSender.DoesNotExist, Organizer.DoesNotExist):
+        except (ApprovedSender.DoesNotExist, Profile.DoesNotExist):
             return render(
                 request,
                 "reviews/organizer_opt_out.html",

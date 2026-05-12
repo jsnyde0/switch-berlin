@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Attendance, Event
-from organizers.models import Organizer
+from organizers.models import Profile
 from reviews.models import Review
 
 User = get_user_model()
@@ -27,7 +27,7 @@ User = get_user_model()
 
 @pytest.fixture
 def organizer(db):
-    return Organizer.objects.create(
+    return Profile.objects.create(
         name="Hidden Review Organizer",
         slug="hidden-review-org",
         status="approved",
