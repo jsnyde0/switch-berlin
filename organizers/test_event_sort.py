@@ -13,10 +13,12 @@ Covers:
 from datetime import timedelta
 
 import pytest
+from django.core.cache import cache
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
+from a_core.models import FeatureFlag
 from events.models import Event
 from organizers.models import Profile
 
@@ -31,6 +33,15 @@ def org(db):
         name="Event Sort Org",
         slug="event-sort-org",
         status="approved",
+    )
+
+
+@pytest.fixture
+def enable_event_reviews(db):
+    """Enable EVENT_REVIEWS_DISPLAYED flag so rating-based sorts are active."""
+    cache.clear()
+    FeatureFlag.objects.update_or_create(
+        key="EVENT_REVIEWS_DISPLAYED", defaults={"enabled": True}
     )
 
 
@@ -58,7 +69,7 @@ def _make_event(org, slug, days_from_now=1, rating_count=0, avg_rating=None):
 
 
 @pytest.mark.django_db
-def test_organizer_event_sort_lowest_rated_ordering(org):
+def test_organizer_event_sort_lowest_rated_ordering(org, enable_event_reviews):
     """?event_sort=lowest_rated: upcoming events by avg_rating asc, nulls last."""
     event_low = _make_event(org, "es-low", avg_rating=1.0, rating_count=3)
     event_mid = _make_event(org, "es-mid", avg_rating=3.0, rating_count=2)
@@ -75,7 +86,7 @@ def test_organizer_event_sort_lowest_rated_ordering(org):
 
 
 @pytest.mark.django_db
-def test_organizer_event_sort_lowest_rated_nulls_last(org):
+def test_organizer_event_sort_lowest_rated_nulls_last(org, enable_event_reviews):
     """Events with avg_rating=None appear after rated events (lowest_rated sort)."""
     event_rated = _make_event(org, "es-rated", avg_rating=2.0, rating_count=1)
     event_unrated = _make_event(org, "es-unrated", avg_rating=None, rating_count=0)
@@ -89,7 +100,7 @@ def test_organizer_event_sort_lowest_rated_nulls_last(org):
 
 
 @pytest.mark.django_db
-def test_organizer_event_sort_context_key_lowest_rated(org):
+def test_organizer_event_sort_context_key_lowest_rated(org, enable_event_reviews):
     """Context['event_sort'] equals 'lowest_rated' when that param is used."""
     url = reverse("organizer-profile", kwargs={"slug": org.slug})
     resp = Client().get(url + "?event_sort=lowest_rated")
@@ -104,7 +115,7 @@ def test_organizer_event_sort_context_key_lowest_rated(org):
 
 
 @pytest.mark.django_db
-def test_organizer_event_sort_most_reviewed_ordering(org):
+def test_organizer_event_sort_most_reviewed_ordering(org, enable_event_reviews):
     """?event_sort=most_reviewed: upcoming events ordered by rating_count desc."""
     event_few = _make_event(org, "es2-few", rating_count=2, avg_rating=4.0)
     event_many = _make_event(org, "es2-many", rating_count=20, avg_rating=3.0)
@@ -121,7 +132,7 @@ def test_organizer_event_sort_most_reviewed_ordering(org):
 
 
 @pytest.mark.django_db
-def test_organizer_event_sort_context_key_most_reviewed(org):
+def test_organizer_event_sort_context_key_most_reviewed(org, enable_event_reviews):
     """Context['event_sort'] equals 'most_reviewed' when that param is used."""
     url = reverse("organizer-profile", kwargs={"slug": org.slug})
     resp = Client().get(url + "?event_sort=most_reviewed")
