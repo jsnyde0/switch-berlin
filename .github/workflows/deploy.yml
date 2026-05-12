@@ -105,6 +105,32 @@ jobs:
           cd /opt/switch-berlin/app
           COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
           $COMPOSE build app
+          # Bring up db first (in isolation) so we can self-heal the role
+          # password BEFORE init/app/qcluster/bot start and trip auth failures.
+          $COMPOSE up -d db
+          # Wait for db to be ready (pg_isready uses Unix socket → no auth).
+          for i in $(seq 1 30); do
+            if $COMPOSE exec -T db pg_isready -U postgres -d postgres >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          # Self-heal postgres role password to match DATABASE_URL (kb-3w6).
+          # .env is rewritten from GH secrets every deploy, but PGDATA persists
+          # across deploys via the prod-overlay bind mount, so if the GH secret
+          # changes, pg_authid drifts out of sync. Realign using trust-on-127.0.0.1
+          # auth inside the db container (pg_hba.conf line:
+          # 'host all all 127.0.0.1/32 trust').
+          DB_PASS=$(grep '^DATABASE_URL=' .env | sed -E 's|^DATABASE_URL=postgres(ql)?://[^:]+:([^@]+)@.*|\2|')
+          if [ -z "${DB_PASS:-}" ]; then
+            echo "ERROR: could not extract password from DATABASE_URL in .env" >&2
+            exit 1
+          fi
+          $COMPOSE exec -T db psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "ALTER USER postgres WITH PASSWORD '${DB_PASS//\'/\'\'}'" >/dev/null
+          unset DB_PASS
+          # Now bring up the rest of the stack (init will run migrate with
+          # aligned credentials).
           $COMPOSE up -d --remove-orphans
           # Wait for app container to accept exec (container running).
           for i in $(seq 1 30); do
