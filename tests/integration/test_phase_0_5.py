@@ -473,7 +473,7 @@ def test_rating_hidden_below_threshold(client, approved_organizer, feature_flag_
     approved_organizer.save()
 
     client.cookies["age_gate"] = "ok"
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     # show_rating is False below threshold — no rating display
     assert response.context["show_rating"] is False
@@ -497,7 +497,7 @@ def test_rating_shown_at_threshold(client, approved_organizer, feature_flag_publ
     approved_organizer.save()
 
     client.cookies["age_gate"] = "ok"
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     assert response.context["show_rating"] is True
     assert b"/ 5" in response.content
@@ -556,7 +556,7 @@ def test_ratings_flag_off_hides_form(
 ):
     """RATINGS_ENABLED=False -> organizer profile page does not contain the review-submit form."""
     client.force_login(approved_user)
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     # The rating form posts to /reviews/submit/ — should not be present
     assert b"review-submit" not in response.content
@@ -761,7 +761,7 @@ def test_hidden_organizer_returns_404(client, feature_flag_public_read_on):
         hidden=True,
     )
     client.cookies["age_gate"] = "ok"
-    response = client.get(f"/o/{hidden_org.slug}/")
+    response = client.get(f"/p/{hidden_org.slug}/")
     assert response.status_code == 404
 
 

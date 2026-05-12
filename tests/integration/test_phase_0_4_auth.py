@@ -59,9 +59,9 @@ def unapproved_user(db):
 def test_organizer_profile_uses_events_related_name(
     client, staff_user, approved_organizer, published_event
 ):
-    """GET /o/<slug>/ returns 200 (not 500) — organizer.events FK works."""
+    """GET /p/<slug>/ returns 200 (not 500) — organizer.events FK works."""
     client.force_login(staff_user)
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
 
 

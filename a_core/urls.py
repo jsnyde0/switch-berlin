@@ -12,6 +12,7 @@ from accounts.views import (
     art9_consent_withdraw_view,
     me_view,
 )
+from organizers.views import organizer_profile
 from pages.views import age_check_view, robots_txt_view
 from reviews.views import organizer_opt_out_view, takedown_view
 
@@ -20,6 +21,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/signup/", RateLimitedSignupView.as_view(), name="account_signup"),
     path("accounts/", include("allauth.urls")),
+    path("p/<slug:slug>/", organizer_profile, name="organizer-profile"),
     path("events/", include("events.urls")),
     path("o/", include("organizers.urls")),
     path("reviews/", include("reviews.urls")),

@@ -127,19 +127,19 @@ def test_event_detail_contains_title(approved_user, published_event):
 
 @pytest.mark.django_db
 def test_organizer_profile_returns_200_for_approved(approved_user, organizer):
-    """GET /o/<slug>/ returns 200 for an approved organizer."""
+    """GET /p/<slug>/ returns 200 for an approved organizer."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get(f"/o/{organizer.slug}/")
+    response = client.get(f"/p/{organizer.slug}/")
     assert response.status_code == 200
 
 
 @pytest.mark.django_db
 def test_organizer_profile_returns_404_for_nonexistent(approved_user):
-    """GET /o/<nonexistent-slug>/ returns 404."""
+    """GET /p/<nonexistent-slug>/ returns 404."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get("/o/does-not-exist/")
+    response = client.get("/p/does-not-exist/")
     assert response.status_code == 404
 
 
@@ -147,10 +147,10 @@ def test_organizer_profile_returns_404_for_nonexistent(approved_user):
 def test_organizer_profile_returns_404_for_candidate(
     approved_user, candidate_organizer
 ):
-    """GET /o/<candidate-slug>/ returns 404 (not approved)."""
+    """GET /p/<candidate-slug>/ returns 404 (not approved)."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get(f"/o/{candidate_organizer.slug}/")
+    response = client.get(f"/p/{candidate_organizer.slug}/")
     assert response.status_code == 404
 
 
@@ -159,5 +159,5 @@ def test_organizer_profile_contains_name(approved_user, organizer):
     """Organizer profile page contains the organizer name."""
     client = Client()
     client.force_login(approved_user)
-    response = client.get(f"/o/{organizer.slug}/")
+    response = client.get(f"/p/{organizer.slug}/")
     assert organizer.name.encode() in response.content

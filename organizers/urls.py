@@ -4,5 +4,5 @@ from . import views
 
 urlpatterns = [
     path("<slug:slug>/follow/", views.organizer_follow, name="organizer-follow"),
-    path("<slug:slug>/", views.organizer_profile, name="organizer-profile"),
+    path("<slug:slug>/", views.profile_legacy_redirect, name="profile-legacy-redirect"),
 ]

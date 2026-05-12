@@ -164,17 +164,17 @@ def test_event_detail_404_for_missing(client, staff_user, approved_organizer):
 def test_organizer_profile_smoke(
     client, staff_user, approved_organizer, published_event
 ):
-    """GET /o/<slug>/ returns 200 for staff user with approved organizer."""
+    """GET /p/<slug>/ returns 200 for staff user with approved organizer."""
     client.force_login(staff_user)
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
 
 
 @pytest.mark.django_db
 def test_organizer_profile_404_for_missing(client, staff_user):
-    """GET /o/nonexistent/ returns 404."""
+    """GET /p/nonexistent/ returns 404."""
     client.force_login(staff_user)
-    response = client.get("/o/nonexistent-organizer/")
+    response = client.get("/p/nonexistent-organizer/")
     assert response.status_code == 404
 
 

@@ -1,6 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import F
+from django.http import HttpResponsePermanentRedirect
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -152,3 +154,11 @@ def organizer_follow(request, slug):
             "following": following,
         },
     )
+
+
+def profile_legacy_redirect(request, slug):
+    """301 permanent redirect from /o/<slug>/ to /p/<slug>/, preserving query string."""
+    target = reverse("organizer-profile", kwargs={"slug": slug})
+    qs = request.GET.urlencode()
+    url = f"{target}?{qs}" if qs else target
+    return HttpResponsePermanentRedirect(url)

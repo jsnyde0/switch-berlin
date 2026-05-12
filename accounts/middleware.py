@@ -23,7 +23,7 @@ ALWAYS_PUBLIC_PREFIXES = (
 
 # Prefix-based matching — "/" is a special case: match only the exact root path
 # to avoid it accidentally matching everything (e.g. /admin/).
-PUBLIC_READ_PREFIXES = ("/events", "/o/")
+PUBLIC_READ_PREFIXES = ("/events", "/o/", "/p/")
 # Additional exact-match paths for public-read (not prefix-matched).
 PUBLIC_READ_EXACT = ("/",)
 

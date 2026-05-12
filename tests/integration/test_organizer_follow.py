@@ -232,9 +232,9 @@ def test_follow_get_method_not_allowed(client, staff_user, approved_organizer):
 def test_profile_shows_follow_button_for_authenticated_user(
     client, staff_user, approved_organizer
 ):
-    """GET /o/<slug>/ shows a Follow button for authenticated users."""
+    """GET /p/<slug>/ shows a Follow button for authenticated users."""
     client.force_login(staff_user)
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     content = response.content.decode()
     # The follow button partial should be included
@@ -245,12 +245,12 @@ def test_profile_shows_follow_button_for_authenticated_user(
 def test_profile_follow_button_shows_following_when_followed(
     client, staff_user, approved_organizer
 ):
-    """GET /o/<slug>/ shows Following (btn-active) when user already follows."""
+    """GET /p/<slug>/ shows Following (btn-active) when user already follows."""
     from organizers.models import Follow
 
     Follow.objects.create(user=staff_user, profile=approved_organizer)
     client.force_login(staff_user)
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     content = response.content.decode()
     assert "btn-active" in content
@@ -260,9 +260,9 @@ def test_profile_follow_button_shows_following_when_followed(
 def test_profile_follow_button_shows_follow_when_not_followed(
     client, staff_user, approved_organizer
 ):
-    """GET /o/<slug>/ shows Follow (no btn-active) when user does not follow."""
+    """GET /p/<slug>/ shows Follow (no btn-active) when user does not follow."""
     client.force_login(staff_user)
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     content = response.content.decode()
     # The follow button id should be there
@@ -273,9 +273,9 @@ def test_profile_follow_button_shows_follow_when_not_followed(
 
 @pytest.mark.django_db
 def test_profile_hides_follow_button_for_anonymous_user(client, approved_organizer):
-    """GET /o/<slug>/ for anonymous user shows profile but no follow button."""
+    """GET /p/<slug>/ for anonymous user shows profile but no follow button."""
     # In Phase 0.5, anonymous users can view organizer profiles (public read mode)
-    response = client.get(f"/o/{approved_organizer.slug}/")
+    response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     content = response.content.decode()
     # Follow button requires authentication — should not appear for anonymous user

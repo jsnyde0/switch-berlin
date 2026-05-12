@@ -19,7 +19,7 @@ class OrganizerProfileOGMetaTest(TestCase):
             status="approved",
             description="A community organizer for conscious events.",
         )
-        self.url = f"/o/{self.organizer.slug}/"
+        self.url = f"/p/{self.organizer.slug}/"
 
     def _get_with_flag(self, flag_value):
         """GET the organizer profile page with PUBLIC_READ_ENABLED patched."""
