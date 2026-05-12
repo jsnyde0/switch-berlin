@@ -5,6 +5,7 @@ Uses pytest-django. All tests here mock get_flag so no live DB is required.
 from contextlib import contextmanager
 from unittest.mock import patch
 
+import pytest
 from django.test import Client, RequestFactory
 
 # ---------------------------------------------------------------------------
@@ -126,6 +127,7 @@ def test_robots_txt_content_type_is_text_plain():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.django_db
 def test_age_check_get_renders_200():
     """GET /age-check/ renders 200 with next_url context."""
     client = Client()
@@ -137,6 +139,7 @@ def test_age_check_get_renders_200():
     assert response.status_code == 200
 
 
+@pytest.mark.django_db
 def test_age_check_get_has_form_with_csrf():
     """age_check template must include CSRF token and confirm button."""
     client = Client()
@@ -321,6 +324,7 @@ def test_terms_url_resolves():
     assert url == "/terms/"
 
 
+@pytest.mark.django_db
 def test_impressum_get_returns_200():
     """GET /impressum/ returns 200 for anonymous user."""
     client = Client()
@@ -333,6 +337,7 @@ def test_impressum_get_returns_200():
     assert response.status_code == 200
 
 
+@pytest.mark.django_db
 def test_privacy_get_returns_200():
     """GET /privacy/ returns 200 for anonymous user."""
     client = Client()
@@ -345,6 +350,7 @@ def test_privacy_get_returns_200():
     assert response.status_code == 200
 
 
+@pytest.mark.django_db
 def test_terms_get_returns_200():
     """GET /terms/ returns 200 for anonymous user."""
     client = Client()
