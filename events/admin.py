@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .models import Event, EventImage, EventOrganizer, Tag
+from .models import Event, EventFacilitator, EventImage, EventOrganizer, Tag
 
 
 def _capture_organizer_consent(organizer, approved_by_user):
@@ -30,12 +30,18 @@ class EventOrganizerInline(admin.TabularInline):
     fields = ["profile", "is_primary", "order"]
 
 
+class EventFacilitatorInline(admin.TabularInline):
+    model = EventFacilitator
+    extra = 1
+    fields = ["profile", "role", "order"]
+
+
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
     list_display = ["title", "primary_organizer_display", "start", "status"]
     list_filter = ["status", "start", "tags"]
     search_fields = ["title", "description", "event_organizer_set__profile__name"]
-    inlines = [EventImageInline, EventOrganizerInline]
+    inlines = [EventImageInline, EventOrganizerInline, EventFacilitatorInline]
     fieldsets = [
         (
             None,
