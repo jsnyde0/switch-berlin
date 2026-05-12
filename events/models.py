@@ -1,6 +1,10 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+
+# Sentinel for "no value supplied" — distinguishes organizer=None from not set.
+_UNSET = object()
 
 
 class Tag(models.Model):
@@ -26,6 +30,46 @@ class Tag(models.Model):
         return self.label
 
 
+class EventOrganizer(models.Model):
+    """
+    Through-table connecting Event to Profile (ADR-007 D2).
+
+    is_primary=True marks the 'hosting' organizer (at most one per event).
+    A partial unique constraint enforces this at the DB level.
+    """
+
+    event = models.ForeignKey(
+        "Event",
+        on_delete=models.CASCADE,
+        related_name="event_organizer_set",
+    )
+    profile = models.ForeignKey(
+        "organizers.Profile",
+        on_delete=models.PROTECT,
+        related_name="event_organizer_set",
+    )
+    is_primary = models.BooleanField(default=False)
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = _("event organizer")
+        verbose_name_plural = _("event organizers")
+        constraints = [
+            # At most one is_primary=True row per event
+            models.UniqueConstraint(
+                condition=Q(is_primary=True),
+                fields=["event"],
+                name="event_organizer_one_primary_per_event",
+            ),
+        ]
+
+    def __str__(self):
+        role = "primary" if self.is_primary else "co-organizer"
+        return f"{self.profile} — {self.event} ({role})"
+
+
 class EventManager(models.Manager):
     def visible(self):
         return self.filter(hidden=False)
@@ -35,14 +79,14 @@ class Event(models.Model):
     objects = EventManager()
 
     title = models.CharField(max_length=300)
-    slug = models.SlugField(max_length=200)  # unique per-organizer, see Meta
+    slug = models.SlugField(max_length=200)
     description = models.TextField(blank=True)
-    organizer = models.ForeignKey(
+    organizers = models.ManyToManyField(
         "organizers.Profile",
-        on_delete=models.PROTECT,
-        null=True,
+        through="EventOrganizer",
+        through_fields=("event", "profile"),
+        related_name="events_organized",
         blank=True,
-        related_name="events",
     )
     venue = models.ForeignKey(
         "venues.Venue",
@@ -149,21 +193,78 @@ class Event(models.Model):
         verbose_name_plural = _("events")
         indexes = [
             models.Index(fields=["status", "start"]),
-            models.Index(fields=["organizer", "start"]),
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["organizer", "slug"],
-                name="event_slug_unique_per_organizer",
-            ),
-            models.UniqueConstraint(
-                fields=["organizer", "start", "title"],
-                name="event_dup_guard_org_start_title",
-            ),
-        ]
+
+    def __init__(self, *args, **kwargs):
+        # Buffer organizer= kwarg so Event.objects.create(organizer=p, ...) works.
+        # The value is flushed to EventOrganizer in save().
+        _organizer = kwargs.pop("organizer", _UNSET)
+        super().__init__(*args, **kwargs)
+        if _organizer is not _UNSET:
+            self._pending_organizer = _organizer
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        pending = getattr(self, "_pending_organizer", _UNSET)
+        if pending is not _UNSET:
+            del self._pending_organizer
+            if pending is None:
+                # organizer=None: remove any existing primary EventOrganizer
+                self.event_organizer_set.filter(is_primary=True).delete()
+            else:
+                eo, created = EventOrganizer.objects.get_or_create(
+                    event=self,
+                    is_primary=True,
+                    defaults={"profile": pending, "order": 0},
+                )
+                if not created and eo.profile != pending:
+                    eo.profile = pending
+                    eo.save(update_fields=["profile"])
+
+    @property
+    def organizer(self):
+        """
+        Compat property: return the primary Profile for this event (or None).
+
+        Preserves the FK semantics of the old Event.organizer field so that
+        ~30 call sites (templates, views, admin, ingestion, tests) continue
+        working without modification.
+        """
+        try:
+            return self.event_organizer_set.get(is_primary=True).profile
+        except EventOrganizer.DoesNotExist:
+            return None
+
+    @organizer.setter
+    def organizer(self, value):
+        """
+        Compat setter: buffer the new organizer value.
+
+        If the Event has already been saved (has a PK), apply immediately.
+        Otherwise, buffer and apply after save() is called.
+        """
+        if self.pk is None:
+            self._pending_organizer = value
+        else:
+            if value is None:
+                self.event_organizer_set.filter(is_primary=True).delete()
+            else:
+                eo, created = EventOrganizer.objects.get_or_create(
+                    event=self,
+                    is_primary=True,
+                    defaults={"profile": value, "order": 0},
+                )
+                if not created and eo.profile != value:
+                    eo.profile = value
+                    eo.save(update_fields=["profile"])
+
+    @property
+    def primary_organizer(self):
+        """Alias for event.organizer (explicit form preferred in new code)."""
+        return self.organizer
 
 
 class Attendance(models.Model):

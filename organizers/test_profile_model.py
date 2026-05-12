@@ -258,7 +258,11 @@ def test_event_organizer_fk_targets_profile():
         start=timezone.now(),
     )
     assert event.organizer == p
-    assert event.organizer_id == p.pk
+    # organizer_id no longer exists (FK removed); verify via EventOrganizer
+    from events.models import EventOrganizer
+    assert EventOrganizer.objects.filter(
+        event=event, profile=p, is_primary=True
+    ).exists()
 
 
 @pytest.mark.django_db

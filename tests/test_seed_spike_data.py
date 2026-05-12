@@ -41,21 +41,24 @@ def test_seed_wipe_clears_and_reseeds():
     call_command("seed_spike_data", force=True)
     first_event_pks = set(
         Event.objects.filter(
-            organizer__name__startswith="SpikeSeed-"
+            event_organizer_set__profile__name__startswith="SpikeSeed-",
+            event_organizer_set__is_primary=True,
         ).values_list("pk", flat=True)
     )
 
     call_command("seed_spike_data", wipe=True, force=True)
     second_event_pks = set(
         Event.objects.filter(
-            organizer__name__startswith="SpikeSeed-"
+            event_organizer_set__profile__name__startswith="SpikeSeed-",
+            event_organizer_set__is_primary=True,
         ).values_list("pk", flat=True)
     )
 
     # After wipe+reseed, old PKs should be gone (new rows created)
     assert not first_event_pks.intersection(second_event_pks)
     assert Event.objects.filter(
-        organizer__name__startswith="SpikeSeed-"
+        event_organizer_set__profile__name__startswith="SpikeSeed-",
+        event_organizer_set__is_primary=True,
     ).count() >= 500
 
 

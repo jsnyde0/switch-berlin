@@ -30,8 +30,8 @@ def event_list(request):
     qs = (
         Event.objects.visible()
         .filter(status="published", start__gte=now)
-        .select_related("organizer", "venue")
-        .prefetch_related("tags")
+        .select_related("venue")
+        .prefetch_related("tags", "event_organizer_set__profile")
     )
 
     # Sort: trending, lowest_rated, most_reviewed, or default chronological.
@@ -106,7 +106,10 @@ def event_list(request):
     # Filter: organizer slug
     organizer_param = request.GET.get("organizer", "")
     if organizer_param:
-        qs = qs.filter(organizer__slug=organizer_param)
+        qs = qs.filter(
+            event_organizer_set__profile__slug=organizer_param,
+            event_organizer_set__is_primary=True,
+        ).distinct()
 
     # Filter: price
     price_param = request.GET.get("price", "")
@@ -121,7 +124,10 @@ def event_list(request):
         followed_org_ids = OrganizerFollow.objects.filter(
             user=request.user
         ).values_list("organizer_id", flat=True)
-        qs = qs.filter(organizer_id__in=followed_org_ids)
+        qs = qs.filter(
+            event_organizer_set__profile_id__in=followed_org_ids,
+            event_organizer_set__is_primary=True,
+        ).distinct()
     elif filter_param == "following":
         # Anonymous user with ?filter=following → return empty queryset
         qs = qs.none()
@@ -221,15 +227,17 @@ def event_list(request):
         ).values_list("organizer_id", flat=True)
         following_events = (
             Event.objects.filter(
-                organizer_id__in=followed_org_ids,
+                event_organizer_set__profile_id__in=followed_org_ids,
+                event_organizer_set__is_primary=True,
                 status="published",
                 hidden=False,
                 start__gte=now,
-                organizer__status="approved",
-                organizer__hidden=False,
+                event_organizer_set__profile__status="approved",
+                event_organizer_set__profile__hidden=False,
             )
-            .select_related("organizer")
-            .order_by("start")[:5]
+            .prefetch_related("event_organizer_set__profile")
+            .order_by("start")
+            .distinct()[:5]
         )
     else:
         following_events = []
@@ -269,8 +277,13 @@ def event_drawer(request, org_slug, event_slug):
     event = get_object_or_404(
         Event.objects.visible()
         .filter(status="published")
-        .select_related("organizer", "venue"),
-        organizer__slug=org_slug,
+        .select_related("venue")
+        .prefetch_related("event_organizer_set__profile")
+        .filter(
+            event_organizer_set__profile__slug=org_slug,
+            event_organizer_set__is_primary=True,
+        )
+        .distinct(),
         slug=event_slug,
     )
     if request.user.is_authenticated:
@@ -303,9 +316,15 @@ def event_drawer(request, org_slug, event_slug):
 def event_detail(request, org_slug, event_slug):
     qs = (
         Event.objects.visible()
-        .filter(organizer__slug=org_slug, slug=event_slug, status="published")
-        .select_related("organizer", "venue")
-        .prefetch_related("tags", "images")
+        .filter(
+            event_organizer_set__profile__slug=org_slug,
+            event_organizer_set__is_primary=True,
+            slug=event_slug,
+            status="published",
+        )
+        .select_related("venue")
+        .prefetch_related("tags", "images", "event_organizer_set__profile")
+        .distinct()
     )
     event = qs.first()
     if event is None:
@@ -359,8 +378,13 @@ def event_attend(request, org_slug, event_slug):
         return render(request, "events/_consent_required.html", {}, status=200)
 
     event = get_object_or_404(
-        Event.objects.visible(),
-        organizer__slug=org_slug,
+        Event.objects.visible()
+        .filter(
+            event_organizer_set__profile__slug=org_slug,
+            event_organizer_set__is_primary=True,
+        )
+        .prefetch_related("event_organizer_set__profile")
+        .distinct(),
         slug=event_slug,
         status="published",
     )

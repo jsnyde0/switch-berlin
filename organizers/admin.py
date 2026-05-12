@@ -18,7 +18,10 @@ class ProfileAdmin(admin.ModelAdmin):
     ]
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(event_count=Count("events"))
+        # events_organized is the M2M reverse from Event.organizers (kb-n0y)
+        return super().get_queryset(request).annotate(
+            event_count=Count("events_organized", distinct=True)
+        )
 
     def event_count(self, obj):
         return obj.event_count

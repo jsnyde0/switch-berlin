@@ -81,7 +81,11 @@ def test_event_create():
         organizer=org,
         start=start,
     )
-    fetched = Event.objects.get(slug="test-event-rt", organizer=org)
+    fetched = Event.objects.get(
+        slug="test-event-rt",
+        event_organizer_set__profile=org,
+        event_organizer_set__is_primary=True,
+    )
     assert fetched.start is not None
     assert fetched.status == "draft"
 
@@ -243,7 +247,11 @@ def test_review_xor_neither_raises():
 
 @pytest.mark.django_db
 def test_event_slug_unique_per_organizer():
-    """Duplicate (organizer, slug) raises IntegrityError."""
+    """
+    [kb-n0y] event_slug_unique_per_organizer constraint was dropped when
+    Event.organizer FK became EventOrganizer M2M. Slug uniqueness is app-level.
+    Two events from same organizer CAN now share a slug at DB level.
+    """
     from events.models import Event
     from organizers.models import Profile
 
@@ -252,19 +260,23 @@ def test_event_slug_unique_per_organizer():
     Event.objects.create(
         title="Slug Event A", slug="dup-slug", organizer=org, start=start
     )
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            Event.objects.create(
-                title="Slug Event B",
-                slug="dup-slug",
-                organizer=org,
-                start=start,
-            )
+    # No longer raises — constraint was intentionally dropped (see bead kb-n0y notes)
+    Event.objects.create(
+        title="Slug Event B",
+        slug="dup-slug-b",
+        organizer=org,
+        start=start,
+    )
 
 
 @pytest.mark.django_db
 def test_event_dup_guard():
-    """Duplicate (organizer, start, title) raises IntegrityError."""
+    """
+    [kb-n0y] event_dup_guard_org_start_title constraint was dropped when
+    Event.organizer FK became EventOrganizer M2M. Dup-guard was already weak
+    (same org can legitimately run two workshops at same start). Now app-level.
+    Two events with same (organizer, start, title) CAN now be created at DB level.
+    """
     from events.models import Event
     from organizers.models import Profile
 
@@ -273,14 +285,13 @@ def test_event_dup_guard():
     Event.objects.create(
         title="Same Title", slug="slug-a-dup-guard", organizer=org, start=start
     )
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            Event.objects.create(
-                title="Same Title",
-                slug="slug-b-dup-guard",
-                organizer=org,
-                start=start,
-            )
+    # No longer raises — constraint was intentionally dropped (see bead kb-n0y notes)
+    Event.objects.create(
+        title="Same Title",
+        slug="slug-b-dup-guard",
+        organizer=org,
+        start=start,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -455,8 +466,10 @@ def test_end_to_end_orm_flow():
     img = EventImage.objects.create(event=event, image="events/e2e.jpg")
     review = Review.objects.create(author=user, event=event, rating=5)
 
-    # Verify retrievals
-    fetched_event = Event.objects.select_related("organizer", "venue").get(pk=event.pk)
+    # Verify retrievals — organizer is now via EventOrganizer M2M; use compat property
+    fetched_event = Event.objects.select_related("venue").prefetch_related(
+        "event_organizer_set__profile"
+    ).get(pk=event.pk)
     assert fetched_event.organizer.slug == "e2e-org"
     assert fetched_event.venue.slug == "e2e-venue"
 

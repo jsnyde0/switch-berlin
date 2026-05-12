@@ -189,7 +189,10 @@ class Command(BaseCommand):
             # Cascade: deleting organizers removes their events (PROTECT on venue,
             # but we delete venues separately after events).
             # Events reference organizers (PROTECT) — delete events first.
-            Event.objects.filter(organizer__name__startswith=SEED_PREFIX).delete()
+            Event.objects.filter(
+                event_organizer_set__profile__name__startswith=SEED_PREFIX,
+                event_organizer_set__is_primary=True,
+            ).delete()
             Venue.objects.filter(name__startswith=SEED_PREFIX).delete()
             Profile.objects.filter(name__startswith=SEED_PREFIX).delete()
 

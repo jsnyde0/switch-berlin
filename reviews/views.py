@@ -284,7 +284,8 @@ def takedown_view(request):
                 match = resolve(path)
                 if match.url_name == "event-detail":
                     target_event = Event.objects.filter(
-                        organizer__slug=match.kwargs["org_slug"],
+                        event_organizer_set__profile__slug=match.kwargs["org_slug"],
+                        event_organizer_set__is_primary=True,
                         slug=match.kwargs["event_slug"],
                     ).first()
                 elif match.url_name == "organizer-profile":

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .models import Event, EventImage, Tag
+from .models import Event, EventImage, EventOrganizer, Tag
 
 
 def _capture_organizer_consent(organizer, approved_by_user):
@@ -24,12 +24,18 @@ class EventImageInline(admin.TabularInline):
     extra = 0
 
 
+class EventOrganizerInline(admin.TabularInline):
+    model = EventOrganizer
+    extra = 1
+    fields = ["profile", "is_primary", "order"]
+
+
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ["title", "organizer", "start", "status"]
-    list_filter = ["status", "start", "tags", "organizer"]
-    search_fields = ["title", "description", "organizer__name"]
-    inlines = [EventImageInline]
+    list_display = ["title", "primary_organizer_display", "start", "status"]
+    list_filter = ["status", "start", "tags"]
+    search_fields = ["title", "description", "event_organizer_set__profile__name"]
+    inlines = [EventImageInline, EventOrganizerInline]
     fieldsets = [
         (
             None,
@@ -37,7 +43,6 @@ class EventAdmin(admin.ModelAdmin):
                 "fields": [
                     "title",
                     "slug",
-                    "organizer",
                     "venue",
                     "tags",
                     "suggested_tags_display",
@@ -176,6 +181,13 @@ class EventAdmin(admin.ModelAdmin):
             request, object_id, form_url, extra_context=extra_context
         )
 
+    def primary_organizer_display(self, obj):
+        """Show the primary organizer name in list display."""
+        org = obj.organizer  # uses compat property
+        return org.name if org else "—"
+
+    primary_organizer_display.short_description = _("Organizer")
+
     def save_model(self, request, obj, form, change):
         old_status = (
             obj.__class__.objects.filter(pk=obj.pk)
@@ -190,15 +202,15 @@ class EventAdmin(admin.ModelAdmin):
 
     @admin.action(description=_("Publish selected events"))
     def publish_events(self, request, queryset):
-        # Fetch organizer PKs before update: queryset re-evaluates after status change
-        # and the changelist filter may exclude events that are no longer draft.
-        organizer_pks = set(
-            queryset.filter(organizer__isnull=False).values_list(
-                "organizer_id", flat=True
-            )
-        )
+        # Fetch primary organizer PKs before update via EventOrganizer through-table
         from organizers.models import Profile  # noqa: PLC0415
 
+        organizer_pks = set(
+            EventOrganizer.objects.filter(
+                event__in=queryset,
+                is_primary=True,
+            ).values_list("profile_id", flat=True)
+        )
         organizers_to_notify = list(Profile.objects.filter(pk__in=organizer_pks))
 
         # Only set published_at on first publish; do not overwrite if already set.

@@ -61,6 +61,11 @@ class FullIngestionLoopTest(TestCase):
             "images-INITIAL_FORMS": "0",
             "images-MIN_NUM_FORMS": "0",
             "images-MAX_NUM_FORMS": "1000",
+            # EventOrganizerInline management form (kb-n0y: EventOrganizer M2M)
+            "event_organizer_set-TOTAL_FORMS": "0",
+            "event_organizer_set-INITIAL_FORMS": "0",
+            "event_organizer_set-MIN_NUM_FORMS": "0",
+            "event_organizer_set-MAX_NUM_FORMS": "1000",
             "_save": "Save",
         }
 

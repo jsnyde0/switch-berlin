@@ -759,7 +759,9 @@ class Command(BaseCommand):
             # Events first (Event.venue is on_delete=PROTECT), then venues, then orgs.
             for org_slug, ev_slug in event_keys:
                 Event.objects.filter(
-                    organizer__slug=org_slug, slug=ev_slug
+                    event_organizer_set__profile__slug=org_slug,
+                    event_organizer_set__is_primary=True,
+                    slug=ev_slug,
                 ).delete()
             Venue.objects.filter(slug__in=venue_slugs).delete()
             Profile.objects.filter(slug__in=org_slugs).delete()
@@ -818,20 +820,31 @@ class Command(BaseCommand):
             org = orgs_by_slug[ev["organizer_slug"]]
             venue_slug = VENUE_BY_EVENT_SLUG.get(ev["slug"])
             venue = venues_by_slug[venue_slug] if venue_slug else None
-            obj, created = Event.objects.get_or_create(
-                organizer=org,
+            # Lookup by (primary organizer, slug) via EventOrganizer join.
+            # get_or_create cannot use the organizer= compat kwarg for lookup;
+            # use filter().first() and create separately.
+            existing = Event.objects.filter(
+                event_organizer_set__profile=org,
+                event_organizer_set__is_primary=True,
                 slug=ev["slug"],
-                defaults={
-                    "title": ev["title"],
-                    "description": ev["description"],
-                    "start": ev["start"],
-                    "end": ev.get("end"),
-                    "external_url": ev["external_url"],
-                    "suggested_tags": ev["suggested_tags"],
-                    "status": "published" if publish else "draft",
-                    "venue": venue,
-                },
-            )
+            ).first()
+            if existing is None:
+                obj = Event.objects.create(
+                    slug=ev["slug"],
+                    title=ev["title"],
+                    description=ev["description"],
+                    start=ev["start"],
+                    end=ev.get("end"),
+                    external_url=ev["external_url"],
+                    suggested_tags=ev["suggested_tags"],
+                    status="published" if publish else "draft",
+                    venue=venue,
+                    organizer=org,  # compat setter creates EventOrganizer row
+                )
+                created = True
+            else:
+                obj = existing
+                created = False
             if created:
                 events_created += 1
                 if verbosity >= 2:

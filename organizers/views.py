@@ -41,12 +41,14 @@ def organizer_profile(request, slug):
     upcoming_events_qs = (
         Event.objects.visible()
         .filter(
-            organizer=organizer,
+            event_organizer_set__profile=organizer,
+            event_organizer_set__is_primary=True,
             status="published",
             start__gte=now,
         )
-        .select_related("organizer", "venue")
-        .prefetch_related("tags")
+        .select_related("venue")
+        .prefetch_related("tags", "event_organizer_set__profile")
+        .distinct()
     )
     if event_sort == "lowest_rated":
         upcoming_events_qs = upcoming_events_qs.order_by(
@@ -63,12 +65,14 @@ def organizer_profile(request, slug):
     past_events = (
         Event.objects.visible()
         .filter(
-            organizer=organizer,
+            event_organizer_set__profile=organizer,
+            event_organizer_set__is_primary=True,
             status="published",
             start__lt=now,
         )
-        .select_related("organizer", "venue")
-        .prefetch_related("tags")
+        .select_related("venue")
+        .prefetch_related("tags", "event_organizer_set__profile")
+        .distinct()
         .order_by("-start")[:20]
     )
 

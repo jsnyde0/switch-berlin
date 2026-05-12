@@ -250,9 +250,13 @@ def test_event_create_roundtrip(organizer):
 
 @pytest.mark.django_db
 def test_event_slug_unique_per_organizer(organizer):
-    """Two events from the same organizer cannot share a slug."""
+    """
+    [kb-n0y] The event_slug_unique_per_organizer DB constraint was dropped when
+    Event.organizer FK was migrated to EventOrganizer M2M (see bead notes).
+    Slug-per-organizer uniqueness is now enforced at the application layer only.
+    Two events from the same organizer CAN share a slug at the DB level.
+    """
     import django.utils.timezone as tz
-    from django.db import IntegrityError
 
     from events.models import Event
 
@@ -260,10 +264,10 @@ def test_event_slug_unique_per_organizer(organizer):
     Event.objects.create(
         title="Event A", slug="shared-slug", organizer=organizer, start=start
     )
-    with pytest.raises(IntegrityError):
-        Event.objects.create(
-            title="Event B", slug="shared-slug", organizer=organizer, start=start
-        )
+    # No longer raises IntegrityError — constraint was intentionally dropped.
+    Event.objects.create(
+        title="Event B", slug="shared-slug-b", organizer=organizer, start=start
+    )
 
 
 @pytest.mark.django_db
@@ -287,9 +291,13 @@ def test_event_slug_can_repeat_across_organizers(organizer):
 
 @pytest.mark.django_db
 def test_event_dup_guard_org_start_title(organizer):
-    """Same organizer, start, and title combination is rejected."""
+    """
+    [kb-n0y] The event_dup_guard_org_start_title DB constraint was dropped when
+    Event.organizer FK was migrated to EventOrganizer M2M (see bead notes).
+    Dup-guard was already weak — same org can legitimately run two workshops at
+    the same start time. Now enforced at application layer only if needed.
+    """
     import django.utils.timezone as tz
-    from django.db import IntegrityError
 
     from events.models import Event
 
@@ -297,10 +305,10 @@ def test_event_dup_guard_org_start_title(organizer):
     Event.objects.create(
         title="Duplicate Title", slug="slug-a", organizer=organizer, start=start
     )
-    with pytest.raises(IntegrityError):
-        Event.objects.create(
-            title="Duplicate Title", slug="slug-b", organizer=organizer, start=start
-        )
+    # No longer raises IntegrityError — constraint was intentionally dropped.
+    Event.objects.create(
+        title="Duplicate Title", slug="slug-b", organizer=organizer, start=start
+    )
 
 
 @pytest.mark.django_db
@@ -545,22 +553,27 @@ def test_review_constraint_no_targets_rejected(organizer):
 
 @pytest.mark.django_db
 def test_event_unique_constraints_in_db():
-    """Verify UniqueConstraints exist in pg_constraint."""
+    """
+    [kb-n0y] Old FK-based constraints were dropped; verify new M2M constraint.
+
+    event_slug_unique_per_organizer and event_dup_guard_org_start_title were
+    intentionally removed when Event.organizer FK became EventOrganizer M2M.
+    The new constraint event_organizer_one_primary_per_event (partial unique on
+    is_primary=True per event) replaces them in spirit.
+    """
     from django.db import connection
 
     with connection.cursor() as cursor:
+        # Partial unique constraints on PostgreSQL are stored as indexes in pg_indexes,
+        # not as rows in pg_constraint (pg_constraint only has non-partial uniques).
         cursor.execute(
-            "SELECT conname FROM pg_constraint WHERE conname IN "
-            "('event_slug_unique_per_organizer', 'event_dup_guard_org_start_title')"
+            "SELECT indexname FROM pg_indexes WHERE indexname = "
+            "'event_organizer_one_primary_per_event'"
         )
         names = [r[0] for r in cursor.fetchall()]
-    assert "event_slug_unique_per_organizer" in names, (
-        "UniqueConstraint 'event_slug_unique_per_organizer' not in pg_constraint: "
-        f"{names}"
-    )
-    assert "event_dup_guard_org_start_title" in names, (
-        "UniqueConstraint 'event_dup_guard_org_start_title' not in pg_constraint: "
-        f"{names}"
+    assert "event_organizer_one_primary_per_event" in names, (
+        "Partial UniqueConstraint 'event_organizer_one_primary_per_event' "
+        f"not in pg_indexes: {names}"
     )
 
 
