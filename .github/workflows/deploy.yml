@@ -69,6 +69,13 @@ jobs:
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
         run: |
           umask 077
+          # Derive POSTGRES_PASSWORD from DATABASE_URL so one secret rotation
+          # (kb-vb7) propagates to both the connection URL and postgres init.
+          POSTGRES_PASSWORD=$(printf '%s' "$DATABASE_URL" | sed -E 's|^postgres(ql)?://[^:]+:([^@]+)@.*|\2|')
+          if [ -z "$POSTGRES_PASSWORD" ]; then
+            echo "ERROR: could not extract password from DATABASE_URL secret" >&2
+            exit 1
+          fi
           tmpfile=$(mktemp)
           {
             printf 'ENVIRONMENT=production\n'
@@ -80,7 +87,7 @@ jobs:
             printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
             printf 'POSTGRES_DB=postgres\n'
             printf 'POSTGRES_USER=postgres\n'
-            printf 'POSTGRES_PASSWORD=postgres\n'
+            printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
             printf 'IMPRESSUM_NAME=%s\n' "$IMPRESSUM_NAME"
             printf 'IMPRESSUM_ADDRESS=%s\n' "$IMPRESSUM_ADDRESS"
             printf 'IMPRESSUM_EMAIL=%s\n' "$IMPRESSUM_EMAIL"
