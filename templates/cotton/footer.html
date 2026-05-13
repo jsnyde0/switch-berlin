@@ -1,12 +1,23 @@
 {% load i18n %}
-<footer class="footer footer-center bg-base-100 text-base-content p-10">
-  <nav class="grid grid-flow-col gap-4">
-    <a href="{% url 'impressum' %}" class="link link-hover">{% trans "Impressum" %}</a>
-    <a href="{% url 'privacy' %}" class="link link-hover">{% trans "Privacy" %}</a>
-    <a href="{% url 'terms' %}" class="link link-hover">{% trans "Terms" %}</a>
-    <a href="/takedown/" class="link link-hover">{% trans "Report content" %}</a>
-  </nav>
-  <p class="text-xs text-base-content/50">
-    {% trans "Switch Berlin — queer, kinky, and conscious events" %}
-  </p>
+<footer class="relative mt-24 border-t border-white/5 bg-base-100/60 backdrop-blur">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 flex flex-col items-center gap-4">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-fuchsia-500 via-purple-500 to-indigo-500 ring-1 ring-white/10">
+        <span class="text-[10px] font-bold text-white">SB</span>
+      </span>
+      <span class="text-sm font-semibold tracking-tight">Switch Berlin</span>
+    </div>
+    <p class="text-[11px] text-base-content/45 text-center max-w-md">
+      {% trans "Queer, kinky, and conscious events — curated, verified, and consent-forward." %}
+    </p>
+    <nav class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
+      <a href="{% url 'impressum' %}" class="text-base-content/55 hover:text-base-content transition-colors">{% trans "Impressum" %}</a>
+      <span class="text-base-content/20" aria-hidden="true">·</span>
+      <a href="{% url 'privacy' %}" class="text-base-content/55 hover:text-base-content transition-colors">{% trans "Privacy" %}</a>
+      <span class="text-base-content/20" aria-hidden="true">·</span>
+      <a href="{% url 'terms' %}" class="text-base-content/55 hover:text-base-content transition-colors">{% trans "Terms" %}</a>
+      <span class="text-base-content/20" aria-hidden="true">·</span>
+      <a href="/takedown/" class="text-base-content/55 hover:text-base-content transition-colors">{% trans "Report content" %}</a>
+    </nav>
+  </div>
 </footer>

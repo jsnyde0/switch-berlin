@@ -27,15 +27,19 @@
     {% block og_meta %}{% endblock og_meta %}
     {% endif %}
   </head>
-  <body class="bg-base-100 text-base-content"
+  <body class="bg-base-100 text-base-content antialiased"
         hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-    <div class="container mx-auto mt-4">
-      {% block layout %}
-      {% endblock layout %}
-    </div>
-    <div class="max-w-7xl mx-auto pt-20">
-      <c-footer />
-    </div>
+    {% block body_content %}
+      <div class="container mx-auto mt-4">
+        {% block layout %}
+        {% endblock layout %}
+      </div>
+    {% endblock body_content %}
+    {% block footer %}
+      <div class="max-w-7xl mx-auto pt-20">
+        <c-footer />
+      </div>
+    {% endblock footer %}
     {% block extra_js %}
     {% endblock extra_js %}
   </body>

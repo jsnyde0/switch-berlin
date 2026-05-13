@@ -1,6 +1,6 @@
 {% load i18n %}
 {{ active_tag_slugs|json_script:"active-tag-slugs-data" }}
-<div class="flex flex-wrap gap-2 items-center"
+<div class="flex flex-wrap items-center gap-2"
      x-data="{
        activeTags: JSON.parse(document.getElementById('active-tag-slugs-data').textContent),
        toggle(slug) {
@@ -12,8 +12,12 @@
   {% for tag in all_tags %}
     <button type="button"
             @click="toggle('{{ tag.slug }}'); $nextTick(() => $el.closest('form').requestSubmit())"
-            :class="activeTags.includes('{{ tag.slug }}') ? 'badge badge-primary cursor-pointer' : 'badge badge-outline cursor-pointer'">
-      {{ tag.label }} <span x-show="activeTags.includes('{{ tag.slug }}')">×</span>
+            :class="activeTags.includes('{{ tag.slug }}')
+                      ? 'bg-primary text-primary-content ring-primary/40'
+                      : 'bg-base-200/60 text-base-content/80 ring-white/10 hover:bg-base-200 hover:text-base-content'"
+            class="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-all cursor-pointer">
+      <span>{{ tag.label }}</span>
+      <span x-show="activeTags.includes('{{ tag.slug }}')" class="text-[10px] opacity-80">×</span>
     </button>
   {% endfor %}
 
@@ -25,21 +29,37 @@
   {% endif %}
 
   {% if price_param == "free" %}
-    <button type="submit" name="price" value="" class="badge badge-primary cursor-pointer">
-      {% trans "Free" %} ×
+    <button type="submit" name="price" value=""
+            class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-emerald-400/30 cursor-pointer transition hover:bg-emerald-500/30">
+      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12V8H6a2 2 0 1 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+      {% trans "Free" %}
+      <span class="opacity-70">×</span>
     </button>
   {% else %}
-    <button type="submit" name="price" value="free" class="badge badge-outline cursor-pointer">
+    <button type="submit" name="price" value="free"
+            class="inline-flex items-center gap-1.5 rounded-full bg-base-200/60 px-3 py-1.5 text-xs font-medium text-base-content/80 ring-1 ring-white/10 cursor-pointer transition hover:bg-base-200 hover:text-base-content">
+      <svg class="h-3 w-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12V8H6a2 2 0 1 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
       {% trans "Free" %}
     </button>
   {% endif %}
 
-  <input type="date" name="from" value="{{ from_param }}"
-         class="input input-sm input-bordered w-36"
-         placeholder="{% trans "From" %}"
-         @change="$el.closest('form').requestSubmit()">
-  <input type="date" name="to" value="{{ to_param }}"
-         class="input input-sm input-bordered w-36"
-         placeholder="{% trans "To" %}"
-         @change="$el.closest('form').requestSubmit()">
+  {# Visual divider before date controls #}
+  <span class="hidden sm:inline-block h-5 w-px bg-white/10 mx-1" aria-hidden="true"></span>
+
+  <label class="inline-flex items-center gap-1.5 rounded-full bg-base-200/60 pl-3 pr-1.5 py-1 ring-1 ring-white/10 transition focus-within:ring-primary/50">
+    <svg class="h-3.5 w-3.5 text-base-content/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+    </svg>
+    <span class="text-[11px] font-medium uppercase tracking-wider text-base-content/50">{% trans "From" %}</span>
+    <input type="date" name="from" value="{{ from_param }}"
+           class="bg-transparent text-xs text-base-content focus:outline-none [color-scheme:dark] w-32 cursor-pointer"
+           @change="$el.closest('form').requestSubmit()">
+  </label>
+
+  <label class="inline-flex items-center gap-1.5 rounded-full bg-base-200/60 pl-3 pr-1.5 py-1 ring-1 ring-white/10 transition focus-within:ring-primary/50">
+    <span class="text-[11px] font-medium uppercase tracking-wider text-base-content/50">{% trans "To" %}</span>
+    <input type="date" name="to" value="{{ to_param }}"
+           class="bg-transparent text-xs text-base-content focus:outline-none [color-scheme:dark] w-32 cursor-pointer"
+           @change="$el.closest('form').requestSubmit()">
+  </label>
 </div>

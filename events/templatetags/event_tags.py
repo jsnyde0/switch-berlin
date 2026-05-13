@@ -1,7 +1,28 @@
 """Custom template tags and filters for the events app."""
+import hashlib
+
 from django import template
 
 register = template.Library()
+
+
+@register.filter
+def slug_hue(value):
+    """Map a string deterministically to a 0–360 hue.
+
+    Used to give each event a stable accent color without storing one.
+    Returns 0 if input is empty.
+    """
+    if not value:
+        return 0
+    digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()
+    return int(digest[:6], 16) % 360
+
+
+@register.filter
+def slug_hue_b(value):
+    """Companion hue offset by ~50° so we can build a 2-stop gradient."""
+    return (slug_hue(value) + 55) % 360
 
 
 @register.filter

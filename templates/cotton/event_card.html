@@ -1,41 +1,108 @@
 {% load i18n event_tags %}
-<div class="card bg-base-200 shadow-sm hover:shadow-md transition-shadow">
-  <div class="card-body p-4 gap-2">
-    <h2 class="card-title text-base">
-      <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}" class="hover:underline">
-        {{ event.title }}
-      </a>
-    </h2>
-    {% if event.organizer %}
-    <p class="text-sm text-base-content/70">
-      <a href="{% url 'organizer-profile' slug=event.organizer.slug %}" class="hover:underline">
-        {{ event.organizer.name }}
-      </a>
-    </p>
-    {% endif %}
-    <p class="text-sm">{{ event.start|date:"D, d M Y, H:i" }}</p>
-    {% if event.venue %}
-    <p class="text-xs text-base-content/60">
-      {% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}
-        {% trans 'Private venue' %}
-      {% else %}
-        {{ event.venue.name }}
-      {% endif %}
-    </p>
-    {% endif %}
-    <div class="card-actions justify-end">
-      {% if event.is_free %}
-        <span class="badge badge-success badge-sm">{% trans "Free" %}</span>
-      {% elif event.price_min_cents %}
-        <span class="badge badge-neutral badge-sm">
-          {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
+{% with hue_a=event.slug|slug_hue hue_b=event.slug|slug_hue_b %}
+<article
+  class="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-base-200/60 backdrop-blur-sm shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_8px_24px_-12px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/10 hover:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_18px_40px_-16px_rgba(0,0,0,0.6)]"
+>
+  {# Decorative gradient banner — seeded per-event so the grid feels alive. #}
+  <div class="relative h-24 overflow-hidden"
+       style="background:
+         radial-gradient(120% 140% at 0% 0%, hsl({{ hue_a }} 75% 55% / 0.55), transparent 55%),
+         radial-gradient(120% 140% at 100% 100%, hsl({{ hue_b }} 80% 50% / 0.55), transparent 55%),
+         linear-gradient(135deg, hsl({{ hue_a }} 35% 14%), hsl({{ hue_b }} 35% 12%));">
+    {# Subtle grain via radial mask. #}
+    <div class="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-overlay"
+         style="background-image: radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px); background-size: 3px 3px;"></div>
+
+    {# Date badge — large day number + month — sits over the banner. #}
+    <div class="absolute left-4 top-4 flex items-center gap-2">
+      <div class="flex h-14 w-14 flex-col items-center justify-center rounded-xl bg-base-100/85 backdrop-blur ring-1 ring-white/10 shadow-lg">
+        <span class="text-[10px] font-semibold uppercase tracking-widest text-base-content/60 leading-none">
+          {{ event.start|date:"M" }}
         </span>
-      {% endif %}
-      {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
-        <span class="badge badge-outline badge-sm" aria-label="{% trans 'Average rating' %}">
-          &#9733; {{ event.avg_rating|floatformat:1 }} ({{ event.rating_count }})
+        <span class="text-2xl font-bold leading-none text-base-content mt-0.5">
+          {{ event.start|date:"j" }}
+        </span>
+      </div>
+      <div class="hidden sm:flex flex-col">
+        <span class="text-[11px] font-medium uppercase tracking-wider text-white/70 leading-none">
+          {{ event.start|date:"D" }}
+        </span>
+        <span class="text-[11px] text-white/55 leading-none mt-1">
+          {{ event.start|date:"H:i" }}
+        </span>
+      </div>
+    </div>
+
+    {# Top-right price/free pill. #}
+    <div class="absolute right-3 top-3 flex items-center gap-1.5">
+      {% if event.is_free %}
+        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-400/30 backdrop-blur">
+          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12V8H6a2 2 0 1 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+          {% trans "Free" %}
+        </span>
+      {% elif event.price_min_cents %}
+        <span class="inline-flex items-center rounded-full bg-base-100/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-base-content/80 ring-1 ring-white/10 backdrop-blur">
+          {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
         </span>
       {% endif %}
     </div>
   </div>
-</div>
+
+  {# Card body. #}
+  <div class="flex flex-1 flex-col gap-3 p-5">
+    <h2 class="text-base font-semibold leading-snug tracking-tight line-clamp-2">
+      <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}"
+         class="bg-gradient-to-r from-transparent to-transparent bg-no-repeat [background-size:0_1px] [background-position:0_100%] transition-[background-size] duration-300 hover:[background-size:100%_1px]"
+         style="background-image: linear-gradient(currentColor, currentColor);">
+        {{ event.title }}
+      </a>
+    </h2>
+
+    {% if event.organizer %}
+      <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
+         class="inline-flex items-center gap-2 text-xs text-base-content/70 transition-colors hover:text-base-content w-fit">
+        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold uppercase text-white"
+              style="background: linear-gradient(135deg, hsl({{ hue_a }} 70% 55%), hsl({{ hue_b }} 70% 45%));">
+          {{ event.organizer.name|first }}
+        </span>
+        <span class="truncate max-w-[200px]">{{ event.organizer.name }}</span>
+      </a>
+    {% endif %}
+
+    <div class="mt-auto flex flex-col gap-1.5 pt-1 text-xs text-base-content/65">
+      <div class="flex items-center gap-2">
+        <svg class="h-3.5 w-3.5 flex-shrink-0 text-base-content/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+        </svg>
+        <span>{{ event.start|date:"D, d M Y, H:i" }}</span>
+      </div>
+
+      {% if event.venue %}
+        <div class="flex items-center gap-2">
+          <svg class="h-3.5 w-3.5 flex-shrink-0 text-base-content/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          <span class="truncate">
+            {% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}
+              {% trans 'Private venue' %}
+            {% else %}
+              {{ event.venue.name }}
+            {% endif %}
+          </span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
+      <div class="flex items-center gap-1.5 text-xs text-amber-300/90">
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+        <span class="font-medium">{{ event.avg_rating|floatformat:1 }}</span>
+        <span class="text-base-content/40">·</span>
+        <span class="text-base-content/50">{{ event.rating_count }} {% trans "reviews" %}</span>
+      </div>
+    {% endif %}
+  </div>
+</article>
+{% endwith %}
