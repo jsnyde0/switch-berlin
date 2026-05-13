@@ -125,8 +125,8 @@ All artifacts live on the VPS — nothing in the repo runs the backup.
 
 | Path | Owner / mode | Purpose |
 |---|---|---|
-| `/usr/local/bin/kb-backup.sh` | `root:root 0755` | Detects compose db container via `com.docker.compose.service=db` label; dumps with `pg_dump -Fc` piped to `restic backup --stdin`. Falls back to a `no-db-marker.txt` snapshot when no db container is running — keeps pipeline exercisable before/between deploys. |
-| `/etc/kb-backup/env` | `root:switch 0640` | systemd `EnvironmentFile`. Contains `RESTIC_REPOSITORY=sftp:bx11:restic` and `RESTIC_PASSWORD=<32-byte hex>` (mirrored locally as `RESTIC_ENCRYPTION_PASSWORD` in repo `.env` — DR key). |
+| `/usr/local/bin/kb-backup.sh` | `root:root 0755` | Detects compose db container via `com.docker.compose.service=db` label; dumps with `pg_dump -Fc` piped to `restic backup --stdin`. Falls back to a `no-db-marker.txt` snapshot when no db container is running — keeps pipeline exercisable before/between deploys. **kb-336:** compares new tag=db snapshot bytes to the previous one (captured before this run); if `new < prev / DROP_RATIO` (default 5), POSTs a Telegram alert via `TELEGRAM_BOT_TOKEN` to `TELEGRAM_OPERATOR_CHAT_ID`. Supports `--test-alert` (canary) and `--force-alert` (forced regression-message) flags for verifying the channel without running a backup. |
+| `/etc/kb-backup/env` | `root:switch 0640` | systemd `EnvironmentFile`. Keys: `RESTIC_REPOSITORY=sftp:bx11:restic`, `RESTIC_PASSWORD=<32-byte hex>` (mirrored locally as `RESTIC_ENCRYPTION_PASSWORD` in repo `.env` — DR key), `TELEGRAM_BOT_TOKEN=<bot token mirrored from app .env>` (kb-336), `TELEGRAM_OPERATOR_CHAT_ID=<operator's personal Telegram chat ID>` (kb-336). |
 | `/etc/systemd/system/kb-backup.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch`, requires `docker.service`. |
 | `/etc/systemd/system/kb-backup.timer` | `root:root 0644` | `OnCalendar=*-*-* 03:00:00`, `RandomizedDelaySec=900`, `Persistent=true`. Enabled at `timers.target`. |
 | `~switch/.ssh/restic-bx11` | `switch:switch 0600` | SSH key authorised on BX11 (port 23). |
@@ -152,6 +152,12 @@ systemctl list-timers kb-backup.timer
 # List snapshots (auth via env file)
 sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- restic snapshots'
 
+# Verify the alert channel (canary; sends one Telegram message, no backup)
+sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- /usr/local/bin/kb-backup.sh --test-alert'
+
+# Force the regression message format (no backup, no real size comparison)
+sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- /usr/local/bin/kb-backup.sh --force-alert'
+
 # Disaster recovery — restore latest db snapshot into a scratch container
 sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- restic restore latest --target /tmp/kb-restore --tag db'
 docker exec -i <scratch-pg> pg_restore -U postgres -d postgres --clean --if-exists < /tmp/kb-restore/db-*.dump
@@ -165,3 +171,12 @@ docker exec -i <scratch-pg> pg_restore -U postgres -d postgres --clean --if-exis
 - Manual one-shot run with a synthetic 3-row `events_event` table produced db snapshot `a4c9240e` (1.5 KiB pg_dump). Roundtrip via `restic restore` + `pg_restore` into a scratch `pgvector/pgvector:pg17` container yielded row count `3` — matches live.
 
 The first-deploy auto-trigger that populates the timer's `LAST` column is `kb-6nq.5`'s job.
+
+### Size-regression alert (kb-336 acceptance, 2026-05-13)
+
+Motivated by the kb-vp8 data-loss incident: the 132 KiB → 3.5 KiB drop went unnoticed for ~12h. The alert closes that window.
+
+- **Channel:** Telegram via `@switch_berlin_bot` (existing app bot, kb-6ep). Token shared with app via mirror in `/etc/kb-backup/env`; operator chat ID is the operator's personal Telegram user ID after they `/start` the bot once.
+- **Threshold:** `new < prev / DROP_RATIO` where `DROP_RATIO=5` by default (configurable via env). Comparison is against the previous tag=db latest snapshot captured *before* the new backup runs.
+- **No-op fallback:** if either `TELEGRAM_BOT_TOKEN` or `TELEGRAM_OPERATOR_CHAT_ID` is empty, the script logs the alert to stderr and exits cleanly — the backup itself never fails because alert delivery is misconfigured.
+- **Validation 2026-05-13:** canary (`--test-alert`) and forced-regression (`--force-alert`) flows both delivered to the operator's Telegram. A real `systemctl start kb-backup.service` run logged `prev=143302B new=143390B (threshold: alert if new < prev/5)` and fired no spurious alert.
