@@ -131,7 +131,11 @@ jobs:
           unset DB_PASS
           # Now bring up the rest of the stack (init will run migrate with
           # aligned credentials).
-          $COMPOSE up -d --remove-orphans
+          # --force-recreate: docker compose's image-change detection has missed
+          # rebuilds before (templates updated in image but container kept old
+          # layer), leaving the new templates stranded. Force a fresh container
+          # whenever the deploy job runs.
+          $COMPOSE up -d --remove-orphans --force-recreate
           # Wait for app container to accept exec (container running).
           for i in $(seq 1 30); do
             if $COMPOSE exec -T app true 2>/dev/null; then
