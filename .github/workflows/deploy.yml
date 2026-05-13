@@ -71,9 +71,17 @@ jobs:
           umask 077
           # Derive POSTGRES_PASSWORD from DATABASE_URL so one secret rotation
           # (kb-vb7) propagates to both the connection URL and postgres init.
-          POSTGRES_PASSWORD=$(printf '%s' "$DATABASE_URL" | sed -E 's|^postgres(ql)?://[^:]+:([^@]+)@.*|\2|')
+          case "$DATABASE_URL" in
+            postgres://*|postgresql://*) ;;
+            *)
+              echo "ERROR: DATABASE_URL must start with postgres:// or postgresql:// (got prefix: ${DATABASE_URL:0:12})" >&2
+              exit 1
+              ;;
+          esac
+          # sed -n + p flag: print only on successful substitution, empty on miss.
+          POSTGRES_PASSWORD=$(printf '%s' "$DATABASE_URL" | sed -nE 's|^postgres(ql)?://[^:]+:([^@]+)@.*|\2|p')
           if [ -z "$POSTGRES_PASSWORD" ]; then
-            echo "ERROR: could not extract password from DATABASE_URL secret" >&2
+            echo "ERROR: could not extract password from DATABASE_URL (regex miss)" >&2
             exit 1
           fi
           tmpfile=$(mktemp)
@@ -134,9 +142,12 @@ jobs:
           set -euxo pipefail
           cd /opt/switch-berlin/app
           COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
-          DB_PASS=$(grep '^DATABASE_URL=' .env | sed -E 's|^DATABASE_URL=postgres(ql)?://[^:]+:([^@]+)@.*|\2|')
+          # sed -n + p flag: prints only on successful substitution. Without -n,
+          # sed echoes the input unchanged on a no-match, leaving DB_PASS set to
+          # garbage and the -z guard never firing (kb-vb7 incident, 2026-05-13).
+          DB_PASS=$(grep '^DATABASE_URL=' .env | sed -nE 's|^DATABASE_URL=postgres(ql)?://[^:]+:([^@]+)@.*|\2|p')
           if [ -z "${DB_PASS:-}" ]; then
-            echo "ERROR: could not extract password from DATABASE_URL in .env" >&2
+            echo "ERROR: could not extract password from DATABASE_URL in .env (regex miss)" >&2
             exit 1
           fi
           $COMPOSE exec -T db psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
