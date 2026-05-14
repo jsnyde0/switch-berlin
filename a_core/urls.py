@@ -22,7 +22,7 @@ from reviews.views import organizer_opt_out_view, takedown_view
 urlpatterns = [
     path("", include("pages.urls")),
     path("healthz", healthz, name="healthz"),
-    path("admin/", admin.site.urls),
+    path(settings.ADMIN_URL, admin.site.urls),
     path("accounts/signup/", RateLimitedSignupView.as_view(), name="account_signup"),
     path("accounts/login/", RateLimitedLoginView.as_view(), name="account_login"),
     path(

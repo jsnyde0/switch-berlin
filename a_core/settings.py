@@ -52,6 +52,21 @@ CSRF_COOKIE_SAMESITE = "Lax"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MiB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MiB
 
+# Django admin URL — env-configurable for prod obscurity (kb-xtg). Default
+# keeps tests / dev / docs working. Operator who flips this to e.g. "secret-
+# admin-7f3b/" on prod must NOT add the new value to robots.txt — broadcasting
+# the obscured URL defeats the purpose.
+ADMIN_URL = env.str("ADMIN_URL", default="admin/")
+
+# Suppress two production system checks that fire as WARNING (kb-eqr CI gate
+# at --fail-level=WARNING). Both are intentional per the HSTS-soak strategy
+# documented in the SECURE_HSTS_SECONDS comments above; revisit when the soak
+# window closes and HSTS is bumped to 31536000 + subdomains + preload.
+SILENCED_SYSTEM_CHECKS = [
+    "security.W005",  # HSTS_INCLUDE_SUBDOMAINS not True
+    "security.W021",  # HSTS_PRELOAD not True
+]
+
 if DEBUG:
     import socket
 
