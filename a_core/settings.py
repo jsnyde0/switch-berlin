@@ -97,6 +97,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "a_core.middleware.TrustedProxyIPMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -243,6 +244,24 @@ TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
 LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="claude-opus-4-7")
 
 RATELIMIT_ENABLE = env.bool("RATELIMIT_ENABLE", default=True)
+# Fail open when the cache backend is unavailable. Narrow risk window is the
+# few seconds during a fresh deploy between gunicorn worker boot and the
+# 0007_cache_table migration finishing — without this, any rate-limited POST
+# in that window would hard-block. Tradeoff: brief "no rate limiting" beats
+# brief "no auth at all".
+RATELIMIT_FAIL_OPEN = True
+
+# Shared cache for rate-limiting across all gunicorn workers.
+# Without this, each worker has its own LocMemCache and the effective
+# rate-limit is N × declared (one bucket per worker). DatabaseCache uses
+# the same Postgres instance all workers share. The cache_table must be
+# created via the 0007_cache_table migration in a_core.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "cache_table",
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Legal contact / Impressum settings (D3: ship structure now, fill at deploy)
