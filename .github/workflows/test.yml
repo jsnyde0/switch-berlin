@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4.2.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
       - name: Install dependencies
         run: uv sync --frozen
@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4.2.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
       # gitleaks: secret scan across full git history (kb-jcg added the
       # pre-commit hook; this is the CI mirror for contributors who skip the
@@ -96,7 +96,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4.2.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
       - name: Install gettext (for makemessages)
         run: sudo apt-get update && sudo apt-get install -y gettext
