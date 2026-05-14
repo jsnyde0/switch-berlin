@@ -10,6 +10,12 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - '.beads/**'
+      - 'docs/**'
+      - 'history/**'
+      - '*.md'
+      - '.gitignore'
 
 env:
   ALLOWED_HOSTS: switch.berlin,www.switch.berlin
