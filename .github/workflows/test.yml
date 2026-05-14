@@ -113,6 +113,20 @@ jobs:
       - name: makemigrations check (no unapplied migrations)
         run: uv run python manage.py makemigrations --check --dry-run
 
+      # check --deploy under prod-shaped env (kb-eqr). Catches DEBUG=True
+      # regressions, missing CSRF_TRUSTED_ORIGINS, etc. before merge.
+      # --fail-level WARNING is strict; W005 + W021 are silenced in settings.py
+      # because both reflect the intentional HSTS-soak strategy.
+      - name: check --deploy (production safety gate)
+        env:
+          DEBUG: "False"
+          ALLOWED_HOSTS: "switch.berlin,www.switch.berlin"
+          CSRF_TRUSTED_ORIGINS: "https://switch.berlin,https://www.switch.berlin"
+          # Long-enough SECRET_KEY so security.W009 (key length < 50) doesn't
+          # trip the WARNING gate. Test value only; prod is set from GH secret.
+          SECRET_KEY: "ci-only-deploy-check-secret-key-with-enough-entropy-for-w009"
+        run: uv run python manage.py check --deploy --fail-level WARNING
+
       - name: makemessages check (i18n catalog not empty)
         run: |
           uv run python manage.py makemessages -l de
