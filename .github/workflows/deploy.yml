@@ -52,6 +52,7 @@ jobs:
           echo "deployed-sha=$(git rev-parse --short HEAD)"
           EOF
 
+      # Streams .env to VPS via sudo install — survives prior root-owned .env (see kb-j1l)
       - name: Render /opt/switch-berlin/app/.env on VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -106,8 +107,7 @@ jobs:
             printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
             printf 'FIRECRAWL_API_KEY=%s\n' "$FIRECRAWL_API_KEY"
           } > "$tmpfile"
-          scp -i ~/.ssh/deploy_key "$tmpfile" "${VPS_USER}@${VPS_HOST}:/opt/switch-berlin/app/.env"
-          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'chmod 600 /opt/switch-berlin/app/.env'
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'sudo install -m 0600 -o switch -g switch /dev/stdin /opt/switch-berlin/app/.env' < "$tmpfile"
           rm -f "$tmpfile"
 
       - name: Push Caddyfile + reload caddy
