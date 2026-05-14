@@ -10,10 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = Env()
 Env.read_env(env_file=BASE_DIR / ".env")
 
-SECRET_KEY = env.str(
-    "SECRET_KEY",
-    default="django-insecure-dev-only-replace-me-in-env-abcdefghijklmnopqrstuvwxyz",
-)
+SECRET_KEY = env.str("SECRET_KEY")
 
 DEBUG = env.bool("DEBUG", default=False)
 

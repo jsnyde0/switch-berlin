@@ -150,8 +150,10 @@ jobs:
             echo "ERROR: could not extract password from DATABASE_URL in .env (regex miss)" >&2
             exit 1
           fi
-          $COMPOSE exec -T db psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
-            -c "ALTER USER postgres WITH PASSWORD '${DB_PASS//\'/\'\'}'" >/dev/null
+          # Pipe SQL via stdin so $DB_PASS never lands in psql's argv (kb-5k3:
+          # /proc/*/cmdline + remote shell history would otherwise expose it).
+          printf "ALTER USER postgres WITH PASSWORD '%s';\n" "${DB_PASS//\'/\'\'}" \
+            | $COMPOSE exec -T db psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 >/dev/null
           EOF
 
       - name: Recreate app + run migrations + check --deploy

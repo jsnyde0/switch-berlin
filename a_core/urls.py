@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from a_core.views import healthz
 from accounts.views import (
     RateLimitedSignupView,
     art9_consent_view,
@@ -18,6 +19,7 @@ from reviews.views import organizer_opt_out_view, takedown_view
 
 urlpatterns = [
     path("", include("pages.urls")),
+    path("healthz", healthz, name="healthz"),
     path("admin/", admin.site.urls),
     path("accounts/signup/", RateLimitedSignupView.as_view(), name="account_signup"),
     path("accounts/", include("allauth.urls")),
