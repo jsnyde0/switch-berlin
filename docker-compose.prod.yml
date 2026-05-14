@@ -1,6 +1,13 @@
 services:
   app:
     restart: unless-stopped
+    # kb-tel: bind to localhost only on the host. Caddy reverse_proxies to
+    # localhost:8000 so this is invisible to it. Defense in depth: blocks
+    # reach from other docker bridges / processes on the VPS even if ufw is
+    # misconfigured. Dev compose (base file, no overlay) keeps 0.0.0.0 for
+    # LAN access from phones / pair-programming partners.
+    ports:
+      - "127.0.0.1:8000:8000"
     command:
       - gunicorn
       - a_core.wsgi:application

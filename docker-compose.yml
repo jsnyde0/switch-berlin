@@ -16,6 +16,10 @@ services:
     image: switch-app
     env_file: .env
     ports:
+      # 0.0.0.0 in dev so the dev server is reachable from phones / pair-
+      # programming partners on the LAN. The prod overlay
+      # (docker-compose.prod.yml) overrides this with 127.0.0.1:8000:8000 for
+      # defense in depth on the public VPS.
       - "8000:8000"
     depends_on:
       db:
