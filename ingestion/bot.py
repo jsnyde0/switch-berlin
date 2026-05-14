@@ -4,6 +4,7 @@ import logfire
 from asgiref.sync import sync_to_async
 from django_q.tasks import async_task
 from telegram import Update
+from telegram.error import InvalidToken
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
 from ingestion.models import ApprovedSender, RawMessage, RejectedMessageAttempt
@@ -159,4 +160,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 def run_bot(token: str) -> None:
     app = Application.builder().token(token).build()
     app.add_handler(MessageHandler(filters.ALL, handle_message))
-    app.run_polling()
+    _redacted_msg: str | None = None
+    try:
+        app.run_polling()
+    except InvalidToken as exc:
+        # Re-raise with token redacted so the full token never lands in docker logs.
+        # The original message contains the literal token (e.g.
+        # "The token `<token>` was rejected by the server.").
+        # Raise *outside* the except block so Python does not auto-set __context__
+        # on the new exception — structured telemetry frameworks (logfire, Sentry,
+        # structlog) walk __context__ regardless of __suppress_context__, so keeping
+        # __context__ would leak the token via that second channel.
+        _redacted_msg = str(exc).replace(token, "<redacted>") if token else str(exc)
+    else:
+        return
+    raise InvalidToken(_redacted_msg) from None

@@ -1,3 +1,4 @@
+import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from asgiref.sync import async_to_sync
@@ -5,7 +6,7 @@ from django.core.cache import cache
 from django.test import TestCase, TransactionTestCase
 
 from a_core.models import FeatureFlag
-from ingestion.bot import _bot_enabled, _is_rate_limited, _rate_buckets, handle_message
+from ingestion.bot import _bot_enabled, _is_rate_limited, _rate_buckets, handle_message, run_bot
 from ingestion.models import ApprovedSender, RawMessage, RejectedMessageAttempt
 
 
@@ -205,3 +206,66 @@ class BotDuplicateTest(TransactionTestCase):
         self.assertIn("Already received", reply_text)
         # Only one RawMessage should exist
         self.assertEqual(RawMessage.objects.filter(sender_id="111").count(), 1)
+
+
+class RunBotTokenRedactionTest(unittest.TestCase):
+    """Tests that run_bot redacts the token from InvalidToken exception messages.
+
+    Uses plain unittest.TestCase (no DB needed — tests are pure unit tests
+    that only exercise run_bot() error-path logic)."""
+
+    FAKE_TOKEN = "1234567890:AAHfakeTokenForTestingPurposesXYZ9"
+
+    def test_invalid_token_error_does_not_contain_full_token(self):
+        """When run_polling raises InvalidToken with the token in the message,
+        run_bot must re-raise without the full token verbatim."""
+        import telegram.error
+
+        original_exc = telegram.error.InvalidToken(
+            f"The token `{self.FAKE_TOKEN}` was rejected by the server."
+        )
+
+        mock_app = MagicMock()
+        mock_app.add_handler = MagicMock()
+        mock_app.run_polling.side_effect = original_exc
+
+        with patch("ingestion.bot.Application") as mock_application_cls:
+            mock_application_cls.builder.return_value.token.return_value.build.return_value = (
+                mock_app
+            )
+            with self.assertRaises(Exception) as ctx:
+                run_bot(self.FAKE_TOKEN)
+
+        raised_msg = str(ctx.exception)
+        self.assertNotIn(
+            self.FAKE_TOKEN,
+            raised_msg,
+            f"Full token must not appear in exception message. Got: {raised_msg!r}",
+        )
+        self.assertIn(
+            "<redacted>",
+            raised_msg,
+            f"Redacted placeholder must appear in exception message. Got: {raised_msg!r}",
+        )
+        # __context__ must be cleared so structured telemetry frameworks (logfire,
+        # Sentry, structlog) that walk __context__ regardless of __suppress_context__
+        # cannot recover the original full-token message.
+        self.assertIsNone(
+            ctx.exception.__context__,
+            f"__context__ must be None to prevent token leakage via exception chain. "
+            f"Got: {ctx.exception.__context__!r}",
+        )
+
+    def test_valid_bot_construction_calls_run_polling(self):
+        """When no exception is raised, run_bot calls run_polling normally."""
+        mock_app = MagicMock()
+        mock_app.add_handler = MagicMock()
+        mock_app.run_polling = MagicMock(return_value=None)
+
+        with patch("ingestion.bot.Application") as mock_application_cls:
+            mock_application_cls.builder.return_value.token.return_value.build.return_value = (
+                mock_app
+            )
+            run_bot(self.FAKE_TOKEN)
+
+        mock_app.run_polling.assert_called_once()
