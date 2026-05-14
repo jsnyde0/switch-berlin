@@ -131,27 +131,12 @@ def test_profile_followers_reverse_accessor(profile, user):
 
 
 def test_organizer_follow_not_importable():
-    """from organizers.models import OrganizerFollow must raise ImportError."""
+    """OrganizerFollow must no longer exist on organizers.models."""
     import organizers.models as om
 
     assert not hasattr(om, "OrganizerFollow"), (
         "OrganizerFollow should no longer exist on organizers.models"
     )
-
-    # Also confirm the direct import raises ImportError
-    import importlib
-    import sys
-
-    # Remove cached module to force reimport check
-    saved = sys.modules.pop("organizers.models", None)
-    try:
-        module = importlib.import_module("organizers.models")
-        assert not hasattr(module, "OrganizerFollow"), (
-            "OrganizerFollow must not be importable from organizers.models"
-        )
-    finally:
-        if saved is not None:
-            sys.modules["organizers.models"] = saved
 
 
 # ---------------------------------------------------------------------------
