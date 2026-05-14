@@ -25,6 +25,12 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    # Caddy also sets Referrer-Policy at the edge (infra/Caddyfile); Django owns
+    # it too so the policy survives any future edge swap. Same value either way.
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+    # Isolate the browsing context group from cross-origin openers (Spectre /
+    # tabnabbing hardening). Zero downside for a server-rendered site.
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
     # HSTS: start short. Bump to 31536000 + preload only after the short
     # window has soaked clean for a few weeks. Sticky once preloaded.
     SECURE_HSTS_SECONDS = 60 * 60  # 1 hour
@@ -35,6 +41,16 @@ if not DEBUG:
         "CSRF_TRUSTED_ORIGINS",
         default=["https://switch.berlin", "https://www.switch.berlin"],
     )
+
+# Explicit SameSite (Django 4.1+ defaults to "Lax" but reads clearer here).
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Cap multipart body and individual file uploads. Anything larger should go
+# through dedicated object storage (not yet wired). Defaults are 2.5 MiB —
+# explicit ceiling avoids relying on framework defaults shifting.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MiB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MiB
 
 if DEBUG:
     import socket
