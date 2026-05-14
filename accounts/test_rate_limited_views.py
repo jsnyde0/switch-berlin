@@ -1,4 +1,4 @@
-"""Tests for RateLimitedLoginView and RateLimitedPasswordResetView.
+"""Tests for the three rate-limited allauth views (signup, login, password-reset).
 
 These tests use RequestFactory + mocking to avoid needing a live database
 connection. Rate-limit state lives in the cache (not the DB), so tests
@@ -16,7 +16,11 @@ from django.http import HttpResponse
 from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from a_core.middleware import TrustedProxyIPMiddleware
-from accounts.views import RateLimitedLoginView, RateLimitedPasswordResetView
+from accounts.views import (
+    RateLimitedLoginView,
+    RateLimitedPasswordResetView,
+    RateLimitedSignupView,
+)
 
 
 def _make_render_429(message_fragment):
@@ -31,6 +35,69 @@ def _make_render_429(message_fragment):
         )
 
     return _render
+
+
+# ---------------------------------------------------------------------------
+# RateLimitedSignupView
+# ---------------------------------------------------------------------------
+
+
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    },
+)
+class RateLimitedSignupViewTest(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+        self.factory = RequestFactory()
+
+    def tearDown(self):
+        cache.clear()
+
+    def _post(self, render_mock=None):
+        request = self.factory.post(
+            "/accounts/signup/",
+            data={
+                "email": "user@example.com",
+                "password1": "ComplicatedPassword!1",
+                "password2": "ComplicatedPassword!1",
+            },
+            REMOTE_ADDR="127.0.0.1",
+        )
+        view = RateLimitedSignupView.as_view()
+        patches = [
+            patch(
+                "allauth.account.views.SignupView.dispatch",
+                return_value=HttpResponse("ok", status=200),
+            ),
+        ]
+        if render_mock is not None:
+            patches.append(patch("accounts.views.render", side_effect=render_mock))
+        with patches[0]:
+            if len(patches) > 1:
+                with patches[1]:
+                    return view(request)
+            return view(request)
+
+    def test_under_limit_allows_post(self):
+        """POST within the rate limit delegates to SignupView (not 429)."""
+        response = self._post()
+        self.assertNotEqual(response.status_code, 429)
+
+    def test_over_limit_returns_429(self):
+        """POST exceeding rate limit (3/h) returns 429 with error message."""
+        render_mock = _make_render_429("Too many signup attempts")
+        # Exhaust the 3/h limit
+        for _ in range(3):
+            self._post()
+        # 4th request should be rate-limited
+        response = self._post(render_mock=render_mock)
+        self.assertEqual(response.status_code, 429)
+        self.assertIn(b"Too many signup attempts", response.content)
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +296,81 @@ class XFFBucketIsolationTest(SimpleTestCase):
         self.assertEqual(response_a.status_code, 429)
 
         # Client B (10.0.0.2) makes its first attempt — must NOT be rate-limited
+        response_b = self._post_with_xff("10.0.0.2")
+        self.assertNotEqual(
+            response_b.status_code,
+            429,
+            "Client B was rate-limited by Client A's bucket — XFF isolation broken",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Signup XFF per-IP bucket isolation
+# ---------------------------------------------------------------------------
+
+
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    },
+)
+class SignupXFFBucketIsolationTest(SimpleTestCase):
+    """Parallel to XFFBucketIsolationTest but for RateLimitedSignupView.
+
+    Signup is the most-abuse-attractive of the three rate-limited endpoints
+    (creates accounts → emails); XFF isolation deserves the same explicit
+    coverage as login.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.factory = RequestFactory()
+        self.xff_middleware = TrustedProxyIPMiddleware(get_response=lambda r: r)
+
+    def tearDown(self):
+        cache.clear()
+
+    def _post_with_xff(self, xff_last_hop, render_mock=None):
+        request = self.factory.post(
+            "/accounts/signup/",
+            data={
+                "email": "user@example.com",
+                "password1": "ComplicatedPassword!1",
+                "password2": "ComplicatedPassword!1",
+            },
+            REMOTE_ADDR="127.0.0.1",
+            HTTP_X_FORWARDED_FOR=f"192.168.1.1, {xff_last_hop}",
+        )
+        request = self.xff_middleware(request)
+
+        view = RateLimitedSignupView.as_view()
+        patches = [
+            patch(
+                "allauth.account.views.SignupView.dispatch",
+                return_value=HttpResponse("ok", status=200),
+            ),
+        ]
+        if render_mock is not None:
+            patches.append(patch("accounts.views.render", side_effect=render_mock))
+        with patches[0]:
+            if len(patches) > 1:
+                with patches[1]:
+                    return view(request)
+            return view(request)
+
+    def test_xff_clients_have_independent_buckets(self):
+        """Client A exhausting signup 3/h must not affect Client B's bucket."""
+        render_mock = _make_render_429("Too many signup attempts")
+
+        for _ in range(3):
+            self._post_with_xff("10.0.0.1")
+
+        response_a = self._post_with_xff("10.0.0.1", render_mock=render_mock)
+        self.assertEqual(response_a.status_code, 429)
+
         response_b = self._post_with_xff("10.0.0.2")
         self.assertNotEqual(
             response_b.status_code,
