@@ -1,7 +1,10 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+
+from a_core.validators import validate_image_size
 
 # Sentinel for "no value supplied" — distinguishes organizer=None from not set.
 _UNSET = object()
@@ -340,7 +343,13 @@ class Attendance(models.Model):
 
 class EventImage(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="events/")
+    image = models.ImageField(
+        upload_to="events/",
+        validators=[
+            validate_image_size,
+            FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
+        ],
+    )
     alt = models.CharField(max_length=300, blank=True)
     is_cover = models.BooleanField(default=False)
     order = models.IntegerField(default=0)

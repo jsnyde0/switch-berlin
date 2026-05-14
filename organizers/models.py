@@ -1,6 +1,9 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+from a_core.validators import validate_image_size
 
 
 class ProfileManager(models.Manager):
@@ -27,7 +30,15 @@ class Profile(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
-    avatar = models.ImageField(upload_to="organizers/", blank=True, null=True)
+    avatar = models.ImageField(
+        upload_to="organizers/",
+        blank=True,
+        null=True,
+        validators=[
+            validate_image_size,
+            FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
+        ],
+    )
     website = models.URLField(blank=True)
     telegram_link = models.CharField(max_length=200, blank=True)
 
