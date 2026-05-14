@@ -9,6 +9,13 @@ switch.berlin {
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		# kb-833: defense-in-depth. Permissions-Policy opts out of sensor /
+		# camera / payment APIs the site doesn't use, so a future XSS can't
+		# unlock them. CORP same-site pairs with COOP (set in Django). DNS
+		# prefetch off is minor privacy hardening.
+		Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+		Cross-Origin-Resource-Policy "same-site"
+		X-DNS-Prefetch-Control "off"
 		-Server
 	}
 

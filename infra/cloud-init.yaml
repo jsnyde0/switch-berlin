@@ -21,6 +21,8 @@ packages:
   - debian-archive-keyring
   - apt-transport-https
   - ufw
+  - fail2ban
+  - unattended-upgrades
 
 write_files:
   - path: /etc/caddy/Caddyfile
@@ -37,6 +39,9 @@ write_files:
       		X-Content-Type-Options "nosniff"
       		X-Frame-Options "DENY"
       		Referrer-Policy "strict-origin-when-cross-origin"
+      		Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+      		Cross-Origin-Resource-Policy "same-site"
+      		X-DNS-Prefetch-Control "off"
       		-Server
       	}
 
@@ -46,6 +51,45 @@ write_files:
       www.switch.berlin {
       	redir https://switch.berlin{uri} 308
       }
+
+  # sshd_config drop-in: explicit policy beyond ssh_pwauth (which only sets
+  # PasswordAuthentication, not the related KbdInteractive/PermitRootLogin).
+  # Drop-in style survives distro sshd_config regenerations.
+  - path: /etc/ssh/sshd_config.d/99-switch.conf
+    permissions: "0644"
+    owner: root:root
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin no
+      KbdInteractiveAuthentication no
+
+  # fail2ban sshd jail: rate-limit failed SSH auth at the firewall layer.
+  # bantime=1h, findtime=10m, maxretry=5 — conservative defaults that don't
+  # lock out a fat-fingered operator while killing automated scanners.
+  - path: /etc/fail2ban/jail.d/sshd.local
+    permissions: "0644"
+    owner: root:root
+    content: |
+      [sshd]
+      enabled = true
+      port = ssh
+      bantime = 3600
+      findtime = 600
+      maxretry = 5
+      # banaction=ufw keeps bans in ufw state. Default iptables-multiport
+      # rules live in INPUT and get flushed by `ufw --force enable`; ufw
+      # banaction integrates cleanly with the already-configured firewall.
+      banaction = ufw
+
+  # unattended-upgrades: apply security-channel updates automatically. Default
+  # Ubuntu 24.04 config already targets *-security only; this file just enables
+  # the periodic-update timer + unattended-upgrade itself.
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    owner: root:root
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
 
 runcmd:
   # --- Caddy system user (the .deb postinst is unreliable on Ubuntu 24.04 — pre-create) ---
@@ -77,6 +121,9 @@ runcmd:
   # --- Services ---
   - systemctl enable --now docker
   - systemctl reload caddy || systemctl restart caddy
+  - systemctl enable --now fail2ban
+  - systemctl enable --now unattended-upgrades
+  - systemctl reload ssh || systemctl reload sshd || true
   - touch /var/lib/cloud/instance/cloud-init.done
 
 ssh_pwauth: false
