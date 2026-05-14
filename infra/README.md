@@ -116,7 +116,7 @@ Deploy-channel secrets — consumed by the workflow itself:
 | `DEBUG` | `False` |
 | `DJANGO_SETTINGS_MODULE` | `a_core.settings` |
 
-## Backup subsystem provisioning (kb-vms)
+## Backup subsystem provisioning (kb-vms + kb-omx)
 
 After `hcloud server create ...` completes and cloud-init has finished (see "VPS provisioning runbook" above), install the backup subsystem files from this repo onto the fresh VPS:
 
@@ -129,10 +129,11 @@ VPS=switch@switch.berlin
 scp infra/kb-backup.sh "$VPS":/tmp/kb-backup.sh
 ssh "$VPS" 'sudo install -o root -g root -m 0755 /tmp/kb-backup.sh /usr/local/bin/kb-backup.sh'
 
-# 2. Install the systemd units
-scp infra/kb-backup.service infra/kb-backup.timer "$VPS":/tmp/
-ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-backup.service /etc/systemd/system/kb-backup.service'
-ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-backup.timer   /etc/systemd/system/kb-backup.timer'
+# 2. Install the systemd units (backup service + timer + OnFailure alerter)
+scp infra/kb-backup.service infra/kb-backup.timer infra/kb-backup-alert.service "$VPS":/tmp/
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-backup.service       /etc/systemd/system/kb-backup.service'
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-backup.timer         /etc/systemd/system/kb-backup.timer'
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-backup-alert.service /etc/systemd/system/kb-backup-alert.service'
 
 # 3. Reload and enable
 ssh "$VPS" 'sudo systemctl daemon-reload && sudo systemctl enable --now kb-backup.timer'
@@ -183,10 +184,11 @@ All artifacts live on the VPS — nothing in the repo runs the backup.
 
 | Path | Owner / mode | Purpose |
 |---|---|---|
-| `/usr/local/bin/kb-backup.sh` | `root:root 0755` | Detects compose db container via `com.docker.compose.service=db` label; dumps with `pg_dump -Fc` piped to `restic backup --stdin`. Falls back to a `no-db-marker.txt` snapshot when no db container is running — keeps pipeline exercisable before/between deploys. **kb-336:** compares new tag=db snapshot bytes to the previous one (captured before this run); if `new < prev / DROP_RATIO` (default 5), POSTs a Telegram alert via `TELEGRAM_BOT_TOKEN` to `TELEGRAM_OPERATOR_CHAT_ID`. Supports `--test-alert` (canary) and `--force-alert` (forced regression-message) flags for verifying the channel without running a backup. |
+| `/usr/local/bin/kb-backup.sh` | `root:root 0755` | Detects compose db container via `com.docker.compose.service=db` label; dumps with `pg_dump -Fc` to a tempfile under `/var/tmp/kb-backup/`, checks absolute 50KiB floor (**kb-omx**) before handing to restic. Falls back to a `no-db-marker.txt` snapshot when no db container is running (no size check — healthy state). **kb-336:** compares new tag=db snapshot bytes to the previous one; if `new < prev / DROP_RATIO` (default 5), POSTs a Telegram alert. Flags: `--test-alert` (canary), `--force-alert` (forced regression message), `--service-failed-alert` (generic failure alert, used by `kb-backup-alert.service` via `OnFailure=`), `--simulate-tiny-dump` (test-only: writes 100-byte fake dump and exercises the 50KiB floor path; expects non-zero exit and alert). |
 | `/etc/kb-backup/env` | `root:switch 0640` | systemd `EnvironmentFile`. Keys: `RESTIC_REPOSITORY=sftp:bx11:restic`, `RESTIC_PASSWORD=<32-byte hex>` (mirrored locally as `RESTIC_ENCRYPTION_PASSWORD` in repo `.env` — DR key), `TELEGRAM_BOT_TOKEN=<bot token mirrored from app .env>` (kb-336), `TELEGRAM_OPERATOR_CHAT_ID=<operator's personal Telegram chat ID>` (kb-336). |
-| `/etc/systemd/system/kb-backup.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch`, requires `docker.service`. |
+| `/etc/systemd/system/kb-backup.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch`, requires `docker.service`. `OnFailure=kb-backup-alert.service` (**kb-omx**). |
 | `/etc/systemd/system/kb-backup.timer` | `root:root 0644` | `OnCalendar=*-*-* 03:00:00`, `RandomizedDelaySec=900`, `Persistent=true`. Enabled at `timers.target`. |
+| `/etc/systemd/system/kb-backup-alert.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch` (**kb-omx**). Triggered by `OnFailure=` in `kb-backup.service`. Runs `kb-backup.sh --service-failed-alert` to send a Telegram "service failed — check journalctl" message. |
 | `~switch/.ssh/restic-bx11` | `switch:switch 0600` | SSH key authorised on BX11 (port 23). |
 | `~switch/.ssh/config` | `switch:switch 0600` | Defines `Host bx11 → u590899.your-storagebox.de:23` so restic URL `sftp:bx11:restic` Just Works. |
 
@@ -215,6 +217,23 @@ sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- /usr/lo
 
 # Force the regression message format (no backup, no real size comparison)
 sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- /usr/local/bin/kb-backup.sh --force-alert'
+
+# Test the 50KiB absolute-floor path (kb-omx): writes 100-byte fake dump,
+# exercises size-check + alert, exits 1.
+sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- /usr/local/bin/kb-backup.sh --simulate-tiny-dump'
+# To also exercise the OnFailure= chain (triggers kb-backup-alert.service),
+# create a drop-in override, start the service, then clean up:
+sudo mkdir -p /etc/systemd/system/kb-backup.service.d
+sudo tee /etc/systemd/system/kb-backup.service.d/test-override.conf > /dev/null <<'DROPINEOF'
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/kb-backup.sh --simulate-tiny-dump
+DROPINEOF
+sudo systemctl daemon-reload
+sudo systemctl start kb-backup.service   # expect: exit 1, OnFailure chain fires
+# Clean up:
+sudo rm -rf /etc/systemd/system/kb-backup.service.d/
+sudo systemctl daemon-reload
 
 # Disaster recovery — restore latest db snapshot into a scratch container
 sudo bash -c 'set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- restic restore latest --target /tmp/kb-restore --tag db'

@@ -1,0 +1,11 @@
+[Unit]
+Description=Switch Berlin backup failure alert (OnFailure handler for kb-backup.service)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=switch
+Group=switch
+EnvironmentFile=/etc/kb-backup/env
+ExecStart=/usr/local/bin/kb-backup.sh --service-failed-alert

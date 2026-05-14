@@ -3,6 +3,7 @@ Description=Switch Berlin nightly backup (pg_dump | restic to BX11)
 After=docker.service network-online.target
 Wants=network-online.target
 Requires=docker.service
+OnFailure=kb-backup-alert.service
 
 [Service]
 Type=oneshot
