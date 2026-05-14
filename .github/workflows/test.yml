@@ -27,6 +27,30 @@ jobs:
       - name: djlint template check
         run: uv run djlint --check . --extension=html
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4.2.0
+
+      # bandit: static analysis for Python security antipatterns. Gated on HIGH
+      # severity HIGH confidence (-lll -iii) — lower tiers are noisy and would
+      # gate the PR on false positives. Current baseline is zero findings at
+      # this threshold (kb-nsb annotated the one legitimate HIGH).
+      - name: bandit static analysis
+        run: uvx bandit -r . -lll -iii --exclude=./.venv,./node_modules,./staticfiles,./static
+
+      # pip-audit: scan resolved deps against the PyPI advisory DB. Runs against
+      # the locked requirements so the gate fires on new CVEs the moment they're
+      # disclosed against a pinned version. Project deps only (--no-dev) — dev
+      # tooling CVEs are noise here.
+      - name: pip-audit (CVE scan)
+        run: |
+          uv export --frozen --no-dev --no-emit-project --format requirements.txt > /tmp/reqs.txt
+          uvx pip-audit -r /tmp/reqs.txt
+
   test:
     runs-on: ubuntu-latest
 
