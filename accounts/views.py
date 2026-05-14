@@ -1,4 +1,4 @@
-from allauth.account.views import SignupView
+from allauth.account.views import LoginView, PasswordResetView, SignupView
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -27,6 +27,44 @@ class RateLimitedSignupView(SignupView):
                 request,
                 "account/signup.html",
                 {"error": _("Too many signup attempts. Try again later.")},
+                status=429,
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+
+class RateLimitedLoginView(LoginView):
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == "POST" and is_ratelimited(
+            request,
+            group="accounts.login",
+            key="ip",
+            rate="5/h",
+            method="POST",
+            increment=True,
+        ):
+            return render(
+                request,
+                "account/login.html",
+                {"error": _("Too many login attempts. Try again later.")},
+                status=429,
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+
+class RateLimitedPasswordResetView(PasswordResetView):
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == "POST" and is_ratelimited(
+            request,
+            group="accounts.password_reset",
+            key="ip",
+            rate="3/h",
+            method="POST",
+            increment=True,
+        ):
+            return render(
+                request,
+                "account/password_reset.html",
+                {"error": _("Too many password-reset attempts. Try again later.")},
                 status=429,
             )
         return super().dispatch(request, *args, **kwargs)
