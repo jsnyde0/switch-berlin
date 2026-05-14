@@ -1,0 +1,11 @@
+[Unit]
+Description=Switch Berlin nightly backup timer
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=kb-backup.service
+
+[Install]
+WantedBy=timers.target

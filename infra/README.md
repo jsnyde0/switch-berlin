@@ -116,6 +116,64 @@ Deploy-channel secrets — consumed by the workflow itself:
 | `DEBUG` | `False` |
 | `DJANGO_SETTINGS_MODULE` | `a_core.settings` |
 
+## Backup subsystem provisioning (kb-vms)
+
+After `hcloud server create ...` completes and cloud-init has finished (see "VPS provisioning runbook" above), install the backup subsystem files from this repo onto the fresh VPS:
+
+```bash
+# Run from the repo root on your local machine.
+# Substitute the real VPS IP or hostname.
+VPS=switch@switch.berlin
+
+# 1. Install the backup script
+scp infra/kb-backup.sh "$VPS":/tmp/kb-backup.sh
+ssh "$VPS" 'sudo install -o root -g root -m 0755 /tmp/kb-backup.sh /usr/local/bin/kb-backup.sh'
+
+# 2. Install the systemd units
+scp infra/kb-backup.service infra/kb-backup.timer "$VPS":/tmp/
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-backup.service /etc/systemd/system/kb-backup.service'
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-backup.timer   /etc/systemd/system/kb-backup.timer'
+
+# 3. Reload and enable
+ssh "$VPS" 'sudo systemctl daemon-reload && sudo systemctl enable --now kb-backup.timer'
+
+# 4. Verify the timer is active
+ssh "$VPS" 'systemctl list-timers kb-backup.timer'
+```
+
+### Operator-managed secrets file (NOT repo-tracked)
+
+`/etc/kb-backup/env` must be created manually by the operator — it contains secrets and is intentionally absent from the repository:
+
+```bash
+ssh "$VPS" 'sudo mkdir -p /etc/kb-backup'
+# Then copy the file, or write it inline:
+ssh "$VPS" 'sudo tee /etc/kb-backup/env > /dev/null <<EOF
+RESTIC_REPOSITORY=sftp:bx11:restic
+RESTIC_PASSWORD=<32-byte hex from repo .env RESTIC_ENCRYPTION_PASSWORD>
+TELEGRAM_BOT_TOKEN=<mirror of app .env TELEGRAM_BOT_TOKEN>
+TELEGRAM_OPERATOR_CHAT_ID=<operator personal Telegram user ID>
+EOF'
+ssh "$VPS" 'sudo chmod 0640 /etc/kb-backup/env && sudo chown root:switch /etc/kb-backup/env'
+```
+
+Required keys:
+
+| Key | Source |
+|---|---|
+| `RESTIC_REPOSITORY` | `sftp:bx11:restic` (static) |
+| `RESTIC_PASSWORD` | Repo `.env` → `RESTIC_ENCRYPTION_PASSWORD` (DR copy) |
+| `TELEGRAM_BOT_TOKEN` | Mirror of app `.env` → `TELEGRAM_BOT_TOKEN` |
+| `TELEGRAM_OPERATOR_CHAT_ID` | Operator's personal Telegram user ID (get by sending `/start` to the bot) |
+
+After provisioning the env file, verify the alert channel:
+
+```bash
+ssh "$VPS" 'sudo bash -c "set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- /usr/local/bin/kb-backup.sh --test-alert"'
+```
+
+> **Note:** A successful `--test-alert` run sends one Telegram message and exits 0 without running any backup.
+
 ## Backup subsystem (kb-6nq.3)
 
 Nightly `pg_dump | restic backup` to Hetzner BX11 (provisioned by `kb-eac`).

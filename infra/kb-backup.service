@@ -1,0 +1,12 @@
+[Unit]
+Description=Switch Berlin nightly backup (pg_dump | restic to BX11)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=switch
+Group=switch
+EnvironmentFile=/etc/kb-backup/env
+ExecStart=/usr/local/bin/kb-backup.sh
