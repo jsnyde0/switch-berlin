@@ -15,7 +15,9 @@ def slug_hue(value):
     """
     if not value:
         return 0
-    digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()
+    digest = hashlib.md5(
+        str(value).encode("utf-8"), usedforsecurity=False
+    ).hexdigest()
     return int(digest[:6], 16) % 360
 
 
