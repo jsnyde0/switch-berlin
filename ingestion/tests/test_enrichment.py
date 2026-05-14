@@ -94,6 +94,7 @@ class TestEnrichUrlsSkipsUnsafe:
         mock_resp = MagicMock()
         mock_resp.text = "<html><body><h1>Hello</h1></body></html>"
         mock_resp.status_code = 200
+        mock_resp.is_redirect = False
 
         with (
             patch(
@@ -110,6 +111,7 @@ class TestEnrichUrlsSkipsUnsafe:
         mock_resp = MagicMock()
         mock_resp.text = "<html><body><p>Public page</p></body></html>"
         mock_resp.status_code = 200
+        mock_resp.is_redirect = False
 
         def fake_getaddrinfo(host, port, *args, **kwargs):
             if "internal" in host:
@@ -122,3 +124,21 @@ class TestEnrichUrlsSkipsUnsafe:
         ):
             result = enrich_urls("Bad http://internal/secret Good https://example.com/")
         assert "Public page" in result["url_content"]
+
+    def test_redirect_response_is_skipped(self):
+        """A 30x response on a safe URL must not be followed (kb-97n SSRF)."""
+        mock_resp = MagicMock()
+        mock_resp.text = ""
+        mock_resp.status_code = 302
+        mock_resp.is_redirect = True
+        mock_resp.headers = {"location": "http://169.254.169.254/latest/meta-data/"}
+
+        with (
+            patch(
+                "socket.getaddrinfo",
+                return_value=self._make_addrinfo("93.184.216.34"),
+            ),
+            patch("ingestion.enrichment.httpx.get", return_value=mock_resp),
+        ):
+            result = enrich_urls("Public redirect https://shortener.example/foo")
+        assert result["url_content"] == ""

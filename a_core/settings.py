@@ -20,6 +20,21 @@ DEBUG = env.bool("DEBUG", default=False)
 # Caddy's reverse_proxy sets X-Forwarded-Proto by default.
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    # Production hardening (kb-2e3). Gated on not DEBUG so dev/CI stay HTTP.
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    # HSTS: start short. Bump to 31536000 + preload only after the short
+    # window has soaked clean for a few weeks. Sticky once preloaded.
+    SECURE_HSTS_SECONDS = 60 * 60  # 1 hour
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+    # Django 4+ requires explicit trusted origins for CSRF when proxied (#9).
+    CSRF_TRUSTED_ORIGINS = env.list(
+        "CSRF_TRUSTED_ORIGINS",
+        default=["https://switch.berlin", "https://www.switch.berlin"],
+    )
 
 if DEBUG:
     import socket

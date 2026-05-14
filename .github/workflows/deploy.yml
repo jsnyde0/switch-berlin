@@ -110,6 +110,23 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'chmod 600 /opt/switch-berlin/app/.env'
           rm -f "$tmpfile"
 
+      - name: Push Caddyfile + reload caddy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          # infra/Caddyfile is the source of truth (kb-c14). cloud-init only
+          # seeds the first-boot copy; ongoing deploys land here. Validate
+          # before replacing so a syntax error can't take down TLS termination.
+          scp -i ~/.ssh/deploy_key infra/Caddyfile "${VPS_USER}@${VPS_HOST}:/tmp/Caddyfile.new"
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'bash -s' <<'EOF'
+          set -euxo pipefail
+          sudo caddy validate --config /tmp/Caddyfile.new --adapter caddyfile
+          sudo install -m 0644 -o root -g root /tmp/Caddyfile.new /etc/caddy/Caddyfile
+          sudo systemctl reload caddy
+          rm -f /tmp/Caddyfile.new
+          EOF
+
       - name: Build image and start db
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}

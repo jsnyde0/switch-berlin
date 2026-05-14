@@ -26,9 +26,20 @@ write_files:
   - path: /etc/caddy/Caddyfile
     permissions: "0644"
     owner: root:root
+    # Mirror of infra/Caddyfile. Deploy workflow (.github/workflows/deploy.yml)
+    # pushes infra/Caddyfile on every deploy, so this content is only canonical
+    # at first-boot; keep it aligned anyway so fresh provisions are secure.
     content: |
       switch.berlin {
       	encode zstd gzip
+
+      	header {
+      		X-Content-Type-Options "nosniff"
+      		X-Frame-Options "DENY"
+      		Referrer-Policy "strict-origin-when-cross-origin"
+      		-Server
+      	}
+
       	reverse_proxy localhost:8000
       }
 

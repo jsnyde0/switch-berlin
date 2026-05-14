@@ -51,4 +51,12 @@ EXPOSE 8000
 COPY entrypoint.sh ./
 RUN chmod +x ./entrypoint.sh
 
+# Non-root runtime (kb-a0c): create app user and chown /app so the init
+# service can re-run collectstatic + migrate without root. UID 1000 matches
+# the host deploy-user. Gunicorn binds 8000 (high port, no privileged cap).
+RUN groupadd --gid 1000 app \
+ && useradd --uid 1000 --gid app --shell /usr/sbin/nologin --home-dir /app app \
+ && chown -R app:app /app
+USER app
+
 ENTRYPOINT ["/app/entrypoint.sh"]

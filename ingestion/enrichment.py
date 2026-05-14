@@ -64,12 +64,23 @@ def enrich_urls(text: str) -> dict:
         if not _is_safe_url(url):
             continue
         try:
+            # follow_redirects=False: _is_safe_url() validates only the input
+            # URL's host; a 30x to RFC1918 / 169.254.169.254 would bypass the
+            # SSRF guard. Treat redirect responses as non-content.
             resp = httpx.get(
                 url,
                 timeout=10,
-                follow_redirects=True,
+                follow_redirects=False,
                 headers={"User-Agent": "Mozilla/5.0"},
             )
+            if resp.is_redirect:
+                logfire.warning(
+                    "enrichment.url_skipped_redirect",
+                    url=url,
+                    status_code=resp.status_code,
+                    location=resp.headers.get("location", ""),
+                )
+                continue
             md = markdownify.markdownify(resp.text)
             if total + len(md) > 20_000:
                 remaining = 20_000 - total

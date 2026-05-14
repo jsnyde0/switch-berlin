@@ -1,5 +1,17 @@
 switch.berlin {
 	encode zstd gzip
+
+	# Security response headers (kb-c14). Django owns Strict-Transport-Security
+	# (SECURE_HSTS_SECONDS in a_core/settings.py) so there's one source of truth
+	# for HSTS rollout. Caddy adds the headers Django doesn't always emit, and
+	# strips its own Server header to reduce fingerprinting.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
 	reverse_proxy localhost:8000
 }
 

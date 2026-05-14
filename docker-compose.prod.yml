@@ -17,6 +17,21 @@ services:
 
   db:
     restart: unless-stopped
+    # Forensic logging (kb-oam): csvlog captures all DDL+DML so we can
+    # reconstruct attacker actions after an incident. Default log_directory
+    # is `log` inside PGDATA — persisted via the bind mount below.
+    command:
+      - postgres
+      - -c
+      - logging_collector=on
+      - -c
+      - log_destination=stderr,csvlog
+      - -c
+      - log_statement=mod
+      - -c
+      - log_rotation_age=1d
+      - -c
+      - log_rotation_size=100MB
     volumes:
       - type: bind
         source: /opt/switch-berlin/db
