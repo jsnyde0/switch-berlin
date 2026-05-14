@@ -1,0 +1,19 @@
+# Dependabot config — kb-i9s.
+#
+# Keeps GitHub Actions SHA pins (kb-yr5) fresh by opening weekly PRs when
+# upstream actions release patched versions. Each PR is reviewable + revertable
+# — automation surface, not auto-merge.
+#
+# Pip ecosystem deliberately excluded: dependabot reads pyproject.toml but does
+# NOT update uv.lock, so any pip-ecosystem PR would land a broken lockfile
+# (uv sync --frozen would fail in CI). Revisit when dependabot grows uv.lock
+# cooperation, or when uv ships a dependabot-compatible export hook.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(ci)"
