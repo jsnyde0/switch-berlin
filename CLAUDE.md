@@ -66,4 +66,13 @@ _Add a brief overview of your project architecture_
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+### Code posture (V0, pre-launch)
+
+Refactor hard, fail loud. See [ADR-008](docs/decisions/ADR-008-code-posture-refactor-hard-fail-loud.md) for the binding decisions:
+
+- **D1:** No backward compatibility shims until V1 — delete on sight, no deprecation paths.
+- **D2:** No speculative abstraction — simplest thing that works, one clear path. Extract from the third diverging caller, not the first.
+- **D3:** No silent fallbacks on data integrity — raise, log with reason, render visible error state. Never zero-fill or synthesize missing fields.
+- **D4:** Transport errors (network blips) get up to 2 retries then fail loud; data-integrity errors (4xx/5xx, parse errors, schema mismatches) never retry.
+
+The additive counterpart — *what shape to give deferred features now at zero cost* — lives in [ADR-003](docs/decisions/ADR-003-cheap-foresight-patterns.md). The tension between ADR-008 D2 (no speculative abstraction) and ADR-003 (cheap foresight) is intentional: cheap foresight is for *data shape and naming*, ADR-008 D2 forbids speculative *behavioral* abstraction.
