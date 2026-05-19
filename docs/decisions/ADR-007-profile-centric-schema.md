@@ -47,6 +47,10 @@ Profile(
 | `Profile` abstract base, `PersonProfile` + `CollectiveProfile` subtables | Django multi-table inheritance gives polymorphism | Joins on every query; querysets across types are awkward; community fields (follow, rating) need generic FKs |
 | Keep `Organizer`, add `kind` field | Smallest migration | "Organizer" name misleading for a facilitator who doesn't organize anything |
 
+**Field-set growth within `kind` (kb-fx9 D1, 2026-05-19):**
+
+`Profile.kind=person` carries additional structured-identity data via a join model `ProfileTag(profile, tag, intensity nullable, note CharField blank, created_at)` for tags of `kind ∈ {gender, role, orientation, kink, not_looking_for}` (see ADR-003 F3 for the Tag.kind enum extension and intensity semantics). Person Profiles also carry two visibility-tier fields (`identity_visibility_surface`, `identity_visibility_kink`) governing who sees which subset of identity data; collective Profiles ignore both fields. This is field-set growth *within* a `kind`, not a structural split — D1's "third actor kind forcing structural split" invalidation trigger does not fire. The unified-Profile decision-property is unchanged.
+
 ### D2: Two through-tables for Event ↔ Profile relations (organizer + facilitator)
 
 **Firmness: FIRM** for the split organizer/facilitator; FLEXIBLE on whether to consolidate later.

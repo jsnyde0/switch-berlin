@@ -68,9 +68,9 @@ One row reviews exactly one target (organizer XOR event). Display logic is phase
 
 **Applies to:** ADR-001 open question: bubble as first-class entity vs. Tag.
 
-**Do now:** `Tag.kind` is a `CharField(choices=...)` with initial values `('theme', 'format', 'identity', 'bubble')`. Bubbles are Tags with `kind='bubble'` until there's pressure for dedicated bubble features (bridging UX, membership, per-bubble rules).
+**Do now:** `Tag.kind` is a `CharField(choices=...)`. The enum starts with `('theme', 'format', 'identity', 'bubble')` and is expected to grow as new tagging surfaces emerge. **kb-fx9 D1 (2026-05-19) adds five identity-disclosure kinds**: `gender`, `role`, `orientation`, `kink`, `not_looking_for` — applied to `Profile.kind=person` via a `ProfileTag(profile, tag, intensity nullable, note CharField blank, created_at)` join model. `intensity` is a `CharField` nullable (null for gender/role/orientation; required `'into' | 'curious' | 'soft_limit' | 'hard_limit'` for `kind=kink`; semantically `'hard'` for `kind=not_looking_for`). Bubbles remain Tags with `kind='bubble'` until there's pressure for dedicated bubble features (bridging UX, membership, per-bubble rules).
 
-**Why this is cheap foresight:** The promotion of `kind='bubble'` Tags to a dedicated `Bubble` model is a well-understood migration: copy rows, update FKs, drop the `kind` value. Starting with a flat `Tag` model with the `kind` field ready avoids a schema migration *and* a code-wide find-replace. Near-zero cost now.
+**Why this is cheap foresight:** The promotion of `kind='bubble'` Tags to a dedicated `Bubble` model is a well-understood migration: copy rows, update FKs, drop the `kind` value. Starting with a flat `Tag` model with the `kind` field ready avoids a schema migration *and* a code-wide find-replace. Near-zero cost now. The kb-fx9 identity-disclosure extension demonstrates the same pattern paying off — five new kinds drop in additively without any schema-shape change.
 
 ---
 
