@@ -16,6 +16,7 @@ Navigation surface for `docs/decisions/`. Each ADR captures a cross-cutting, loa
 | [ADR-008](ADR-008-code-posture-refactor-hard-fail-loud.md) | Code posture — refactor hard, fail loud | code-posture | Accepted | No backward compatibility pre-V1; no speculative abstraction; fail loud on data integrity; retry transport errors. |
 | [ADR-009](ADR-009-mutual-connection-graph-and-identity-visibility.md) | Mutual Connection graph, identity visibility, and anti-engagement ranking posture | social-graph | Accepted 2026-05-19 (revised 2026-05-20) | `Connection` mutual graph orthogonal to Follow/Vouch; 4-tier visibility (`public>vouched>friends>private`); no global engagement ranking. |
 | [ADR-010](ADR-010-event-based-product-posture.md) | Event-based product posture — facilitate real-world action, not platform engagement | product | Accepted 2026-05-20 | Real-world action is the goal; engagement is an instrument, not an end; business model cannot monetize engagement. |
+| [ADR-011](ADR-011-personal-agent-layer-additive.md) | Personal-agent layer — core platform scope web-UI-complete, extended scope agent-natural | arch | Accepted 2026-05-20 | Core platform features (mission scope) web-UI-complete; agent-extended scope may be agent-only; web-UI parity preferred but not required in extended scope. |
 
 ## Scope tags
 
@@ -23,7 +24,7 @@ Single-keyword filter for "which ADRs might constrain this work?". Not exhaustiv
 
 - **product** — what we're building and for whom (positioning, audience, top-level shape)
 - **rollout** — phasing, gates, sequencing of public exposure
-- **arch** — system-level architecture (not currently used; reserved)
+- **arch** — system-level architecture (layer boundaries, surface contracts, agent-vs-SaaS placement)
 - **frontend** — UI rendering strategy, framework choices, escape hatches
 - **execution** — how work is organized into bundles / sprints / dependencies
 - **legal** — GDPR posture, consent bases, operator identity, takedown
