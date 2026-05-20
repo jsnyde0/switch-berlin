@@ -15,6 +15,7 @@ Navigation surface for `docs/decisions/`. Each ADR captures a cross-cutting, loa
 | [ADR-007](ADR-007-profile-centric-schema.md) | Profile-centric schema — unify Organizer/Facilitator, defer Festival | schema | Accepted 2026-05-11 | Unified `Profile` model with `kind` discriminator; separate `EventOrganizer` and `EventFacilitator` through-tables. |
 | [ADR-008](ADR-008-code-posture-refactor-hard-fail-loud.md) | Code posture — refactor hard, fail loud | code-posture | Accepted | No backward compatibility pre-V1; no speculative abstraction; fail loud on data integrity; retry transport errors. |
 | [ADR-009](ADR-009-mutual-connection-graph-and-identity-visibility.md) | Mutual Connection graph, identity visibility, and anti-engagement ranking posture | social-graph | Accepted 2026-05-19 (revised 2026-05-20) | `Connection` mutual graph orthogonal to Follow/Vouch; 4-tier visibility (`public>vouched>friends>private`); no global engagement ranking. |
+| [ADR-010](ADR-010-event-based-product-posture.md) | Event-based product posture — facilitate real-world action, not platform engagement | product | Accepted 2026-05-20 | Real-world action is the goal; engagement is an instrument, not an end; business model cannot monetize engagement. |
 
 ## Scope tags
 
