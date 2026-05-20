@@ -1,8 +1,8 @@
-# ADR-009: Mutual Connection graph and 4-tier identity visibility
+# ADR-009: Mutual Connection graph, identity visibility, and anti-engagement ranking posture
 
-**Status:** Accepted 2026-05-19
+**Status:** Accepted 2026-05-19 (revised 2026-05-20 — added D4 anti-engagement ranking principle per kb-4pj)
 **Parent:** [ADR-007 D1 + D6 unified Profile + Follow](ADR-007-profile-centric-schema.md)
-**Scope:** social-graph primitives (mutual friendship) + Profile-level identity visibility tiers + event-page social-proof surface — Phase 0.5+. Extends ADR-007's Profile/Follow architecture with a third orthogonal social-graph primitive (User↔User, not Profile-centric).
+**Scope:** social-graph primitives (mutual friendship) + Profile-level identity visibility tiers + event-page social-proof surface + feed-ranking posture (D4) — Phase 0.5+. Extends ADR-007's Profile/Follow architecture with a third orthogonal social-graph primitive (User↔User, not Profile-centric) and binds the kb-fx9 D7 multi-feed surface to a bounded-strata ranking rule.
 
 ## Context
 
@@ -110,7 +110,7 @@ Connection-acceptance constitutes consent for the connected User to see your RSV
 **Rationale:**
 - `direct:` kb-fx9 D7 — Network RSVPs signal is the V0 differentiator; D3 here is the user-facing surface.
 - `external:` Scout findings — friend-graph-driven event discovery is the gap modern event platforms left.
-- `reasoned:` Vouchers / vouchees are NOT surfaced in this overlay (only Connections are). Vouch graph feeds For-You *ranking* (kb-fx9 D7) — internal scoring — but does not surface named in the public overlay. Vouching is reputation-private; Connection is mutual disclosure.
+- `reasoned:` Vouchers / vouchees are NOT surfaced in this overlay (only Connections are). Vouch graph feeds For-You *ranking* (kb-fx9 D7) — internal scoring, bounded-strata per D4 below — but does not surface named in the public overlay. Vouching is reputation-private; Connection is mutual disclosure.
 
 **Alternatives:**
 
@@ -123,6 +123,35 @@ Connection-acceptance constitutes consent for the connected User to see your RSV
 
 **What would invalidate this:** Pattern where users opt out at high rates (e.g., >20% of Connections explicitly block social-proof on their RSVPs) signals the overlay wasn't wanted. Less obvious signal: D3 overlay always shows zero friends-going for >50% of vouched users — means the Connection graph isn't dense enough to populate the surface, which feeds back to D1 invalidation.
 
+### D4: Anti-engagement ranking principle (no global popular feed; engagement bounded within strata)
+
+**Firmness: FLEXIBLE** — added 2026-05-20 per kb-4pj `/brainstorm` → `/adversarial-review` (verdict:pass) → `/adr-write` chain. FLEXIBLE rather than FIRM because the decision binds an unshipped surface (kb-fx9 D7 feeds); a substantive real-world observation (e.g., cold-start Discover failure for 6+ months across multiple user cohorts) is sufficient warrant to mutate. Substrate motivation is strong external prior art (FetLife critique digest) + V0-clear product conviction, but dogfooding signal is zero per ADR-012 D6.
+
+No platform discovery surface ever computes a global engagement-optimized ranking across all content. Engagement signals (RSVPs, follows, attendance, reactions) are permitted **only within bounded strata**; aggregation across strata into a single global ranking is structurally not done. Concretely:
+
+- **(a) Hard absence of a global-popular feed.** No unified "popular" / "trending" / "top across Switch Berlin" feed is permitted alongside or inside the kb-fx9 D7 three-feed architecture (Following / For-You / Discover). The absence is the load-bearing structural constraint — without it, the architecture's three-feed shape is decorative, not protective.
+- **(b) For-You ranking bound.** The ranking referenced in D3 (Vouch + Connection signals feeding For-You internal scoring per kb-fx9 D7) operates only on bounded-strata inputs. The specific signal sources for For-You remain EXPLORATORY per kb-fx9 D7 (pending kb-2ve Sub-Q1 platform-positioning brainstorm), but no formulation may route cross-strata engagement aggregation into For-You ranking.
+- **(c) Discover ranking bound.** Discover (the "outside your network" feed per kb-4pj D2) uses stratified sampling with bounded engagement signal within strata. The specific strata dimensions (geographic / categorical / organizer / temporal / kink-type / other) and the generator mechanism are EXPLORATORY (kb-4pj D4 and D7); the *posture* (no global aggregation) is what's bound here.
+
+**Counter-argument (FLEXIBLE-path):** The alternative is to allow global engagement signals as one input among many in ranking — let the implementing engineer decide weights per-surface, treating "no monoculture" as documentation rather than substrate. Counter: this is the FetLife K&P-shape failure mode. K&P never claimed to be engagement-only; engagement was one signal weighted among many in a global ranking, and the demographic-skew feedback loop emerged anyway (popular → more views → more popular → demographic concentration). The structural absence of a global-popular surface is the only design that survives implementation drift; allowing it "as one input among many" is the path that leads to the K&P shape via incremental re-weighting. FLEXIBLE rather than FIRM acknowledges that a real-world observation (Discover too sparse to be useful) could legitimately re-open this — but a hypothetical "users want trending" without that signal is not sufficient warrant.
+
+**Rationale:**
+- `external:` FetLife critiques (Maymay 2011 "FetLife Considered Harmful," Lunas 2013 "Got Consent? III: FetLife Doesn't Get It," Atlantic 2015, Frisky Fairy 2015, Maymay 2015 Creep List) — global engagement optimization reproduces demographic-skew monoculture. Full citation chain in `history/fetlife-critique-digest.md`. Most pointed datum: Maymay 2015 cross-reference showing ~73% male paying-customer base reproducing the FetLife "Kinky & Popular" demographic surface.
+- `direct:` kb-4pj D1 + D2 (Land discovery posture) — user-confirmed posture from `/brainstorm` session, `/adversarial-review` verdict:pass after one-round fold-in.
+- `reasoned:` Bounded-strata engagement preserves the relevance signal users actually want (what's popular in *my* scene segment) without producing the cross-scene feedback loop. The structural commitment is to never compute a single global ranking; what counts as a stratum is left FLEXIBLE / EXPLORATORY per kb-4pj D4 (resolved per-implementation in kb-fx9 / descendants).
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| Allow global engagement signals as one input among many in ranking | `external:` FetLife K&P feedback loop per critique digest; the "one input among many" framing is exactly how K&P happened — engagement was never the only signal, it was weighted-but-not-sole and the optimization loop pulled toward demographic concentration. |
+| Anti-engagement absolute (no engagement signal anywhere, structural rotation only) | `reasoned:` engagement-within-strata is useful for surfacing genuinely relevant content within the scope a user has selected; eliminating engagement entirely produces a feed that feels mechanical and assumes structural categories alone capture relevance, which they don't. |
+| Diversity floor (positive constraint with demographic quotas across surfaces) | `reasoned:` operationalizing "diversity" via quotas requires choosing canonical axes (gender, sexuality, race, body, age, kink-type) and assigning weights — itself a contested editorial act that creates a different monoculture risk (the platform's chosen diversity definition becomes canonical). |
+| Allow global "popular" feed but mark it opt-in | `reasoned:` opt-in doesn't break the feedback loop — once the surface exists, its computation runs platform-wide regardless of who views it; the K&P demographic skew shows up the moment the signal is computed. The hard absence is what makes the posture load-bearing. |
+| Cap any single organizer/category at X% of a global-popular surface | `reasoned:` does not solve monoculture, only fragments it; the platform still computes a global ranking, just with a post-hoc fairness filter applied. The K&P feedback loop runs underneath. |
+
+**What would invalidate this:** A pattern where bounded-strata engagement is insufficient for cold-start discovery (e.g., 6+ months of Discover usage shows new users never finding events outside their immediate network across multiple cohorts) AND an explicit decision to accept K&P-shape risk for some user segment as a trade for cold-start UX. Either signal alone is insufficient — the K&P risk is the structural concern, not a soft preference. Less obvious signal: a real-world implementation discovers that "bounded strata" is not operationalizable at our scale (strata are either so coarse they're effectively global, or so fine they produce no signal), in which case D4 reformulates (e.g., to "engagement signals are user-explicit-only" or "engagement is time-bounded only") rather than dies.
+
 ## Consequences
 
 ### Direct
@@ -130,6 +159,7 @@ Connection-acceptance constitutes consent for the connected User to see your RSV
 - New table `Connection(initiator, receiver, status, requested_at, accepted_at, declined_at)` with bidirectional uniqueness constraint.
 - Visibility-tier enum for `Profile.identity_visibility_surface` and `Profile.identity_visibility_kink` extends from 3 to 4 values (adds `friends` between `vouched` and `private`); migration is additive enum value.
 - Event RSVP-list query adds a Connection-JOIN to fetch "named friends going" for the viewer; small JOIN on accepted-Connection rows.
+- D4 binds the kb-fx9 D7 feed-ranking surface to bounded-strata signal only; no global engagement aggregation. Future feed implementations in kb-fx9 / descendants cite D4 as the constraint on signal scope. No new schema is implied by D4 itself — the bound is on aggregation queries, not on signal capture (per-event/per-organizer denorm aggregates from ADR-003 F8 remain unchanged).
 
 ### Carried forward
 
@@ -151,10 +181,16 @@ Connection-acceptance constitutes consent for the connected User to see your RSV
 - [ADR-003 F3](ADR-003-cheap-foresight-patterns.md) — Tag.kind enum extended by kb-fx9 D1; D2 visibility tiers apply to those identity-disclosure surfaces.
 - [ADR-006 D1](ADR-006-legal-gate-execution.md) — Art. 9 consent for special-category data; D2 `friends` tier accept-UX is the consent vehicle for connected-User disclosure.
 - [ADR-008 D1](ADR-008-code-posture-refactor-hard-fail-loud.md) — per-decision predicates; this ADR's decisions all carry firmness + rationale + alternatives + invalidation.
-- `kb-fx9` (Ship social foundation) — bead-substrate D3, D4, D7 that this ADR canonicalizes.
+- `kb-fx9` (Ship social foundation) — bead-substrate D3, D4, D7 that this ADR canonicalizes. D4 of this ADR binds kb-fx9 D7's three-feed ranking surface to bounded-strata signal.
 - `kb-m69` (Identity / trust / visibility-tier substrate) — D3 (3-tier visibility) extended here to 4-tier; D6 vouching is orthogonal trust graph.
 - `kb-svg` (Defer native messaging) — deferred design home for Connection's DM-bypass behavior (M1, M2); D1 of this ADR ships graph-only V0 because of kb-svg's deferral.
+- `kb-4pj` (Land discovery posture) — `/brainstorm` + `/adversarial-review` (verdict:pass) substrate that motivated D4 of this ADR. Acceptance contract on kb-4pj is satisfied by this revision.
+- `kb-2ve` (Long-term platform vision brainstorm — Sub-Q1 platform-positioning) — open dependency; resolution may narrow kb-fx9 D7's For-You signal sources (D4 (b) above) but does not invalidate D4's posture.
+- [ADR-003 F8](ADR-003-cheap-foresight-patterns.md) — denormalized per-event/per-organizer aggregates pattern; D4 of this ADR adds the posture that no global cross-strata rollup is computed on top.
+- [ADR-012 D6](ADR-012-substrate-thick-process-thin.md) — dogfooding bar; cited in D4's FLEXIBLE-firmness rationale (decision binds an unshipped surface; substantive observation is sufficient warrant to mutate).
+- [ADR-013 D3](ADR-013-memory-layer-architecture.md) — firmness-governed mutation rule; D4 firmness path is FLEXIBLE per this ADR.
 - `history/scout-features-switch-berlin-2026-05-18.md` — FetLife / Diversia / Bluesky / Partiful / Lu.ma scout grounding the modern-platform-pattern comparison in D1 rationale.
+- `history/fetlife-critique-digest.md` — synthesized digest of FetLife critique sources (Bandana Blog 2015, Disrupting Dinner Parties / Lunas 2013, Maymay 2011 + 2015, Atlantic 2015, Frisky Fairy 2015, Sex and the 405 2012) grounding D4's external-evidence warrants.
 
 ## Open questions deferred
 
