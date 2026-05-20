@@ -66,6 +66,10 @@ _Add a brief overview of your project architecture_
 
 ## Conventions & Patterns
 
+### Decisions
+
+Cross-cutting load-bearing decisions live in [`docs/decisions/`](docs/decisions/INDEX.md). Start at the INDEX for the scope-tagged ADR table and "when to consult" guidance. ADRs evolve in place; never silently contradict a FIRM decision.
+
 ### Code posture (V0, pre-launch)
 
 Refactor hard, fail loud. See [ADR-008](docs/decisions/ADR-008-code-posture-refactor-hard-fail-loud.md) for the binding decisions:
