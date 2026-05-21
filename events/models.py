@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from a_core.validators import validate_image_size
+from events.managers import EventManager
 
 # Sentinel for "no value supplied" — distinguishes organizer=None from not set.
 _UNSET = object()
@@ -107,11 +108,6 @@ class EventFacilitator(models.Model):
         return f"{self.profile} — {self.event}{role_str}"
 
 
-class EventManager(models.Manager):
-    def visible(self):
-        return self.filter(hidden=False)
-
-
 class Event(models.Model):
     objects = EventManager()
 
@@ -212,6 +208,22 @@ class Event(models.Model):
     )
     published_at = models.DateTimeField(null=True, blank=True)
 
+    # Visibility tier (ADR-012 D1)
+    visibility = models.CharField(
+        max_length=20,
+        choices=[
+            ("public", "Public"),
+            ("semi_public", "Semi-public"),
+            ("unlisted", "Unlisted"),
+        ],
+        default="public",
+        help_text=(
+            "public: anyone, indexed. "
+            "semi_public: vouched users only, noindex. "
+            "unlisted: URL-keyed only, noindex."
+        ),
+    )
+
     # Aggregate / visibility fields (Phase 0.5)
     hidden = models.BooleanField(default=False)
     attendance_count = models.IntegerField(default=0)
@@ -309,6 +321,16 @@ class Event(models.Model):
     def primary_organizer(self):
         """Alias for event.organizer (explicit form preferred in new code)."""
         return self.organizer
+
+    @property
+    def is_indexable(self) -> bool:
+        """True iff robots may index this event (ADR-012 D4).
+
+        Only public-tier events are search-engine indexable. semi_public and
+        unlisted carry X-Robots-Tag: noindex (set by kb-m69.6 middleware) and
+        are excluded from the sitemap.
+        """
+        return self.visibility == "public"
 
 
 class Attendance(models.Model):

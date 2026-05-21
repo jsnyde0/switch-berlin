@@ -28,8 +28,8 @@ def event_list(request):
     _t0 = time.perf_counter()
     now = timezone.now()
     qs = (
-        Event.objects.visible()
-        .filter(status="published", start__gte=now)
+        Event.objects.visible_to(request.user)
+        .filter(hidden=False, status="published", start__gte=now)
         .select_related("venue")
         .prefetch_related("tags", "event_organizer_set__profile")
     )
@@ -275,8 +275,8 @@ def event_list(request):
 
 def event_drawer(request, org_slug, event_slug):
     event = get_object_or_404(
-        Event.objects.visible()
-        .filter(status="published")
+        Event.objects.visible_to(request.user)
+        .filter(hidden=False, status="published")
         .select_related("venue")
         .prefetch_related("event_organizer_set__profile")
         .filter(
@@ -315,8 +315,9 @@ def event_drawer(request, org_slug, event_slug):
 
 def event_detail(request, org_slug, event_slug):
     qs = (
-        Event.objects.visible()
+        Event.objects.visible_to(request.user)
         .filter(
+            hidden=False,
             event_organizer_set__profile__slug=org_slug,
             event_organizer_set__is_primary=True,
             slug=event_slug,
@@ -378,8 +379,9 @@ def event_attend(request, org_slug, event_slug):
         return render(request, "events/_consent_required.html", {}, status=200)
 
     event = get_object_or_404(
-        Event.objects.visible()
+        Event.objects.visible_to(request.user)
         .filter(
+            hidden=False,
             event_organizer_set__profile__slug=org_slug,
             event_organizer_set__is_primary=True,
         )
