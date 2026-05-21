@@ -1,13 +1,13 @@
 # ADR-012: Event visibility tiers and access-control matrix
 
 **Status:** Accepted 2026-05-21
-**Scope:** Per-Event visibility model — `Event.visibility` enum, source-derived defaults, viewer-tier access matrix, robot indexing semantics. Companion to ADR-009 D2 (Profile identity visibility). The sibling User trust model — `User.status` tiers, vouch graph, invite economy — is the scope of a forthcoming ADR (kb-m69 D1 + D4 + D6 + D9 substrate); this ADR references "vouched User" as a term that ADR will canonicalize.
+**Scope:** Per-Event visibility model — `Event.visibility` enum, source-derived defaults, viewer-tier access matrix, robot indexing semantics. Companion to ADR-009 D2 (Profile identity visibility). The sibling User trust model — `User.status` tiers, vouch graph, invite economy — is the scope of [ADR-013](ADR-013-user-trust-model.md) (kb-m69 D1 + D4 + D6 + D9 substrate); this ADR references "vouched User" as a term that ADR canonicalizes.
 
 ## Context
 
 Per-Event visibility lived only in bead substrate (kb-m69 D5, "FIRM" by the brainstorm's own tag) prior to this ADR. The pre-public-flip checklist (kb-9hw — Bundle B `PUBLIC_READ_ENABLED` cutover) initially assumed a single master switch — "flip → every published Event anonymously readable" — which conflicts with kb-m69 D5's source-tier-derived semantics. Without an ADR home, the per-Event tier decision was not citable as binding, and kb-m69 itself flagged the gap (*"D5 — touches event schema, query patterns, robot indexing, UI surfaces. Probably its own ADR. Route to `/adr-write` with action `compose new ADR`."*).
 
-ADR-009 D2 (4-tier *Profile* identity visibility — `public > vouched > friends > private`) already canonicalizes the "vouched User" audience-tier semantics for Profile-side fields. This ADR canonicalizes the *Event*-side surface that pairs with it. The two surfaces share the `vouched` audience-tier concept (the bridge term canonicalized by the forthcoming User-trust-model ADR), but the tier *enums* diverge — Events have a URL-keyed `unlisted` tier that Profiles don't, Profiles have a `friends` tier that Events don't. The divergence is deliberate: Event visibility and Profile identity visibility serve different audiences and use different mechanisms.
+ADR-009 D2 (4-tier *Profile* identity visibility — `public > vouched > friends > private`) already canonicalizes the "vouched User" audience-tier semantics for Profile-side fields. This ADR canonicalizes the *Event*-side surface that pairs with it. The two surfaces share the `vouched` audience-tier concept (the bridge term canonicalized by [ADR-013](ADR-013-user-trust-model.md)), but the tier *enums* diverge — Events have a URL-keyed `unlisted` tier that Profiles don't, Profiles have a `friends` tier that Events don't. The divergence is deliberate: Event visibility and Profile identity visibility serve different audiences and use different mechanisms.
 
 Per the global dogfooding bar (`~/.claude/docs/decisions/ADR-012-substrate-thick-process-thin.md` D6 — note same-number-different-content collision, see Open questions deferred), the tier model is authored as **EXPLORATORY** rather than FIRM. No implementation has dogfooded the 3-tier shape; a 4-tier refinement (registered-but-not-vouched as a distinct tier between `public` and `vouched`) is a plausible evolution on real-usage signal and is preserved as D1's invalidation path.
 
@@ -24,7 +24,7 @@ Event.visibility ∈ {'public', 'semi_public', 'unlisted'}
 | Tier | Audience | Discoverable how | URL alone grants access? |
 |---|---|---|---|
 | `public` | Anyone, no login | On-site search, listings, robots-indexed, sitemap | Yes (trivially — anonymous can navigate to it) |
-| `semi_public` | Any vouched User (term canonicalized by forthcoming User-trust-model ADR; bead substrate kb-m69 D4) | On-site, after login as a vouched User; `noindex`, excluded from sitemap | **No** — URL alone does not bypass tier |
+| `semi_public` | Any vouched User (term canonicalized by [ADR-013](ADR-013-user-trust-model.md); bead substrate kb-m69 D4) | On-site, after login as a vouched User; `noindex`, excluded from sitemap | **No** — URL alone does not bypass tier |
 | `unlisted` | Anyone with the URL | URL only — not findable, not listed, `noindex` | **Yes** — URL is the capability |
 
 On-site (non-URL) tier ordering is monotonic: `public ⊃ semi_public`. The `unlisted` tier is orthogonal — URL-keyed rather than audience-keyed — and does not fit the on-site ordering. The asymmetry is deliberate (see D3 and Alternatives).
@@ -61,7 +61,7 @@ When an Event is created via the ingestion pipeline or admin-curated import, its
 
 If an Event is observed at multiple sources, the maximum public tier across them wins (`public > semi_public > unlisted`). The "max" rule prevents a labeling lie — if the event is *already* public on a scraped source, defaulting to a lower tier would misrepresent its actual reach.
 
-Organizer override: after the organizer has claimed the Profile (per forthcoming Profile-claim ADR; bead substrate kb-m69 D1), they may set `Event.visibility` to any tier from the Event-edit page. **Manual override is always honored** and survives subsequent re-ingestion — it does not revert to source-derived default.
+Organizer override: after the organizer has claimed the Profile (per [ADR-014](ADR-014-profile-claim-flow.md); bead substrate kb-m69 D1), they may set `Event.visibility` to any tier from the Event-edit page. **Manual override is always honored** and survives subsequent re-ingestion — it does not revert to source-derived default.
 
 **Rationale:**
 - `direct:` kb-m69 D5 — "max(public) wins" framed by the brainstorm.
@@ -90,7 +90,7 @@ The access matrix for `Event.visibility` × viewer status:
 | `semi_public` | ✗ (login redirect) | ✗ (vouching-gate page) | ✓ visible, `noindex`, no sitemap | ✗ (URL alone does NOT bypass tier) |
 | `unlisted` | ✗ | ✗ | ✗ | ✓ visible (URL-keyed), `noindex`, no sitemap |
 
-`User.status` semantics (`open` vs `vouched` vs `suspended_pending_investigation` vs `banned`) are canonicalized by the forthcoming User-trust-model ADR; this ADR references the terms. Suspended and banned Users are blocked from all non-public reads regardless of URL holding.
+`User.status` semantics (`open` vs `vouched` vs `suspended_pending_investigation` vs `banned`) are canonicalized by [ADR-013](ADR-013-user-trust-model.md); this ADR references the terms. Suspended and banned Users are blocked from all non-public reads regardless of URL holding.
 
 Robot indexing follows the tier directly:
 - `public` → `Allow: /events/<slug>` in `robots.txt`; included in sitemap; no `X-Robots-Tag` suppression.
@@ -127,7 +127,7 @@ Per ADR-008 D3 (fail loud on data integrity), a missing or invalid `Event.visibi
 
 ### Carried forward
 
-- ADR-009 D2 (4-tier Profile identity visibility — `public > vouched > friends > private`) holds. This ADR's 3-tier Event visibility uses **different** tier names because the audience semantics differ — Event has the URL-keyed `unlisted` tier that Profile doesn't; Profile has the `friends` tier that Event doesn't. Both ADRs share the `vouched` audience-tier concept, which becomes the bridge term canonicalized by the forthcoming User-trust-model ADR.
+- ADR-009 D2 (4-tier Profile identity visibility — `public > vouched > friends > private`) holds. This ADR's 3-tier Event visibility uses **different** tier names because the audience semantics differ — Event has the URL-keyed `unlisted` tier that Profile doesn't; Profile has the `friends` tier that Event doesn't. Both ADRs share the `vouched` audience-tier concept, which becomes the bridge term canonicalized by [ADR-013](ADR-013-user-trust-model.md).
 - ADR-006 D1 (Art. 9 consent for attendance) holds. Visibility-tier gates *who can see* the Event; attendance-consent gates *whether seeing implies opting into the attendance Art. 9 surface*. The two gates compose orthogonally.
 - ADR-001 D1 (curated-trust) holds. The `vouched`-tier audience extends the curation model; this ADR does not expand the trust posture itself.
 - ADR-002 D4 (banned-without-flag list) holds. Public share-links with OG previews, public RSS, embed widgets, third-party embedded maps, email notifications, event-level reviews displayed — all remain banned without their own respective flags even when an Event is `public`-tier. `public`-tier means "anonymously readable on-site"; it does not auto-enable cross-platform distribution surfaces.
@@ -147,7 +147,7 @@ Per ADR-008 D3 (fail loud on data integrity), a missing or invalid `Event.visibi
 - [ADR-007 D1](ADR-007-profile-centric-schema.md) — unified Profile (`kind`); the Event↔Profile relationship that this ADR's tier-on-Event sits alongside.
 - [ADR-008 D1, D3](ADR-008-code-posture-refactor-hard-fail-loud.md) — per-decision predicates; fail-loud on missing visibility values.
 - [ADR-009 D2](ADR-009-mutual-connection-graph-and-identity-visibility.md) — Profile identity visibility tiers (sibling visibility surface); shared `vouched` audience-tier semantics.
-- `kb-m69` (Identity / trust / visibility-tier substrate) — D5 brainstorm-substrate that this ADR canonicalizes; D1 + D4 + D6 + D9 (User trust model) is the scope of a forthcoming sibling ADR.
+- `kb-m69` (Identity / trust / visibility-tier substrate) — D5 brainstorm-substrate that this ADR canonicalizes; D1 + D4 + D6 + D9 (User trust model) is the scope of sibling [ADR-013](ADR-013-user-trust-model.md).
 - `kb-fx9` D14 — RSVP-visibility downstream surface (FLEXIBLE in the bead); composes on top of this ADR's Event tier.
 - `kb-9hw` (Bundle B public-read flip) — operational checklist whose semantics this ADR refines (per-Event tier governs anonymous-read scope, not a single master switch).
 - `~/.claude/docs/decisions/ADR-012-substrate-thick-process-thin.md` D6 — dogfooding bar (global ADR; cited by name only — same-number-different-content collision with this project ADR noted in Open questions).
@@ -159,9 +159,9 @@ Per ADR-008 D3 (fail loud on data integrity), a missing or invalid `Event.visibi
 
 | Question | Resolution path |
 |---|---|
-| User trust model (`User.status` enum, signup paths, Vouch graph, invite economy) | Forthcoming sibling ADR — next `/adr-write` cycle. Bead substrate: kb-m69 D1 + D4 + D6 + D9. |
-| Profile claim flow (web-first claim + email-domain fast-path + admin-review fallback) | Forthcoming sibling ADR after the trust-model ADR. Bead substrate: kb-m69 D1. |
+| User trust model (`User.status` enum, signup paths, Vouch graph, invite economy) | Canonicalized in [ADR-013](ADR-013-user-trust-model.md) (2026-05-21). Bead substrate: kb-m69 D1 + D4 + D6 + D9. |
+| Profile claim flow (web-first claim + email-domain fast-path + admin-review fallback) | Canonicalized in [ADR-014](ADR-014-profile-claim-flow.md) (2026-05-21). Bead substrate: kb-m69 D1. |
 | 4-tier promotion (split `semi_public` into registered-but-not-vouched + vouched-only) | D1 invalidation predicate; promote on real-usage signal. Not blocking V0. |
 | Per-Event share-token (capability URL for fine-grained sharing) | Defer; V1+ if `unlisted` proves insufficient for sharing patterns. |
 | ACL-style per-User access on individual Events | Defer; V1+ if `unlisted` URL distribution proves insufficient for the share-with-specific-people case. |
-| Project-vs-global ADR numbering collision (project ADR-012 `event-visibility-tiers` vs global ADR-012 `substrate-thick-process-thin`, both cited by ADR-009) | File a `discovered-from` bead for renumbering / scope-prefix / accept-as-documented. Not blocking this write. |
+| Project-vs-global ADR numbering collision (project ADR-012 `event-visibility-tiers` vs global ADR-012 `substrate-thick-process-thin`, both cited by ADR-009) | Resolved by kb-5xs (2026-05-21) to option (c): accept collision; global references in project ADRs cite by full path (`~/.claude/docs/decisions/ADR-NNN-...md`); same convention applies to project ADR-013 vs global ADR-013. |
