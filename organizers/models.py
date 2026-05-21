@@ -55,6 +55,19 @@ class Profile(models.Model):
         blank=True,
     )
 
+    # Claim fast-path (ADR-014 D2 — email-domain fast-path, admin-set opt-in)
+    verified_domain = models.CharField(
+        max_length=253,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text=(
+            "Admin-set domain for email-domain fast-path claim verification "
+            "(ADR-014 D2). If set, users whose email matches this domain can "
+            "claim this profile via magic-link without admin review."
+        ),
+    )
+
     # Trust tier
     status = models.CharField(
         choices=[
