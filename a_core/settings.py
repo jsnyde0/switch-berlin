@@ -126,6 +126,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    # Response-phase: set X-Robots-Tag for non-public Event responses (ADR-012 D3).
+    "events.middleware.XRobotsTagMiddleware",
 ]
 
 ROOT_URLCONF = "a_core.urls"

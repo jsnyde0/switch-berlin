@@ -315,7 +315,7 @@ def event_drawer(request, org_slug, event_slug):
 
 def event_detail(request, org_slug, event_slug):
     qs = (
-        Event.objects.visible_to(request.user)
+        Event.objects.visible_to_url(request.user)
         .filter(
             hidden=False,
             event_organizer_set__profile__slug=org_slug,
@@ -330,6 +330,8 @@ def event_detail(request, org_slug, event_slug):
     event = qs.first()
     if event is None:
         raise Http404
+    # Annotate resolved event on request so XRobotsTagMiddleware can set headers.
+    request._resolved_event = event
     # Use generator over prefetch cache — avoids a second DB query from .filter()
     cover_image = next((img for img in event.images.all() if img.is_cover), None)
     if request.user.is_authenticated:
