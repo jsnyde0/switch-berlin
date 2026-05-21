@@ -314,7 +314,7 @@ def test_anonymous_user_same_visibility_as_authenticated(org, db):
     auth_user = User.objects.create_user(
         username="auth_test", email="auth@example.com", password="testpass"
     )
-    auth_user.is_approved = True
+    auth_user.status = "vouched"
     auth_user.save()
     auth_client = Client()
     auth_client.force_login(auth_user)

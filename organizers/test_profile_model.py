@@ -6,10 +6,13 @@ They describe the target state of the model after the rename.
 
 Written per ADR-007 D1 (FIRM):
   - unified Profile model with kind discriminator (person/collective)
-  - claimed_by FK to User (D5 FIRM)
+  - ProfileClaim through-model for M2M User claim (D5 revised 2026-05-21 per ADR-014 D1)
   - pronouns field
   - telegram_link (renamed from telegram_channel)
   - all existing fields preserved
+
+Note: claimed_by FK removed per kb-m69.3 (ADR-008 D1 no compat shim).
+claim semantics now via ProfileClaim through-model (ADR-014 D1).
 """
 
 import pytest
@@ -103,18 +106,18 @@ def test_profile_pronouns_blank_by_default():
 
 
 @pytest.mark.django_db
-def test_profile_claimed_by_nullable():
-    """Profile claimed_by accepts null (unclaimed)."""
+def test_profile_no_claimed_by_field():
+    """Profile no longer has claimed_by FK — replaced by ProfileClaim through-model (ADR-014 D1)."""
     from organizers.models import Profile
 
     p = Profile.objects.create(name="Unclaimed", slug="unclaimed")
-    assert p.claimed_by is None
+    assert not hasattr(p, "claimed_by")
 
 
 @pytest.mark.django_db
-def test_profile_claimed_by_accepts_user():
-    """Profile claimed_by accepts a User FK."""
-    from organizers.models import Profile
+def test_profile_claimants_m2m_via_profile_claim():
+    """Profile.claimants M2M via ProfileClaim works; user.claimed_profiles reverse works."""
+    from organizers.models import Profile, ProfileClaim
 
     user = User.objects.create_user(
         username="claimant",
@@ -126,38 +129,23 @@ def test_profile_claimed_by_accepts_user():
         slug="claimed-profile",
         kind="person",
     )
-    p.claimed_by = user
-    p.save()
-    p.refresh_from_db()
-    assert p.claimed_by == user
+    ProfileClaim.objects.create(
+        profile=p,
+        user=user,
+        verified_method="admin_legacy",
+        role="admin",
+    )
+    assert user in p.claimants.all()
+    assert p in user.claimed_profiles.all()
 
 
 @pytest.mark.django_db
-def test_profile_claimed_by_related_name():
-    """User.claimed_profiles reverse accessor works."""
-    from organizers.models import Profile
-
-    user = User.objects.create_user(
-        username="claimer2",
-        email="claimer2@example.com",
-        password="x",
-    )
-    Profile.objects.create(
-        name="My Profile",
-        slug="my-profile",
-        kind="person",
-        claimed_by=user,
-    )
-    assert user.claimed_profiles.count() == 1
-
-
-@pytest.mark.django_db
-def test_profile_claimed_at_nullable():
-    """Profile claimed_at is nullable DateTimeField."""
+def test_profile_is_claimed_false_unclaimed():
+    """Profile.is_claimed is False when there are no ProfileClaim rows."""
     from organizers.models import Profile
 
     p = Profile.objects.create(name="Unclaimed2", slug="unclaimed2")
-    assert p.claimed_at is None
+    assert p.is_claimed is False
 
 
 @pytest.mark.django_db

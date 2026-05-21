@@ -23,7 +23,7 @@ This ADR canonicalizes the claim-flow primitives so those downstream surfaces ha
 
 ## Decisions
 
-### D1 — Multi-claimant `ProfileClaim` through-model replaces single-FK ownership
+### D1 — Multi-claimant `ProfileClaim` through-model replaces single-FK ownership (revised 2026-05-21)
 
 **Decision:** Replace ADR-007 D5's `Profile.claimed_by = FK(User, null=True)` with a `ProfileClaim` through-model. A Profile has 0–N claims; each claim is one verified (User, Profile) pair.
 
@@ -32,15 +32,27 @@ ProfileClaim(
     profile           = FK(Profile),
     user              = FK(User),
     verified_at       = DateTime,
-    verified_method   = CharField,  # "email_domain" | "admin_review" | ...
-    verified_by_admin = FK(User, null=True),  # NULL for email_domain auto-verify
+    verified_method   = CharField,  # canonical enum — see vocabulary below
+    verified_by_admin = CharField(null=True),  # NULL for email_domain/auto_self; admin username string for admin_review/admin_legacy
     role              = CharField,  # V0: always "admin"; cheap foresight for "contributor" etc.
     created_at        = DateTime,
+    rejected_at       = DateTime(null=True),    # cheap foresight soft-delete (ADR-003); S9 populates on revoke
+    rejected_by_admin = CharField(null=True),   # cheap foresight soft-delete (ADR-003); S9 populates on revoke
 )
 # unique_together = (profile, user)
 ```
 
-Ergonomic accessors: `profile.claimants.all()`, `user.claimed_profiles.all()`, `profile.is_claimed` (= `claimants.exists()`).
+`verified_method` canonical vocabulary:
+- `"email_domain"` — email-domain fast-path (S8: submitted email matches `Profile.verified_domain`; auto-claim on magic-link click)
+- `"admin_review"` — admin-review fallback track (S8: no domain match; S9 admin approves ClaimIntent → ProfileClaim)
+- `"admin_legacy"` — data-migration backfill (S3: existing `Profile.claimed_by` FK rows → ProfileClaim with this method)
+- `"auto_self"` — signup-time auto-claim of the user's own `kind=person` Profile (S4: allauth adapter hook on User creation)
+
+Ergonomic accessors:
+- `profile.claimants.all()` — all Users with a ProfileClaim row (including revoked)
+- `profile.active_claimants` — Users with `ProfileClaim.rejected_at IS NULL` (non-revoked claims only)
+- `user.claimed_profiles.all()` — all Profiles claimed by this user (including revoked)
+- `profile.is_claimed` — `active_claimants.exists()` (True if at least one non-revoked claim exists)
 
 **Firmness:** EXPLORATORY (overall — pending dogfooding); the through-model **shape** is the canonical schema replacement of D5 (FIRM evolution per ADR-011 D1, decision-property unchanged: "Profiles are claimable"). EXPLORATORY governs the `role` semantics, the `verified_method` enum vocabulary, and whether admin can revoke a claim.
 
