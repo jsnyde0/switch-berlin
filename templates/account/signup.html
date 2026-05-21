@@ -63,6 +63,18 @@
                required>
         {% if form.password2.errors %}<div class="text-error text-sm mt-1">{{ form.password2.errors }}</div>{% endif %}
       </label>
+      {# Optional invite code field — kb-m69.7 vouched signup path #}
+      <label class="form-control">
+        <div class="label">
+          <span class="label-text">{% trans "Invite code" %} <span class="text-xs text-base-content/50">({% trans "optional" %})</span></span>
+        </div>
+        <input type="text"
+               name="invite_code"
+               class="input input-bordered"
+               placeholder="{% trans "Enter invite code if you have one" %}"
+               value="{{ form.invite_code.value|default:'' }}">
+        {% if form.invite_code.errors %}<div class="text-error text-sm mt-1">{{ form.invite_code.errors }}</div>{% endif %}
+      </label>
       {# Cloudflare Turnstile widget — JS fills the hidden turnstile_token field #}
       <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
       {% if form.turnstile_token.errors %}

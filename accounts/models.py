@@ -73,6 +73,12 @@ def generate_code():
 
 
 class InviteCode(models.Model):
+    """Single-use invite code owned by a grantor (vouched user or staff for admin-grants).
+
+    Per ADR-013 D6 (V0 admin-grant invite economy).
+    Per ADR-008 D3 (fail loud on invalid invite — usable() predicate).
+    """
+
     code = models.CharField(max_length=48, unique=True, default=generate_code)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -80,6 +86,16 @@ class InviteCode(models.Model):
         related_name="invites_created",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    # Single-use enforcement fields (kb-m69.7)
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invite_used",
+    )
+    used_at = models.DateTimeField(null=True, blank=True)
+    # Legacy fields — kept for compatibility with NoSignupAdapter (phase 0.4)
     redeemed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -91,5 +107,85 @@ class InviteCode(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
+    def usable(self) -> bool:
+        """Return True if this code can still be used to sign up.
+
+        Per ADR-013 D6 (single-use enforcement).
+        Per ADR-008 D3 (fail loud — callers must call usable() before redeeming).
+        """
+        from django.utils import timezone
+
+        if self.used_at is not None:
+            return False
+        if self.expires_at is not None and self.expires_at <= timezone.now():
+            return False
+        return True
+
     def __str__(self):
         return self.code[:12]
+
+
+class Vouch(models.Model):
+    """Directed trust relationship: voucher vouches for vouchee.
+
+    Per ADR-013 D3 (Vouch graph).
+    Per ADR-003 (cheap-foresight cancelled_at — cancellation logic activates in F1 bead).
+    """
+
+    voucher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="vouches_given",
+    )
+    vouchee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="vouches_received",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Cheap-foresight (ADR-003): cancellation logic activates in kb-a3a bead
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = [("voucher", "vouchee")]
+        verbose_name = _("vouch")
+        verbose_name_plural = _("vouches")
+
+    def __str__(self):
+        return f"{self.voucher} → {self.vouchee}"
+
+
+class InviteGrant(models.Model):
+    """Audit log: records each time an invite code was redeemed to create a vouched user.
+
+    Per ADR-013 D4 (InviteGrant audit-log model).
+    Per ADR-003 (cheap-foresight — grantor nullable for admin-grants).
+    """
+
+    # Nullable: admin-grants have no individual grantor (ADR-003)
+    grantor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invite_grants_given",
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="invite_grants_received",
+    )
+    invite_code = models.ForeignKey(
+        InviteCode,
+        on_delete=models.PROTECT,
+        related_name="grants",
+    )
+    granted_at = models.DateTimeField(auto_now_add=True)
+    reason = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        verbose_name = _("invite grant")
+        verbose_name_plural = _("invite grants")
+
+    def __str__(self):
+        return f"InviteGrant({self.recipient}, via {self.invite_code})"
