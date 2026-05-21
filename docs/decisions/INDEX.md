@@ -20,6 +20,7 @@ Navigation surface for `docs/decisions/`. Each ADR captures a cross-cutting, loa
 | [ADR-012](ADR-012-event-visibility-tiers.md) | Event visibility tiers and access-control matrix | social-graph | Accepted 2026-05-21 | `Event.visibility ∈ {public, semi_public, unlisted}` with source-derived `max(public)` defaults; viewer-tier × Event-tier access matrix; robot indexing derived from tier. EXPLORATORY pending dogfooding. |
 | [ADR-013](ADR-013-user-trust-model.md) | User trust model: tiered authentication, vouching graph, invite economy | social-graph | Accepted 2026-05-21 | `User.status ∈ {open, vouched, suspended_pending_investigation, banned}`; two signup paths (open + vouched-with-invite); `Vouch` graph with proportional consequences and one-hop cascade; V0 admin-grant invite economy with schema-ready earning formula. EXPLORATORY pending dogfooding. |
 | [ADR-014](ADR-014-profile-claim-flow.md) | Profile claim flow: multi-claimant through-model, two-track verification, magic-link envelope | schema | Accepted 2026-05-21 | Replaces ADR-007 D5 single-FK with `ProfileClaim(profile, user, verified_at, verified_method, verified_by_admin, role)` through-model; web-first entry on public Profile page; two-track verification (email-domain fast-path + admin-review fallback); 1-day single-use scoped magic-link. EXPLORATORY pending dogfooding. |
+| [ADR-015](ADR-015-payment-processor-strategy-for-explicit-event-ticketing.md) | Payment-processor strategy for explicit-event ticketing | payment-infra | Accepted 2026-05-21 | V0/V1 tactical: organizer-direct Stripe in Mode A coordination-layer + cutover-readiness (kb-y6w/kb-6y6/kb-d9s/kb-bw0/kb-94h). Long-term sister-platform: pending via kb-hm0. Both legs FLEXIBLE. |
 
 ## Scope tags
 
@@ -34,6 +35,7 @@ Single-keyword filter for "which ADRs might constrain this work?". Not exhaustiv
 - **schema** — data model shape, field naming, deferred-abstraction posture
 - **code-posture** — refactor / error-handling / abstraction discipline
 - **social-graph** — Connection / Follow / Vouch / visibility / ranking posture
+- **payment-infra** — payment-processor selection, merchant-of-record posture, content-policy risk routing
 
 ## When to consult
 
