@@ -94,13 +94,15 @@ Xplore Berlin = one `Event` row with a 5-day duration, many facilitators, IKSK a
 
 Revisit if a UX need forces disambiguation between these three.
 
-### D5: Profiles are claimable via optional User FK
+### D5: Profiles are claimable via `ProfileClaim` through-model (multi-claimant) — *evolved in place 2026-05-21*
 
-**Firmness: FIRM** — mirrors ADR-001 D1 curated-trust model.
+**Firmness: FIRM** — mirrors ADR-001 D1 curated-trust model. Decision-property "Profiles are claimable" unchanged since the original (2026-05-11) version; cardinality evolved from 0..1 (single-FK) to 0..N (through-model) to accommodate co-organized collectives. Original wording preserved in git history.
 
-`Profile.claimed_by = FK(User, null=True)`. A Profile is created without a User (curated by us during ingestion or admin-side); the named human or admin can later claim/manage their page after signing up. Lavinia gets a Profile from day one whether or not she's a Switch.berlin user; if she signs up and claims it, she controls bio/avatar/visibility.
+`Profile.claimants = M2M(User, through="ProfileClaim")` where `ProfileClaim(profile, user, verified_at, verified_method, verified_by_admin, role, created_at)`. A Profile is created without any claims (curated by us during ingestion or admin-side); the named human or admin can later claim/manage their page after signing up. Lavinia gets a Profile from day one whether or not she's a Switch.berlin user; if she signs up and claims it, she joins `claimants`. Collectives like IKSK accumulate multiple claims (one per co-organizer). `Profile.is_claimed` (= `claimants.exists()`) is the binary gate that gated `claimed_by IS NOT NULL` previously.
 
-**Rationale:** matches the existing organizer-curation flow (we already create Organizer rows without User links). One mechanism handles "claim my page" for both kinds.
+**Rationale:** matches the existing organizer-curation flow (we already create Organizer rows without User links). One mechanism handles "claim my page" for both kinds. The multi-claimant cardinality acknowledges that collectives (the dominant kink-scene actor type after individual facilitators) are co-organized by definition — IKSK is fronted by ~3 humans, not one. The verification metadata (`verified_at`, `verified_method`, `verified_by_admin`) on the through-model is load-bearing for the audit trail required by ADR-006 (legal gate) and ADR-001 D1 (curated-trust), which a plain M2M would lose.
+
+**Note:** Claim *flow* (web-first entry, two-track verification, magic-link envelope) is canonicalized in [ADR-014](ADR-014-profile-claim-flow.md), which builds on this schema substrate.
 
 ### D6: One unified `Follow(user, profile)` table
 
