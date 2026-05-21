@@ -51,6 +51,25 @@
     {% if user.is_authenticated %}
       {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
     {% endif %}
+    {# Claim CTA — three branches per ADR-014 D2 + ADR-008 D3 (explicit, not absent) #}
+    {% if not user.is_authenticated %}
+      {# Branch 1: Anonymous viewer → Sign in to claim #}
+      <div class="flex items-center gap-2">
+        <a href="{% url 'account_login' %}?next={{ request.path }}"
+           class="btn btn-sm btn-outline">{% trans "Sign in to claim this profile" %}</a>
+      </div>
+    {% elif viewer_is_claimant %}
+      {# Branch 3: Authenticated claimant → explicit "you manage" badge (ADR-008 D3) #}
+      <div class="badge badge-success gap-1">
+        <span>{% trans "You manage this profile" %}</span>
+      </div>
+    {% else %}
+      {# Branch 2: Authenticated non-claimant → Claim CTA #}
+      <div class="flex items-center gap-2">
+        <a href="{% url 'organizer-claim-entry' slug=organizer.slug %}"
+           class="btn btn-sm btn-primary">{% trans "Claim this profile" %}</a>
+      </div>
+    {% endif %}
     {% if user.is_authenticated and user.status == "vouched" and FLAGS_ENABLED and RATINGS_ENABLED %}
       {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
     {% endif %}

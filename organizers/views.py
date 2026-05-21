@@ -1,7 +1,15 @@
+from datetime import timedelta
+
 from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.db.models import F
-from django.http import HttpResponsePermanentRedirect
-from django.shortcuts import get_object_or_404, render
+from django.http import (
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    HttpResponsePermanentRedirect,
+)
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -11,7 +19,8 @@ from accounts.decorators import approved_required
 from events.models import Attendance, Event
 from reviews.models import Review
 
-from .models import Follow, Profile
+from .forms import ClaimForm
+from .models import ClaimIntent, Follow, MagicLinkToken, Profile, ProfileClaim
 
 # Valid sort options and their corresponding ORM orderings.
 _SORT_ORDERINGS = {
@@ -87,9 +96,14 @@ def organizer_profile(request, slug):
                 user=request.user, status="going", event__venue__isnull=False
             ).values_list("event__venue_id", flat=True)
         )
+        # CTA state: viewer-IS-claimant → explicit "you manage" (ADR-014 D2, ADR-008 D3)
+        viewer_is_claimant = (
+            organizer.active_claimants.filter(pk=request.user.pk).exists()
+        )
     else:
         following = False
         going_venue_ids = []
+        viewer_is_claimant = False
 
     rating_count = organizer.rating_count
     avg_rating = organizer.avg_rating
@@ -111,7 +125,7 @@ def organizer_profile(request, slug):
     if request.user.is_authenticated:
         try:
             user_review = organizer.reviews.get(author=request.user)
-        except Exception:
+        except Review.DoesNotExist:
             user_review = None
 
     context = {
@@ -129,6 +143,8 @@ def organizer_profile(request, slug):
         "user_review": user_review,
         "EVENT_REVIEWS_DISPLAYED": event_reviews_displayed,
         "MIN_RATINGS_FOR_DISPLAY": threshold,
+        # Claim CTA state (ADR-014 D2, ADR-008 D3)
+        "viewer_is_claimant": viewer_is_claimant,
     }
     return render(request, "organizers/profile.html", context)
 
@@ -162,3 +178,157 @@ def profile_legacy_redirect(request, slug):
     qs = request.GET.urlencode()
     url = f"{target}?{qs}" if qs else target
     return HttpResponsePermanentRedirect(url)
+
+
+@login_required
+def claim_entry(request, slug):
+    """
+    Claim entry view for profile /p/<slug>/claim/.
+
+    Auth-required (ADR-014 D2 — auth-before-claim; user_target NEVER NULL per D3).
+
+    GET:  Render the claim form.
+    POST: Two-track routing:
+        - email_domain fast-path: submitted email domain == Profile.verified_domain
+          → ProfileClaim created with verified_method='email_domain', redirect.
+        - admin-review path: no domain match or verified_domain not set
+          → ClaimIntent + MagicLinkToken created, magic-link email sent,
+          → redirect to check-email page.
+
+    Explicit branch for user-IS-claimant (ADR-008 D3 — not silent).
+    """
+    profile = get_object_or_404(Profile, slug=slug)
+
+    # ADR-008 D3: explicit branch — not silent omission
+    if profile.active_claimants.filter(pk=request.user.pk).exists():
+        return render(
+            request,
+            "organizers/claim_start.html",
+            {"organizer": profile, "already_claimant": True},
+        )
+
+    form = ClaimForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        email = form.cleaned_data["email"]
+        submitted_domain = email.split("@")[1].lower()
+
+        if (
+            profile.verified_domain
+            and submitted_domain == profile.verified_domain.lower()
+        ):
+            # ---- Email-domain fast-path (ADR-014 D2) ----
+            ProfileClaim.objects.get_or_create(
+                profile=profile,
+                user=request.user,
+                defaults={
+                    "verified_method": "email_domain",
+                    "role": "admin",
+                },
+            )
+            return redirect(reverse("organizer-profile", kwargs={"slug": slug}))
+
+        else:
+            # ---- Admin-review path (ADR-014 D2) ----
+            ClaimIntent.objects.get_or_create(user=request.user, profile=profile)
+
+            token = MagicLinkToken.objects.create(
+                email=email,
+                profile=profile,
+                user_target=request.user,
+                expires_at=timezone.now() + timedelta(hours=24),
+            )
+
+            redeem_url = request.build_absolute_uri(
+                reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
+            )
+            email_body = render_to_string(
+                "email/claim_magic_link.html",
+                {
+                    "user": request.user,
+                    "organizer": profile,
+                    "redeem_url": redeem_url,
+                },
+                request=request,
+            )
+            send_mail(
+                subject=f"Verify your claim for {profile.name}",
+                message=email_body,
+                from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
+                recipient_list=[email],
+                fail_silently=False,
+            )
+
+            return redirect(
+                reverse("organizer-claim-check-email", kwargs={"slug": slug})
+            )
+
+    return render(
+        request,
+        "organizers/claim_start.html",
+        {"organizer": profile, "form": form, "already_claimant": False},
+    )
+
+
+@login_required
+def claim_check_email(request, slug):
+    """'Check your email' page shown after admin-review path submission."""
+    profile = get_object_or_404(Profile, slug=slug)
+    return render(
+        request,
+        "organizers/claim_check_email.html",
+        {"organizer": profile},
+    )
+
+
+@login_required
+def magic_link_redeem(request, token):
+    """
+    Magic-link redemption view.
+
+    Validates the (email, profile_id, user_target=request.user) triple per ADR-014 D3.
+    Fails loud (ADR-008 D3) on any mismatch:
+      - wrong user (request.user ≠ user_target) → 403
+      - expired token → 400
+      - already-used token → 400
+      - non-existent token → 404 (via get_object_or_404)
+
+    On success: creates ProfileClaim with verified_method='magic_link',
+    marks token used, redirects to the profile page.
+    """
+    magic_token = get_object_or_404(MagicLinkToken, token=token)
+
+    # ADR-008 D3: fail loud — explicit check for user mismatch
+    if magic_token.user_target != request.user:
+        return HttpResponseForbidden(
+            "This verification link was issued for a different account. "
+            "Please sign in with the correct account and try again."
+        )
+
+    if magic_token.is_used:
+        return HttpResponseBadRequest(
+            "This verification link has already been used. "
+            "Please start the claim process again."
+        )
+
+    if magic_token.is_expired:
+        return HttpResponseBadRequest(
+            "This verification link has expired (links are valid for 24 hours). "
+            "Please start the claim process again."
+        )
+
+    # Mark token used BEFORE creating ProfileClaim — single-use invariant
+    magic_token.mark_used()
+
+    ProfileClaim.objects.get_or_create(
+        profile=magic_token.profile,
+        user=request.user,
+        defaults={
+            "verified_method": "magic_link",
+            "role": "admin",
+        },
+    )
+
+    return redirect(
+        reverse("organizer-profile", kwargs={"slug": magic_token.profile.slug})
+    )

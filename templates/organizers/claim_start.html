@@ -1,0 +1,56 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}
+  {% if already_claimant %}
+    {% trans "You already manage this profile" %} — {{ organizer.name }}
+  {% else %}
+    {% trans "Claim this profile" %} — {{ organizer.name }}
+  {% endif %}
+{% endblock title %}
+{% block layout %}
+  <div class="max-w-lg mx-auto flex flex-col gap-6 py-8">
+    <h1 class="text-2xl font-bold">{{ organizer.name }}</h1>
+    {% if already_claimant %}
+      {# ADR-008 D3: explicit branch — not silent omission #}
+      <div class="alert alert-info">
+        <span>{% trans "You already manage this profile." %}</span>
+      </div>
+      <p class="text-base-content/70">
+        {% trans "You are already listed as a claimant for this profile." %}
+      </p>
+      <a href="{% url 'organizer-profile' slug=organizer.slug %}"
+         class="btn btn-outline">{% trans "Back to profile" %}</a>
+    {% else %}
+      <p class="text-base-content/70">
+        {% blocktrans with name=organizer.name %}
+          Enter the email address you'd like to use to verify your claim for
+          <strong>{{ name }}</strong>. We'll send you a verification link.
+        {% endblocktrans %}
+      </p>
+      <form method="post" class="flex flex-col gap-4">
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="form-control">
+            <label class="label" for="{{ field.id_for_label }}">
+              <span class="label-text">{{ field.label }}</span>
+            </label>
+            {{ field }}
+            {% if field.help_text %}
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">{{ field.help_text }}</span>
+              </div>
+            {% endif %}
+            {% for error in field.errors %}
+              <div class="label">
+                <span class="label-text-alt text-error">{{ error }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">{% trans "Send verification link" %}</button>
+      </form>
+      <a href="{% url 'organizer-profile' slug=organizer.slug %}"
+         class="link text-sm">{% trans "Cancel" %}</a>
+    {% endif %}
+  </div>
+{% endblock layout %}

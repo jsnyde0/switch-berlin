@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import models
@@ -167,6 +169,7 @@ class ProfileClaim(models.Model):
 
     VERIFIED_METHOD_CHOICES = [
         ("email_domain", "Email domain fast-path"),
+        ("magic_link", "Magic-link redemption (admin-review track)"),
         ("admin_review", "Admin review"),
         ("admin_legacy", "Admin legacy (migration backfill)"),
         ("auto_self", "Auto self-claim on signup"),
@@ -236,3 +239,121 @@ class Follow(models.Model):
 
     def __str__(self):
         return f"{self.user} follows {self.profile}"
+
+
+class MagicLinkToken(models.Model):
+    """
+    Security envelope for the profile-claim magic-link flow.
+
+    Per ADR-014 D3:
+    - Binds (email, profile_id, user_target) triple — user_target NEVER NULL
+      (auth-before-claim invariant: user is already authenticated when token is issued).
+    - 24h expiry (expires_at).
+    - Single-use: used_at is stamped on first valid redemption.
+    - token is a UUID stored as the primary lookup value.
+
+    Per ADR-008 D3: any mismatch between user_target and the redeeming user
+    must fail loud — no silent ProfileClaim creation.
+    """
+
+    email = models.CharField(
+        max_length=254,
+        help_text="The email address the user submitted in the claim form.",
+    )
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="magic_link_tokens",
+    )
+    user_target = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="magic_link_tokens",
+        # NEVER NULL — auth-before-claim invariant per ADR-014 D3
+        null=False,
+        blank=False,
+    )
+    token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+    )
+    expires_at = models.DateTimeField(
+        help_text="Expiry timestamp — must be ≤24h from creation (ADR-014 D3).",
+    )
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Stamped on first valid redemption — NULL means unused.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"MagicLinkToken({self.user_target} → {self.profile})"
+
+    @property
+    def is_expired(self):
+        """True if the token has passed its expiry time."""
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_used(self):
+        """True if the token has already been redeemed."""
+        return self.used_at is not None
+
+    @property
+    def is_valid(self):
+        """True if the token is neither expired nor used."""
+        return not self.is_expired and not self.is_used
+
+    def mark_used(self):
+        """Stamp used_at to invalidate the token for future redemptions."""
+        self.used_at = timezone.now()
+        self.save(update_fields=["used_at"])
+
+
+class ClaimIntent(models.Model):
+    """
+    Captures the user's declared intent to claim a profile when the admin-review
+    path is triggered (no email-domain match per ADR-014 D2).
+
+    Cheap-foresight columns (ADR-003):
+    - rejected_at / rejected_by_admin / rejection_reason — populated by S9 admin
+      revoke when the claim is denied.
+    - resolved_at — stamped when the intent is fully resolved (approved or rejected).
+
+    Per ADR-014 D2: a ClaimIntent does NOT automatically create a ProfileClaim —
+    that requires admin approval or magic-link redemption for the fast-path.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="claim_intents",
+    )
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="claim_intents",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Cheap-foresight: admin-review rejection cols (ADR-003; S9 populates on deny)
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by_admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rejected_claim_intents",
+    )
+    rejection_reason = models.CharField(max_length=500, blank=True)
+
+    # Cheap-foresight: resolution timestamp (approved or rejected)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} → {self.profile} (intent)"

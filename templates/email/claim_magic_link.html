@@ -1,0 +1,13 @@
+Hello {{ user.get_full_name|default:user.username }},
+
+You requested to claim the profile "{{ organizer.name }}" on Switch Berlin.
+
+Click the link below to verify your claim:
+
+{{ redeem_url }}
+
+This link expires in 24 hours and can only be used once.
+
+If you did not request this, please ignore this email. Your account has not been affected.
+
+— Switch Berlin
