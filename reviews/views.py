@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+import logfire
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Avg, Count
@@ -293,7 +294,22 @@ def takedown_view(request):
                         slug=match.kwargs["slug"],
                     ).first()
             except (Resolver404, KeyError):
-                pass
+                logfire.warning(
+                    "takedown.invalid_url",
+                    event_url=event_url,
+                )
+                return render(
+                    request,
+                    "reviews/takedown.html",
+                    {
+                        "form": form,
+                        "error": (
+                            "The URL you provided is not a valid site URL. "
+                            "Please check the URL and try again."
+                        ),
+                        "values": request.POST,
+                    },
+                )
 
         if not target_event and not target_organizer:
             if event_url:
