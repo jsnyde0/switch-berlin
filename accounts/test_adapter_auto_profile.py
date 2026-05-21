@@ -1,7 +1,9 @@
 """
 TDD tests for kb-m69.4: auto-Profile(kind=person) on signup.
 
-RED phase: written BEFORE implementation.
+Updated kb-m69.12: NoSignupAdapter deleted per ADR-008 D1; tests now use
+OpenSignupAdapter (the active adapter per ACCOUNT_ADAPTER in settings).
+
 Per ADR-013 D2 (two signup paths), ADR-007 D1 (unified Profile with kind),
 ADR-008 D2 (adapter not signal — one clear path), ADR-008 D3 (fail loud).
 
@@ -28,24 +30,19 @@ User = get_user_model()
 @pytest.mark.django_db
 def test_auto_profile_created_on_save_user():
     """
-    Calling adapter.save_user for a new user creates a Profile(kind='person')
-    and a ProfileClaim(verified_method='auto_self') linking them.
+    Calling adapter._create_owned_profile for a new user creates a
+    Profile(kind='person') and a ProfileClaim(verified_method='auto_self').
     """
-    from unittest.mock import MagicMock
-
-    from accounts.adapter import NoSignupAdapter
+    from accounts.adapter import OpenSignupAdapter
     from organizers.models import Profile, ProfileClaim
 
-    adapter = NoSignupAdapter()
-    request = MagicMock()
-    request.session = {}
+    adapter = OpenSignupAdapter()
 
     user = User.objects.create_user(
         username="auto_profile_user",
         email="auto@example.com",
         password="x",
     )
-    # Simulate save_user calling _create_owned_profile
     adapter._create_owned_profile(user)
 
     profiles = Profile.objects.filter(claimants=user)
@@ -62,27 +59,20 @@ def test_auto_profile_created_on_save_user():
 @pytest.mark.django_db
 def test_save_user_creates_profile_and_claim():
     """
-    The full save_user flow creates a Profile(kind='person') AND a ProfileClaim
+    _create_owned_profile creates a Profile(kind='person') AND a ProfileClaim
     for the new user (verified_method='auto_self').
     """
-    from unittest.mock import MagicMock, patch
-
-    from accounts.adapter import NoSignupAdapter
+    from accounts.adapter import OpenSignupAdapter
     from organizers.models import Profile, ProfileClaim
 
-    adapter = NoSignupAdapter()
-    request = MagicMock()
-    request.session = {}
+    adapter = OpenSignupAdapter()
 
-    # We need to test save_user but it calls super().save_user which requires form + User persistence
-    # Instead, test the _create_owned_profile hook directly (unit-level)
     user = User.objects.create_user(
         username="full_save_user",
         email="fullsave@example.com",
         password="x",
     )
 
-    # Simulate what save_user does after commit
     adapter._create_owned_profile(user)
 
     assert Profile.objects.filter(claimants=user, kind="person").count() == 1
@@ -97,10 +87,10 @@ def test_save_user_creates_profile_and_claim():
 @pytest.mark.django_db
 def test_auto_profile_claim_has_verified_at():
     """ProfileClaim created by _create_owned_profile has verified_at set (not NULL)."""
-    from accounts.adapter import NoSignupAdapter
+    from accounts.adapter import OpenSignupAdapter
     from organizers.models import ProfileClaim
 
-    adapter = NoSignupAdapter()
+    adapter = OpenSignupAdapter()
     user = User.objects.create_user(
         username="vat_user", email="vat@example.com", password="x"
     )
@@ -120,16 +110,13 @@ def test_auto_profile_creation_is_atomic():
     """
     If Profile creation fails inside _create_owned_profile, no Profile or ProfileClaim
     rows are left behind (transaction rolls back).
-
-    We simulate failure by patching Profile.objects.create to raise after
-    the Profile would have been created but before ProfileClaim is created.
     """
     from unittest.mock import patch
 
-    from accounts.adapter import NoSignupAdapter
+    from accounts.adapter import OpenSignupAdapter
     from organizers.models import Profile, ProfileClaim
 
-    adapter = NoSignupAdapter()
+    adapter = OpenSignupAdapter()
     user = User.objects.create_user(
         username="atomic_user", email="atomic@example.com", password="x"
     )
@@ -156,10 +143,10 @@ def test_auto_profile_creation_is_idempotent():
     Calling _create_owned_profile twice for the same user doesn't create duplicates.
     Second call should be a no-op.
     """
-    from accounts.adapter import NoSignupAdapter
+    from accounts.adapter import OpenSignupAdapter
     from organizers.models import Profile, ProfileClaim
 
-    adapter = NoSignupAdapter()
+    adapter = OpenSignupAdapter()
     user = User.objects.create_user(
         username="idempotent_user", email="idempotent@example.com", password="x"
     )
@@ -179,10 +166,10 @@ def test_auto_profile_creation_is_idempotent():
 @pytest.mark.django_db
 def test_auto_profile_name_from_full_name():
     """Profile.name is set from user.get_full_name() when available."""
-    from accounts.adapter import NoSignupAdapter
+    from accounts.adapter import OpenSignupAdapter
     from organizers.models import Profile
 
-    adapter = NoSignupAdapter()
+    adapter = OpenSignupAdapter()
     user = User.objects.create_user(
         username="fullname_user",
         email="fullname@example.com",
@@ -199,10 +186,10 @@ def test_auto_profile_name_from_full_name():
 @pytest.mark.django_db
 def test_auto_profile_name_falls_back_to_email():
     """Profile.name falls back to user.email when get_full_name() is empty."""
-    from accounts.adapter import NoSignupAdapter
+    from accounts.adapter import OpenSignupAdapter
     from organizers.models import Profile
 
-    adapter = NoSignupAdapter()
+    adapter = OpenSignupAdapter()
     user = User.objects.create_user(
         username="nofullname_user",
         email="nofullname@example.com",
@@ -220,9 +207,9 @@ def test_auto_profile_name_falls_back_to_email():
 
 
 def test_adapter_has_create_owned_profile_method():
-    """NoSignupAdapter has a _create_owned_profile method."""
-    from accounts.adapter import NoSignupAdapter
+    """OpenSignupAdapter has a _create_owned_profile method."""
+    from accounts.adapter import OpenSignupAdapter
 
-    adapter = NoSignupAdapter()
+    adapter = OpenSignupAdapter()
     assert hasattr(adapter, "_create_owned_profile")
     assert callable(adapter._create_owned_profile)

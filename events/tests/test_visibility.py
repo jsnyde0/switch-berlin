@@ -168,6 +168,65 @@ class TestVisibleToManager:
 
 
 # ---------------------------------------------------------------------------
+# D3 — queryset manager (visible_to_url)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestVisibleToUrlManager:
+    """Event.objects.visible_to_url(user) returns the correct subset per viewer tier.
+
+    ADR-008 D3: no silent fallbacks — user.status accessed directly (not via getattr).
+    """
+
+    def test_visible_to_url_anon_returns_only_public(self, db):
+        pub = make_event("UrlPub", slug="vtu-pub")
+        make_event("UrlSemi", slug="vtu-semi", visibility="semi_public")
+        make_event("UrlUnl", slug="vtu-unl", visibility="unlisted")
+        qs = Event.objects.visible_to_url(None)
+        assert pub in qs
+        assert qs.count() == 1
+
+    def test_visible_to_url_open_user_returns_only_public(self, db):
+        pub = make_event("UrlPub2", slug="vtu-pub2")
+        make_event("UrlSemi2", slug="vtu-semi2", visibility="semi_public")
+        make_event("UrlUnl2", slug="vtu-unl2", visibility="unlisted")
+        user = make_user("url_open_user", status="open")
+        qs = Event.objects.visible_to_url(user)
+        assert pub in qs
+        assert qs.count() == 1
+
+    def test_visible_to_url_vouched_user_sees_unlisted(self, db):
+        pub = make_event("UrlPub3", slug="vtu-pub3")
+        semi = make_event("UrlSemi3", slug="vtu-semi3", visibility="semi_public")
+        unl = make_event("UrlUnl3", slug="vtu-unl3", visibility="unlisted")
+        user = make_user("url_vouched_user", status="vouched")
+        qs = Event.objects.visible_to_url(user)
+        assert pub in qs
+        assert semi in qs
+        assert unl in qs
+        assert qs.count() == 3
+
+    def test_visible_to_url_raises_on_missing_status_attribute(self, db):
+        """ADR-008 D3: visible_to_url must access user.status directly, not silently
+        fall back via getattr. A user-like object missing 'status' must raise
+        AttributeError (not silently default to 'open').
+        """
+        make_event("UrlFail", slug="vtu-fail")
+
+        class UserWithoutStatus:
+            """Simulates a user-like object that has no status field."""
+            is_authenticated = True
+            is_superuser = False
+            is_staff = False
+
+        user = UserWithoutStatus()
+        import pytest as _pytest
+        with _pytest.raises(AttributeError):
+            list(Event.objects.visible_to_url(user))
+
+
+# ---------------------------------------------------------------------------
 # D2 — source-derived backfill (migration logic — tested via raw SQL helper)
 # ---------------------------------------------------------------------------
 

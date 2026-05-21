@@ -18,7 +18,7 @@ def _is_trusted_viewer(user):
         return False
     if user.is_superuser or user.is_staff:
         return True
-    return getattr(user, "status", None) == "vouched"
+    return user.status == "vouched"
 
 
 class EventQuerySet(models.QuerySet):
@@ -74,7 +74,7 @@ class EventQuerySet(models.QuerySet):
         if user.is_superuser or user.is_staff:
             return self.all()
 
-        status = getattr(user, "status", "open")
+        status = user.status
 
         if status == "vouched":
             # Vouched users can access public + semi_public + unlisted by URL

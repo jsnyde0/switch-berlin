@@ -95,15 +95,6 @@ class InviteCode(models.Model):
         related_name="invite_used",
     )
     used_at = models.DateTimeField(null=True, blank=True)
-    # Legacy fields — kept for compatibility with NoSignupAdapter (phase 0.4)
-    redeemed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="invite_redeemed",
-    )
-    redeemed_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 

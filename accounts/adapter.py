@@ -60,89 +60,6 @@ def validate_turnstile_token(token: str, secret_key: str) -> bool:
     raise RuntimeError("Turnstile validation failed unexpectedly") from last_exc
 
 
-class NoSignupAdapter(DefaultAccountAdapter):
-    """Invite-gated signup adapter — phase 0.4."""
-
-    def is_open_for_signup(self, request):
-        if not _get_flag_safe("INVITES_ENABLED", default=True):
-            return False
-        code = request.GET.get("code") or request.session.get("invite_code")
-        if not code:
-            return False
-        from accounts.models import InviteCode
-
-        try:
-            invite = InviteCode.objects.get(code=code, redeemed_by__isnull=True)
-        except InviteCode.DoesNotExist:
-            return False
-        if invite.expires_at and invite.expires_at <= timezone.now():
-            return False
-        request.session["invite_code"] = code
-        return True
-
-    def _create_owned_profile(self, user):
-        """Create Profile(kind='person') + ProfileClaim(verified_method='auto_self').
-
-        Per ADR-013 D3 (participant profiles via auto-created Profile on signup),
-        ADR-008 D2 (adapter hook, not signal), ADR-008 D3 (fail loud).
-
-        Named _create_owned_profile so kb-m69.5 can call it cleanly.
-        Idempotent: if the user already has an auto_self ProfileClaim, no-op.
-        """
-        from organizers.models import Profile, ProfileClaim
-
-        # Idempotency guard: if the user already has an auto_self claim, skip.
-        if ProfileClaim.objects.filter(user=user, verified_method="auto_self").exists():
-            return
-
-        name = user.get_full_name() or user.email
-
-        # Build a unique slug: slugify name + short uuid suffix to avoid collisions
-        base_slug = slugify(name)[:190] or "user"
-        slug = base_slug + "-" + str(uuid.uuid4())[:8]
-
-        with transaction.atomic():
-            profile = Profile.objects.create(
-                kind="person",
-                name=name,
-                slug=slug,
-            )
-            ProfileClaim.objects.create(
-                profile=profile,
-                user=user,
-                verified_method="auto_self",
-                verified_at=timezone.now(),
-                role="admin",
-                verified_by_admin=None,
-            )
-
-    def save_user(self, request, user, form, commit=True):
-        user = super().save_user(request, user, form, commit=commit)
-        if commit:
-            code = request.session.get("invite_code")
-            if code:
-                from accounts.models import InviteCode
-
-                with transaction.atomic():
-                    updated = InviteCode.objects.filter(
-                        code=code, redeemed_by__isnull=True
-                    ).update(redeemed_by=user, redeemed_at=timezone.now())
-                    if updated == 0:
-                        # Race: code already redeemed. Log and continue (lenient).
-                        # Staff can reconcile. At 0.4 scale (5-15 users) acceptable.
-                        logger.warning(
-                            "Invite code %s already redeemed when saving user %s",
-                            code,
-                            user.pk,
-                        )
-                request.session.pop("invite_code", None)
-
-            with transaction.atomic():
-                self._create_owned_profile(user)
-
-        return user
-
-
 class OpenSignupAdapter(DefaultAccountAdapter):
     """Open signup adapter (kb-m69.5): Turnstile-gated, email-verified, auto-Profile.
 
@@ -160,7 +77,13 @@ class OpenSignupAdapter(DefaultAccountAdapter):
         return OpenSignupForm
 
     def _create_owned_profile(self, user):
-        """Identical to NoSignupAdapter._create_owned_profile — see docs there."""
+        """Create Profile(kind='person') + ProfileClaim(verified_method='auto_self').
+
+        Per ADR-013 D3 (participant profiles via auto-created Profile on signup),
+        ADR-008 D2 (adapter hook, not signal), ADR-008 D3 (fail loud).
+
+        Idempotent: if the user already has an auto_self ProfileClaim, no-op.
+        """
         from organizers.models import Profile, ProfileClaim
 
         if ProfileClaim.objects.filter(user=user, verified_method="auto_self").exists():
@@ -251,10 +174,3 @@ class OpenSignupAdapter(DefaultAccountAdapter):
                     user.save(update_fields=["status"])
 
         return user
-
-
-def _get_flag_safe(key: str, default: bool = False) -> bool:
-    """Thin wrapper around get_flag that handles import gracefully."""
-    from a_core.models import get_flag
-
-    return get_flag(key, default=default)

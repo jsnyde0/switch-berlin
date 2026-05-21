@@ -199,7 +199,9 @@ def test_invite_code_redeemed_on_signup(client, valid_invite_code):
     )
 
     valid_invite_code.refresh_from_db()
-    assert valid_invite_code.redeemed_by is not None
+    # NOTE: This test is skipped — the canonical check would use used_by (not
+    # redeemed_by, which was deleted in kb-m69.12 per ADR-008 D1).
+    assert valid_invite_code.used_by is not None
 
     # Newly created user should be in 'open' status (not vouched)
     from django.contrib.auth import get_user_model
@@ -217,11 +219,13 @@ def test_invite_code_redeemed_on_signup(client, valid_invite_code):
     )
 )
 def test_redeemed_code_rejected(client, staff_user):
-    """GET /accounts/signup/?code=<redeemed> does not render a signup form."""
-    already_redeemed = InviteCode.objects.create(
-        created_by=staff_user, redeemed_by=staff_user
+    """GET /accounts/signup/?code=<used> does not render a signup form."""
+    # NOTE: This test is skipped. The canonical field is used_by (redeemed_by was
+    # deleted in kb-m69.12 per ADR-008 D1).
+    already_used = InviteCode.objects.create(
+        created_by=staff_user, used_by=staff_user, used_at=tz.now()
     )
-    response = client.get(f"/accounts/signup/?code={already_redeemed.code}")
+    response = client.get(f"/accounts/signup/?code={already_used.code}")
     content = response.content.decode()
     assert 'type="password"' not in content
 

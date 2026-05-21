@@ -1,12 +1,14 @@
 """
-Tests for InviteCode model, adapter override, management command, and admin.
+Tests for InviteCode model, management command, and admin.
 
 Covers bead kb-2eu.2:
 - InviteCode model basic behavior
 - generate_code produces unique, correct-length tokens
-- is_open_for_signup adapter logic (valid code, no code, expired, redeemed)
-- save_user atomically redeems code
 - generate_invite_codes management command
+- InviteCode.usable() predicate
+
+NoSignupAdapter (phase 0.4) has been deleted per ADR-008 D1 (kb-m69.12).
+OpenSignupAdapter is the canonical adapter.
 """
 
 import secrets
@@ -14,8 +16,6 @@ from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
-from django.test import RequestFactory
 from django.utils import timezone
 
 User = get_user_model()
@@ -24,30 +24,6 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def invites_enabled(db):
-    from a_core.models import FeatureFlag
-
-    FeatureFlag.objects.update_or_create(
-        key="INVITES_ENABLED", defaults={"enabled": True}
-    )
-    cache.clear()
-    yield
-    cache.clear()
-
-
-@pytest.fixture
-def invites_disabled(db):
-    from a_core.models import FeatureFlag
-
-    FeatureFlag.objects.update_or_create(
-        key="INVITES_ENABLED", defaults={"enabled": False}
-    )
-    cache.clear()
-    yield
-    cache.clear()
 
 
 @pytest.fixture
@@ -78,7 +54,7 @@ def expired_invite(creator):
 
 
 @pytest.fixture
-def redeemed_invite(creator, db):
+def used_invite(creator, db):
     from accounts.models import InviteCode
 
     redeemer = User.objects.create_user(
@@ -86,8 +62,8 @@ def redeemed_invite(creator, db):
     )
     invite = InviteCode.objects.create(
         created_by=creator,
-        redeemed_by=redeemer,
-        redeemed_at=timezone.now(),
+        used_by=redeemer,
+        used_at=timezone.now(),
     )
     return invite
 
@@ -155,13 +131,13 @@ def test_invite_code_str(creator):
 
 
 @pytest.mark.django_db
-def test_invite_code_redeemed_by_nullable(creator):
-    """redeemed_by is NULL by default."""
+def test_invite_code_used_by_nullable(creator):
+    """used_by and used_at are NULL by default on a fresh invite code."""
     from accounts.models import InviteCode
 
     invite = InviteCode.objects.create(created_by=creator)
-    assert invite.redeemed_by is None
-    assert invite.redeemed_at is None
+    assert invite.used_by is None
+    assert invite.used_at is None
 
 
 @pytest.mark.django_db
@@ -196,214 +172,26 @@ def test_invite_code_unique_code(creator):
 
 
 # ---------------------------------------------------------------------------
-# Adapter: is_open_for_signup tests
+# InviteCode.usable() predicate
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_adapter_open_with_valid_code_in_get(invites_enabled, invite_code):
-    """is_open_for_signup returns True when valid code is in GET params."""
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/", {"code": invite_code.code})
-    request.session = {}
-    adapter = NoSignupAdapter()
-    assert adapter.is_open_for_signup(request) is True
+def test_usable_returns_true_for_fresh_code(invite_code):
+    """A freshly created code with no used_at and no expiry is usable."""
+    assert invite_code.usable() is True
 
 
 @pytest.mark.django_db
-def test_adapter_open_with_valid_code_in_session(invites_enabled, invite_code):
-    """is_open_for_signup returns True when valid code is in session."""
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/")
-    request.session = {"invite_code": invite_code.code}
-    adapter = NoSignupAdapter()
-    assert adapter.is_open_for_signup(request) is True
+def test_usable_returns_false_for_used_code(used_invite):
+    """A code with used_at set is no longer usable."""
+    assert used_invite.usable() is False
 
 
 @pytest.mark.django_db
-def test_adapter_closed_with_no_code(invites_enabled, invite_code):
-    """is_open_for_signup returns False when no code in GET or session."""
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/")
-    request.session = {}
-    adapter = NoSignupAdapter()
-    assert adapter.is_open_for_signup(request) is False
-
-
-@pytest.mark.django_db
-def test_adapter_closed_with_invalid_code(invites_enabled):
-    """is_open_for_signup returns False for unknown code."""
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/", {"code": "totally-fake-code"})
-    request.session = {}
-    adapter = NoSignupAdapter()
-    assert adapter.is_open_for_signup(request) is False
-
-
-@pytest.mark.django_db
-def test_adapter_closed_with_expired_code(invites_enabled, expired_invite):
-    """is_open_for_signup returns False for expired code."""
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/", {"code": expired_invite.code})
-    request.session = {}
-    adapter = NoSignupAdapter()
-    assert adapter.is_open_for_signup(request) is False
-
-
-@pytest.mark.django_db
-def test_adapter_closed_with_redeemed_code(invites_enabled, redeemed_invite):
-    """is_open_for_signup returns False when code is already redeemed."""
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/", {"code": redeemed_invite.code})
-    request.session = {}
-    adapter = NoSignupAdapter()
-    assert adapter.is_open_for_signup(request) is False
-
-
-@pytest.mark.django_db
-def test_adapter_closed_when_invites_disabled(invites_disabled, invite_code):
-    """is_open_for_signup returns False when INVITES_ENABLED=False.
-
-    Even a valid invite code is rejected when invites are disabled.
-    """
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/", {"code": invite_code.code})
-    request.session = {}
-    adapter = NoSignupAdapter()
-    assert adapter.is_open_for_signup(request) is False
-
-
-@pytest.mark.django_db
-def test_adapter_stores_code_in_session(invites_enabled, invite_code):
-    """is_open_for_signup stores the validated code in session for later redemption."""
-    from accounts.adapter import NoSignupAdapter
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/signup/", {"code": invite_code.code})
-    request.session = {}
-    adapter = NoSignupAdapter()
-    adapter.is_open_for_signup(request)
-    assert request.session.get("invite_code") == invite_code.code
-
-
-# ---------------------------------------------------------------------------
-# Adapter: save_user redeems invite code
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.django_db
-def test_save_user_redeems_invite_code(invites_enabled, creator, invite_code):
-    """save_user atomically marks the invite code as redeemed."""
-    from unittest.mock import MagicMock
-
-    from accounts.adapter import NoSignupAdapter
-
-    new_user = User.objects.create_user(
-        username="newuser", email="newuser@example.com", password="x"
-    )
-
-    factory = RequestFactory()
-    request = factory.post("/accounts/signup/")
-    request.session = {"invite_code": invite_code.code}
-
-    adapter = NoSignupAdapter()
-    # Mock form and super().save_user() to return new_user
-    form = MagicMock()
-
-    with pytest.MonkeyPatch().context() as m:
-        # Patch parent save_user to return new_user without touching DB
-        m.setattr(
-            "allauth.account.adapter.DefaultAccountAdapter.save_user",
-            lambda self, req, user, form, commit=True: new_user,
-        )
-        result = adapter.save_user(request, new_user, form, commit=True)
-
-    invite_code.refresh_from_db()
-    assert invite_code.redeemed_by == result
-    assert invite_code.redeemed_at is not None
-
-
-@pytest.mark.django_db
-def test_save_user_clears_invite_code_from_session(
-    invites_enabled, creator, invite_code
-):
-    """save_user removes invite_code from session after successful redemption."""
-    from unittest.mock import MagicMock
-
-    from accounts.adapter import NoSignupAdapter
-
-    new_user = User.objects.create_user(
-        username="newuser2", email="newuser2@example.com", password="x"
-    )
-
-    factory = RequestFactory()
-    request = factory.post("/accounts/signup/")
-    request.session = {"invite_code": invite_code.code}
-
-    adapter = NoSignupAdapter()
-    form = MagicMock()
-
-    with pytest.MonkeyPatch().context() as m:
-        m.setattr(
-            "allauth.account.adapter.DefaultAccountAdapter.save_user",
-            lambda self, req, user, form, commit=True: new_user,
-        )
-        adapter.save_user(request, new_user, form, commit=True)
-
-    assert "invite_code" not in request.session
-
-
-@pytest.mark.django_db
-def test_save_user_race_condition_logs_warning(invites_enabled, creator, invite_code):
-    """save_user handles race condition gracefully (logs warning, doesn't crash)."""
-    from unittest.mock import MagicMock, patch
-
-    from accounts.adapter import NoSignupAdapter
-
-    # Pre-redeem the code to simulate race condition
-    another_user = User.objects.create_user(
-        username="another", email="another@example.com", password="x"
-    )
-    invite_code.redeemed_by = another_user
-    invite_code.redeemed_at = timezone.now()
-    invite_code.save()
-
-    new_user = User.objects.create_user(
-        username="racing", email="racing@example.com", password="x"
-    )
-
-    factory = RequestFactory()
-    request = factory.post("/accounts/signup/")
-    request.session = {"invite_code": invite_code.code}
-
-    adapter = NoSignupAdapter()
-    form = MagicMock()
-
-    with pytest.MonkeyPatch().context() as m:
-        m.setattr(
-            "allauth.account.adapter.DefaultAccountAdapter.save_user",
-            lambda self, req, user, form, commit=True: new_user,
-        )
-        with patch("accounts.adapter.logger") as mock_logger:
-            # Should NOT raise — lenient approach
-            result = adapter.save_user(request, new_user, form, commit=True)
-            mock_logger.warning.assert_called_once()
-
-    assert result == new_user
+def test_usable_returns_false_for_expired_code(expired_invite):
+    """A code past its expires_at is no longer usable."""
+    assert expired_invite.usable() is False
 
 
 # ---------------------------------------------------------------------------
