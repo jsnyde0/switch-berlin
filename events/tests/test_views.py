@@ -45,7 +45,7 @@ class EventDrawerContextTest(TestCase):
         self.user = User.objects.create_user(
             username="drawer_user", email="drawer@example.com", password="testpass123"
         )
-        self.user.is_approved = True
+        self.user.status = "vouched"
         self.user.save()
 
     def _drawer_url(self):

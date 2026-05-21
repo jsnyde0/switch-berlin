@@ -103,7 +103,7 @@ def test_loginwall_public_read_path_has_no_x_robots_tag():
     request.user = type(
         "User",
         (),
-        {"is_authenticated": True, "is_staff": True, "is_approved": True},
+        {"is_authenticated": True, "is_staff": True, "status": "vouched"},
     )()
 
     with patch("accounts.middleware.get_flag", side_effect=make_get_flag(True)):
@@ -128,7 +128,7 @@ def test_loginwall_admin_path_has_x_robots_tag():
     request.user = type(
         "User",
         (),
-        {"is_authenticated": True, "is_staff": True, "is_approved": True},
+        {"is_authenticated": True, "is_staff": True, "status": "vouched"},
     )()
 
     with patch("accounts.middleware.get_flag", side_effect=make_get_flag(True)):

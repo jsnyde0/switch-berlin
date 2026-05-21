@@ -52,7 +52,7 @@ def approved_user(db):
         email="hidden_review_tester@example.com",
         password="testpass123",
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 

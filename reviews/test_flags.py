@@ -34,7 +34,7 @@ def approved_user(db):
     user = User.objects.create_user(
         username="tester", email="tester@example.com", password="testpass123"
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 
@@ -44,7 +44,7 @@ def approved_user2(db):
     user = User.objects.create_user(
         username="tester2", email="tester2@example.com", password="testpass123"
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 
@@ -54,7 +54,7 @@ def approved_user3(db):
     user = User.objects.create_user(
         username="tester3", email="tester3@example.com", password="testpass123"
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 

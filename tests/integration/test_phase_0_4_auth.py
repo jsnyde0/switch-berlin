@@ -2,11 +2,11 @@
 Integration tests for Phase 0.4 — auth layer bugfixes, middleware restructure,
 kill-switches, and approval UX.
 
-Test plan items (from bead kb-2eu.1):
+Test plan items (from bead kb-2eu.1, updated by kb-m69.1):
 1. organizer.events (not event_set) — GET /o/<slug>/ no longer crashes
 2. pagination hx-target is #event-list (not #event-list-container)
-3. approved user (is_approved=True, is_staff=False) gets 200 on /events/
-4. unapproved authenticated user sees 403_pending_approval.html at status 403
+3. vouched user (status='vouched', is_staff=False) gets 200 on /events/
+4. open-status authenticated user sees 403_pending_approval.html at status 403
 5. MAP_ENABLED and INVITES_ENABLED settings exist and are readable
 6. INVITES_ENABLED=False hides the Register <li> in navbar
 7. MAP_ENABLED=False: response contains no id="map" and no maplibre
@@ -22,22 +22,24 @@ import pytest
 
 @pytest.fixture
 def approved_user(db):
-    """Authenticated, approved but non-staff user — should get 200 after restructure."""
+    """Vouched non-staff user — should get 200 after middleware restructure."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="approved",
         email="approved@example.com",
         password="x",
         is_staff=False,
-        is_approved=True,
     )
+    user.status = "vouched"
+    user.save()
+    return user
 
 
 @pytest.fixture
 def unapproved_user(db):
-    """Authenticated, non-staff, non-approved user — should get 403 pending page."""
+    """Open-status non-staff user — should get 403 pending page in rollback mode."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
@@ -46,7 +48,6 @@ def unapproved_user(db):
         email="unapproved@example.com",
         password="x",
         is_staff=False,
-        is_approved=False,
     )
 
 

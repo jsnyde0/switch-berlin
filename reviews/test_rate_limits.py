@@ -33,7 +33,7 @@ def approved_user(db):
     user = User.objects.create_user(
         username="rl_tester", email="rl_tester@example.com", password="testpass123"
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 
@@ -44,7 +44,6 @@ def staff_user(db):
         username="rl_staff", email="rl_staff@example.com", password="testpass123"
     )
     user.is_staff = True
-    user.is_approved = True
     user.save()
     return user
 

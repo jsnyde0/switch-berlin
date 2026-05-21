@@ -8,10 +8,22 @@ from .models import InviteCode, User
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
-        (_("Approval"), {"fields": ("is_approved", "approved_at", "approved_by")}),
+        (
+            _("Trust"),
+            {
+                "fields": (
+                    "status",
+                    "vouch_score",
+                    "personal_rating",
+                    "invite_codes_remaining",
+                    "approved_at",
+                    "approved_by",
+                )
+            },
+        ),
     )
-    list_display = ["username", "email", "is_approved", "is_staff"]
-    list_filter = UserAdmin.list_filter + ("is_approved",)
+    list_display = ["username", "email", "status", "is_staff"]
+    list_filter = UserAdmin.list_filter + ("status",)
 
 
 @admin.register(InviteCode)

@@ -61,17 +61,19 @@ def staff_user(db):
 
 @pytest.fixture
 def regular_approved_user(db):
-    """Approved non-staff user."""
+    """Vouched non-staff user (kb-m69.1: status replaces is_approved)."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="follow_approved",
         email="follow_approved@example.com",
         password="x",
         is_staff=False,
-        is_approved=True,
     )
+    user.status = "vouched"
+    user.save()
+    return user
 
 
 # ---------------------------------------------------------------------------

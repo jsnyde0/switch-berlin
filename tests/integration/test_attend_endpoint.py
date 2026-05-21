@@ -112,11 +112,11 @@ def approved_user(db):
         email="attend_approved@example.com",
         password="x",
         is_staff=False,
-        is_approved=True,
     )
+    user.status = "vouched"
     # Art. 9 consent required for attend gate
     user.art9_consent_given_at = timezone.now()
-    user.save(update_fields=["art9_consent_given_at"])
+    user.save(update_fields=["status", "art9_consent_given_at"])
     return user
 
 

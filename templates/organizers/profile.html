@@ -51,7 +51,7 @@
     {% if user.is_authenticated %}
       {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
     {% endif %}
-    {% if user.is_authenticated and user.is_approved and FLAGS_ENABLED and RATINGS_ENABLED %}
+    {% if user.is_authenticated and user.status == "vouched" and FLAGS_ENABLED and RATINGS_ENABLED %}
       {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
     {% endif %}
     {% if organizer.description %}

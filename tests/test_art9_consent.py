@@ -25,7 +25,7 @@ def approved_user(db):
         email="consent@example.com",
         password="testpass123",
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 

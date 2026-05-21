@@ -27,13 +27,14 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 
 
-def _make_user(username="testme", is_approved=True):
+def _make_user(username="testme", status="vouched"):
+    """Create user with given status. Default 'vouched' mimics old is_approved=True."""
     user = User.objects.create_user(
         username=username,
         email=f"{username}@example.com",
         password="testpass123",
     )
-    user.is_approved = is_approved
+    user.status = status
     user.save()
     return user
 

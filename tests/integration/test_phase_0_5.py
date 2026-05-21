@@ -25,13 +25,15 @@ User = get_user_model()
 
 @pytest.fixture
 def approved_user(db):
-    """Approved non-staff user (same pattern as test_phase_0_4.py)."""
-    return User.objects.create_user(
+    """Vouched non-staff user (kb-m69.1: status replaces is_approved)."""
+    user = User.objects.create_user(
         username="e2e_approved",
         email="e2e_approved@example.com",
         password="x",
-        is_approved=True,
     )
+    user.status = "vouched"
+    user.save()
+    return user
 
 
 @pytest.fixture
@@ -341,8 +343,9 @@ def test_autohide_activates_on_auth_flags(db, published_event):
             username=f"flag_user_{i}",
             email=f"flag_user_{i}@example.com",
             password="x",
-            is_approved=True,
         )
+        u.status = "vouched"
+        u.save()
         users.append(u)
 
     url = reverse("flag-target")
@@ -464,7 +467,6 @@ def test_rating_hidden_below_threshold(client, approved_organizer, feature_flag_
             username=f"reviewer_{i}",
             email=f"reviewer_{i}@example.com",
             password="x",
-            is_approved=True,
         )
         Review.objects.create(author=u, organizer=approved_organizer, rating=4)
     # Set rating_count directly as submit_review would
@@ -489,7 +491,6 @@ def test_rating_shown_at_threshold(client, approved_organizer, feature_flag_publ
             username=f"rater_{i}",
             email=f"rater_{i}@example.com",
             password="x",
-            is_approved=True,
         )
         Review.objects.create(author=u, organizer=approved_organizer, rating=4)
     approved_organizer.rating_count = 3

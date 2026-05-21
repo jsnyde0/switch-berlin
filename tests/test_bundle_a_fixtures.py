@@ -33,7 +33,7 @@ def test_user_with_went_attendance_creates_attendance(
     """Fixture creates an approved user + Attendance(status='went')."""
     user, attendance = user_with_went_attendance(published_event)
 
-    assert user.is_approved is True
+    assert user.status == "vouched"
     assert attendance.user == user
     assert attendance.event == published_event
     assert attendance.status == "went"

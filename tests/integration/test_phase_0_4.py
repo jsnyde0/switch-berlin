@@ -48,10 +48,10 @@ def approved_user(db):
         email="e2e_approved@example.com",
         password="x",
         is_staff=False,
-        is_approved=True,
     )
+    user.status = "vouched"
     user.art9_consent_given_at = timezone.now()
-    user.save(update_fields=["art9_consent_given_at"])
+    user.save(update_fields=["status", "art9_consent_given_at"])
     return user
 
 
@@ -191,12 +191,12 @@ def test_invite_code_redeemed_on_signup(client, valid_invite_code):
     valid_invite_code.refresh_from_db()
     assert valid_invite_code.redeemed_by is not None
 
-    # Newly created user should be unapproved
+    # Newly created user should be in 'open' status (not vouched)
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
     new_user = User.objects.get(email="newuser@example.com")
-    assert new_user.is_approved is False
+    assert new_user.status == "open"
 
 
 @pytest.mark.django_db

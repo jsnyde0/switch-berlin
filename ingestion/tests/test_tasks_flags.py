@@ -42,7 +42,7 @@ def make_user(db):
             email=f"taskuser_{_counter['n']}@example.com",
             password="testpass",
         )
-        u.is_approved = True
+        u.status = "vouched"
         u.save()
         return u
 

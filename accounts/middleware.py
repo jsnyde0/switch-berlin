@@ -69,7 +69,7 @@ class LoginWallMiddleware:
             response["X-Robots-Tag"] = _ROBOTS_TAG
             return response
 
-        if not (request.user.is_staff or request.user.is_approved):
+        if not (request.user.is_staff or request.user.status == "vouched"):
             response = TemplateResponse(
                 request,
                 "errors/403_pending_approval.html",

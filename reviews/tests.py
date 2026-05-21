@@ -18,11 +18,11 @@ User = get_user_model()
 
 @pytest.fixture
 def approved_user(db):
-    """Authenticated, approved (is_approved) user."""
+    """Authenticated vouched user (kb-m69.1: status replaces is_approved)."""
     user = User.objects.create_user(
         username="tester", email="tester@example.com", password="testpass123"
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 
@@ -239,7 +239,7 @@ def test_submit_event_review_excludes_hidden_from_aggregates(past_event):
     user1 = User.objects.create_user(
         username="ev_agg_user1", email="ev_agg1@example.com", password="testpass123"
     )
-    user1.is_approved = True
+    user1.status = "vouched"
     user1.save()
     Attendance.objects.create(user=user1, event=past_event, status="went")
 
@@ -247,7 +247,7 @@ def test_submit_event_review_excludes_hidden_from_aggregates(past_event):
     user2 = User.objects.create_user(
         username="ev_agg_user2", email="ev_agg2@example.com", password="testpass123"
     )
-    user2.is_approved = True
+    user2.status = "vouched"
     user2.save()
     Review.objects.create(author=user2, event=past_event, rating=1, hidden=True)
 

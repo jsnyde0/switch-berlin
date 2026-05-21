@@ -6,8 +6,25 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+class UserStatus(models.TextChoices):
+    OPEN = "open", _("Open")
+    VOUCHED = "vouched", _("Vouched")
+    SUSPENDED_PENDING_INVESTIGATION = "suspended_pending_investigation", _(
+        "Suspended — Pending Investigation"
+    )
+    BANNED = "banned", _("Banned")
+
+
 class User(AbstractUser):
-    is_approved = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=40,
+        choices=UserStatus.choices,
+        default=UserStatus.OPEN,
+        help_text=(
+            "Trust tier: open (signup default), vouched (invite-verified), "
+            "suspended_pending_investigation (reversible), banned (admin-final)."
+        ),
+    )
     approved_at = models.DateTimeField(null=True, blank=True)
     approved_by = models.ForeignKey(
         "self",
@@ -23,6 +40,26 @@ class User(AbstractUser):
             "Timestamp when the user gave Art. 9(2)(a) GDPR consent for "
             "storing attendance data (kink/queer event attendance may reveal "
             "sexual orientation). Null = no consent; attendance writes blocked."
+        ),
+    )
+    # Cheap-foresight fields (ADR-003): ship now, activate logic in F1/F2/F4 beads.
+    vouch_score = models.FloatField(
+        default=0.0,
+        help_text=(
+            "Proportional trust score accumulated via vouching graph "
+            "(F1 bead activates)."
+        ),
+    )
+    personal_rating = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Bayesian-averaged event-review rating (F2 bead activates).",
+    )
+    invite_codes_remaining = models.IntegerField(
+        default=0,
+        help_text=(
+            "Admin-granted invite codes available to issue "
+            "(F4 bead activates earning formula)."
         ),
     )
 

@@ -1,6 +1,6 @@
 """
-Foundation tests for kb-i45.1:
-  - custom User model (AbstractUser subclass with is_approved, approved_at, approved_by)
+Foundation tests for kb-i45.1 (updated by kb-m69.1):
+  - custom User model (AbstractUser subclass with status, approved_at, approved_by)
   - AUTH_USER_MODEL = 'accounts.User'
   - LocaleMiddleware in MIDDLEWARE
   - LANGUAGES includes 'en' and 'de'
@@ -114,15 +114,15 @@ def test_user_model_is_custom():
 
 
 @pytest.mark.django_db
-def test_user_has_is_approved_field():
-    """User model must have is_approved BooleanField defaulting to False."""
+def test_user_has_status_field():
+    """User model must have status CharField defaulting to 'open' (kb-m69.1)."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user = User(username="test_approved_field")
-    assert hasattr(user, "is_approved"), "User has no is_approved attribute"
-    assert user.is_approved is False, (
-        f"is_approved should default to False, got {user.is_approved!r}"
+    user = User(username="test_status_field")
+    assert hasattr(user, "status"), "User has no status attribute"
+    assert user.status == "open", (
+        f"status should default to 'open', got {user.status!r}"
     )
 
 
@@ -165,7 +165,7 @@ def test_user_create_and_read_roundtrip():
     )
     fetched = User.objects.get(pk=user.pk)
     assert fetched.username == "roundtrip_user"
-    assert fetched.is_approved is False
+    assert fetched.status == "open"
     assert fetched.approved_at is None
     assert fetched.approved_by is None
 
@@ -184,13 +184,13 @@ def test_user_approved_by_self_fk():
     )
     import django.utils.timezone as tz
 
-    regular.is_approved = True
+    regular.status = "vouched"
     regular.approved_at = tz.now()
     regular.approved_by = admin
     regular.save()
 
     fetched = User.objects.get(pk=regular.pk)
-    assert fetched.is_approved is True
+    assert fetched.status == "vouched"
     assert fetched.approved_by_id == admin.pk
 
 

@@ -3,7 +3,7 @@
 Gate logic:
 - Template only shows the review form when user_has_went_attendance=True
 - Direct POST to submit_review without went attendance returns HTTP 429
-- All existing gate conditions (event_past, RATINGS_ENABLED, is_approved) still apply
+- All existing gate conditions (event_past, RATINGS_ENABLED, status='vouched') still apply
 """
 
 import pytest
@@ -53,7 +53,7 @@ def approved_user(db):
         email="gate_tester@example.com",
         password="testpass123",
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 
@@ -251,7 +251,7 @@ def test_submit_review_with_going_attendance_returns_429(db, past_event):
     user = User.objects.create_user(
         username="going_user", email="going@example.com", password="testpass123"
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     Attendance.objects.create(user=user, event=past_event, status="going")
 

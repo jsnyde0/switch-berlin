@@ -23,7 +23,7 @@ from django.test import Client
 
 @pytest.mark.django_db
 def test_user_create():
-    """User.is_approved defaults to False on new users."""
+    """User.status defaults to 'open' on new users (kb-m69.1: replaced is_approved)."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
@@ -31,7 +31,7 @@ def test_user_create():
         username="alice", email="alice@example.com", password="x"
     )
     retrieved = User.objects.get(pk=user.pk)
-    assert retrieved.is_approved is False
+    assert retrieved.status == "open"
 
 
 @pytest.mark.django_db

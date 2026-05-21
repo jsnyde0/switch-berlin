@@ -16,7 +16,7 @@ def user_with_went_attendance(db):
         def test_foo(user_with_went_attendance, some_event):
             user, attendance = user_with_went_attendance(some_event)
 
-    The returned user has ``is_approved=True``. Each call generates a unique
+    The returned user has ``status='vouched'``. Each call generates a unique
     username so multiple calls within the same test are safe.
     """
     from django.contrib.auth import get_user_model
@@ -33,7 +33,7 @@ def user_with_went_attendance(db):
             email=f"went_user_{_counter['n']}@example.com",
             password="testpass123",
         )
-        user.is_approved = True
+        user.status = "vouched"
         user.save()
         attendance = Attendance.objects.create(user=user, event=event, status="went")
         return user, attendance

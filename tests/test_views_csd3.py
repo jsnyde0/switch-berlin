@@ -22,9 +22,10 @@ def approved_user(db):
         username="viewer",
         email="viewer@example.com",
         password="password",
-        is_approved=True,
         is_staff=True,
     )
+    user.status = "vouched"
+    user.save()
     return user
 
 

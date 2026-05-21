@@ -85,7 +85,7 @@ def review_author(db):
         email="review_author@example.com",
         password="testpass",
     )
-    user.is_approved = True
+    user.status = "vouched"
     user.save()
     return user
 
