@@ -55,21 +55,19 @@ def test_loginwall_staff_gets_through(client, staff_user, published_event):
 
 
 @pytest.mark.django_db
-def test_signup_closed(client):
-    """GET /accounts/signup/ without invite code must not render a working signup form.
+def test_signup_open(client):
+    """GET /accounts/signup/ renders the signup form (open signup path, kb-m69.5).
 
-    Phase 0.4: allauth renders the signup_closed.html template (200) when
-    is_open_for_signup returns False.  We verify no <form> with a password
-    field is present, meaning the signup form itself is not served.
+    Phase 0.5+: OpenSignupAdapter makes signup always open (no invite code required).
+    The Turnstile widget is rendered but CAPTCHA validation only runs on POST.
     """
-    # INVITES_ENABLED defaults to True via get_flag(default=True)
-    # so no setup needed; just hit the endpoint without a valid invite code
+    # Open signup: no invite code required
     response = client.get("/accounts/signup/")
-    # allauth renders signup_closed template — not a bare 302/403
+    assert response.status_code == 200
     content = response.content.decode()
-    # Must NOT contain a password input (which would indicate the signup form)
-    assert 'type="password"' not in content, (
-        "Signup form was rendered without an invite code — signup must be closed"
+    # Must contain a password input — the signup form IS rendered
+    assert 'type="password"' in content, (
+        "Signup form was NOT rendered — signup must be open in phase 0.5+"
     )
 
 

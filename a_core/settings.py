@@ -197,8 +197,15 @@ LOGOUT_REDIRECT_URL = "home"
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = "optional"
-ACCOUNT_ADAPTER = "accounts.adapter.NoSignupAdapter"
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_ADAPTER = "accounts.adapter.OpenSignupAdapter"
+ACCOUNT_FORMS = {"signup": "accounts.forms.OpenSignupForm"}
+
+# Cloudflare Turnstile keys (ADR-014 D4 — Turnstile on public-facing forms).
+# Production: set real keys from Cloudflare dashboard.
+# Test mode: Cloudflare dummy keys (1x00000000000000000000AA always passes).
+TURNSTILE_SITE_KEY = env.str("TURNSTILE_SITE_KEY", default="")
+TURNSTILE_SECRET_KEY = env.str("TURNSTILE_SECRET_KEY", default="")
 
 EMAIL_HOST = env("EMAIL_HOST", default="")
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")

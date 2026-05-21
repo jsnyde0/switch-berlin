@@ -160,17 +160,27 @@ def test_signup_open_with_valid_code(client, valid_invite_code):
 
 
 @pytest.mark.django_db
-def test_signup_closed_without_code(client):
-    """GET /accounts/signup/ without a code must not render a signup form."""
+def test_signup_open_without_code(client):
+    """GET /accounts/signup/ renders the form — open signup path (kb-m69.5).
+
+    kb-m69.5 replaced the invite-gated path with an always-open signup using
+    Turnstile CAPTCHA. The form IS rendered without any invite code.
+    """
     response = client.get("/accounts/signup/")
-    # allauth renders signup_closed template at 200 when is_open_for_signup=False
+    assert response.status_code == 200
     content = response.content.decode()
-    assert 'type="password"' not in content, (
-        "Signup form rendered without invite code — signup must be closed"
+    assert 'type="password"' in content, (
+        "Signup form was NOT rendered — signup must be open in phase 0.5+"
     )
 
 
 @pytest.mark.django_db
+@pytest.mark.skip(
+    reason=(
+        "Invite-code redemption is part of the vouched-signup path (kb-m69.7). "
+        "OpenSignupAdapter (kb-m69.5) does not process invite codes."
+    )
+)
 def test_invite_code_redeemed_on_signup(client, valid_invite_code):
     """POST to /accounts/signup/ with code in session redeems the InviteCode."""
     # Inject the invite code into the session
@@ -200,6 +210,12 @@ def test_invite_code_redeemed_on_signup(client, valid_invite_code):
 
 
 @pytest.mark.django_db
+@pytest.mark.skip(
+    reason=(
+        "Invite-code rejection is part of the vouched-signup path (kb-m69.7). "
+        "OpenSignupAdapter (kb-m69.5) does not gate on invite codes."
+    )
+)
 def test_redeemed_code_rejected(client, staff_user):
     """GET /accounts/signup/?code=<redeemed> does not render a signup form."""
     already_redeemed = InviteCode.objects.create(
@@ -211,6 +227,12 @@ def test_redeemed_code_rejected(client, staff_user):
 
 
 @pytest.mark.django_db
+@pytest.mark.skip(
+    reason=(
+        "Expired invite-code rejection is part of the vouched-signup path (kb-m69.7). "
+        "OpenSignupAdapter (kb-m69.5) does not gate on invite codes."
+    )
+)
 def test_expired_code_rejected(client, staff_user):
     """GET /accounts/signup/?code=<expired> does not render a signup form."""
     expired = InviteCode.objects.create(
@@ -592,6 +614,12 @@ def test_map_enabled_false_hides_map(client, staff_user, published_event):
 
 
 @pytest.mark.django_db
+@pytest.mark.skip(
+    reason=(
+        "INVITES_ENABLED kill-switch is part of the vouched-signup path (kb-m69.7). "
+        "OpenSignupAdapter (kb-m69.5) does not check INVITES_ENABLED flag."
+    )
+)
 def test_invites_enabled_false_rejects_signup(client, valid_invite_code):
     """INVITES_ENABLED=False FeatureFlag: even a valid code does not open signup."""
     from django.core.cache import cache

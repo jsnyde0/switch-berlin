@@ -1,4 +1,5 @@
 from allauth.account.views import LoginView, PasswordResetView, SignupView
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -30,6 +31,11 @@ class RateLimitedSignupView(SignupView):
                 status=429,
             )
         return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["turnstile_site_key"] = getattr(settings, "TURNSTILE_SITE_KEY", "")
+        return ctx
 
 
 class RateLimitedLoginView(LoginView):

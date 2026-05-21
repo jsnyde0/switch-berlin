@@ -1,7 +1,8 @@
-"""Django system checks for legal-contact env vars.
+"""Django system checks for legal-contact env vars and Turnstile keys.
 
 W006 — WARNING: required legal vars are empty when DEBUG=True (internal only).
 E006 — ERROR: required legal vars are empty when PUBLIC_READ_ENABLED=True.
+E007 — ERROR: Turnstile keys missing when PUBLIC_READ_ENABLED=True (ADR-014 D4).
 
 Registered via ACoreConfig.ready() in a_core/apps.py.
 """
@@ -61,6 +62,50 @@ def check_legal_contact(app_configs, **kwargs):
                 ),
                 obj=settings,
                 id="a_core.W006",
+            )
+        )
+
+    return errors
+
+
+@register()
+def check_turnstile_keys(app_configs, **kwargs):
+    """E007: Turnstile site/secret keys must be set when PUBLIC_READ_ENABLED=True.
+
+    Per ADR-014 D4 (Turnstile on public-facing forms) + ADR-008 D3 (fail loud).
+    On a fresh DB (pre-migrate), returns [] — check re-runs after migrations.
+    """
+    from a_core.models import get_flag
+
+    errors = []
+    try:
+        public_read = get_flag("PUBLIC_READ_ENABLED", default=False)
+    except (ProgrammingError, OperationalError):
+        return []
+
+    if not public_read:
+        return []
+
+    site_key = getattr(settings, "TURNSTILE_SITE_KEY", "")
+    secret_key = getattr(settings, "TURNSTILE_SECRET_KEY", "")
+    missing = []
+    if not site_key:
+        missing.append("TURNSTILE_SITE_KEY")
+    if not secret_key:
+        missing.append("TURNSTILE_SECRET_KEY")
+
+    if missing:
+        errors.append(
+            Error(
+                "PUBLIC_READ_ENABLED=True but Turnstile env vars are missing: "
+                + ", ".join(missing),
+                hint=(
+                    "Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY "
+                    "before enabling public read access. "
+                    "Use Cloudflare test keys for non-production environments."
+                ),
+                obj=settings,
+                id="a_core.E007",
             )
         )
 
