@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 // In production, built assets land at static/dist/ so base includes /dist/.
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
-  base: mode === "development" ? "/static/" : "/static/dist/",
+  base: "/static/dist/",
   build: {
     outDir: resolve(__dirname, "../static/dist"),
     emptyOutDir: true,
