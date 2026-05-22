@@ -6,7 +6,12 @@ services:
     # reach from other docker bridges / processes on the VPS even if ufw is
     # misconfigured. Dev compose (base file, no overlay) keeps 0.0.0.0 for
     # LAN access from phones / pair-programming partners.
-    ports:
+    #
+    # kb-bsp: !override drops the base file's "8000:8000" entry. Compose's
+    # default merge strategy for lists is concat, so without !override the
+    # final container had BOTH bindings (0.0.0.0:8000 + 127.0.0.1:8000)
+    # which raced and failed with "address already in use" on recreate.
+    ports: !override
       - "127.0.0.1:8000:8000"
     command:
       - gunicorn
