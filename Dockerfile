@@ -48,10 +48,18 @@ RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# collectstatic runs at runtime in bin/init.sh (the one-shot 'init' compose
-# service). Build-time collectstatic was removed in kb-bsp — it required
-# SECRET_KEY at import-time which the build container does not have since
-# kb-x14 removed the env.str default (security: ImproperlyConfigured fail-loud).
+# collectstatic at build time. kb-x14 (2026-05-13) removed the SECRET_KEY default
+# for runtime fail-loud, but collectstatic doesn't use crypto — pass a dummy
+# inline so the build succeeds and the collected files land in the image layer
+# (shared across init/app/qcluster/bot via image, not via volume).
+# kb-cm5 (2026-05-22): kb-bsp moved this to runtime via init.sh, but init and
+# app are separate containers — init's writes never reached app's filesystem,
+# so all /static/* URLs 404'd on prod.
+RUN SECRET_KEY=build-time-dummy-not-used-at-runtime \
+    DATABASE_URL=postgres://x:x@x/x \
+    DEBUG=False \
+    ALLOWED_HOSTS=localhost \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 

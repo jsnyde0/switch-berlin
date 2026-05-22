@@ -27,8 +27,4 @@ else:
     print('Superuser already exists.')
 END
 
-# Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
-
 echo "Init complete."
