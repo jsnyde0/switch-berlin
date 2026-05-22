@@ -663,3 +663,74 @@ def test_flow_h_unlisted_event_has_noindex_header(vouched_user, unlisted_event):
     assert "noindex" in response["X-Robots-Tag"], (
         f"Expected 'noindex' in X-Robots-Tag, got '{response['X-Robots-Tag']}'"
     )
+
+
+# ---------------------------------------------------------------------------
+# Flow I — EVENT_VISIBILITY_TRUSTED_STATUSES knob (kb-5i2)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_flow_i_default_open_user_blocked_from_semi_public(
+    open_user, semi_public_event
+):
+    """
+    Flow I default: with EVENT_VISIBILITY_TRUSTED_STATUSES=("vouched",), an
+    open-status user does NOT qualify as a trusted viewer and gets 404 on
+    semi_public.
+    """
+    client = Client()
+    client.force_login(open_user)
+    url = reverse(
+        "event-detail",
+        kwargs={
+            "org_slug": semi_public_event.organizer.slug,
+            "event_slug": semi_public_event.slug,
+        },
+    )
+    response = client.get(url)
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+@override_settings(EVENT_VISIBILITY_TRUSTED_STATUSES=("open", "vouched"))
+def test_flow_i_knob_flip_grants_open_user_semi_public_access(
+    open_user, semi_public_event
+):
+    """
+    Flow I knob: appending "open" to EVENT_VISIBILITY_TRUSTED_STATUSES grants
+    open-status users access to semi_public events (and the URL surface for
+    unlisted) — ADR-012 D3 configurability.
+    """
+    client = Client()
+    client.force_login(open_user)
+    url = reverse(
+        "event-detail",
+        kwargs={
+            "org_slug": semi_public_event.organizer.slug,
+            "event_slug": semi_public_event.slug,
+        },
+    )
+    response = client.get(url)
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+@override_settings(EVENT_VISIBILITY_TRUSTED_STATUSES=())
+def test_flow_i_knob_empty_locks_out_even_vouched(vouched_user, semi_public_event):
+    """
+    Flow I edge: empty EVENT_VISIBILITY_TRUSTED_STATUSES means no User.status
+    qualifies as trusted; vouched users get 404. Staff/superuser path is
+    independent and still works.
+    """
+    client = Client()
+    client.force_login(vouched_user)
+    url = reverse(
+        "event-detail",
+        kwargs={
+            "org_slug": semi_public_event.organizer.slug,
+            "event_slug": semi_public_event.slug,
+        },
+    )
+    response = client.get(url)
+    assert response.status_code == 404

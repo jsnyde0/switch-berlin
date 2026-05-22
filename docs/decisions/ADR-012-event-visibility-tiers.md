@@ -1,6 +1,6 @@
 # ADR-012: Event visibility tiers and access-control matrix
 
-**Status:** Accepted 2026-05-21
+**Status:** Accepted 2026-05-21 (revised 2026-05-22 — D3 trusted-viewer set extracted to `settings.EVENT_VISIBILITY_TRUSTED_STATUSES`; firmness FLEXIBLE on the policy layer)
 **Scope:** Per-Event visibility model — `Event.visibility` enum, source-derived defaults, viewer-tier access matrix, robot indexing semantics. Companion to ADR-009 D2 (Profile identity visibility). The sibling User trust model — `User.status` tiers, vouch graph, invite economy — is the scope of [ADR-013](ADR-013-user-trust-model.md) (kb-m69 D1 + D4 + D6 + D9 substrate); this ADR references "vouched User" as a term that ADR canonicalizes.
 
 ## Context
@@ -80,17 +80,30 @@ Organizer override: after the organizer has claimed the Profile (per [ADR-014](A
 
 ### D3: Viewer-tier × Event-tier access matrix; robot indexing derived from tier
 
-**Firmness: EXPLORATORY** — depends on D1.
+**Firmness: FLEXIBLE** (revised 2026-05-22) — the set of User.status values that
+qualify as "trusted viewer" is a configurable knob
+(`settings.EVENT_VISIBILITY_TRUSTED_STATUSES`, V0 default `("vouched",)`). The
+matrix shape itself remains EXPLORATORY pending dogfooding (per D1).
 
-The access matrix for `Event.visibility` × viewer status:
+The access matrix for `Event.visibility` × viewer status (V0 default — trusted
+viewers = vouched + staff + superuser):
 
-| Event.visibility | Anonymous | Open-status User | Vouched User | URL holder (without User context) |
+| Event.visibility | Anonymous | Open-status User (default: NOT trusted) | Vouched User (default: trusted) | URL holder (without User context) |
 |---|---|---|---|---|
 | `public` | ✓ visible, indexed | ✓ | ✓ | ✓ |
-| `semi_public` | ✗ (login redirect) | ✗ (vouching-gate page) | ✓ visible, `noindex`, no sitemap | ✗ (URL alone does NOT bypass tier) |
-| `unlisted` | ✗ | ✗ | ✗ | ✓ visible (URL-keyed), `noindex`, no sitemap |
+| `semi_public` | ✗ (login redirect) | ✗ (vouching-gate / 404) | ✓ visible, `noindex`, no sitemap | ✗ (URL alone does NOT bypass tier) |
+| `unlisted` | ✗ | ✗ | ✓ via URL, `noindex`, no sitemap | ✓ visible (URL-keyed), `noindex`, no sitemap |
 
 `User.status` semantics (`open` vs `vouched` vs `suspended_pending_investigation` vs `banned`) are canonicalized by [ADR-013](ADR-013-user-trust-model.md); this ADR references the terms. Suspended and banned Users are blocked from all non-public reads regardless of URL holding.
+
+**Configurable knob:** `settings.EVENT_VISIBILITY_TRUSTED_STATUSES` (tuple of User.status strings) controls which statuses qualify as trusted viewers. To open semi_public/unlisted to open-signup users later, append `"open"`:
+
+```python
+# a_core/settings.py
+EVENT_VISIBILITY_TRUSTED_STATUSES = ("open", "vouched")
+```
+
+The knob is the **policy** layer (who qualifies); the tier→audience structure (semi_public is gated, unlisted is URL-keyed) is the **structural** layer and lives in D1. Policy changes go through this setting; structural changes go through a D1 evolution.
 
 Robot indexing follows the tier directly:
 - `public` → `Allow: /events/<slug>` in `robots.txt`; included in sitemap; no `X-Robots-Tag` suppression.

@@ -1,24 +1,29 @@
 """
 Event queryset managers — visibility-aware access control.
 
-ADR-012 D3: viewer × event-tier access matrix.
+ADR-012 D3: viewer × event-tier access matrix. The set of User.status values
+that qualify as "trusted viewer" is configurable via
+``settings.EVENT_VISIBILITY_TRUSTED_STATUSES`` (FLEXIBLE per ADR-012 D3).
 """
 
+from django.conf import settings
 from django.db import models
 
 
 def _is_trusted_viewer(user):
-    """Return True iff the user has full trusted-viewer access.
+    """Return True iff the user qualifies for non-public Event tiers.
 
-    Trusted viewers are: superuser, staff, and vouched-status users.
-    Suspended, banned, open-status, and anonymous users are NOT trusted.
-    Per ADR-013 D1: suspended/banned behave like anonymous for access control.
+    Trusted viewers are: superuser, staff, and any user whose status is in
+    ``settings.EVENT_VISIBILITY_TRUSTED_STATUSES`` (default: ``("vouched",)``).
+    Suspended, banned, open-status, and anonymous users are NOT trusted by
+    default. Per ADR-013 D1: suspended/banned behave like anonymous for access
+    control.
     """
     if user is None or not user.is_authenticated:
         return False
     if user.is_superuser or user.is_staff:
         return True
-    return user.status == "vouched"
+    return user.status in settings.EVENT_VISIBILITY_TRUSTED_STATUSES
 
 
 class EventQuerySet(models.QuerySet):
@@ -28,31 +33,21 @@ class EventQuerySet(models.QuerySet):
 
         Access matrix per ADR-012 D3:
         - Anon / unauthenticated: public only
-        - open-status user: public only
-        - vouched-status user: public + semi_public
-        - superuser / staff: all tiers (public + semi_public + unlisted)
+        - User whose status is NOT in EVENT_VISIBILITY_TRUSTED_STATUSES: public only
+        - Trusted viewer (status in TRUSTED_STATUSES, staff, or superuser):
+          public + semi_public
 
-        The `unlisted` tier is URL-keyed — a vouched user who *knows the URL*
-        can access the event, but the queryset does NOT surface unlisted events
-        in listings. That's handled by visible_to_url() at the view layer
-        (kb-m69.6).
+        The `unlisted` tier is URL-keyed — trusted viewers who *know the URL*
+        can access via visible_to_url(), but the listing queryset never
+        surfaces unlisted events.
+
         ADR-008 D3: invalid visibility raises at migration time; runtime never
         encounters a null/unknown value.
         """
-        if user is None or not user.is_authenticated:
-            return self.filter(visibility="public")
-
-        # Superuser / staff see everything (admin tooling, moderation)
-        if user.is_superuser or user.is_staff:
-            return self.all()
-
-        # Determine tier from User.status (ADR-008 D1: no compat shim)
-        is_vouched = user.status == "vouched"
-
-        if is_vouched:
+        if _is_trusted_viewer(user):
+            if user.is_superuser or user.is_staff:
+                return self.all()
             return self.filter(visibility__in=["public", "semi_public"])
-
-        # open status (or any unrecognised status) → public only
         return self.filter(visibility="public")
 
     def visible_to_url(self, user):
@@ -60,27 +55,14 @@ class EventQuerySet(models.QuerySet):
         Return the subset of events accessible via direct URL (detail views).
 
         Extends visible_to() to include `unlisted` events for trusted viewers
-        (vouched / staff / superuser) — ADR-012 D3: `unlisted` tier is
-        URL-keyed, so anyone with the URL can access it, but only trusted
-        viewers (not suspended / banned / open / anonymous).
+        — ADR-012 D3: `unlisted` tier is URL-keyed, so anyone who qualifies as
+        a trusted viewer AND knows the URL can access it.
 
         Per ADR-013 D1: suspended and banned users behave like anonymous
         regardless of URL possession.
         """
-        if user is None or not user.is_authenticated:
-            return self.filter(visibility="public")
-
-        # Superuser / staff see everything
-        if user.is_superuser or user.is_staff:
+        if _is_trusted_viewer(user):
             return self.all()
-
-        status = user.status
-
-        if status == "vouched":
-            # Vouched users can access public + semi_public + unlisted by URL
-            return self.filter(visibility__in=["public", "semi_public", "unlisted"])
-
-        # open / suspended / banned → public only
         return self.filter(visibility="public")
 
 
@@ -99,6 +81,7 @@ class EventManager(models.Manager):
     def visible_to_url(self, user):
         """Return events accessible via direct URL per ADR-012 D3 (detail views).
 
-        Includes `unlisted` events for trusted viewers (vouched/staff/superuser).
+        Includes `unlisted` events for trusted viewers per
+        ``settings.EVENT_VISIBILITY_TRUSTED_STATUSES``.
         """
         return self.get_queryset().visible_to_url(user)

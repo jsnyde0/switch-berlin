@@ -209,6 +209,13 @@ ACCOUNT_FORMS = {"signup": "accounts.forms.OpenSignupForm"}
 TURNSTILE_SITE_KEY = env.str("TURNSTILE_SITE_KEY", default="")
 TURNSTILE_SECRET_KEY = env.str("TURNSTILE_SECRET_KEY", default="")
 
+# ADR-012 D3 access-matrix knob (FLEXIBLE): User.status values that qualify as
+# "trusted viewer" for non-public Event tiers (semi_public listing, unlisted
+# URL-access). Staff/superuser always qualify regardless of this setting.
+# To open semi_public/unlisted to open-signup users later, append "open":
+#   EVENT_VISIBILITY_TRUSTED_STATUSES = ("open", "vouched")
+EVENT_VISIBILITY_TRUSTED_STATUSES = ("vouched",)
+
 EMAIL_HOST = env("EMAIL_HOST", default="")
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
