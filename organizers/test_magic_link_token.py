@@ -265,3 +265,64 @@ def test_magic_link_token_is_valid_false_when_used():
     token.refresh_from_db()
 
     assert token.is_valid is False
+
+
+# ---------------------------------------------------------------------------
+# ADR-014 D1: verified_method vocabulary — exactly 4 values, no magic_link
+# ---------------------------------------------------------------------------
+
+
+def test_verified_method_choices_has_exactly_4_values():
+    """VERIFIED_METHOD_CHOICES must have exactly 4 canonical values per ADR-014 D1.
+
+    The allowed values are: email_domain, admin_review, admin_legacy, auto_self.
+    'magic_link' is NOT a verified_method — it is a confirmation mechanism, not
+    a verification method.
+    """
+    from organizers.models import ProfileClaim
+
+    choices = dict(ProfileClaim.VERIFIED_METHOD_CHOICES)
+    assert len(choices) == 4, (
+        f"Expected exactly 4 VERIFIED_METHOD_CHOICES per ADR-014 D1, got {len(choices)}: {list(choices.keys())}"
+    )
+    assert "magic_link" not in choices, (
+        "'magic_link' must NOT be in VERIFIED_METHOD_CHOICES — it is not a valid verified_method (ADR-014 D1)"
+    )
+    for expected in ("email_domain", "admin_review", "admin_legacy", "auto_self"):
+        assert expected in choices, (
+            f"Expected '{expected}' in VERIFIED_METHOD_CHOICES but it is missing"
+        )
+
+
+# ---------------------------------------------------------------------------
+# ADR-014 D1: MagicLinkToken.intended_method field
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_magic_link_token_intended_method_field_exists():
+    """MagicLinkToken.intended_method field exists and accepts 'email_domain' or 'admin_review'."""
+    from organizers.models import MagicLinkToken, Profile
+
+    user = User.objects.create_user(
+        username="intended_user", email="intended@example.com", password="x"
+    )
+    profile = Profile.objects.create(name="Intended Profile", slug="intended-profile")
+
+    token = MagicLinkToken.objects.create(
+        email="intended@example.com",
+        profile=profile,
+        user_target=user,
+        expires_at=timezone.now() + timedelta(hours=24),
+        intended_method="email_domain",
+    )
+    assert token.intended_method == "email_domain"
+
+    token2 = MagicLinkToken.objects.create(
+        email="intended@example.com",
+        profile=profile,
+        user_target=user,
+        expires_at=timezone.now() + timedelta(hours=24),
+        intended_method="admin_review",
+    )
+    assert token2.intended_method == "admin_review"

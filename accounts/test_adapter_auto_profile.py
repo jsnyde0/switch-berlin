@@ -213,3 +213,33 @@ def test_adapter_has_create_owned_profile_method():
     adapter = OpenSignupAdapter()
     assert hasattr(adapter, "_create_owned_profile")
     assert callable(adapter._create_owned_profile)
+
+
+# ---------------------------------------------------------------------------
+# (g) Auto-created Profile has status='approved' (Fix 4 — ADR-014 D1 + owner reachability)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_auto_profile_has_status_approved():
+    """Auto-created Profile must have status='approved' so owner can view their profile.
+
+    ADR-014 D1: auto_self ProfileClaim is already a verified ownership signal.
+    Setting status='approved' makes the Profile visible to the owner (and others)
+    via the organizer_profile view which filters by status='approved'.
+    """
+    from accounts.adapter import OpenSignupAdapter
+    from organizers.models import Profile
+
+    adapter = OpenSignupAdapter()
+    user = User.objects.create_user(
+        username="approved_status_user",
+        email="approved_status@example.com",
+        password="x",
+    )
+    adapter._create_owned_profile(user)
+
+    profile = Profile.objects.get(claimants=user, kind="person")
+    assert profile.status == "approved", (
+        f"Auto-created Profile must have status='approved' so owner can view it; got '{profile.status}'"
+    )

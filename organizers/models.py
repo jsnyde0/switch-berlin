@@ -169,7 +169,6 @@ class ProfileClaim(models.Model):
 
     VERIFIED_METHOD_CHOICES = [
         ("email_domain", "Email domain fast-path"),
-        ("magic_link", "Magic-link redemption (admin-review track)"),
         ("admin_review", "Admin review"),
         ("admin_legacy", "Admin legacy (migration backfill)"),
         ("auto_self", "Auto self-claim on signup"),
@@ -295,6 +294,21 @@ class MagicLinkToken(models.Model):
         blank=True,
         help_text="Stamped on first valid redemption — NULL means unused.",
     )
+    INTENDED_METHOD_CHOICES = [
+        ("email_domain", "Email domain fast-path"),
+        ("admin_review", "Admin review fallback"),
+    ]
+    intended_method = models.CharField(
+        max_length=30,
+        choices=INTENDED_METHOD_CHOICES,
+        default="admin_review",
+        help_text=(
+            "Post-confirmation routing: 'email_domain' → auto-claim ProfileClaim; "
+            "'admin_review' → mark ClaimIntent verified, await admin approval. "
+            "Per ADR-014 D1+D2: magic-link is the confirmation mechanism; "
+            "this field records the post-confirmation outcome, not the method itself."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -357,6 +371,19 @@ class ClaimIntent(models.Model):
         related_name="rejected_claim_intents",
     )
     rejection_reason = models.CharField(max_length=500, blank=True)
+
+    # Magic-link confirmation: stamped when the user redeems the email link,
+    # proving they control the submitted email address (ADR-014 D2).
+    # NULL = not yet verified via magic-link; non-NULL = email confirmed, awaiting admin.
+    submitter_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Stamped when the submitter clicks their magic-link (proves email control). "
+            "NULL = unverified; non-NULL = email confirmed, awaiting admin approval "
+            "(ADR-014 D2 admin-review track)."
+        ),
+    )
 
     # Cheap-foresight: resolution timestamp (approved or rejected)
     resolved_at = models.DateTimeField(null=True, blank=True)

@@ -7,6 +7,12 @@
     {% trans "Claim this profile" %} — {{ organizer.name }}
   {% endif %}
 {% endblock title %}
+{% block extra_head %}
+  {# Cloudflare Turnstile widget — loads the JS from Cloudflare CDN (ADR-014 D3) #}
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+          async
+          defer></script>
+{% endblock extra_head %}
 {% block layout %}
   <div class="max-w-lg mx-auto flex flex-col gap-6 py-8">
     <h1 class="text-2xl font-bold">{{ organizer.name }}</h1>
@@ -29,24 +35,30 @@
       </p>
       <form method="post" class="flex flex-col gap-4">
         {% csrf_token %}
-        {% for field in form %}
-          <div class="form-control">
-            <label class="label" for="{{ field.id_for_label }}">
-              <span class="label-text">{{ field.label }}</span>
-            </label>
-            {{ field }}
-            {% if field.help_text %}
-              <div class="label">
-                <span class="label-text-alt text-base-content/60">{{ field.help_text }}</span>
-              </div>
-            {% endif %}
-            {% for error in field.errors %}
-              <div class="label">
-                <span class="label-text-alt text-error">{{ error }}</span>
-              </div>
-            {% endfor %}
-          </div>
-        {% endfor %}
+        {# Email field #}
+        <div class="form-control">
+          <label class="label" for="{{ form.email.id_for_label }}">
+            <span class="label-text">{{ form.email.label }}</span>
+          </label>
+          {{ form.email }}
+          {% if form.email.help_text %}
+            <div class="label">
+              <span class="label-text-alt text-base-content/60">{{ form.email.help_text }}</span>
+            </div>
+          {% endif %}
+          {% for error in form.email.errors %}
+            <div class="label">
+              <span class="label-text-alt text-error">{{ error }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        {# Cloudflare Turnstile widget — JS fills the hidden turnstile_token field (ADR-014 D3) #}
+        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+        {% if form.turnstile_token.errors %}
+          <div class="text-error text-sm">{{ form.turnstile_token.errors }}</div>
+        {% endif %}
+        {# Hidden input for the Turnstile token (filled by the widget JS) #}
+        {{ form.turnstile_token }}
         <button type="submit" class="btn btn-primary">{% trans "Send verification link" %}</button>
       </form>
       <a href="{% url 'organizer-profile' slug=organizer.slug %}"

@@ -306,11 +306,18 @@ def test_flow_c_vouched_signup_with_used_code_fails_loud(grantor):
 
 
 @pytest.mark.django_db
+@override_settings(**TURNSTILE_SETTINGS)
 def test_flow_d_email_domain_fastpath_claim(vouched_user):
     """
-    Flow D: vouched user whose email matches Profile.verified_domain visits claim URL.
-    → ProfileClaim created with verified_method='email_domain', no MagicLinkToken issued.
+    Flow D: vouched user whose email matches Profile.verified_domain submits ClaimForm.
+    → MagicLinkToken issued with intended_method='email_domain', redirect to check-email.
+    Magic-link redemption then creates ProfileClaim(verified_method='email_domain').
+
+    ADR-014 D2: Both tracks pass through magic-link confirmation. Fast-path
+    differs only in post-confirmation routing (auto-claim vs admin queue).
     """
+    from django.core import mail
+
     profile = Profile.objects.create(
         name="Domain Org",
         slug="domain-org",
@@ -323,20 +330,41 @@ def test_flow_d_email_domain_fastpath_claim(vouched_user):
     client.force_login(vouched_user)
 
     url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
-    response = client.post(url, {"email": vouched_user.email})
+    with patch("accounts.adapter.validate_turnstile_token", return_value=True):
+        response = client.post(url, {"email": vouched_user.email, "turnstile_token": "VALID"})
 
-    # Should redirect to profile page
+    # Should redirect to check-email page (NOT directly to profile)
     assert response.status_code == 302
+    assert (
+        "check" in response["Location"].lower()
+        or "email" in response["Location"].lower()
+    ), f"Expected check-email redirect on fast-path, got: {response['Location']}"
 
-    claim = ProfileClaim.objects.filter(profile=profile, user=vouched_user).first()
-    assert claim is not None, "ProfileClaim was not created on email-domain fast-path"
-    assert claim.verified_method == "email_domain", (
-        f"Expected verified_method='email_domain', got '{claim.verified_method}'"
+    # No ProfileClaim created at POST time (magic-link required)
+    assert not ProfileClaim.objects.filter(profile=profile, user=vouched_user).exists(), (
+        "ProfileClaim must NOT be created at POST time on fast-path (ADR-014 D2)"
     )
 
-    # No MagicLinkToken should have been issued
-    assert not MagicLinkToken.objects.filter(profile=profile, user_target=vouched_user).exists(), (
-        "MagicLinkToken should not be created on email-domain fast-path"
+    # MagicLinkToken issued with intended_method='email_domain'
+    token = MagicLinkToken.objects.filter(profile=profile, user_target=vouched_user).first()
+    assert token is not None, "MagicLinkToken should be created on email-domain fast-path"
+    assert token.intended_method == "email_domain", (
+        f"Expected intended_method='email_domain', got '{token.intended_method}'"
+    )
+
+    # Magic-link email sent
+    assert len(mail.outbox) >= 1, "Expected magic-link email in outbox on fast-path"
+
+    # Redeem the magic link — creates ProfileClaim with verified_method='email_domain'
+    redeem_url = reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
+    redeem_response = client.get(redeem_url)
+
+    assert redeem_response.status_code == 302
+
+    claim = ProfileClaim.objects.filter(profile=profile, user=vouched_user).first()
+    assert claim is not None, "ProfileClaim was not created after fast-path magic-link redemption"
+    assert claim.verified_method == "email_domain", (
+        f"Expected verified_method='email_domain', got '{claim.verified_method}'"
     )
 
 
@@ -346,11 +374,13 @@ def test_flow_d_email_domain_fastpath_claim(vouched_user):
 
 
 @pytest.mark.django_db
+@override_settings(**TURNSTILE_SETTINGS)
 def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     """
     Flow E: vouched user whose email does NOT match verified_domain submits ClaimForm.
-    → ClaimIntent created, MagicLinkToken issued.
-    Redemption with correct user creates ProfileClaim(verified_method='magic_link').
+    → ClaimIntent created, MagicLinkToken issued (intended_method='admin_review').
+    Redemption stamps ClaimIntent.submitter_verified_at; no ProfileClaim yet
+    (admin must approve first per ADR-014 D2).
     """
     from django.core import mail
 
@@ -367,7 +397,8 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
 
     # POST claim form — triggers admin-review path (email domain mismatch)
     url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
-    response = client.post(url, {"email": vouched_user.email})
+    with patch("accounts.adapter.validate_turnstile_token", return_value=True):
+        response = client.post(url, {"email": vouched_user.email, "turnstile_token": "VALID"})
 
     # Should redirect to check-email page
     assert response.status_code == 302
@@ -376,10 +407,13 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     intent = ClaimIntent.objects.filter(user=vouched_user, profile=profile).first()
     assert intent is not None, "ClaimIntent was not created on admin-review path"
 
-    # MagicLinkToken issued
+    # MagicLinkToken issued with intended_method='admin_review'
     token = MagicLinkToken.objects.filter(profile=profile, user_target=vouched_user).first()
     assert token is not None, "MagicLinkToken was not created on admin-review path"
     assert token.is_valid, "MagicLinkToken should be valid (not expired, not used)"
+    assert token.intended_method == "admin_review", (
+        f"Expected intended_method='admin_review', got '{token.intended_method}'"
+    )
 
     # Magic-link email sent
     assert len(mail.outbox) >= 1, "Expected magic-link email in outbox"
@@ -388,14 +422,18 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     redeem_url = reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
     redeem_response = client.get(redeem_url)
 
-    # Should redirect to profile page after successful redemption
+    # Should redirect (to check-email page — admin must still approve)
     assert redeem_response.status_code == 302
 
-    # ProfileClaim created with verified_method='magic_link'
-    claim = ProfileClaim.objects.filter(profile=profile, user=vouched_user).first()
-    assert claim is not None, "ProfileClaim was not created after magic-link redemption"
-    assert claim.verified_method == "magic_link", (
-        f"Expected verified_method='magic_link', got '{claim.verified_method}'"
+    # ClaimIntent.submitter_verified_at stamped (email confirmed)
+    intent.refresh_from_db()
+    assert intent.submitter_verified_at is not None, (
+        "ClaimIntent.submitter_verified_at should be stamped after magic-link redemption"
+    )
+
+    # No ProfileClaim created yet (admin approval required per ADR-014 D2)
+    assert not ProfileClaim.objects.filter(profile=profile, user=vouched_user).exists(), (
+        "ProfileClaim must NOT be created on admin-review path until admin approves (ADR-014 D2)"
     )
 
     # Token marked as used

@@ -98,6 +98,10 @@ class OpenSignupAdapter(DefaultAccountAdapter):
                 kind="person",
                 name=name,
                 slug=slug,
+                # auto_self ProfileClaim is already a verified ownership signal;
+                # status='approved' makes the Profile visible to the owner
+                # (organizer_profile view filters status='approved'). ADR-014 D1.
+                status="approved",
             )
             ProfileClaim.objects.create(
                 profile=profile,

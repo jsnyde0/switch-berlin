@@ -37,7 +37,13 @@ def make_user(username, email=None):
     )
 
 
-def make_token(user, profile, email=None, hours=24):
+# ---------------------------------------------------------------------------
+# Successful redemption
+# ---------------------------------------------------------------------------
+
+
+def make_token(user, profile, email=None, hours=24, intended_method="email_domain"):
+    """Make a token with intended_method (required by ADR-014 D1 correction)."""
     from organizers.models import MagicLinkToken
 
     email = email or user.email
@@ -46,22 +52,22 @@ def make_token(user, profile, email=None, hours=24):
         profile=profile,
         user_target=user,
         expires_at=timezone.now() + timedelta(hours=hours),
+        intended_method=intended_method,
     )
 
 
-# ---------------------------------------------------------------------------
-# Successful redemption
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.django_db
-def test_magic_link_redeem_creates_profile_claim(client):
-    """Valid token redeemed by correct user → ProfileClaim with magic_link method."""
+def test_magic_link_redeem_fast_path_creates_profile_claim_with_email_domain(client):
+    """Valid fast-path token redeemed → ProfileClaim with verified_method='email_domain'.
+
+    ADR-014 D1: 'magic_link' is not a valid verified_method. Fast-path redemption
+    produces verified_method='email_domain'.
+    """
     from organizers.models import ProfileClaim
 
     profile = make_profile("redeem-ok-profile")
     user = make_user("redeem_ok")
-    token = make_token(user, profile)
+    token = make_token(user, profile, intended_method="email_domain")
 
     client.force_login(user)
     url = reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
@@ -71,7 +77,44 @@ def test_magic_link_redeem_creates_profile_claim(client):
 
     claim = ProfileClaim.objects.filter(profile=profile, user=user).first()
     assert claim is not None
-    assert claim.verified_method == "magic_link"
+    assert claim.verified_method == "email_domain", (
+        f"Expected verified_method='email_domain' for fast-path token, got '{claim.verified_method}'"
+    )
+
+
+@pytest.mark.django_db
+def test_magic_link_redeem_admin_review_marks_claim_intent_verified(client):
+    """Valid admin-review token redeemed → ClaimIntent.submitter_verified_at stamped, no ProfileClaim.
+
+    ADR-014 D2: admin-review track → magic-link redemption marks ClaimIntent verified;
+    admin must then approve to create ProfileClaim.
+    """
+    from organizers.models import ClaimIntent, ProfileClaim
+
+    profile = make_profile("redeem-admin-profile")
+    user = make_user("redeem_admin_user")
+
+    # Create ClaimIntent for admin-review track
+    intent = ClaimIntent.objects.create(user=user, profile=profile)
+
+    token = make_token(user, profile, intended_method="admin_review")
+
+    client.force_login(user)
+    url = reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
+    response = client.get(url)
+
+    assert response.status_code == 302  # redirect on success
+
+    # ClaimIntent.submitter_verified_at must be stamped
+    intent.refresh_from_db()
+    assert intent.submitter_verified_at is not None, (
+        "ClaimIntent.submitter_verified_at should be stamped after magic-link redemption"
+    )
+
+    # No ProfileClaim created (admin must approve first)
+    assert not ProfileClaim.objects.filter(profile=profile, user=user).exists(), (
+        "ProfileClaim should NOT be created on admin-review path until admin approves"
+    )
 
 
 @pytest.mark.django_db

@@ -187,13 +187,13 @@ def claim_entry(request, slug):
 
     Auth-required (ADR-014 D2 — auth-before-claim; user_target NEVER NULL per D3).
 
-    GET:  Render the claim form.
-    POST: Two-track routing:
+    GET:  Render the claim form (with Turnstile per ADR-014 D3).
+    POST: Both tracks ALWAYS pass through magic-link confirmation (ADR-014 D2):
         - email_domain fast-path: submitted email domain == Profile.verified_domain
-          → ProfileClaim created with verified_method='email_domain', redirect.
+          → MagicLinkToken(intended_method='email_domain') created, magic-link email sent.
         - admin-review path: no domain match or verified_domain not set
-          → ClaimIntent + MagicLinkToken created, magic-link email sent,
-          → redirect to check-email page.
+          → ClaimIntent + MagicLinkToken(intended_method='admin_review') created, email sent.
+        Both tracks redirect to check-email page; ProfileClaim is NOT created at POST time.
 
     Explicit branch for user-IS-claimant (ADR-008 D3 — not silent).
     """
@@ -213,60 +213,64 @@ def claim_entry(request, slug):
         email = form.cleaned_data["email"]
         submitted_domain = email.split("@")[1].lower()
 
-        if (
+        is_fast_path = (
             profile.verified_domain
             and submitted_domain == profile.verified_domain.lower()
-        ):
-            # ---- Email-domain fast-path (ADR-014 D2) ----
-            ProfileClaim.objects.get_or_create(
-                profile=profile,
-                user=request.user,
-                defaults={
-                    "verified_method": "email_domain",
-                    "role": "admin",
-                },
-            )
-            return redirect(reverse("organizer-profile", kwargs={"slug": slug}))
+        )
 
+        if is_fast_path:
+            # ---- Email-domain fast-path (ADR-014 D2) ----
+            # Both tracks go through magic-link; fast-path differs only in
+            # post-confirmation routing (auto-claim vs admin queue).
+            intended_method = "email_domain"
         else:
             # ---- Admin-review path (ADR-014 D2) ----
+            intended_method = "admin_review"
             ClaimIntent.objects.get_or_create(user=request.user, profile=profile)
 
-            token = MagicLinkToken.objects.create(
-                email=email,
-                profile=profile,
-                user_target=request.user,
-                expires_at=timezone.now() + timedelta(hours=24),
-            )
+        token = MagicLinkToken.objects.create(
+            email=email,
+            profile=profile,
+            user_target=request.user,
+            expires_at=timezone.now() + timedelta(hours=24),
+            intended_method=intended_method,
+        )
 
-            redeem_url = request.build_absolute_uri(
-                reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
-            )
-            email_body = render_to_string(
-                "email/claim_magic_link.html",
-                {
-                    "user": request.user,
-                    "organizer": profile,
-                    "redeem_url": redeem_url,
-                },
-                request=request,
-            )
-            send_mail(
-                subject=f"Verify your claim for {profile.name}",
-                message=email_body,
-                from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
-                recipient_list=[email],
-                fail_silently=False,
-            )
+        redeem_url = request.build_absolute_uri(
+            reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
+        )
+        email_body = render_to_string(
+            "email/claim_magic_link.html",
+            {
+                "user": request.user,
+                "organizer": profile,
+                "redeem_url": redeem_url,
+            },
+            request=request,
+        )
+        send_mail(
+            subject=f"Verify your claim for {profile.name}",
+            message=email_body,
+            from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
+            recipient_list=[email],
+            fail_silently=False,
+        )
 
-            return redirect(
-                reverse("organizer-claim-check-email", kwargs={"slug": slug})
-            )
+        return redirect(
+            reverse("organizer-claim-check-email", kwargs={"slug": slug})
+        )
+
+    from django.conf import settings as django_settings
 
     return render(
         request,
         "organizers/claim_start.html",
-        {"organizer": profile, "form": form, "already_claimant": False},
+        {
+            "organizer": profile,
+            "form": form,
+            "already_claimant": False,
+            "turnstile_site_key": getattr(django_settings, "TURNSTILE_SITE_KEY", ""),
+        },
     )
 
 
@@ -293,8 +297,11 @@ def magic_link_redeem(request, token):
       - already-used token → 400
       - non-existent token → 404 (via get_object_or_404)
 
-    On success: creates ProfileClaim with verified_method='magic_link',
-    marks token used, redirects to the profile page.
+    On success, routes by token.intended_method (ADR-014 D1+D2):
+      - 'email_domain': creates ProfileClaim(verified_method='email_domain'),
+        marks token used, redirects to profile page (auto-claim complete).
+      - 'admin_review': marks ClaimIntent.submitter_verified_at,
+        marks token used, redirects to check-email page (admin must still approve).
     """
     magic_token = get_object_or_404(MagicLinkToken, token=token)
 
@@ -317,18 +324,31 @@ def magic_link_redeem(request, token):
             "Please start the claim process again."
         )
 
-    # Mark token used BEFORE creating ProfileClaim — single-use invariant
+    # Mark token used BEFORE post-confirmation action — single-use invariant
     magic_token.mark_used()
 
-    ProfileClaim.objects.get_or_create(
-        profile=magic_token.profile,
-        user=request.user,
-        defaults={
-            "verified_method": "magic_link",
-            "role": "admin",
-        },
-    )
-
-    return redirect(
-        reverse("organizer-profile", kwargs={"slug": magic_token.profile.slug})
-    )
+    if magic_token.intended_method == "email_domain":
+        # ---- Fast-path: auto-claim (ADR-014 D2) ----
+        ProfileClaim.objects.get_or_create(
+            profile=magic_token.profile,
+            user=request.user,
+            defaults={
+                "verified_method": "email_domain",
+                "role": "admin",
+            },
+        )
+        return redirect(
+            reverse("organizer-profile", kwargs={"slug": magic_token.profile.slug})
+        )
+    else:
+        # ---- Admin-review path: stamp submitter_verified_at (ADR-014 D2) ----
+        # ProfileClaim is NOT created here; admin must approve the ClaimIntent.
+        ClaimIntent.objects.filter(
+            user=request.user, profile=magic_token.profile
+        ).update(submitter_verified_at=timezone.now())
+        return redirect(
+            reverse(
+                "organizer-claim-check-email",
+                kwargs={"slug": magic_token.profile.slug},
+            )
+        )
