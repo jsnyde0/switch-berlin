@@ -36,6 +36,43 @@ def test_always_public_prefixes_includes_age_check():
     assert "/age-check" in ALWAYS_PUBLIC_PREFIXES
 
 
+def test_always_public_prefixes_includes_static():
+    """ALWAYS_PUBLIC_PREFIXES must include /static/ so CSS/JS loads on unauthed pages.
+
+    Without this, unauthenticated users on /accounts/signup/ and /accounts/login/
+    cannot fetch the compiled CSS file and those pages render completely unstyled.
+    (kb-cm5 root cause: LoginWallMiddleware redirected /static/ to login for anon users)
+    """
+    from accounts.middleware import ALWAYS_PUBLIC_PREFIXES
+
+    assert "/static/" in ALWAYS_PUBLIC_PREFIXES, (
+        "/static/ must be in ALWAYS_PUBLIC_PREFIXES so static assets load for "
+        "unauthenticated users on /accounts/signup/ and /accounts/login/"
+    )
+
+
+def test_loginwall_static_path_passes_through_for_anon():
+    """Static asset requests must pass through LoginWallMiddleware for unauthenticated users."""
+    from accounts.middleware import LoginWallMiddleware
+
+    def _get_response(req):
+        from django.http import HttpResponse
+
+        return HttpResponse("ok", content_type="text/css")
+
+    mw = LoginWallMiddleware(_get_response)
+    factory = RequestFactory()
+    request = factory.get("/static/dist/assets/app-abc123.css")
+    request.user = type("User", (), {"is_authenticated": False})()
+
+    with patch("accounts.middleware.get_flag", side_effect=make_get_flag(False)):
+        response = mw(request)
+
+    assert response.status_code == 200, (
+        f"Static assets must be accessible to unauthenticated users, got {response.status_code}"
+    )
+
+
 def test_always_public_prefixes_includes_impressum():
     """ALWAYS_PUBLIC_PREFIXES must include /impressum."""
     from accounts.middleware import ALWAYS_PUBLIC_PREFIXES

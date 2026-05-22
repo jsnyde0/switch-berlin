@@ -19,6 +19,11 @@ ALWAYS_PUBLIC_PREFIXES = (
     "/takedown",
     "/organizer-opt-out",
     "/age-check",
+    # kb-cm5: Static assets (CSS, JS, images) must be publicly accessible so
+    # unauthenticated pages like /accounts/signup/ and /accounts/login/ can load
+    # their stylesheet. Without this, LoginWallMiddleware redirects /static/ to
+    # the login page for anonymous users, breaking Tailwind on auth pages.
+    "/static/",
 )
 
 # Prefix-based matching — "/" is a special case: match only the exact root path
