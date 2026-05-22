@@ -1,170 +1,186 @@
 {% extends "_base.html" %}
 {% load i18n %}
-{% block title %}
-  {{ organizer.name }} — Switch Berlin
-{% endblock title %}
+{% block title %}{{ organizer.name }} — Switch Berlin{% endblock title %}
 {% block og_meta %}
   {% if PUBLIC_READ_ENABLED %}
     <meta property="og:title" content="{{ organizer.name }}" />
-    <meta property="og:description"
-          content="{{ organizer.description|truncatewords:30 }}" />
+    <meta property="og:description" content="{{ organizer.description|truncatewords:30 }}" />
     <meta property="og:type" content="profile" />
     {% if organizer.avatar %}
-      <meta property="og:image"
-            content="{{ request.scheme }}://{{ request.get_host }}{{ organizer.avatar.url }}" />
+      <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ organizer.avatar.url }}" />
     {% endif %}
     <meta property="og:url" content="{{ request.build_absolute_uri }}" />
   {% endif %}
 {% endblock og_meta %}
 {% block layout %}
-  <div class="max-w-2xl mx-auto flex flex-col gap-8">
-    <header class="flex items-start gap-4">
-      {% if organizer.avatar %}
-        <img src="{{ organizer.avatar.url }}"
-             alt="{{ organizer.name }}"
-             width="80"
-             height="80"
-             class="w-20 h-20 rounded-full object-cover">
-      {% else %}
-        <div class="w-20 h-20 rounded-full bg-base-300 flex items-center justify-center text-2xl">
-          {{ organizer.name|first|upper }}
-        </div>
-      {% endif %}
-      <div class="flex flex-col gap-1">
-        <h1 class="text-2xl font-bold flex items-center gap-2">
-          {{ organizer.name }}
-          {% if organizer.verified_badge %}
-            <span class="badge badge-info badge-sm">{% trans "Verified" %}</span>
+  <c-navbar />
+  <main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+    {% comment %}
+      Organizer masthead — two-column composition. Avatar + organizer name
+      + mono colophon on the left, follow / claim actions on the right.
+      Reads as a publication byline page, not a profile card.
+    {% endcomment %}
+    <header class="pt-10 pb-8 lg:pt-14 lg:pb-10">
+      <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
+        {% trans "Organizer · Profile" %}
+      </p>
+      <div class="grid grid-cols-12 gap-6 items-end">
+        <div class="col-span-12 lg:col-span-8 flex items-end gap-6">
+          {% if organizer.avatar %}
+            <img src="{{ organizer.avatar.url }}"
+                 alt="{{ organizer.name }}"
+                 width="96" height="96"
+                 class="w-20 h-20 lg:w-24 lg:h-24 object-cover ring-1 ring-white/15 flex-shrink-0">
+          {% else %}
+            <div class="kb-display text-[44px] lg:text-[56px] leading-none w-20 h-20 lg:w-24 lg:h-24 flex items-center justify-center bg-fuchsia-300/12 text-fuchsia-200/95 flex-shrink-0">
+              {{ organizer.name|first|upper }}
+            </div>
           {% endif %}
-        </h1>
-        {% if organizer.website %}
-          <a href="{{ organizer.website }}"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="text-sm link">{{ organizer.website }}</a>
-        {% endif %}
-        {% if organizer.telegram_link %}
-          <p class="text-sm text-base-content/70">Telegram: {{ organizer.telegram_link }}</p>
-        {% endif %}
+          <div class="min-w-0">
+            <h1 class="kb-display text-[36px] sm:text-[48px] lg:text-[64px] leading-[0.95] font-light text-base-content tracking-tight">
+              {{ organizer.name }}
+            </h1>
+            <div class="mt-3 flex items-center flex-wrap gap-x-4 gap-y-1.5">
+              {% if organizer.verified_badge %}
+                <span class="kb-tag kb-tag-accent">{% trans "Verified" %}</span>
+              {% endif %}
+              {% if organizer.website %}
+                <a href="{{ organizer.website }}" target="_blank" rel="noopener noreferrer"
+                   class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content border-b border-white/15 hover:border-fuchsia-300/60 transition-colors pb-0.5">
+                  {{ organizer.website|cut:"https://"|cut:"http://"|cut:"www." }}
+                </a>
+              {% endif %}
+              {% if organizer.telegram_link %}
+                <span class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/45">
+                  Telegram · {{ organizer.telegram_link }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-4 lg:pl-8 lg:border-l lg:border-white/15 flex flex-col gap-3 items-start lg:items-stretch">
+          {% if user.is_authenticated %}
+            {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
+          {% endif %}
+          {% if not user.is_authenticated %}
+            <a href="{% url 'account_login' %}?next={{ request.path }}" class="kb-btn-secondary">
+              {% trans "Sign in to claim" %}
+            </a>
+          {% elif viewer_is_claimant %}
+            <span class="kb-tag kb-tag-success self-start">
+              {% trans "You manage this profile" %}
+            </span>
+          {% else %}
+            <a href="{% url 'organizer-claim-entry' slug=organizer.slug %}" class="kb-btn">
+              {% trans "Claim this profile" %}
+              <span aria-hidden="true">↗</span>
+            </a>
+          {% endif %}
+        </div>
       </div>
     </header>
-    {% if user.is_authenticated %}
-      {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
-    {% endif %}
-    {# Claim CTA — three branches per ADR-014 D2 + ADR-008 D3 (explicit, not absent) #}
-    {% if not user.is_authenticated %}
-      {# Branch 1: Anonymous viewer → Sign in to claim #}
-      <div class="flex items-center gap-2">
-        <a href="{% url 'account_login' %}?next={{ request.path }}"
-           class="btn btn-sm btn-outline">{% trans "Sign in to claim this profile" %}</a>
-      </div>
-    {% elif viewer_is_claimant %}
-      {# Branch 3: Authenticated claimant → explicit "you manage" badge (ADR-008 D3) #}
-      <div class="badge badge-success gap-1">
-        <span>{% trans "You manage this profile" %}</span>
-      </div>
-    {% else %}
-      {# Branch 2: Authenticated non-claimant → Claim CTA #}
-      <div class="flex items-center gap-2">
-        <a href="{% url 'organizer-claim-entry' slug=organizer.slug %}"
-           class="btn btn-sm btn-primary">{% trans "Claim this profile" %}</a>
-      </div>
-    {% endif %}
+
     {% if user.is_authenticated and user.status == "vouched" and FLAGS_ENABLED and RATINGS_ENABLED %}
-      {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
+      <div class="mt-2 mb-10">
+        {% include "reviews/_rating_form.html" with target_type="organizer" target_id=organizer.pk user_rating=user_review.rating|default:"" form_id="organizer-rating-form" %}
+      </div>
     {% endif %}
+
     {% if organizer.description %}
-      <section class="prose prose-sm max-w-none">
+      <div class="kb-rule mb-8"></div>
+      <section class="kb-prose pb-12">
         {{ organizer.description|linebreaks }}
       </section>
     {% endif %}
-    <section>
-      <div class="flex items-center gap-3 mb-4 flex-wrap">
-        <h2 class="text-xl font-semibold">{% trans "Upcoming events" %}</h2>
-        {% if EVENT_REVIEWS_DISPLAYED %}
-          <div class="flex gap-2" role="tablist">
-            <a href="?event_sort=date{% if sort %}&sort={{ sort }}{% endif %}"
-               class="badge cursor-pointer {% if event_sort == 'date' %}badge-primary{% else %}badge-outline{% endif %}"
-               role="tab"
-               aria-selected="{% if event_sort == 'date' %}true{% else %}false{% endif %}">{% trans "Latest" %}</a>
-            <a href="?event_sort=lowest_rated{% if sort %}&sort={{ sort }}{% endif %}"
-               class="badge cursor-pointer {% if event_sort == 'lowest_rated' %}badge-primary{% else %}badge-outline{% endif %}"
-               role="tab"
-               aria-selected="{% if event_sort == 'lowest_rated' %}true{% else %}false{% endif %}">
-              {% trans "Lowest rated" %}
-            </a>
-            <a href="?event_sort=most_reviewed{% if sort %}&sort={{ sort }}{% endif %}"
-               class="badge cursor-pointer {% if event_sort == 'most_reviewed' %}badge-primary{% else %}badge-outline{% endif %}"
-               role="tab"
-               aria-selected="{% if event_sort == 'most_reviewed' %}true{% else %}false{% endif %}">
-              {% trans "Most reviewed" %}
-            </a>
-          </div>
-        {% endif %}
-      </div>
+
+    <c-kb.section
+      eyebrow="{% trans 'Listings' %}"
+      title="{% trans 'Upcoming' %}"
+      accent="{% trans '& open' %}">
+      {% if EVENT_REVIEWS_DISPLAYED %}
+        <div class="flex items-center gap-5 mb-6" role="tablist">
+          <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Sort —" %}</span>
+          <a href="?event_sort=date{% if sort %}&sort={{ sort }}{% endif %}"
+             role="tab"
+             aria-selected="{% if event_sort == 'date' %}true{% else %}false{% endif %}"
+             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if event_sort == 'date' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Latest" %}</a>
+          <a href="?event_sort=lowest_rated{% if sort %}&sort={{ sort }}{% endif %}"
+             role="tab"
+             aria-selected="{% if event_sort == 'lowest_rated' %}true{% else %}false{% endif %}"
+             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if event_sort == 'lowest_rated' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Lowest rated" %}</a>
+          <a href="?event_sort=most_reviewed{% if sort %}&sort={{ sort }}{% endif %}"
+             role="tab"
+             aria-selected="{% if event_sort == 'most_reviewed' %}true{% else %}false{% endif %}"
+             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if event_sort == 'most_reviewed' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Most reviewed" %}</a>
+        </div>
+      {% endif %}
       {% if upcoming_events %}
-        <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
           {% for event in upcoming_events %}<c-event-card :event="event" />{% endfor %}
         </div>
       {% else %}
-        <p class="text-base-content/60">{% trans "No upcoming events." %}</p>
+        <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-12">— {% trans "No upcoming events" %} —</p>
       {% endif %}
-    </section>
+    </c-kb.section>
+
     {% if past_events %}
-      <details class="collapse collapse-arrow bg-base-200">
-        <summary class="collapse-title text-lg font-semibold">{% trans "Past events" %}</summary>
-        <div class="collapse-content flex flex-col gap-3 pt-2">
+      <c-kb.section
+        eyebrow="{% trans 'Archive' %}"
+        title="{% trans 'Past' %}"
+        accent="{% trans 'listings' %}">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 opacity-75">
           {% for event in past_events %}<c-event-card :event="event" />{% endfor %}
         </div>
-      </details>
+      </c-kb.section>
     {% endif %}
+
     {% if show_rating %}
-      <section id="{{ organizer.slug }}-reviews">
-        <div class="flex flex-col gap-4">
-          <div class="flex items-center gap-3">
-            <h2 class="text-xl font-semibold">{% trans "Reviews" %}</h2>
-            <span class="text-base-content/60 text-sm">
-              {{ avg_rating|floatformat:1 }} / 5
-              ({{ rating_count }} {% trans "reviews" %})
-            </span>
-          </div>
-          {# Sort chips — server-side href links, no JS #}
-          <div class="flex gap-2" role="tablist">
-            <a href="?sort=recent{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
-               class="badge cursor-pointer {% if sort == 'recent' %}badge-primary{% else %}badge-outline{% endif %}"
-               role="tab"
-               aria-selected="{% if sort == 'recent' %}true{% else %}false{% endif %}">{% trans "Recent" %}</a>
-            <a href="?sort=highest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
-               class="badge cursor-pointer {% if sort == 'highest' %}badge-primary{% else %}badge-outline{% endif %}"
-               role="tab"
-               aria-selected="{% if sort == 'highest' %}true{% else %}false{% endif %}">{% trans "Highest" %}</a>
-            <a href="?sort=lowest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
-               class="badge cursor-pointer {% if sort == 'lowest' %}badge-primary{% else %}badge-outline{% endif %}"
-               role="tab"
-               aria-selected="{% if sort == 'lowest' %}true{% else %}false{% endif %}">{% trans "Lowest" %}</a>
-          </div>
-          {# Per-review rows #}
-          <div class="flex flex-col gap-4">
-            {% for review in reviews %}
-              <div class="border border-base-300 rounded-lg p-4 flex flex-col gap-1">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-medium text-sm">{{ review.author.get_full_name|default:review.author.username }}</span>
-                  <div class="rating rating-sm"
-                       aria-label="{% blocktrans with rating=review.rating %}{{ rating }} stars{% endblocktrans %}">
-                    {% for i in "12345" %}
-                      <span class="mask mask-star-2 {% if forloop.counter <= review.rating %}bg-orange-400{% else %}bg-base-300{% endif %} w-4 h-4"></span>
-                    {% endfor %}
-                  </div>
-                  <span class="text-xs text-base-content/50">{{ review.created_at|date:"Y-m-d" }}</span>
-                </div>
-                {% if review.body %}<p class="text-sm text-base-content/80">{{ review.body }}</p>{% endif %}
-              </div>
-            {% empty %}
-              <p class="text-base-content/60 text-sm">{% trans "No reviews yet." %}</p>
-            {% endfor %}
-          </div>
+      <c-kb.section
+        eyebrow="{% trans 'Reviews' %}"
+        title="{{ avg_rating|floatformat:1 }}"
+        accent="/ 5"
+        aside="{{ rating_count }} {% trans 'reviews' %}">
+        <div class="flex gap-5 mb-6" role="tablist">
+          <a href="?sort=recent{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
+             role="tab"
+             aria-selected="{% if sort == 'recent' %}true{% else %}false{% endif %}"
+             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort == 'recent' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Recent" %}</a>
+          <a href="?sort=highest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
+             role="tab"
+             aria-selected="{% if sort == 'highest' %}true{% else %}false{% endif %}"
+             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort == 'highest' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Highest" %}</a>
+          <a href="?sort=lowest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
+             role="tab"
+             aria-selected="{% if sort == 'lowest' %}true{% else %}false{% endif %}"
+             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort == 'lowest' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Lowest" %}</a>
         </div>
-      </section>
+        <div class="flex flex-col">
+          {% for review in reviews %}
+            <article class="grid grid-cols-[140px_1fr] gap-x-6 py-5 border-t border-white/8 first:border-t-0 last:border-b last:border-white/8">
+              <div class="flex flex-col gap-1">
+                <div class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/80">
+                  <span class="kb-display normal-case text-[22px] leading-none font-light tracking-tight text-fuchsia-300/90">{{ review.rating }}</span>
+                  <span class="text-base-content/30">/5</span>
+                </div>
+                <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mt-2">
+                  {{ review.created_at|date:"d M Y" }}
+                </p>
+              </div>
+              <div>
+                <p class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/55">
+                  {{ review.author.get_full_name|default:review.author.username }}
+                </p>
+                {% if review.body %}
+                  <p class="mt-2 text-[14px] leading-[1.6] text-base-content/85">{{ review.body }}</p>
+                {% endif %}
+              </div>
+            </article>
+          {% empty %}
+            <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">— {% trans "No reviews yet" %} —</p>
+          {% endfor %}
+        </div>
+      </c-kb.section>
     {% endif %}
-  </div>
+  </main>
 {% endblock layout %}

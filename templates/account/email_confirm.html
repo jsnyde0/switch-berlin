@@ -2,34 +2,53 @@
 {% load i18n %}
 {% load account %}
 {% load allauth %}
-{% block head_title %}
-  {% trans "Confirm Email Address" %}
-{% endblock head_title %}
+{% block head_title %}{% trans "Confirm Email Address" %}{% endblock head_title %}
 {% block content %}
-  <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-lg min-w-[400px]">
+  <div class="w-full max-w-lg">
     {% if confirmation %}
       {% if can_confirm %}
-        <h1 class="text-3xl font-bold self-center">Confirm Email Address</h1>
-        <span class="self-center">
-          Please confirm that {{ confirmation.email_address.email }} is your valid email address.
-        </span>
+        <c-kb.page-header
+          eyebrow="{% trans 'Account · Verification' %}"
+          title="{% trans 'Confirm your' %}"
+          accent="{% trans 'email.' %}" />
+        <p class="kb-mono text-[12px] uppercase tracking-[0.18em] text-base-content/65 pt-2 pb-8">
+          <span class="text-base-content/40">{% trans "Address" %} —</span>
+          <span class="text-fuchsia-300/95 ml-2">{{ confirmation.email_address.email }}</span>
+        </p>
         <form method="post"
               action="{% url 'account_confirm_email' confirmation.key %}"
-              class="flex flex-col gap-4">
+              class="flex flex-col gap-6">
           {% csrf_token %}
           {{ redirect_field }}
-          <button class="btn btn-primary" type="submit">Confirm Email</button>
+          <button class="kb-btn w-full justify-center" type="submit">
+            {% trans "Confirm email" %}
+            <span aria-hidden="true">→</span>
+          </button>
         </form>
       {% else %}
-        <span class="self-center">
-          Unable to confirm {{ confirmation.email_address.email }} because it is already confirmed by a different account.
-        </span>
+        <c-kb.page-header
+          eyebrow="{% trans 'Account · Verification' %}"
+          title="{% trans 'Already' %}"
+          accent="{% trans 'confirmed.' %}" />
+        <p class="text-[15px] leading-relaxed text-base-content/75 pt-2">
+          {% blocktrans with email=confirmation.email_address.email %}
+            We can't confirm {{ email }} — it is already confirmed by a different account.
+          {% endblocktrans %}
+        </p>
       {% endif %}
     {% else %}
       {% url 'account_email' as email_url %}
-      <span class="self-center">
-        This email confirmation link expired or is invalid. Please <a href="{{ email_url }}">issue a new email confirmation request</a>.
-      </span>
+      <c-kb.page-header
+        eyebrow="{% trans 'Account · Verification' %}"
+        title="{% trans 'Link' %}"
+        accent="{% trans 'expired.' %}" />
+      <p class="text-[15px] leading-relaxed text-base-content/75 pt-2">
+        {% blocktrans %}This confirmation link expired or is invalid.{% endblocktrans %}
+        <a href="{{ email_url }}"
+           class="ml-1 text-base-content border-b border-fuchsia-300/50 pb-0.5 hover:text-fuchsia-300 transition-colors">
+          {% trans "Request a new link" %}
+        </a>.
+      </p>
     {% endif %}
   </div>
 {% endblock content %}

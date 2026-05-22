@@ -5,9 +5,15 @@
         hx-swap="outerHTML">
     {% csrf_token %}
     {% if following %}
-      <button type="submit" class="btn btn-sm btn-active">{% trans "Following" %}</button>
+      <button type="submit" class="kb-btn-secondary w-full">
+        <span class="kb-display-italic text-fuchsia-300/90 text-[13px] leading-none normal-case lowercase mr-1">·</span>
+        {% trans "Following" %}
+      </button>
     {% else %}
-      <button type="submit" class="btn btn-sm">{% trans "Follow" %}</button>
+      <button type="submit" class="kb-btn-secondary w-full">
+        {% trans "Follow" %}
+        <span aria-hidden="true">+</span>
+      </button>
     {% endif %}
   </form>
 </div>

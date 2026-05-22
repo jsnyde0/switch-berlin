@@ -1,93 +1,96 @@
 {% extends "account/base_entrance.html" %}
 {% load allauth i18n %}
-{% block head_title %}
-  {% trans "Signup" %}
-{% endblock head_title %}
+{% block head_title %}{% trans "Signup" %}{% endblock head_title %}
 {% block extra_head %}
-  {# Cloudflare Turnstile widget — loads the JS from Cloudflare CDN #}
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-          async
-          defer></script>
+  {# Cloudflare Turnstile widget #}
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 {% endblock extra_head %}
 {% block content %}
-  <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-md min-w-[400px]">
-    <h1 class="text-3xl font-bold self-center">Create an account</h1>
-    <span class="self-center">
-      Already have an account?
-      <a class="link link-secondary" href="{% url 'account_login' %}">Log in</a>
-    </span>
-    {% if error %}
-      <div class="alert alert-error"><span>{{ error }}</span></div>
-    {% endif %}
+  <div class="w-full max-w-md">
+    <c-kb.page-header
+      eyebrow="{% trans 'Account · Request' %}"
+      title="{% trans 'Join the' %}"
+      accent="{% trans 'index.' %}"
+      caption="{% trans 'Verified organizers only. Hand-curated. Privacy-forward.' %}" />
+
     <form method="post"
           action="{% url 'account_signup' %}"
-          class="flex flex-col gap-4">
+          class="flex flex-col gap-7 pt-2">
       {% csrf_token %}
       {{ redirect_field }}
+
+      {% if error %}
+        <c-kb.alert variant="error" kicker="{% trans 'Cannot register' %}">
+          <p>{{ error }}</p>
+        </c-kb.alert>
+      {% endif %}
+
       {% if form.errors %}
-        <div class="alert alert-error">
+        <c-kb.alert variant="error" kicker="{% trans 'Check the fields' %}">
           {% for field, errors in form.errors.items %}
-            {% for error in errors %}<span>{{ field }}: {{ error }}</span>{% endfor %}
+            {% for error in errors %}<p><strong>{{ field }}:</strong> {{ error }}</p>{% endfor %}
           {% endfor %}
-        </div>
+        </c-kb.alert>
       {% endif %}
-      {% if form.non_field_errors %}
-        <div class="alert alert-error">
-          {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
-        </div>
-      {% endif %}
-      <label class="form-control">
-        <div class="label">
-          <span class="label-text">{% trans "Email" %}</span>
-        </div>
-        <input type="email" name="email" class="input input-bordered" required>
-        {% if form.email.errors %}<div class="text-error text-sm mt-1">{{ form.email.errors }}</div>{% endif %}
-      </label>
-      <label class="form-control">
-        <div class="label">
-          <span class="label-text">{% trans "Password" %}</span>
-        </div>
-        <input type="password"
-               name="password1"
-               class="input input-bordered"
-               required>
-        {% if form.password1.errors %}<div class="text-error text-sm mt-1">{{ form.password1.errors }}</div>{% endif %}
-      </label>
-      <label class="form-control">
-        <div class="label">
-          <span class="label-text">{% trans "Confirm Password" %}</span>
-        </div>
-        <input type="password"
-               name="password2"
-               class="input input-bordered"
-               required>
-        {% if form.password2.errors %}<div class="text-error text-sm mt-1">{{ form.password2.errors }}</div>{% endif %}
-      </label>
-      {# Optional invite code field — kb-m69.7 vouched signup path #}
-      <label class="form-control">
-        <div class="label">
-          <span class="label-text">{% trans "Invite code" %} <span class="text-xs text-base-content/50">({% trans "optional" %})</span></span>
-        </div>
-        <input type="text"
-               name="invite_code"
-               class="input input-bordered"
-               placeholder="{% trans "Enter invite code if you have one" %}"
-               value="{{ form.invite_code.value|default:'' }}">
-        {% if form.invite_code.errors %}<div class="text-error text-sm mt-1">{{ form.invite_code.errors }}</div>{% endif %}
-      </label>
-      {# Cloudflare Turnstile widget — JS fills the hidden turnstile_token field #}
-      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+
+      <c-kb.field
+        label="{% trans 'Email' %}"
+        name="email"
+        type="email"
+        placeholder="you@domain.org"
+        required="true"
+        autocomplete="email"
+        errors="{{ form.email.errors }}" />
+
+      <c-kb.field
+        label="{% trans 'Password' %}"
+        name="password1"
+        type="password"
+        placeholder="••••••••"
+        required="true"
+        autocomplete="new-password"
+        errors="{{ form.password1.errors }}" />
+
+      <c-kb.field
+        label="{% trans 'Confirm password' %}"
+        name="password2"
+        type="password"
+        placeholder="••••••••"
+        required="true"
+        autocomplete="new-password"
+        errors="{{ form.password2.errors }}" />
+
+      <c-kb.field
+        label="{% trans 'Invite code · optional' %}"
+        name="invite_code"
+        type="text"
+        placeholder="{% trans 'If you have one' %}"
+        value="{{ form.invite_code.value|default:'' }}"
+        errors="{{ form.invite_code.errors }}"
+        hint="{% trans 'Without a code, your account joins the review queue.' %}" />
+
+      <div class="cf-turnstile pt-2" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
       {% if form.turnstile_token.errors %}
-        <div class="text-error text-sm">{{ form.turnstile_token.errors }}</div>
+        <span class="kb-field-error">{{ form.turnstile_token.errors }}</span>
       {% endif %}
-      {# Hidden input for the Turnstile token (filled by the widget JS) #}
       {{ form.turnstile_token }}
+
       {% if redirect_field_value %}
-        <input type="hidden"
-               name="{{ redirect_field_name }}"
-               value="{{ redirect_field_value }}" />
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
       {% endif %}
-      <button class="btn btn-primary" type="submit">{% trans "Create Account" %}</button>
+
+      <button class="kb-btn w-full justify-center mt-2" type="submit">
+        {% trans "Request account" %}
+        <span aria-hidden="true">→</span>
+      </button>
+
+      <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/45 text-center">
+        {% trans "Already in?" %}
+        <a href="{% url 'account_login' %}"
+           class="ml-2 text-base-content/80 hover:text-fuchsia-300 transition-colors border-b border-fuchsia-300/40 pb-0.5">
+          {% trans "Sign in" %}
+        </a>
+      </p>
     </form>
   </div>
 {% endblock content %}

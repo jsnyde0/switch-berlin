@@ -2,18 +2,22 @@
 {% load i18n %}
 {% block title %}{% trans "Terms of Use" %} — Switch Berlin{% endblock title %}
 {% block content %}
-<article class="prose prose-sm max-w-2xl mx-auto">
-  <h1>{% trans "Terms of Use" %}</h1>
-
+<div class="w-full max-w-4xl mx-auto">
+  <c-kb.page-header
+    eyebrow="{% trans 'Legal · House rules' %}"
+    title="{% trans 'Terms' %}"
+    accent="{% trans 'of use.' %}"
+    caption="{% trans 'Age restriction, content policy, moderation, and appeal path.' %}" />
+</div>
+<article class="kb-prose w-full max-w-3xl mx-auto pt-6">
   {# DSA Art. 12 contact point #}
-  <p>
-    {% blocktrans with email=legal_contact.dsa_email %}
-    Contact / Kontaktstelle (DSA Art. 12): {{ email }}, Berlin.
-    {% endblocktrans %}
-    <a href="/impressum/">{% trans "Full operator identity (Impressum)" %}</a>
+  <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/60">
+    {% blocktrans with email=legal_contact.dsa_email %}DSA contact (Art. 12) — {{ email }}, Berlin.{% endblocktrans %}
+    <a href="/impressum/" class="ml-2">{% trans "Operator identity" %}</a>
   </p>
-
-  <p><em>{% trans "Last updated" %}: {{ terms_last_updated }}</em></p>
+  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">
+    {% trans "Last updated" %} <span class="mx-2">·</span> {{ terms_last_updated }}
+  </p>
 
   {# Section 1: Age restriction — JuSchG #}
   <h2>{% trans "Age restriction (JuSchG)" %}</h2>

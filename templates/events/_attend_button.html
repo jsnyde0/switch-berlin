@@ -1,22 +1,28 @@
 {% load i18n %}
-<div id="attend-{{ event.pk }}">
+<div id="attend-{{ event.pk }}" class="kb-mono">
   <form hx-post="{% url 'event-attend' event.organizer.slug event.slug %}"
         hx-target="#attend-{{ event.pk }}"
-        hx-swap="outerHTML">
+        hx-swap="outerHTML"
+        class="flex flex-wrap items-center gap-x-1 gap-y-2">
     {% csrf_token %}
-    <button type="submit" name="status" value="interested"
-            class="btn btn-sm {% if attendance and attendance.status == 'interested' %}btn-active{% endif %}">
-      {% trans "Interested" %}
-    </button>
-    <button type="submit" name="status" value="going"
-            class="btn btn-sm {% if attendance and attendance.status == 'going' %}btn-active{% endif %}">
-      {% trans "Going" %}
-    </button>
-    {% if event_past %}
-      <button type="submit" name="status" value="went"
-              class="btn btn-sm {% if attendance and attendance.status == 'went' %}btn-active{% endif %}">
-        {% trans "Went" %}
+    {% with cur=attendance.status %}
+      <button type="submit" name="status" value="interested"
+              class="px-3 py-2 text-[10px] uppercase tracking-[0.18em] border transition-colors
+                     {% if cur == 'interested' %}border-fuchsia-300 text-fuchsia-200 bg-fuchsia-300/8{% else %}border-white/15 text-base-content/65 hover:text-base-content hover:border-white/30{% endif %}">
+        {% trans "Interested" %}
       </button>
-    {% endif %}
+      <button type="submit" name="status" value="going"
+              class="px-3 py-2 text-[10px] uppercase tracking-[0.18em] border transition-colors
+                     {% if cur == 'going' %}border-fuchsia-300 text-fuchsia-200 bg-fuchsia-300/8{% else %}border-white/15 text-base-content/65 hover:text-base-content hover:border-white/30{% endif %}">
+        {% trans "Going" %}
+      </button>
+      {% if event_past %}
+        <button type="submit" name="status" value="went"
+                class="px-3 py-2 text-[10px] uppercase tracking-[0.18em] border transition-colors
+                       {% if cur == 'went' %}border-fuchsia-300 text-fuchsia-200 bg-fuchsia-300/8{% else %}border-white/15 text-base-content/65 hover:text-base-content hover:border-white/30{% endif %}">
+          {% trans "Went" %}
+        </button>
+      {% endif %}
+    {% endwith %}
   </form>
 </div>

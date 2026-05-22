@@ -1,22 +1,33 @@
 {% extends "_base.html" %}
 {% load i18n %}
-
 {% block title %}{% trans "Account Pending Approval" %} — Switch Berlin{% endblock title %}
-
 {% block layout %}
-<div class="flex flex-col items-center justify-center gap-6 py-16">
-  <div class="card bg-base-200 shadow-xl max-w-md w-full">
-    <div class="card-body items-center text-center gap-4">
-      <h1 class="card-title text-2xl">{% trans "Account Pending Approval" %}</h1>
-      <p class="text-base-content/70">
-        {% trans "Your account is pending approval. You will receive an email when approved." %}
-      </p>
-      <div class="card-actions mt-4">
-        <a href="{% url 'account_logout' %}" class="btn btn-outline">
-          {% trans "Log out" %}
-        </a>
-      </div>
+<main class="min-h-[80vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
+  <div class="w-full max-w-lg">
+    <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
+      {% trans "Account · Review queue" %}
+    </p>
+    <h1 class="kb-display text-[44px] sm:text-[56px] leading-[0.95] font-light text-base-content">
+      {% trans "Under" %}
+      <span class="kb-display-italic font-normal text-fuchsia-300/95">{% trans "review." %}</span>
+    </h1>
+    <div class="kb-rule mt-7 mb-6"></div>
+    <p class="text-[15px] leading-[1.65] text-base-content/75">
+      {% trans "Your account is pending approval. We review new requests by hand. You will receive an email when the account is opened." %}
+    </p>
+    <dl class="kb-mono mt-8 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[10px] uppercase tracking-[0.18em]">
+      <dt class="text-base-content/40">{% trans "Curation" %}</dt>
+      <dd class="text-base-content/80">{% trans "By hand" %}</dd>
+      <dt class="text-base-content/40">{% trans "Typical wait" %}</dt>
+      <dd class="text-base-content/80">{% trans "Within 72 hours" %}</dd>
+    </dl>
+    <div class="mt-10 flex items-center gap-4">
+      <a href="{% url 'account_logout' %}" class="kb-btn-secondary">
+        {% trans "Log out" %}
+      </a>
+      <a href="/" class="kb-btn-quiet">← {% trans "Back to listings" %}</a>
     </div>
   </div>
-</div>
+</main>
 {% endblock layout %}
+{% block footer %}{% endblock footer %}

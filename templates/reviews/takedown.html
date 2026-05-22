@@ -2,69 +2,63 @@
 {% load i18n %}
 
 {% block content %}
-  <div class="max-w-2xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">{% trans "Report Content (DSA Takedown)" %}</h1>
+  <div class="w-full max-w-3xl mx-auto">
+    <c-kb.page-header
+      eyebrow="{% trans 'Report · DSA Art. 16' %}"
+      title="{% trans 'Report' %}"
+      accent="{% trans 'content.' %}"
+      caption="{% trans 'Substantiated notices are reviewed within 72 hours.' %}" />
 
     {% if submitted %}
-      <div class="alert alert-success">
+      <c-kb.alert variant="success" kicker="{% trans 'Received' %}">
         <p>{% trans "Your report has been submitted. We aim to review takedown requests within 72 hours." %}</p>
-      </div>
+      </c-kb.alert>
     {% else %}
       {% if error %}
-        <div class="alert alert-error mb-4">
+        <c-kb.alert variant="error" kicker="{% trans 'Submission failed' %}">
           <p>{{ error }}</p>
-          <p class="mt-2 text-sm">
+          <p class="mt-2 text-[12px] text-base-content/60">
             {% trans "You can also contact us directly:" %}
-            <a href="{% url 'takedown' %}" class="link">{% trans "takedown form" %}</a>
+            <a href="{% url 'takedown' %}" class="border-b border-fuchsia-300/40 pb-0.5">{% trans "takedown form" %}</a>
           </p>
-        </div>
+        </c-kb.alert>
       {% endif %}
 
       {% if form.errors %}
-        <div class="alert alert-error mb-4">
-          <ul>
+        <c-kb.alert variant="error" kicker="{% trans 'Check the fields' %}">
+          <ul class="list-none pl-0 m-0 space-y-1">
             {% for field in form %}
               {% for error in field.errors %}
                 <li><strong>{{ field.label }}:</strong> {{ error }}</li>
               {% endfor %}
             {% endfor %}
-            {% for error in form.non_field_errors %}
-              <li>{{ error }}</li>
-            {% endfor %}
+            {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
           </ul>
-        </div>
+        </c-kb.alert>
       {% endif %}
 
-      <p class="mb-4 text-sm text-base-content/70">
-        {% trans "Use this form to report content that violates our <a href='/terms/' class='link'>Terms of Service</a> or applicable law. Your report will be reviewed within 72 hours." %}
+      <p class="text-[14px] leading-[1.65] text-base-content/70 pt-2 pb-6 max-w-2xl">
+        {% trans "Use this form to report content that violates our" %}
+        <a href="/terms/" class="border-b border-fuchsia-300/40 pb-0.5 text-base-content/85 hover:text-fuchsia-300 transition-colors">{% trans "Terms of Service" %}</a>
+        {% trans "or applicable law. Your report will be reviewed within 72 hours." %}
       </p>
 
-      <p class="mb-4 text-sm text-warning font-semibold">
-        {% trans "Warning: Knowingly false reports may be rejected and escalated per DSA Art. 16(6)." %}
-      </p>
+      <c-kb.alert variant="warn" kicker="{% trans 'Warning' %}">
+        <p>{% trans "Knowingly false reports may be rejected and escalated per DSA Art. 16(6)." %}</p>
+      </c-kb.alert>
 
-      <form method="post" class="flex flex-col gap-4">
+      <form method="post" class="flex flex-col gap-7 pt-8">
         {% csrf_token %}
 
-        <div class="form-control">
-          <label class="label" for="event_url">
-            <span class="label-text">{% trans "URL of the content you are reporting" %}</span>
-          </label>
-          <input
-            type="url"
-            id="event_url"
-            name="event_url"
-            class="input input-bordered w-full"
-            placeholder="https://switch.berlin/events/..."
-            value="{{ values.event_url|default:'' }}"
-          >
-        </div>
+        <c-kb.field
+          label="{% trans 'URL of the content' %}"
+          name="event_url"
+          type="url"
+          placeholder="https://switch.berlin/events/..."
+          value="{{ values.event_url|default:'' }}" />
 
-        <div class="form-control">
-          <label class="label" for="reason">
-            <span class="label-text">{% trans "Reason" %}</span>
-          </label>
-          <select id="reason" name="reason" class="select select-bordered w-full">
+        <c-kb.field-wrap label="{% trans 'Reason' %}" for_id="reason">
+          <select id="reason" name="reason" class="kb-select">
             <option value="illegal" {% if values.reason == "illegal" %}selected{% endif %}>{% trans "Illegal content — specify law (DSA Art. 16)" %}</option>
             <option value="spam" {% if values.reason == "spam" %}selected{% endif %}>{% trans "Spam" %}</option>
             <option value="inaccurate" {% if values.reason == "inaccurate" %}selected{% endif %}>{% trans "Inaccurate information" %}</option>
@@ -72,74 +66,53 @@
             <option value="safety" {% if values.reason == "safety" %}selected{% endif %}>{% trans "Safety concern" %}</option>
             <option value="other" {% if values.reason == "other" or not values.reason %}selected{% endif %}>{% trans "Other" %}</option>
           </select>
-        </div>
+        </c-kb.field-wrap>
 
-        <div class="form-control">
-          <label class="label" for="law_reference">
-            <span class="label-text">{% trans "Which law or legal provision is violated? (required for illegal-content reports)" %}</span>
-          </label>
-          <input
-            type="text"
-            id="law_reference"
-            name="law_reference"
-            class="input input-bordered w-full"
-            placeholder="{% trans 'e.g. NetzDG §1, GDPR Art. 17, StGB §86' %}"
-            value="{{ values.law_reference|default:'' }}"
-          >
-        </div>
+        <c-kb.field
+          label="{% trans 'Law or legal provision violated' %}"
+          name="law_reference"
+          type="text"
+          placeholder="{% trans 'e.g. NetzDG §1, GDPR Art. 17, StGB §86' %}"
+          value="{{ values.law_reference|default:'' }}"
+          hint="{% trans 'Required for illegal-content reports.' %}" />
 
-        <div class="form-control">
-          <label class="label" for="body">
-            <span class="label-text">{% trans "Description" %}</span>
-          </label>
-          <textarea
-            id="body"
-            name="body"
-            class="textarea textarea-bordered w-full"
-            rows="5"
-            placeholder="{% trans 'Please describe the issue...' %}"
-          >{{ values.body|default:'' }}</textarea>
-        </div>
+        <c-kb.field-wrap label="{% trans 'Description' %}" for_id="body">
+          <textarea id="body" name="body" rows="5"
+                    class="kb-textarea"
+                    placeholder="{% trans 'Please describe the issue.' %}">{{ values.body|default:'' }}</textarea>
+        </c-kb.field-wrap>
 
-        <div class="form-control">
-          <label class="label" for="contact_email">
-            <span class="label-text">{% trans "Your email address (required for illegal-content reports)" %}</span>
-          </label>
-          <input
-            type="email"
-            id="contact_email"
-            name="contact_email"
-            class="input input-bordered w-full"
-            placeholder="you@example.com"
-            value="{{ values.contact_email|default:'' }}"
-          >
-        </div>
+        <c-kb.field
+          label="{% trans 'Your email' %}"
+          name="contact_email"
+          type="email"
+          placeholder="you@domain.org"
+          value="{{ values.contact_email|default:'' }}"
+          hint="{% trans 'Required for illegal-content reports.' %}" />
 
-        <div class="form-control">
-          <label class="label cursor-pointer gap-3 justify-start">
-            <input
-              type="checkbox"
-              id="good_faith_confirmed"
-              name="good_faith_confirmed"
-              class="checkbox"
-              {% if values.good_faith_confirmed %}checked{% endif %}
-            >
-            <span class="label-text">
-              {% trans "I confirm the information above is accurate to the best of my knowledge (DSA Art. 16(2))." %}
-            </span>
-          </label>
-        </div>
+        <label class="inline-flex items-start gap-3 cursor-pointer pt-2">
+          <input type="checkbox" id="good_faith_confirmed" name="good_faith_confirmed"
+                 class="kb-check mt-0.5"
+                 {% if values.good_faith_confirmed %}checked{% endif %}>
+          <span class="text-[13px] leading-[1.5] text-base-content/75">
+            {% trans "I confirm the information above is accurate to the best of my knowledge (DSA Art. 16(2))." %}
+          </span>
+        </label>
 
-        <p class="text-sm text-base-content/60">
-          {% trans "Your contact details are processed to handle this report under Art. 6(1)(c) GDPR. See our <a href='/privacy/' class='link'>Privacy Policy</a>." %}
+        <p class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/45">
+          {% trans "Your contact details are processed to handle this report under Art. 6(1)(c) GDPR." %}
+          <a href="/privacy/" class="ml-1 normal-case text-base-content/70 border-b border-fuchsia-300/40 pb-0.5 hover:text-fuchsia-300 transition-colors">{% trans "Privacy" %}</a>
         </p>
 
-        <button type="submit" class="btn btn-primary">{% trans "Submit Report" %}</button>
+        <button type="submit" class="kb-btn self-start">
+          {% trans "Submit report" %}
+          <span aria-hidden="true">→</span>
+        </button>
       </form>
 
-      <p class="mt-6 text-sm text-base-content/60">
-        {% trans "You can also contact us directly by email:" %}
-        <a href="mailto:{{ legal_contact.dsa_email }}" class="link">{{ legal_contact.dsa_email }}</a>
+      <p class="kb-mono mt-12 pt-6 border-t border-white/10 text-[10px] uppercase tracking-[0.18em] text-base-content/40">
+        {% trans "Or by email" %}
+        <a href="mailto:{{ legal_contact.dsa_email }}" class="ml-2 normal-case text-base-content/70 border-b border-fuchsia-300/40 pb-0.5">{{ legal_contact.dsa_email }}</a>
       </p>
     {% endif %}
   </div>

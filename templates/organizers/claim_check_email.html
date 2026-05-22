@@ -1,23 +1,28 @@
 {% extends "_base.html" %}
 {% load i18n %}
-{% block title %}
-  {% trans "Check your email" %} — {{ organizer.name }}
-{% endblock title %}
+{% block title %}{% trans "Check your email" %} — {{ organizer.name }}{% endblock title %}
 {% block layout %}
-  <div class="max-w-lg mx-auto flex flex-col gap-6 py-8 text-center">
-    <div class="text-5xl">📬</div>
-    <h1 class="text-2xl font-bold">{% trans "Check your email" %}</h1>
-    <p class="text-base-content/70">
+  <c-navbar />
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+    <c-kb.page-header
+      eyebrow="{% trans 'Organizer · Claim sent' %}"
+      title="{% trans 'Check your' %}"
+      accent="{% trans 'inbox.' %}" />
+    <p class="text-[15px] leading-[1.65] text-base-content/75 pt-2 max-w-2xl">
       {% blocktrans with name=organizer.name %}
         We've sent a verification link for your claim on
-        <strong>{{ name }}</strong>.
-        Please check your inbox and click the link to continue.
+        <strong class="text-base-content">{{ name }}</strong>. Open it from the same browser to continue.
       {% endblocktrans %}
     </p>
-    <p class="text-sm text-base-content/50">
-      {% trans "The link expires in 24 hours. If you don't see the email, check your spam folder." %}
-    </p>
+    <dl class="kb-mono mt-10 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[10px] uppercase tracking-[0.18em]">
+      <dt class="text-base-content/40">{% trans "Link expires" %}</dt>
+      <dd class="text-base-content/80">{% trans "24 hours" %}</dd>
+      <dt class="text-base-content/40">{% trans "Missing it?" %}</dt>
+      <dd class="text-base-content/80">{% trans "Check spam folder" %}</dd>
+    </dl>
     <a href="{% url 'organizer-profile' slug=organizer.slug %}"
-       class="btn btn-outline btn-sm mx-auto">{% trans "Back to profile" %}</a>
-  </div>
+       class="kb-btn-secondary mt-10">
+      ← {% trans "Back to profile" %}
+    </a>
+  </main>
 {% endblock layout %}

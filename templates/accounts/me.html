@@ -1,82 +1,75 @@
 {% extends "_base.html" %}
 {% load i18n %}
-
 {% block title %}{% trans "My Profile" %} — Switch Berlin{% endblock title %}
-
 {% block layout %}
-<div class="max-w-2xl mx-auto flex flex-col gap-8">
-  <h1 class="text-2xl font-bold">{% trans "My Profile" %}</h1>
+<c-navbar />
+<main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+  <c-kb.page-header
+    eyebrow="{% trans 'Account · You' %}"
+    title="{% trans 'Your' %}"
+    accent="{% trans 'index.' %}"
+    caption="{% trans 'Followed organizers, attendance, and consent state.' %}" />
 
-  {# ── Attendance Consent (Art. 9 GDPR) ── #}
   {% if user.art9_consent_given_at %}
-  <section class="border border-warning rounded-box p-4">
-    <h2 class="text-lg font-semibold mb-2">{% trans "Attendance Consent" %}</h2>
-    <p class="text-sm text-base-content/70 mb-4">
-      {% blocktrans trimmed with date=user.art9_consent_given_at|date:"Y-m-d" %}
-        You gave consent to store your event attendance (GDPR Art. 9) on {{ date }}.
-        Withdrawing consent permanently deletes all attendance records.
-      {% endblocktrans %}
-    </p>
-    <form method="post" action="{% url 'art9-consent-withdraw' %}">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-sm btn-warning btn-outline">
-        {% trans "Withdraw attendance consent (deletes all attendance records)" %}
-      </button>
-    </form>
-  </section>
+    <div class="mb-10">
+      <c-kb.alert variant="warn" kicker="{% trans 'Consent — Art. 9' %}">
+        <p>
+          {% blocktrans trimmed with date=user.art9_consent_given_at|date:"d M Y" %}
+            You gave consent to store your event attendance (GDPR Art. 9) on {{ date }}.
+            Withdrawing consent permanently deletes all attendance records.
+          {% endblocktrans %}
+        </p>
+        <form method="post" action="{% url 'art9-consent-withdraw' %}" class="mt-4">
+          {% csrf_token %}
+          <button type="submit" class="kb-btn-danger">
+            {% trans "Withdraw consent · delete records" %}
+          </button>
+        </form>
+      </c-kb.alert>
+    </div>
   {% endif %}
 
-  {# ── Followed Organizers ── #}
-  <section>
-    <h2 class="text-xl font-semibold mb-4">{% trans "Followed Organizers" %}</h2>
+  <c-kb.section eyebrow="{% trans 'Following' %}" title="{% trans 'Organizers' %}">
     {% if followed %}
-      <ul class="flex flex-col gap-3">
+      <ul class="flex flex-col">
         {% for follow in followed %}
-          <li class="flex items-center justify-between">
+          <li class="flex items-center justify-between py-4 border-t border-white/8 first:border-t-0">
             <a href="{% url 'organizer-profile' follow.profile.slug %}"
-               class="link font-medium">
+               class="kb-display text-[20px] font-normal tracking-tight text-base-content hover:text-fuchsia-200 transition-colors">
               {{ follow.profile.name }}
             </a>
             <form method="post" action="{% url 'organizer-follow' follow.profile.slug %}">
               {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-outline">
-                {% trans "Unfollow" %}
+              <button type="submit" class="kb-btn-quiet">
+                {% trans "Unfollow" %} ×
               </button>
             </form>
           </li>
         {% endfor %}
       </ul>
     {% else %}
-      <p class="text-base-content/60">{% trans "You're not following anyone yet." %}</p>
+      <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">— {% trans "Not following anyone yet" %} —</p>
     {% endif %}
-  </section>
+  </c-kb.section>
 
-  {# ── Upcoming Events ── #}
-  <section>
-    <h2 class="text-xl font-semibold mb-4">{% trans "Upcoming Events" %}</h2>
+  <c-kb.section eyebrow="{% trans 'Upcoming' %}" title="{% trans 'Your' %}" accent="{% trans 'attendance' %}">
     {% if upcoming %}
-      <div class="flex flex-col gap-3">
-        {% for attendance in upcoming %}
-          <c-event-card :event="attendance.event" />
-        {% endfor %}
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
+        {% for attendance in upcoming %}<c-event-card :event="attendance.event" />{% endfor %}
       </div>
     {% else %}
-      <p class="text-base-content/60">{% trans "No upcoming events." %}</p>
+      <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">— {% trans "Nothing on the calendar" %} —</p>
     {% endif %}
-  </section>
+  </c-kb.section>
 
-  {# ── Past Events ── #}
-  <section>
-    <h2 class="text-xl font-semibold mb-4">{% trans "Past Events" %}</h2>
+  <c-kb.section eyebrow="{% trans 'Archive' %}" title="{% trans 'Past' %}" accent="{% trans 'attendance' %}">
     {% if past %}
-      <div class="flex flex-col gap-3">
-        {% for attendance in past %}
-          <c-event-card :event="attendance.event" />
-        {% endfor %}
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 opacity-75">
+        {% for attendance in past %}<c-event-card :event="attendance.event" />{% endfor %}
       </div>
     {% else %}
-      <p class="text-base-content/60">{% trans "No past events." %}</p>
+      <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">— {% trans "No past events recorded" %} —</p>
     {% endif %}
-  </section>
-</div>
+  </c-kb.section>
+</main>
 {% endblock layout %}

@@ -2,8 +2,14 @@
 {% load i18n %}
 {% block title %}{% trans "Privacy Policy" %} — Switch Berlin{% endblock title %}
 {% block content %}
-<article class="prose prose-sm max-w-2xl mx-auto">
-  <h1>{% trans "Privacy Policy" %}</h1>
+<div class="w-full max-w-4xl mx-auto">
+  <c-kb.page-header
+    eyebrow="{% trans 'Legal · GDPR / DSGVO' %}"
+    title="{% trans 'Privacy' %}"
+    accent="{% trans 'policy.' %}"
+    caption="{% trans 'Per-purpose lawful basis, retention schedule, and data-subject rights.' %}" />
+</div>
+<article class="kb-prose w-full max-w-3xl mx-auto pt-6">
 
   {# ------------------------------------------------------------------ #}
   {# 1. Controller identity                                              #}
@@ -26,7 +32,7 @@
   <h2>{% trans "Lawful basis for processing" %}</h2>
   <p>{% trans "We process personal data only where a lawful basis under GDPR Art. 6 or Art. 9 applies:" %}</p>
 
-  <div class="overflow-x-auto">
+  <div class="overflow-x-auto -mx-2">
     <table>
       <thead>
         <tr>
@@ -155,7 +161,7 @@
   {# ------------------------------------------------------------------ #}
   <h2>{% trans "Retention schedule (Aufbewahrungsdauer)" %}</h2>
 
-  <div class="overflow-x-auto">
+  <div class="overflow-x-auto -mx-2">
     <table>
       <thead>
         <tr>
@@ -304,9 +310,10 @@
   {# ------------------------------------------------------------------ #}
   {# 10. Last updated                                                    #}
   {# ------------------------------------------------------------------ #}
-  <p class="text-base-content/60 text-sm mt-8">
-    {% trans "Last updated" %}: {{ privacy_last_updated }}
+  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mt-12 pt-6 border-t border-white/10">
+    {% trans "Last updated" %} <span class="mx-2">·</span> {{ privacy_last_updated }}
   </p>
 
 </article>
 {% endblock content %}
+

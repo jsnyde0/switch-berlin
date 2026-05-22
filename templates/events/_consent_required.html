@@ -1,47 +1,55 @@
 {% load i18n %}
 {# HTMX-compatible partial returned when Art. 9 consent is missing.
-   The copy MUST explicitly name "sexual orientation" per GDPR Art. 9
+   Bilingual prompt explicitly names "sexual orientation" per GDPR Art. 9
    plain-language requirement (ADR-006 D1 FIRM). #}
-<div id="consent-modal" class="modal modal-open" role="dialog" aria-modal="true" aria-labelledby="consent-title">
-  <div class="modal-box max-w-lg">
-    <h2 id="consent-title" class="text-lg font-bold mb-4">
-      {% trans "Attendance Consent Required" %}
+<div id="consent-modal"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/90 backdrop-blur-md px-4"
+     role="dialog" aria-modal="true" aria-labelledby="consent-title">
+  <div class="w-full max-w-xl border-t border-b border-fuchsia-300/40 bg-base-100/95 px-6 py-8 sm:px-10 sm:py-10 ring-1 ring-white/10">
+    <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-fuchsia-300/85 mb-4">
+      {% trans "GDPR Art. 9 · Special category" %}
+    </p>
+    <h2 id="consent-title" class="kb-display text-[28px] sm:text-[36px] leading-[1.0] font-light text-base-content">
+      {% trans "Attendance" %}
+      <span class="kb-display-italic font-normal text-fuchsia-300/95">{% trans "consent." %}</span>
     </h2>
+    <div class="kb-rule my-6"></div>
 
-    <div class="prose prose-sm mb-6">
+    <div class="flex flex-col gap-4 text-[14px] leading-[1.6] text-base-content/85">
       <p>
         {% blocktrans trimmed %}
           Recording your attendance on kink/queer events may reveal your
-          <strong>sexual orientation</strong> (GDPR Art.&nbsp;9 special-category data).
-          By clicking <em>I consent</em> you allow this platform to store your attendance.
+          <strong class="text-base-content">sexual orientation</strong> (GDPR Art. 9 special-category data).
+          By clicking <em class="text-base-content">I consent</em> you allow this platform to store your attendance.
           You can withdraw at any time from your profile; withdrawal deletes all records.
         {% endblocktrans %}
       </p>
-      <p lang="de">
+      <p lang="de" class="text-base-content/55">
         {% blocktrans trimmed %}
           Die Speicherung deiner Teilnahme an Kink-/Queer-Veranstaltungen kann Rückschlüsse
-          auf deine <strong>sexuelle Orientierung</strong> ermöglichen
-          (Art.&nbsp;9 DSGVO besondere Kategorien). Mit <em>Ich stimme zu</em> erlaubst du
+          auf deine <strong class="text-base-content/80">sexuelle Orientierung</strong> ermöglichen
+          (Art. 9 DSGVO besondere Kategorien). Mit <em class="text-base-content/80">Ich stimme zu</em> erlaubst du
           die Speicherung. Widerruf jederzeit unter Mein Profil; Widerruf löscht alle Einträge.
         {% endblocktrans %}
       </p>
     </div>
 
-    <div class="modal-action gap-3">
+    <div class="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
       <form method="post"
             hx-post="{% url 'art9-consent' %}"
-            hx-swap="none">
+            hx-swap="none"
+            class="flex-1">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}">
-        <button type="submit" class="btn btn-primary">
-          {% trans "I consent / Ich stimme zu" %}
+        <button type="submit" class="kb-btn w-full justify-center">
+          {% trans "I consent · Ich stimme zu" %}
+          <span aria-hidden="true">→</span>
         </button>
       </form>
-      {# Decline: close modal without navigating — JS removes the element #}
       <button type="button"
-              class="btn btn-ghost"
+              class="kb-btn-quiet self-center"
               onclick="document.getElementById('consent-modal').remove()">
-        {% trans "Not now" %}
+        ← {% trans "Not now" %}
       </button>
     </div>
   </div>

@@ -1,59 +1,76 @@
 {% extends "account/base_entrance.html" %}
 {% load i18n %}
 {% load allauth account %}
-{% block title %}
-  {% trans "Sign In" %}
-{% endblock title %}
+{% block title %}{% trans "Sign In" %} — Switch Berlin{% endblock title %}
 {% block content %}
-  <div class="flex flex-col gap-4 rounded-box bg-base-200 p-6 max-w-md min-w-[400px]">
-    <h1 class="text-3xl font-bold self-center">Log in</h1>
-    <form class="flex flex-col gap-4"
+  <div class="w-full max-w-md">
+    <c-kb.page-header
+      eyebrow="{% trans 'Account · Entrance' %}"
+      title="{% trans 'Welcome' %}"
+      accent="{% trans 'back.' %}" />
+
+    <form class="flex flex-col gap-7 pt-2"
           method="post"
           action="{% url 'account_login' %}">
       {% csrf_token %}
+
       {% if form.non_field_errors %}
-        <div class="alert alert-error">
-          {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
-        </div>
+        <c-kb.alert variant="error" kicker="{% trans 'Cannot sign in' %}">
+          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </c-kb.alert>
       {% endif %}
-      <label class="form-control">
-        <div class="label">
-          <span class="label-text">{% trans "E-mail" %}</span>
-        </div>
-        <input type="email"
-               name="login"
-               placeholder="email@example.com"
-               class="input input-bordered"
-               required>
-        {% if form.login.errors %}<div class="text-error text-sm mt-1">{{ form.login.errors }}</div>{% endif %}
-      </label>
-      <label class="form-control">
-        <div class="label">
-          <span class="label-text">{% trans "Password" %}</span>
-          <a href="{% url 'account_reset_password' %}"
-             class="label-text link link-accent">{% trans "Forgot Password?" %}</a>
-        </div>
-        <input type="password"
-               name="password"
-               placeholder="••••••••"
-               class="input input-bordered"
-               required>
-        {% if form.password.errors %}<div class="text-error text-sm mt-1">{{ form.password.errors }}</div>{% endif %}
-      </label>
-      {% if form.remember %}
-        <div class="form-control">
-          <label class="cursor-pointer label self-start gap-2">
-            <input type="checkbox" name="remember" class="checkbox">
-            <span class="label-text">{% trans "Remember Me" %}</span>
+
+      <c-kb.field
+        label="{% trans 'Email' %}"
+        name="login"
+        type="email"
+        placeholder="you@domain.org"
+        required="true"
+        autocomplete="email"
+        errors="{{ form.login.errors }}" />
+
+      <c-kb.field
+        label="{% trans 'Password' %}"
+        name="password"
+        type="password"
+        placeholder="••••••••"
+        required="true"
+        autocomplete="current-password"
+        errors="{{ form.password.errors }}" />
+
+      <div class="flex items-center justify-between -mt-2 text-[11px]">
+        {% if form.remember %}
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="remember" class="kb-check">
+            <span class="kb-mono uppercase tracking-[0.18em] text-base-content/55">
+              {% trans "Remember me" %}
+            </span>
           </label>
-        </div>
-      {% endif %}
+        {% else %}
+          <span></span>
+        {% endif %}
+        <a href="{% url 'account_reset_password' %}"
+           class="kb-mono uppercase tracking-[0.18em] text-base-content/55 hover:text-fuchsia-300 transition-colors">
+          {% trans "Forgot password" %} →
+        </a>
+      </div>
+
       {% if redirect_field_value %}
-        <input type="hidden"
-               name="{{ redirect_field_name }}"
-               value="{{ redirect_field_value }}" />
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
       {% endif %}
-      <button class="btn btn-primary" type="submit">{% trans "Sign In" %}</button>
+
+      <button class="kb-btn w-full justify-center mt-2" type="submit">
+        {% trans "Sign in" %}
+        <span aria-hidden="true">→</span>
+      </button>
+
+      <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/45 text-center">
+        {% trans "No account?" %}
+        <a href="{% url 'account_signup' %}"
+           class="ml-2 text-base-content/80 hover:text-fuchsia-300 transition-colors border-b border-fuchsia-300/40 pb-0.5">
+          {% trans "Request invite" %}
+        </a>
+      </p>
     </form>
   </div>
 {% endblock content %}
