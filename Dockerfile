@@ -16,7 +16,7 @@ RUN cd frontend && npm run build
 
 # ---- Python app stage ----
 # Base: python:3.13-slim-bookworm (sha256 pin per kb-mhi).
-FROM python:3.13-slim-bookworm@sha256:386df64585134ba00b1d5e307acb1e72f33e9e87dbbb00aad9b8f24dbb51db72
+FROM python:3.14-slim-bookworm@sha256:a9bee15510a364124aa24692899d269835683b883de42f7ebec8c293cf679ccb
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
