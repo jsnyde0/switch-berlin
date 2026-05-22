@@ -48,8 +48,10 @@ RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Collect static files at build time (D7: Whitenoise serves them; no runtime collectstatic needed)
-RUN python manage.py collectstatic --noinput
+# collectstatic runs at runtime in bin/init.sh (the one-shot 'init' compose
+# service). Build-time collectstatic was removed in kb-bsp — it required
+# SECRET_KEY at import-time which the build container does not have since
+# kb-x14 removed the env.str default (security: ImproperlyConfigured fail-loud).
 
 EXPOSE 8000
 
