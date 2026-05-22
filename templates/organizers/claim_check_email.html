@@ -1,9 +1,8 @@
-{% extends "_base.html" %}
+{% extends "layouts/_default.html" %}
 {% load i18n %}
 {% block title %}{% trans "Check your email" %} — {{ organizer.name }}{% endblock title %}
-{% block layout %}
-  <c-navbar />
-  <main class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+{% block content %}
+  <div class="max-w-3xl">
     <c-kb.page-header
       eyebrow="{% trans 'Organizer · Claim sent' %}"
       title="{% trans 'Check your' %}"
@@ -24,5 +23,5 @@
        class="kb-btn-secondary mt-10">
       ← {% trans "Back to profile" %}
     </a>
-  </main>
-{% endblock layout %}
+  </div>
+{% endblock content %}

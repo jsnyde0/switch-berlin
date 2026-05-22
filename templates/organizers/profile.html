@@ -1,4 +1,4 @@
-{% extends "_base.html" %}
+{% extends "layouts/_default.html" %}
 {% load i18n %}
 {% block title %}{{ organizer.name }} — Switch Berlin{% endblock title %}
 {% block og_meta %}
@@ -12,9 +12,8 @@
     <meta property="og:url" content="{{ request.build_absolute_uri }}" />
   {% endif %}
 {% endblock og_meta %}
-{% block layout %}
-  <c-navbar />
-  <main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+{% block content %}
+  <div class="max-w-5xl">
     {% comment %}
       Organizer masthead — two-column composition. Avatar + organizer name
       + mono colophon on the left, follow / claim actions on the right.
@@ -32,7 +31,8 @@
                  width="96" height="96"
                  class="w-20 h-20 lg:w-24 lg:h-24 object-cover ring-1 ring-white/15 flex-shrink-0">
           {% else %}
-            <div class="kb-display text-[44px] lg:text-[56px] leading-none w-20 h-20 lg:w-24 lg:h-24 flex items-center justify-center bg-fuchsia-300/12 text-fuchsia-200/95 flex-shrink-0">
+            <div class="kb-display text-[44px] lg:text-[56px] leading-none w-20 h-20 lg:w-24 lg:h-24 flex items-center justify-center text-fuchsia-200/95 flex-shrink-0"
+                 style="background: var(--kb-accent-wash);">
               {{ organizer.name|first|upper }}
             </div>
           {% endif %}
@@ -182,5 +182,5 @@
         </div>
       </c-kb.section>
     {% endif %}
-  </main>
-{% endblock layout %}
+  </div>
+{% endblock content %}

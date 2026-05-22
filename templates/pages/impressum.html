@@ -2,14 +2,12 @@
 {% load i18n %}
 {% block title %}{% trans "Imprint" %} — Switch Berlin{% endblock title %}
 {% block content %}
-<div class="w-full max-w-4xl mx-auto">
-  <c-kb.page-header
-    eyebrow="{% trans 'Legal · § 5 DDG' %}"
-    title="{% trans 'Imprint' %}"
-    accent="."
-    caption="Angaben gemäß § 5 DDG — Operator identity & DSA contact point." />
-</div>
-<article class="kb-prose w-full max-w-3xl mx-auto pt-6">
+<c-kb.page-header
+  eyebrow="{% trans 'Legal · § 5 DDG' %}"
+  title="{% trans 'Imprint' %}"
+  accent="."
+  caption="Angaben gemäß § 5 DDG — Operator identity & DSA contact point." />
+<article class="kb-prose pt-6">
 
   {# ------------------------------------------------------------------ #}
   {# Operator identity block                                             #}

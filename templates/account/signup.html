@@ -2,8 +2,10 @@
 {% load allauth i18n %}
 {% block head_title %}{% trans "Signup" %}{% endblock head_title %}
 {% block extra_head %}
-  {# Cloudflare Turnstile widget #}
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% if turnstile_site_key %}
+    {# Cloudflare Turnstile widget — loaded only when a site key is configured. #}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
 {% endblock extra_head %}
 {% block content %}
   <div class="w-full max-w-md">
@@ -69,11 +71,13 @@
         errors="{{ form.invite_code.errors }}"
         hint="{% trans 'Without a code, your account joins the review queue.' %}" />
 
-      <div class="cf-turnstile pt-2" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
-      {% if form.turnstile_token.errors %}
-        <span class="kb-field-error">{{ form.turnstile_token.errors }}</span>
+      {% if turnstile_site_key %}
+        <div class="cf-turnstile pt-2" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
+        {% if form.turnstile_token.errors %}
+          <span class="kb-field-error">{{ form.turnstile_token.errors }}</span>
+        {% endif %}
+        {{ form.turnstile_token }}
       {% endif %}
-      {{ form.turnstile_token }}
 
       {% if redirect_field_value %}
         <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />

@@ -25,43 +25,9 @@
   </div>
 
   {# ─── Top bar ──────────────────────────────────────────────────────── #}
-  {% comment %}
-    Masthead register: wordmark in display serif, mono kicker beneath. No gradient
-    chiclet on the logo. Sign-up is a solid filled pill, log-in a hairline link —
-    the prior all-pill row read like a SaaS chrome strip.
-  {% endcomment %}
-  <header class="relative z-20">
-    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 sm:px-6 lg:px-8 pt-6">
-      <a href="/" class="group/mast flex items-baseline gap-3">
-        <span class="kb-display text-[28px] font-medium leading-none text-base-content">
-          switch<span class="kb-display-italic text-fuchsia-300/90">.</span>berlin
-        </span>
-        <span class="hidden sm:inline-block kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">
-          queer · kink · conscious
-        </span>
-      </a>
-      <nav class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-        {% if user.is_authenticated %}
-          <a href="{% url 'account_logout' %}"
-             class="kb-mono whitespace-nowrap text-[11px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors">
-            {% trans "Log out" %}
-          </a>
-        {% else %}
-          <a href="{% url 'account_login' %}"
-             class="kb-mono whitespace-nowrap text-[11px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors">
-            {% trans "Log in" %}
-          </a>
-          {% if INVITES_ENABLED %}
-            <a href="{% url 'account_signup' %}"
-               class="kb-mono inline-flex items-center gap-1.5 whitespace-nowrap rounded-none border border-base-content/85 bg-base-content px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-base-100 transition hover:bg-fuchsia-300 hover:border-fuchsia-300 hover:text-base-100">
-              {% trans "Request invite" %}
-              <span aria-hidden="true">↗</span>
-            </a>
-          {% endif %}
-        {% endif %}
-      </nav>
-    </div>
-  </header>
+  {# Single canonical masthead — same component every interior surface uses. #}
+  {# The hairline rule below the bar lives in cotton/navbar.html. #}
+  <c-navbar />
 
   {# ─── Hero ─────────────────────────────────────────────────────────── #}
   {% comment %}

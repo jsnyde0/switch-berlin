@@ -1,4 +1,4 @@
-{% extends "_base.html" %}
+{% extends "layouts/_default.html" %}
 {% load i18n event_tags %}
 {% block title %}{{ event.title }} — Switch Berlin{% endblock title %}
 {% block og_meta %}
@@ -13,10 +13,9 @@
     <meta property="og:url" content="{{ request.build_absolute_uri }}" />
   {% endif %}
 {% endblock og_meta %}
-{% block layout %}
-  <c-navbar />
+{% block content %}
   {% with hue_a=event.slug|slug_hue %}
-  <main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+  <div class="max-w-5xl">
     {% comment %}
       Editorial event page — two-column at lg.
       Left: serif title + organizer byline + serif body.
@@ -187,6 +186,6 @@
         {% trans "Look out for each other" %}
       </p>
     </footer>
-  </main>
+  </div>
   {% endwith %}
-{% endblock layout %}
+{% endblock content %}

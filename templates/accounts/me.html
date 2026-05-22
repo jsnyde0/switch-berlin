@@ -1,9 +1,8 @@
-{% extends "_base.html" %}
+{% extends "layouts/_default.html" %}
 {% load i18n %}
 {% block title %}{% trans "My Profile" %} — Switch Berlin{% endblock title %}
-{% block layout %}
-<c-navbar />
-<main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+{% block content %}
+<div class="max-w-4xl">
   <c-kb.page-header
     eyebrow="{% trans 'Account · You' %}"
     title="{% trans 'Your' %}"
@@ -71,5 +70,5 @@
       <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">— {% trans "No past events recorded" %} —</p>
     {% endif %}
   </c-kb.section>
-</main>
-{% endblock layout %}
+</div>
+{% endblock content %}

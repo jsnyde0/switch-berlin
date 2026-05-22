@@ -1,4 +1,4 @@
-{% extends "_base.html" %}
+{% extends "layouts/_default.html" %}
 {% load i18n %}
 {% block title %}
   {% if already_claimant %}
@@ -8,11 +8,12 @@
   {% endif %}
 {% endblock title %}
 {% block extra_head %}
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% if turnstile_site_key %}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
 {% endblock extra_head %}
-{% block layout %}
-  <c-navbar />
-  <main class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-2 pb-24">
+{% block content %}
+  <div class="max-w-3xl">
     <c-kb.page-header
       eyebrow="{% trans 'Organizer · Claim' %}"
       title="{{ organizer.name }}" />
@@ -65,11 +66,13 @@
           {{ form.message }}
         </c-kb.field-wrap>
 
-        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
-        {% if form.turnstile_token.errors %}
-          <span class="kb-field-error">{{ form.turnstile_token.errors }}</span>
+        {% if turnstile_site_key %}
+          <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
+          {% if form.turnstile_token.errors %}
+            <span class="kb-field-error">{{ form.turnstile_token.errors }}</span>
+          {% endif %}
+          {{ form.turnstile_token }}
         {% endif %}
-        {{ form.turnstile_token }}
 
         <div class="flex items-center gap-5 pt-2">
           <button type="submit" class="kb-btn">
@@ -82,5 +85,5 @@
         </div>
       </form>
     {% endif %}
-  </main>
-{% endblock layout %}
+  </div>
+{% endblock content %}
