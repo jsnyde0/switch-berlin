@@ -30,6 +30,11 @@ jobs:
       group: deploy-prod
       cancel-in-progress: false
     steps:
+      # kb-bsp: checkout is load-bearing — the Caddyfile step (line below) scp's
+      # infra/Caddyfile from the runner's cwd. Without checkout, that scp fails
+      # silently for ~8 days (2026-05-14 → 2026-05-22).
+      - uses: actions/checkout@v4
+
       - name: Setup SSH client
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -74,6 +79,8 @@ jobs:
           DSA_CONTACT_EMAIL: ${{ secrets.DSA_CONTACT_EMAIL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
         run: |
           umask 077
           # Derive POSTGRES_PASSWORD from DATABASE_URL so one secret rotation
@@ -112,6 +119,8 @@ jobs:
             printf 'DSA_CONTACT_EMAIL=%s\n' "$DSA_CONTACT_EMAIL"
             printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
             printf 'FIRECRAWL_API_KEY=%s\n' "$FIRECRAWL_API_KEY"
+            printf 'TURNSTILE_SITE_KEY=%s\n' "$TURNSTILE_SITE_KEY"
+            printf 'TURNSTILE_SECRET_KEY=%s\n' "$TURNSTILE_SECRET_KEY"
           } > "$tmpfile"
           ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'sudo install -m 0600 -o switch -g switch /dev/stdin /opt/switch-berlin/app/.env' < "$tmpfile"
           rm -f "$tmpfile"
