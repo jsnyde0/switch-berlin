@@ -67,9 +67,16 @@ A second concrete consumer materializing (e.g., a second event-ingestion source 
 
 ### D3: Fail loud on data integrity
 
-**Firmness: FIRM**
+**Firmness: FIRM** (clarified 2026-05-22 — write/migration-time silent defaults are silent fallbacks too; see "Write-time symmetry" below)
 
 Missing or invalid data raises immediately. No silent fallbacks, no zero-fills, no defaults-that-mask-bugs, no `except Exception: pass` swallows. Errors render as visible neutral state in the UI, not interpolated values.
+
+**Write-time symmetry (added 2026-05-22):** D3 covers silent defaults at *write* and *migration* time, not just at *read* time. If a write-time default would hide a data state that D3 would have raised on read, the default is a silent fallback and is banned. Two shapes surfaced in V0:
+
+1. **Data migrations choosing a default for rows with no source signal.** A pessimistic default that hides previously-visible data is a labeling lie in the opposite direction — symmetric to the read-time case D3 names. See ADR-012 D4 for the operationalization in the visibility-tier migration surface; the same principle binds future migrations introducing any access-gating field.
+2. **Compat properties over many-to-many through-tables returning `None` when the M2M has rows but no row matches the discriminator (`is_primary=True`, etc.).** That state is data corruption, not "no value." The property must raise; templates that render `obj.compat_prop.attr` must not silently fall through to empty-string via Django's variable-resolution swallow.
+
+Both shapes look benign at the write site and explode at the read site — kb-cm5 (2026-05-22) hit both in one session (events.0013 migration backfill + `Event.organizer` compat property). The clarification preserves D3's intent: data integrity is checked where the lie is *introduced*, not only where it surfaces.
 
 **Rationale:**
 

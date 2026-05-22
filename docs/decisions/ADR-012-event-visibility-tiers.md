@@ -1,6 +1,6 @@
 # ADR-012: Event visibility tiers and access-control matrix
 
-**Status:** Accepted 2026-05-21 (revised 2026-05-22 — D3 trusted-viewer set extracted to `settings.EVENT_VISIBILITY_TRUSTED_STATUSES`; firmness FLEXIBLE on the policy layer)
+**Status:** Accepted 2026-05-21 (revised 2026-05-22 — D3 trusted-viewer set extracted to `settings.EVENT_VISIBILITY_TRUSTED_STATUSES` with FLEXIBLE firmness on the policy layer; D4 added for migration-backfill discipline after a lost-events incident — see D4)
 **Scope:** Per-Event visibility model — `Event.visibility` enum, source-derived defaults, viewer-tier access matrix, robot indexing semantics. Companion to ADR-009 D2 (Profile identity visibility). The sibling User trust model — `User.status` tiers, vouch graph, invite economy — is the scope of [ADR-013](ADR-013-user-trust-model.md) (kb-m69 D1 + D4 + D6 + D9 substrate); this ADR references "vouched User" as a term that ADR canonicalizes.
 
 ## Context
@@ -128,11 +128,37 @@ Per ADR-008 D3 (fail loud on data integrity), a missing or invalid `Event.visibi
 
 **What would invalidate this:** A pattern where the URL-bypass distinction between `semi_public` (gated) and `unlisted` (URL-keyed) is too subtle for organizers to use correctly — e.g., organizers consistently choosing `unlisted` when they meant `semi_public` (or vice versa), with downstream visibility incidents. The signal would pair with D1's invalidation (real-usage exposes the tier shape needs rework).
 
+### D4: Migration backfill must respect de-facto-prior visibility (added 2026-05-22)
+
+**Firmness: FLEXIBLE** — the migration-default discipline is a write-time symmetry of D3's read-time fail-loud spec. FLEXIBLE rather than FIRM because the rule may need refinement on the next concrete migration; the principle is firm but the operationalization is one incident deep.
+
+When a migration introduces a visibility/tier field onto a table that already has rows, the backfill default for each row MUST be at least as public as the row's *observable* visibility under the pre-migration schema. The set of source-derived defaults defined in D2 governs *new* rows; backfilling existing rows requires a separate decision for the "no source signal" branch:
+
+1. **Known source** — apply the D2 mapping.
+2. **Unknown source_type** — raise per ADR-008 D3 (already specified in D3 above).
+3. **No source linkage at all** (admin-created, manually imported, or schema predates the source-tracking infra) — **MUST default to the de-facto-prior tier**, i.e. whichever tier the row was rendered to under the no-field-yet query path. For Event in V0 that floor is `public` (the pre-migration `/events/` list was anonymously readable for every published row). It is **NOT** the same as D2's manual-creation default (`semi_public`); D2's default applies to new rows created after the field exists.
+
+**Rationale:**
+- `direct:` kb-cm5 session (2026-05-22) — `events.0013_event_visibility.backfill_visibility` applied D2's pessimistic default (`semi_public`) uniformly to both new rows and existing-row backfill. All 32 prod Events were admin-created without RawMessage linkage and got reclassified `semi_public`. With `EVENT_VISIBILITY_TRUSTED_STATUSES=("vouched",)` (D3 default) and 0 Users on prod, the events became invisible to everyone — a silent visibility regression that read as "lost events." A bulk UPDATE to `public` restored prior visibility.
+- `reasoned:` Defaults serve different purposes at new-row time vs migration time. At new-row time, the absence of source signal is genuine "we don't know what this is" → pessimistic-safe is correct. At migration time, the absence of source signal is "the schema didn't track this yet" → the row's prior render path IS the signal, and ignoring it overrides observable history. The two cases need separate decisions, not a shared default.
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| Apply D2's default uniformly to backfill (status quo before this decision) | `direct:` kb-cm5 — produced the lost-events incident; the default is a labeling lie in the hidden direction for any row visible under the old schema. |
+| Raise on every no-source-linkage row during migration (ADR-008 D3 fail-loud, no exceptions) | `reasoned:` Halts migration for the common case (every admin-created row in V0 had no linkage). Operator triage of N rows is not a scaling story; the migration is supposed to encode the prior-render-path mapping, not punt it. |
+| Detect prior-visibility via a separate query during migration | `reasoned:` Brittle (queries the schema the migration is replacing); the prior render path is `Event.objects.all()` with no filter, so the floor is uniformly `public` for V0. A separate query adds complexity without distinguishing rows. |
+
+**What would invalidate this:** A future migration where the pre-migration schema had >1 render path (e.g., a `hidden` flag distinguishing visibility) — then the floor is per-row, not uniform. Re-evaluate D4 when that case arrives; the principle (de-facto-prior visibility as floor) still holds but the operationalization changes.
+
+**Operational discipline (smoke probe):** Any future migration introducing a visibility/tier field MUST be followed by a count-comparison check: rows visible-to-anonymous pre-migration count == rows visible-to-anonymous post-migration count (modulo any explicit data-cleanup the migration owns). The check belongs in the migration's RunPython callable, not in deploy.yml.
+
 ## Consequences
 
 ### Direct
 
-- New field `Event.visibility` with enum `{'public', 'semi_public', 'unlisted'}`; migration backfills existing rows using D2's source-derived mapping. Per ADR-008 D3, rows where source cannot be determined raise rather than silent-fallback — the migration must triage them explicitly.
+- New field `Event.visibility` with enum `{'public', 'semi_public', 'unlisted'}`; migration backfills existing rows using D4's de-facto-prior-visibility rule (and D2's source-derived mapping for new rows). Per ADR-008 D3, rows where source_type is *unknown* raise rather than silent-fallback; rows with *no source linkage* fall under D4 (default to `public` for V0, the pre-migration render-path floor).
 - `accounts/middleware.py` `LoginWallMiddleware` extends to consult `Event.visibility` for `/events/<slug>` routes; the existing `PUBLIC_READ_PREFIXES` pattern adapts to a per-Event tier check rather than a blanket prefix allow.
 - Sitemap generation filters out `semi_public` and `unlisted` Events.
 - Response middleware sets `X-Robots-Tag` headers per D3.
