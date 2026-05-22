@@ -207,6 +207,19 @@ jobs:
           # raced the port reclaim. db is left running (data + healthcheck).
           $COMPOSE stop app || true
           $COMPOSE rm -f app || true
+          # kb-bsp: also reap any container holding port 8000 from outside this
+          # compose project (e.g. an orphan from the pre-rebrand kinky-bubbles
+          # era). Diagnostic: print and then kill. Empty result is fine.
+          echo "--- diagnostic: containers publishing :8000 ---"
+          docker ps -a --filter publish=8000 --format "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}" || true
+          echo "--- diagnostic: processes holding :8000 ---"
+          sudo ss -tlnp 'sport = :8000' || true
+          ORPHANS=$(docker ps --filter publish=8000 --format "{{.ID}}")
+          if [ -n "$ORPHANS" ]; then
+            echo "Reaping orphan containers on :8000: $ORPHANS"
+            docker stop $ORPHANS || true
+            docker rm -f $ORPHANS || true
+          fi
           $COMPOSE up -d --remove-orphans --force-recreate
           for i in $(seq 1 30); do
             if $COMPOSE exec -T app true 2>/dev/null; then
