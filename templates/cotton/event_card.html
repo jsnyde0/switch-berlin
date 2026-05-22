@@ -75,11 +75,16 @@
     {% endif %}
 
     <div class="mt-auto flex flex-col gap-1.5 pt-1 text-xs text-base-content/65">
+      {# Time row — date is in the badge; on mobile the badge has no day/time column so include the weekday + time here. On sm+ the badge carries those and we just show time + optional duration. #}
       <div class="flex items-center gap-2">
         <svg class="h-3.5 w-3.5 flex-shrink-0 text-base-content/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
         </svg>
-        <span>{{ event.start|date:"D, d M Y, H:i" }}</span>
+        <span>
+          <span class="sr-only">{{ event.start|date:"l, d F Y, " }}</span>
+          <span class="sm:hidden">{{ event.start|date:"D, H:i" }}</span>
+          <span class="hidden sm:inline">{{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/35">→</span> {{ event.end|date:"H:i" }}{% endif %}</span>
+        </span>
       </div>
 
       {% if event.venue %}
