@@ -388,6 +388,17 @@ class ClaimIntent(models.Model):
     # Cheap-foresight: resolution timestamp (approved or rejected)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
+    # User-supplied context for the admin reviewer (kb-j8u). Optional but
+    # encouraged when no email-domain match exists — gives the admin enough
+    # to approve directly or reach out via user.email for more info.
+    message = models.TextField(
+        blank=True,
+        help_text=(
+            "Optional message from the claimant explaining who they are. "
+            "Shown to admins in the review queue."
+        ),
+    )
+
     class Meta:
         ordering = ["-created_at"]
 

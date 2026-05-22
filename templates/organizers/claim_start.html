@@ -33,6 +33,17 @@
           <strong>{{ name }}</strong>. We'll send you a verification link.
         {% endblocktrans %}
       </p>
+      <div class="alert alert-info text-sm">
+        <span>
+          {% blocktrans %}
+            <strong>Two ways to verify:</strong>
+            (1) If your email's domain matches this profile's verified domain,
+            you'll be auto-approved after clicking the link in your inbox.
+            (2) Otherwise, your request goes to an admin queue — please tell us
+            who you are below so we can review it.
+          {% endblocktrans %}
+        </span>
+      </div>
       <form method="post" class="flex flex-col gap-4">
         {% csrf_token %}
         {# Email field #}
@@ -47,6 +58,23 @@
             </div>
           {% endif %}
           {% for error in form.email.errors %}
+            <div class="label">
+              <span class="label-text-alt text-error">{{ error }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        {# Message field (kb-j8u) — surfaced to admin on admin-review track. #}
+        <div class="form-control">
+          <label class="label" for="{{ form.message.id_for_label }}">
+            <span class="label-text">{{ form.message.label }}</span>
+          </label>
+          {{ form.message }}
+          {% if form.message.help_text %}
+            <div class="label">
+              <span class="label-text-alt text-base-content/60">{{ form.message.help_text }}</span>
+            </div>
+          {% endif %}
+          {% for error in form.message.errors %}
             <div class="label">
               <span class="label-text-alt text-error">{{ error }}</span>
             </div>

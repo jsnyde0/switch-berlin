@@ -32,6 +32,26 @@ class ClaimForm(forms.Form):
         help_text="We'll send a verification link to this address.",
     )
 
+    message = forms.CharField(
+        label="Who are you? (optional but recommended)",
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "placeholder": (
+                    "If your email domain doesn't match this profile, please "
+                    "tell us who you are and how you're connected to this "
+                    "organizer — e.g. 'I'm the organizer, contact me via "
+                    "@handle on Telegram'."
+                ),
+            }
+        ),
+        help_text=(
+            "Only shown to admins reviewing your claim. Leave blank if your "
+            "email domain matches the profile's verified domain."
+        ),
+    )
+
     turnstile_token = forms.CharField(
         required=False,
         widget=forms.HiddenInput,

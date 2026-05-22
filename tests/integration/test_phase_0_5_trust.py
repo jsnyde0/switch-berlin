@@ -716,6 +716,72 @@ def test_flow_i_knob_flip_grants_open_user_semi_public_access(
 
 
 @pytest.mark.django_db
+@override_settings(**TURNSTILE_SETTINGS)
+def test_admin_review_claim_persists_message_for_admin_queue(vouched_user):
+    """
+    kb-j8u: when a user submits the claim form on the admin-review track with
+    a non-empty message, the message is persisted on the ClaimIntent so the
+    admin can read it in the review queue.
+    """
+    profile = Profile.objects.create(
+        name="No Domain Org",
+        slug="no-domain-org",
+        status="approved",
+        kind="collective",
+        verified_domain="other.com",  # mismatches vouched_user@example.com
+    )
+
+    client = Client()
+    client.force_login(vouched_user)
+    url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
+    message = "I'm Sarah, one of the founding organizers. Reach me @sarah on Telegram."
+    with patch("accounts.adapter.validate_turnstile_token", return_value=True):
+        response = client.post(
+            url,
+            {
+                "email": vouched_user.email,
+                "message": message,
+                "turnstile_token": "VALID",
+            },
+        )
+
+    assert response.status_code == 302
+
+    intent = ClaimIntent.objects.get(user=vouched_user, profile=profile)
+    assert intent.message == message, (
+        f"Expected ClaimIntent.message to equal submitted text; got '{intent.message}'"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(**TURNSTILE_SETTINGS)
+def test_admin_review_claim_without_message_leaves_field_blank(vouched_user):
+    """
+    kb-j8u: the message field is optional. A claim submitted without a message
+    creates a ClaimIntent with message='' (blank), not an error.
+    """
+    profile = Profile.objects.create(
+        name="No Domain Org 2",
+        slug="no-domain-org-2",
+        status="approved",
+        kind="collective",
+        verified_domain="other.com",
+    )
+
+    client = Client()
+    client.force_login(vouched_user)
+    url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
+    with patch("accounts.adapter.validate_turnstile_token", return_value=True):
+        response = client.post(
+            url, {"email": vouched_user.email, "turnstile_token": "VALID"}
+        )
+
+    assert response.status_code == 302
+    intent = ClaimIntent.objects.get(user=vouched_user, profile=profile)
+    assert intent.message == ""
+
+
+@pytest.mark.django_db
 @override_settings(EVENT_VISIBILITY_TRUSTED_STATUSES=())
 def test_flow_i_knob_empty_locks_out_even_vouched(vouched_user, semi_public_event):
     """

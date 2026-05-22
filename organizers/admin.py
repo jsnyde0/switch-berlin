@@ -101,13 +101,22 @@ class ClaimIntentAdmin(admin.ModelAdmin):
     Per ADR-008 D3 (fail-loud on idempotency violation).
     """
 
-    list_display = ["user", "profile", "created_at", "is_pending"]
+    list_display = [
+        "user",
+        "user_email",
+        "profile",
+        "created_at",
+        "message_preview",
+        "is_pending",
+    ]
     list_filter = ["resolved_at", "rejected_at"]
-    search_fields = ["user__email", "user__username", "profile__name"]
+    search_fields = ["user__email", "user__username", "profile__name", "message"]
     readonly_fields = [
         "user",
         "profile",
         "created_at",
+        "message",
+        "submitter_verified_at",
         "resolved_at",
         "rejected_at",
         "rejected_by_admin",
@@ -121,6 +130,20 @@ class ClaimIntentAdmin(admin.ModelAdmin):
 
     is_pending.short_description = _("Pending")
     is_pending.boolean = True
+
+    def user_email(self, obj):
+        """Claimant's email — admin can mailto: from the list view (kb-j8u)."""
+        return obj.user.email
+
+    user_email.short_description = _("Email (contact)")
+
+    def message_preview(self, obj):
+        """First 80 chars of the claimant's message (kb-j8u)."""
+        if not obj.message:
+            return ""
+        return obj.message if len(obj.message) <= 80 else obj.message[:77] + "…"
+
+    message_preview.short_description = _("Message")
 
     @admin.action(description=_("Approve claim — create ProfileClaim (admin_review)"))
     def approve_claim(self, request, queryset):

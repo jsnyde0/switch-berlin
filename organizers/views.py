@@ -226,7 +226,15 @@ def claim_entry(request, slug):
         else:
             # ---- Admin-review path (ADR-014 D2) ----
             intended_method = "admin_review"
-            ClaimIntent.objects.get_or_create(user=request.user, profile=profile)
+            message = form.cleaned_data.get("message", "").strip()
+            intent, created = ClaimIntent.objects.get_or_create(
+                user=request.user, profile=profile
+            )
+            # kb-j8u: persist the most recent message so admins see the latest
+            # context if the user re-submits with updated info.
+            if message and intent.message != message:
+                intent.message = message
+                intent.save(update_fields=["message"])
 
         token = MagicLinkToken.objects.create(
             email=email,
