@@ -1,14 +1,9 @@
 {% extends "_base.html" %}
 {% block layout %}
-  <div class="antialiased bg-100">
-    <!-- Navbar -->
-    <header class="max-w-7xl mx-auto">
-      <c-navbar></c-navbar>
-    </header>
-    <!-- Sidebar -->
-    {% comment %} {% include "components/sidebar.html" %} {% endcomment %}
+  <div class="antialiased">
+    <c-navbar />
     <main id="main-content"
-          class="container px-4 py-8 max-w-7xl mx-auto flex flex-col gap-4 lg:gap-6">
+          class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4 pb-24 flex flex-col gap-8">
       {% block content %}
       {% endblock content %}
     </main>

@@ -1,0 +1,38 @@
+{% comment %}
+  Editorial form field — mono caps label, hairline-bottom input.
+
+  Attributes:
+    label  — mono caps label text
+    name   — form field name
+    type   — input type (default "text")
+    value  — current value
+    placeholder
+    required (any truthy)
+    autocomplete
+    hint   — small mono note under the field
+    errors — list-like of error strings (e.g. form.email.errors)
+    id     — explicit field id (else "field-{name}")
+    inputmode
+
+  For non-input fields (textarea, select), use `c-kb.field-wrap` and place
+  custom markup in the slot.
+{% endcomment %}
+<label class="kb-field" for="{{ id|default:"field-"|add:name }}">
+  {% if label %}<span class="kb-field-label">{{ label }}</span>{% endif %}
+  <input
+    type="{{ type|default:"text" }}"
+    id="{{ id|default:"field-"|add:name }}"
+    name="{{ name }}"
+    {% if value %}value="{{ value }}"{% endif %}
+    {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+    {% if required %}required{% endif %}
+    {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+    {% if inputmode %}inputmode="{{ inputmode }}"{% endif %}
+    class="kb-input">
+  {% if hint %}<span class="kb-field-hint">{{ hint }}</span>{% endif %}
+  {% if errors %}
+    {% for error in errors %}
+      <span class="kb-field-error">{{ error }}</span>
+    {% endfor %}
+  {% endif %}
+</label>

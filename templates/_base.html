@@ -15,7 +15,11 @@
     </title>
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
 
-    {# Display + mono faces. Fraunces is a variable serif with optical sizes — used at large sizes only for editorial register; body stays on system sans. JetBrains Mono carries metadata + section eyebrows (timetable / venue-sign feel). #}
+    {% comment %}
+      Display + mono faces. Fraunces is a variable serif with optical sizes — used
+      at large sizes for editorial register and now also as body type on forms.
+      JetBrains Mono carries metadata, eyebrows, button labels.
+    {% endcomment %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
@@ -34,7 +38,12 @@
     {% block og_meta %}{% endblock og_meta %}
     {% endif %}
   </head>
-  <body class="bg-base-100 text-base-content antialiased"
+  {% comment %}
+    `kb-page` installs the warm-rose wash + faint paper grain behind every
+    surface. /events overrides it with its own inline backdrop for tighter
+    control, but the rest of the system inherits the publication paper.
+  {% endcomment %}
+  <body class="kb-page bg-base-100 text-base-content antialiased"
         hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% block body_content %}
       <div class="container mx-auto mt-4">

@@ -1,0 +1,23 @@
+{% comment %}
+  Editorial alert — hairline-bracketed (top + bottom), mono kicker in the
+  left margin, body in the main column. No coloured side stripe, no card.
+
+  Attributes:
+    variant — "info" (default) | "error" | "success" | "warn"
+    kicker  — mono caps kicker text (defaults derived from variant)
+{% endcomment %}
+<div class="kb-alert kb-alert-{{ variant|default:"info" }}" role="status">
+  <div class="kb-alert-kicker">
+    {% if kicker %}
+      {{ kicker }}
+    {% else %}
+      {% if variant == "error" %}Error
+      {% elif variant == "success" %}Confirmed
+      {% elif variant == "warn" %}Notice
+      {% else %}Note{% endif %}
+    {% endif %}
+  </div>
+  <div class="kb-alert-body">
+    {{ slot }}
+  </div>
+</div>

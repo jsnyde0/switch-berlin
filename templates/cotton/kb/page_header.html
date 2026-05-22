@@ -1,0 +1,50 @@
+{% comment %}
+  Editorial page header — masthead-register opener for any interior surface.
+  Composition: mono eyebrow + serif h1 + optional italic accent fragment +
+  optional right-side colophon column.
+
+  Attributes:
+    eyebrow      — short mono caps kicker (e.g. "Account", "Legal", "Policy")
+    title        — display-serif headline. Plain string. For italic emphasis
+                   on a fragment, pass `accent` and `accent_position`.
+    accent       — optional italic fragment (e.g. "in Berlin.").
+    accent_position — "trailing" (default) | "leading". Trailing reads as
+                   "What's happening / in Berlin."; leading reads as
+                   "Welcome / back, ___".
+    caption      — optional secondary line (mono small) under the headline.
+    slot         — anything passed as inner content renders into the right
+                   column (the colophon). Use `dl.kb-mono` blocks here.
+{% endcomment %}
+<header class="relative">
+  <div class="grid grid-cols-12 gap-6 items-end pt-10 pb-8 lg:pt-14 lg:pb-10">
+    <div class="col-span-12 {% if slot %}lg:col-span-8{% endif %}">
+      {% if eyebrow %}
+        <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
+          {{ eyebrow }}
+        </p>
+      {% endif %}
+      <h1 class="kb-display text-[44px] sm:text-[64px] lg:text-[80px] leading-[0.95] font-light text-base-content">
+        {% if accent and accent_position == "leading" %}
+          <span class="kb-display-italic font-normal text-fuchsia-300/95">{{ accent }}</span>
+          {{ title }}
+        {% else %}
+          {{ title }}
+          {% if accent %}
+            <span class="kb-display-italic font-normal text-fuchsia-300/95">{{ accent }}</span>
+          {% endif %}
+        {% endif %}
+      </h1>
+      {% if caption %}
+        <p class="kb-mono mt-5 max-w-md text-[12px] uppercase tracking-[0.18em] text-base-content/55">
+          {{ caption }}
+        </p>
+      {% endif %}
+    </div>
+    {% if slot %}
+      <div class="col-span-12 lg:col-span-4 lg:pl-8 lg:border-l lg:border-white/15">
+        {{ slot }}
+      </div>
+    {% endif %}
+  </div>
+  <div class="kb-rule"></div>
+</header>

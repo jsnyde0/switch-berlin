@@ -1,11 +1,8 @@
 {% extends "_base.html" %}
 {% block layout %}
-  <div class="antialiased bg-100">
-    <!-- Navbar -->
-    <c-navbar></c-navbar>
-    <!-- Sidebar -->
-    {% comment %} {% include "components/sidebar.html" %} {% endcomment %}
-    <main class="p-4 h-auto pt-20 flex items-center justify-center">
+  <div class="antialiased">
+    <c-navbar />
+    <main class="px-4 sm:px-6 lg:px-8 pt-12 pb-24 flex items-start justify-center">
       {% block content %}
       {% endblock content %}
     </main>

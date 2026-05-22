@@ -1,45 +1,59 @@
 {% load i18n %}
 {% if page_obj.has_other_pages %}
-{# Prefer pagination_query_string (includes sort); fall back to filter_query_string for callers that don't set it. #}
+{% comment %}
+  Editorial pagination — hairline-bracketed strip with mono caps "Folio"
+  index. No daisyui join/btn chrome. Prev/next are mono arrows in
+  ink-faint until hovered.
+{% endcomment %}
 {% with qs=pagination_query_string|default:filter_query_string %}
-<div class="join mt-4">
-  {% if page_obj.has_previous %}
-    {% if qs %}
-      <a href="?{{ qs }}&page={{ page_obj.previous_page_number }}"
-         class="join-item btn btn-sm"
-         hx-get="?{{ qs }}&page={{ page_obj.previous_page_number }}"
-         hx-target="#event-list"
-         hx-push-url="true">‹</a>
-    {% else %}
-      <a href="?page={{ page_obj.previous_page_number }}"
-         class="join-item btn btn-sm"
-         hx-get="?page={{ page_obj.previous_page_number }}"
-         hx-target="#event-list"
-         hx-push-url="true">‹</a>
-    {% endif %}
-  {% endif %}
+<div class="mt-12">
+  <div class="kb-rule mb-4"></div>
+  <div class="flex items-center justify-between kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/55">
+    <div class="flex items-center gap-4">
+      {% if page_obj.has_previous %}
+        <a href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+           hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+           hx-target="#event-list"
+           hx-push-url="true"
+           class="inline-flex items-center gap-2 text-base-content/55 hover:text-base-content transition-colors">
+          <span aria-hidden="true">←</span>
+          <span>{% trans "Previous" %}</span>
+        </a>
+      {% else %}
+        <span class="inline-flex items-center gap-2 text-base-content/20">
+          <span aria-hidden="true">←</span>
+          <span>{% trans "Previous" %}</span>
+        </span>
+      {% endif %}
+    </div>
 
-  <span class="join-item btn btn-sm btn-disabled">
-    {% blocktrans with num=page_obj.number total=page_obj.paginator.num_pages %}
-      Page {{ num }} of {{ total }}
-    {% endblocktrans %}
-  </span>
+    <div class="flex items-baseline gap-2 text-base-content/40">
+      <span>{% trans "Folio" %}</span>
+      <span class="kb-display text-[15px] leading-none font-normal text-base-content/85 tracking-tight normal-case">
+        {{ page_obj.number }}
+      </span>
+      <span>/</span>
+      <span class="text-base-content/55">{{ page_obj.paginator.num_pages }}</span>
+    </div>
 
-  {% if page_obj.has_next %}
-    {% if qs %}
-      <a href="?{{ qs }}&page={{ page_obj.next_page_number }}"
-         class="join-item btn btn-sm"
-         hx-get="?{{ qs }}&page={{ page_obj.next_page_number }}"
-         hx-target="#event-list"
-         hx-push-url="true">›</a>
-    {% else %}
-      <a href="?page={{ page_obj.next_page_number }}"
-         class="join-item btn btn-sm"
-         hx-get="?page={{ page_obj.next_page_number }}"
-         hx-target="#event-list"
-         hx-push-url="true">›</a>
-    {% endif %}
-  {% endif %}
+    <div class="flex items-center gap-4">
+      {% if page_obj.has_next %}
+        <a href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+           hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+           hx-target="#event-list"
+           hx-push-url="true"
+           class="inline-flex items-center gap-2 text-base-content/55 hover:text-base-content transition-colors">
+          <span>{% trans "Next" %}</span>
+          <span aria-hidden="true">→</span>
+        </a>
+      {% else %}
+        <span class="inline-flex items-center gap-2 text-base-content/20">
+          <span>{% trans "Next" %}</span>
+          <span aria-hidden="true">→</span>
+        </span>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% endwith %}
 {% endif %}

@@ -1,0 +1,26 @@
+{% comment %}
+  Editorial section opener — mono eyebrow + serif headline, hairline rule
+  above. Use to delimit collapsed sub-areas of a long surface (privacy
+  policy "Recipients", profile "Past Events", etc.).
+
+  Attributes:
+    eyebrow — mono caps kicker
+    title   — display-serif headline (plain string)
+    accent  — optional italic fragment, appended
+{% endcomment %}
+<section class="relative mt-12">
+  <div class="kb-rule mb-6"></div>
+  <div class="flex items-end justify-between gap-6 mb-6 flex-wrap">
+    <div>
+      {% if eyebrow %}
+        <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-2">{{ eyebrow }}</p>
+      {% endif %}
+      <h2 class="kb-display text-[28px] sm:text-[36px] font-light leading-[0.95] text-base-content">
+        {{ title }}
+        {% if accent %}<span class="kb-display-italic font-normal text-fuchsia-300/90">{{ accent }}</span>{% endif %}
+      </h2>
+    </div>
+    {% if aside %}<div class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{{ aside }}</div>{% endif %}
+  </div>
+  {{ slot }}
+</section>

@@ -1,0 +1,17 @@
+{% comment %}
+  Bare field wrapper — owns the label + hint + error chrome but lets the
+  caller supply the actual control (textarea, select, custom widget).
+
+  Attributes:
+    label, hint, errors, for_id
+{% endcomment %}
+<label class="kb-field"{% if for_id %} for="{{ for_id }}"{% endif %}>
+  {% if label %}<span class="kb-field-label">{{ label }}</span>{% endif %}
+  {{ slot }}
+  {% if hint %}<span class="kb-field-hint">{{ hint }}</span>{% endif %}
+  {% if errors %}
+    {% for error in errors %}
+      <span class="kb-field-error">{{ error }}</span>
+    {% endfor %}
+  {% endif %}
+</label>
