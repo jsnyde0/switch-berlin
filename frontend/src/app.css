@@ -364,6 +364,26 @@
   clip-path: polygon(14% 47%, 0 60%, 38% 100%, 100% 24%, 86% 12%, 38% 73%);
 }
 
+/* ── Inline link ─────────────────────────────────────────────────── */
+
+/* Editorial underline link — fuchsia hairline under, ink text by default,
+   fuchsia text on hover. Used for inline calls-to-action in body copy
+   and footer rows ("Sign in", "Request invite", "takedown form"). The
+   pattern previously lived as a 4-class duplicate at 9 call sites. */
+.kb-link {
+  color: var(--kb-ink-soft);
+  text-decoration: none;
+  border-bottom: 1px solid var(--kb-accent-hair);
+  padding-bottom: 1px;
+  transition: color 200ms ease-out, border-color 200ms ease-out;
+}
+.kb-link:hover,
+.kb-link:focus-visible {
+  color: var(--kb-accent);
+  border-bottom-color: var(--kb-accent);
+  outline: 0;
+}
+
 /* ── Buttons ──────────────────────────────────────────────────────── */
 
 /* Primary — solid ink rect, mono caps, fuchsia on hover. The exact

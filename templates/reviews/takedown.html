@@ -19,7 +19,7 @@
           <p>{{ error }}</p>
           <p class="mt-2 text-[12px] text-base-content/60">
             {% trans "You can also contact us directly:" %}
-            <a href="{% url 'takedown' %}" class="border-b border-fuchsia-300/40 pb-0.5">{% trans "takedown form" %}</a>
+            <a href="{% url 'takedown' %}" class="kb-link">{% trans "takedown form" %}</a>
           </p>
         </c-kb.alert>
       {% endif %}
@@ -39,7 +39,7 @@
 
       <p class="text-[14px] leading-[1.65] text-base-content/70 pt-2 pb-6 max-w-2xl">
         {% trans "Use this form to report content that violates our" %}
-        <a href="/terms/" class="border-b border-fuchsia-300/40 pb-0.5 text-base-content/85 hover:text-fuchsia-300 transition-colors">{% trans "Terms of Service" %}</a>
+        <a href="/terms/" class="kb-link">{% trans "Terms of Service" %}</a>
         {% trans "or applicable law. Your report will be reviewed within 72 hours." %}
       </p>
 
@@ -101,7 +101,7 @@
 
         <p class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/45">
           {% trans "Your contact details are processed to handle this report under Art. 6(1)(c) GDPR." %}
-          <a href="/privacy/" class="ml-1 normal-case text-base-content/70 border-b border-fuchsia-300/40 pb-0.5 hover:text-fuchsia-300 transition-colors">{% trans "Privacy" %}</a>
+          <a href="/privacy/" class="kb-link ml-1 normal-case">{% trans "Privacy" %}</a>
         </p>
 
         <button type="submit" class="kb-btn self-start">
@@ -112,7 +112,7 @@
 
       <p class="kb-mono mt-12 pt-6 border-t border-white/10 text-[10px] uppercase tracking-[0.18em] text-base-content/40">
         {% trans "Or by email" %}
-        <a href="mailto:{{ legal_contact.dsa_email }}" class="ml-2 normal-case text-base-content/70 border-b border-fuchsia-300/40 pb-0.5">{{ legal_contact.dsa_email }}</a>
+        <a href="mailto:{{ legal_contact.dsa_email }}" class="kb-link ml-2 normal-case">{{ legal_contact.dsa_email }}</a>
       </p>
     {% endif %}
   </div>
