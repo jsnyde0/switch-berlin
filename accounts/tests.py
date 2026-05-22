@@ -3,6 +3,7 @@
 Uses pytest-django. DB-dependent tests are marked with @pytest.mark.django_db.
 Tests that mock get_flag at the middleware level run without a live DB.
 """
+
 from unittest.mock import patch
 
 from django.test import RequestFactory
@@ -65,8 +66,7 @@ def test_public_read_root_is_covered():
 
     # "/" may be in the exact-match set rather than prefix list
     covered = (
-        any("/".startswith(p) for p in PUBLIC_READ_PREFIXES)
-        or "/" in PUBLIC_READ_EXACT
+        any("/".startswith(p) for p in PUBLIC_READ_PREFIXES) or "/" in PUBLIC_READ_EXACT
     )
     assert covered, (
         "Root path '/' must be covered by PUBLIC_READ_PREFIXES or PUBLIC_READ_EXACT"

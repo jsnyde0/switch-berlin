@@ -467,9 +467,11 @@ def test_end_to_end_orm_flow():
     review = Review.objects.create(author=user, event=event, rating=5)
 
     # Verify retrievals — organizer is now via EventOrganizer M2M; use compat property
-    fetched_event = Event.objects.select_related("venue").prefetch_related(
-        "event_organizer_set__profile"
-    ).get(pk=event.pk)
+    fetched_event = (
+        Event.objects.select_related("venue")
+        .prefetch_related("event_organizer_set__profile")
+        .get(pk=event.pk)
+    )
     assert fetched_event.organizer.slug == "e2e-org"
     assert fetched_event.venue.slug == "e2e-venue"
 

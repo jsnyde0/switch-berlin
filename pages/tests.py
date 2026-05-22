@@ -2,6 +2,7 @@
 
 Uses pytest-django. All tests here mock get_flag so no live DB is required.
 """
+
 from contextlib import contextmanager
 from unittest.mock import patch
 
@@ -430,7 +431,8 @@ def test_footer_contains_terms_link():
 
 
 def test_footer_does_not_contain_placeholder_links():
-    """footer.html must NOT contain placeholder links (About us, Jobs, Contact, Press kit)."""
+    """footer.html must NOT contain placeholder links (About us, Jobs, Contact,
+    Press kit)."""
     from django.conf import settings
 
     footer_path = settings.BASE_DIR / "templates" / "cotton" / "footer.html"
@@ -454,9 +456,5 @@ def test_legal_risk_acceptance_doc_exists():
     """docs/legal-risk-acceptance-2026-04-20.md must exist."""
     from django.conf import settings
 
-    doc_path = (
-        settings.BASE_DIR / "docs" / "legal-risk-acceptance-2026-04-20.md"
-    )
-    assert doc_path.exists(), (
-        "docs/legal-risk-acceptance-2026-04-20.md must exist"
-    )
+    doc_path = settings.BASE_DIR / "docs" / "legal-risk-acceptance-2026-04-20.md"
+    assert doc_path.exists(), "docs/legal-risk-acceptance-2026-04-20.md must exist"

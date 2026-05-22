@@ -1,4 +1,5 @@
 """Tests for OG meta tags on organizer profile page — gated on PUBLIC_READ_ENABLED."""
+
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model

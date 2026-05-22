@@ -88,18 +88,16 @@ def organizer_profile(request, slug):
     )
 
     if request.user.is_authenticated:
-        following = Follow.objects.filter(
-            user=request.user, profile=organizer
-        ).exists()
+        following = Follow.objects.filter(user=request.user, profile=organizer).exists()
         going_venue_ids = list(
             Attendance.objects.filter(
                 user=request.user, status="going", event__venue__isnull=False
             ).values_list("event__venue_id", flat=True)
         )
         # CTA state: viewer-IS-claimant → explicit "you manage" (ADR-014 D2, ADR-008 D3)
-        viewer_is_claimant = (
-            organizer.active_claimants.filter(pk=request.user.pk).exists()
-        )
+        viewer_is_claimant = organizer.active_claimants.filter(
+            pk=request.user.pk
+        ).exists()
     else:
         following = False
         going_venue_ids = []
@@ -154,9 +152,7 @@ def organizer_profile(request, slug):
 @approved_required
 def organizer_follow(request, slug):
     organizer = get_object_or_404(Profile, slug=slug, status="approved")
-    follow, created = Follow.objects.get_or_create(
-        user=request.user, profile=organizer
-    )
+    follow, created = Follow.objects.get_or_create(user=request.user, profile=organizer)
     if not created:
         follow.delete()
         following = False
@@ -190,10 +186,13 @@ def claim_entry(request, slug):
     GET:  Render the claim form (with Turnstile per ADR-014 D3).
     POST: Both tracks ALWAYS pass through magic-link confirmation (ADR-014 D2):
         - email_domain fast-path: submitted email domain == Profile.verified_domain
-          → MagicLinkToken(intended_method='email_domain') created, magic-link email sent.
+          → MagicLinkToken(intended_method='email_domain') created, magic-link
+            email sent.
         - admin-review path: no domain match or verified_domain not set
-          → ClaimIntent + MagicLinkToken(intended_method='admin_review') created, email sent.
-        Both tracks redirect to check-email page; ProfileClaim is NOT created at POST time.
+          → ClaimIntent + MagicLinkToken(intended_method='admin_review') created,
+            email sent.
+        Both tracks redirect to check-email page; ProfileClaim is NOT created at
+        POST time.
 
     Explicit branch for user-IS-claimant (ADR-008 D3 — not silent).
     """
@@ -264,9 +263,7 @@ def claim_entry(request, slug):
             fail_silently=False,
         )
 
-        return redirect(
-            reverse("organizer-claim-check-email", kwargs={"slug": slug})
-        )
+        return redirect(reverse("organizer-claim-check-email", kwargs={"slug": slug}))
 
     from django.conf import settings as django_settings
 

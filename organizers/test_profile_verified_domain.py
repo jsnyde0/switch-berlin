@@ -65,7 +65,9 @@ def test_profile_verified_domain_defaults_to_none():
     """Profile.verified_domain defaults to None (not set)."""
     from organizers.models import Profile
 
-    profile = Profile.objects.create(name="Default Domain Org", slug="default-domain-org")
+    profile = Profile.objects.create(
+        name="Default Domain Org", slug="default-domain-org"
+    )
     assert profile.verified_domain is None
 
 
@@ -160,7 +162,8 @@ def test_profile_verified_domain_null_queryable():
 
 @pytest.mark.django_db
 def test_profile_is_claimed_still_works_after_verified_domain():
-    """Profile.is_claimed still passes through active_claimants.exists() (regression guard)."""
+    """Profile.is_claimed still passes through active_claimants.exists()
+    (regression guard)."""
     from organizers.models import Profile, ProfileClaim
 
     user = User.objects.create_user(

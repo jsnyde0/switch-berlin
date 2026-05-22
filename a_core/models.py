@@ -16,7 +16,8 @@ _NOT_CACHED = _NotCached()
 
 
 class _NoFlag:
-    """Picklable singleton stored in the cache when a FeatureFlag key does not exist in DB.
+    """Picklable singleton stored in the cache when a FeatureFlag key does not exist
+    in DB.
 
     By caching this sentinel we avoid repeated DB hits for unknown flag keys.
     __reduce__ restores the module-level singleton on unpickle so 'is' comparisons
@@ -72,9 +73,7 @@ class FeatureFlag(models.Model):
 
 
 class ModerationAction(models.Model):
-    moderator = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT
-    )
+    moderator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     flag = models.ForeignKey(
         "reviews.Flag", null=True, blank=True, on_delete=models.SET_NULL
     )

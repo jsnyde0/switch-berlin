@@ -421,7 +421,8 @@ def test_organizer_opt_out_get_returns_200():
 
 @pytest.mark.django_db
 def test_organizer_opt_out_valid_telegram_id_suspends_organizer(organizer):
-    """Valid telegram_user_id linked to organizer -> Organizer.status set to 'suspended'."""
+    """Valid telegram_user_id linked to organizer -> Organizer.status set to
+    'suspended'."""
     from ingestion.models import ApprovedSender
 
     ApprovedSender.objects.create(
@@ -714,11 +715,8 @@ def test_schedule_tasks_command_is_idempotent():
 @pytest.mark.django_db
 def test_organizer_opt_out_cannot_suspend_unrelated_organizer():
     """ApprovedSender linked to org-A cannot opt out org-B (IDOR prevention)."""
-    from django.contrib.auth import get_user_model
-
     from ingestion.models import ApprovedSender
 
-    User = get_user_model()
     organizer_a = Profile.objects.create(
         name="Organizer A", slug="org-a", status="approved"
     )
@@ -849,9 +847,7 @@ def test_feature_flag_delete_invalidates_cache():
 
 
 @pytest.mark.django_db
-def test_review_hidden_field_exists_and_defaults_false(
-    approved_user, published_event
-):
+def test_review_hidden_field_exists_and_defaults_false(approved_user, published_event):
     """Review.hidden field exists and defaults to False."""
     review = Review.objects.create(
         author=approved_user, event=published_event, rating=4
@@ -947,15 +943,20 @@ def test_reviews_views_has_no_auto_hide_flag_threshold_constant():
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "AUTO_HIDE_FLAG_THRESHOLD":
+                if (
+                    isinstance(target, ast.Name)
+                    and target.id == "AUTO_HIDE_FLAG_THRESHOLD"
+                ):
                     raise AssertionError(
-                        "AUTO_HIDE_FLAG_THRESHOLD constant still present in reviews/views.py"
+                        "AUTO_HIDE_FLAG_THRESHOLD constant still present in"
+                        " reviews/views.py"
                     )
 
 
 @pytest.mark.django_db
 def test_reviews_views_uses_get_numeric_for_auto_hide():
-    """reviews/views.py must use get_numeric('threshold.auto_hide_flag', ...) not hardcoded constant."""
+    """reviews/views.py must use get_numeric('threshold.auto_hide_flag', ...) not
+    hardcoded constant."""
     import pathlib
 
     source = (pathlib.Path(__file__).parent / "views.py").read_text()
@@ -1014,7 +1015,9 @@ def test_recompute_aggregates_excludes_hidden_reviews_from_event(
 
     # One visible review (rating=4), one hidden review (rating=1)
     Review.objects.create(author=approved_user, event=published_event, rating=4)
-    Review.objects.create(author=approved_user2, event=published_event, rating=1, hidden=True)
+    Review.objects.create(
+        author=approved_user2, event=published_event, rating=1, hidden=True
+    )
 
     recompute_aggregates()
 
@@ -1028,13 +1031,16 @@ def test_recompute_aggregates_excludes_hidden_reviews_from_event(
 def test_recompute_aggregates_excludes_hidden_reviews_from_organizer(
     approved_user, approved_user2, published_event
 ):
-    """recompute_aggregates must exclude hidden=True reviews from organizer aggregates."""
+    """recompute_aggregates must exclude hidden=True reviews from organizer
+    aggregates."""
     from ingestion.tasks_flags import recompute_aggregates
 
     organizer = published_event.organizer
     # One visible review (rating=5), one hidden review (rating=1)
     Review.objects.create(author=approved_user, organizer=organizer, rating=5)
-    Review.objects.create(author=approved_user2, organizer=organizer, rating=1, hidden=True)
+    Review.objects.create(
+        author=approved_user2, organizer=organizer, rating=1, hidden=True
+    )
 
     recompute_aggregates()
 
@@ -1067,7 +1073,8 @@ def test_flag_unique_constraint_rejects_duplicate_reporter_event(
 def test_flag_unique_constraint_rejects_duplicate_reporter_organizer(
     approved_user, published_event
 ):
-    """Second flag from same reporter on same organizer is rejected by UniqueConstraint."""
+    """Second flag from same reporter on same organizer is rejected by
+    UniqueConstraint."""
     from django.db import IntegrityError
 
     organizer = published_event.organizer
@@ -1095,7 +1102,9 @@ def test_flag_get_or_create_handles_duplicate_gracefully(
     resp2 = client_approved.post(url, payload)
     assert resp2.status_code == 200
     # Only one flag should exist
-    assert Flag.objects.filter(reporter=approved_user, event=published_event).count() == 1
+    assert (
+        Flag.objects.filter(reporter=approved_user, event=published_event).count() == 1
+    )
 
 
 # ---------------------------------------------------------------------------

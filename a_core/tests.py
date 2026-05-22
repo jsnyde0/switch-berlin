@@ -1,5 +1,5 @@
-"""Tests for a_core models: FeatureFlag, EmailFailure, get_flag(), get_numeric(), ModerationAction."""
-from unittest.mock import patch
+"""Tests for a_core models: FeatureFlag, EmailFailure, get_flag(), get_numeric(),
+ModerationAction."""
 
 from django.core.cache import cache
 from django.test import TestCase
@@ -11,23 +11,28 @@ class FeatureFlagModelTest(TestCase):
 
     def test_featureflag_str(self):
         from a_core.models import FeatureFlag
+
         flag = FeatureFlag.objects.create(key="TEST_FLAG", enabled=True)
         self.assertEqual(str(flag), "TEST_FLAG=True")
 
     def test_featureflag_default_enabled_true(self):
         from a_core.models import FeatureFlag
+
         flag = FeatureFlag.objects.create(key="ANOTHER_FLAG")
         self.assertTrue(flag.enabled)
 
     def test_featureflag_key_is_unique(self):
         from django.db import IntegrityError
+
         from a_core.models import FeatureFlag
+
         FeatureFlag.objects.create(key="UNIQUE_FLAG", enabled=True)
         with self.assertRaises(IntegrityError):
             FeatureFlag.objects.create(key="UNIQUE_FLAG", enabled=False)
 
     def test_emailfailure_ordering(self):
         from a_core.models import EmailFailure
+
         e1 = EmailFailure.objects.create(error_message="err1")
         e2 = EmailFailure.objects.create(error_message="err2")
         qs = list(EmailFailure.objects.all())
@@ -37,6 +42,7 @@ class FeatureFlagModelTest(TestCase):
 
     def test_emailfailure_resolved_default_false(self):
         from a_core.models import EmailFailure
+
         ef = EmailFailure.objects.create(error_message="fail")
         self.assertFalse(ef.resolved)
 
@@ -47,17 +53,20 @@ class GetFlagTest(TestCase):
 
     def test_get_flag_returns_db_value(self):
         from a_core.models import FeatureFlag, get_flag
+
         FeatureFlag.objects.create(key="MY_FLAG", enabled=False)
         result = get_flag("MY_FLAG", default=True)
         self.assertFalse(result)
 
     def test_get_flag_returns_default_when_missing(self):
         from a_core.models import get_flag
+
         result = get_flag("NONEXISTENT_FLAG", default=True)
         self.assertTrue(result)
 
     def test_get_flag_caches_result(self):
         from a_core.models import FeatureFlag, get_flag
+
         FeatureFlag.objects.create(key="CACHED_FLAG", enabled=True)
         # First call hits DB
         get_flag("CACHED_FLAG", default=False)
@@ -109,7 +118,8 @@ class FeatureFlagNumericValueTest(TestCase):
         self.assertEqual(result, 5)
 
     def test_missing_flag_is_cached_to_prevent_repeated_db_hits(self):
-        """A flag key that doesn't exist in DB is cached so repeated calls don't hit DB."""
+        """A flag key that doesn't exist in DB is cached so repeated calls don't
+        hit DB."""
         from a_core.models import _NO_FLAG, get_flag
 
         # First call — DB hit (nothing found)
@@ -154,7 +164,8 @@ class FeatureFlagNumericValueTest(TestCase):
         self.assertEqual(numeric_result, 3)  # from cache, not default
 
     def test_get_numeric_caches_row(self):
-        """get_numeric caches the FeatureFlag row so subsequent DB deletes don't affect it."""
+        """get_numeric caches the FeatureFlag row so subsequent DB deletes don't affect
+        it."""
         from a_core.models import FeatureFlag, get_numeric
 
         FeatureFlag.objects.create(
@@ -205,7 +216,7 @@ class FeatureFlagNumericValueTest(TestCase):
 
         from a_core.models import FeatureFlag, get_flag
 
-        flag = FeatureFlag.objects.create(key="UNIFIED_KEY_TEST", enabled=True)
+        FeatureFlag.objects.create(key="UNIFIED_KEY_TEST", enabled=True)
         get_flag("UNIFIED_KEY_TEST", default=False)
         # Unified key must be set
         cached = cache.get("feature_flag_row:UNIFIED_KEY_TEST")
@@ -273,9 +284,7 @@ class ModerationActionModelTest(TestCase):
         """ModerationAction has an index on (target_type, target_id)."""
         from a_core.models import ModerationAction
 
-        index_fields = [
-            tuple(idx.fields) for idx in ModerationAction._meta.indexes
-        ]
+        index_fields = [tuple(idx.fields) for idx in ModerationAction._meta.indexes]
         self.assertIn(("target_type", "target_id"), index_fields)
 
     def test_moderation_action_created_at_auto(self):
@@ -307,11 +316,17 @@ class ContextProcessorTest(TestCase):
         cache.clear()
 
     def test_feature_flags_context_keys(self):
-        from a_core.models import FeatureFlag
         from a_core.context_processors import feature_flags
+        from a_core.models import FeatureFlag
+
         # Seed flags
-        for key in ["MAP_ENABLED", "INVITES_ENABLED", "PUBLIC_READ_ENABLED",
-                    "RATINGS_ENABLED", "FLAGS_ENABLED"]:
+        for key in [
+            "MAP_ENABLED",
+            "INVITES_ENABLED",
+            "PUBLIC_READ_ENABLED",
+            "RATINGS_ENABLED",
+            "FLAGS_ENABLED",
+        ]:
             FeatureFlag.objects.get_or_create(key=key, defaults={"enabled": True})
         ctx = feature_flags(None)
         self.assertIn("MAP_ENABLED", ctx)

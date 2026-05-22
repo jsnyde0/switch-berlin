@@ -16,6 +16,7 @@ User = get_user_model()
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def approved_user(db):
     """Authenticated vouched user (kb-m69.1: status replaces is_approved)."""
@@ -79,16 +80,20 @@ def client_logged_in_with_went(approved_user, past_event):
 # Test: submit_review — organizer target
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_submit_organizer_review_creates_review(client_logged_in, organizer):
     """POST creates a Review row tied to the organizer."""
     url = reverse("review-submit")
-    resp = client_logged_in.post(url, {
-        "target_type": "organizer",
-        "target_id": str(organizer.pk),
-        "rating": "4",
-        "body": "Great party!",
-    })
+    resp = client_logged_in.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "rating": "4",
+            "body": "Great party!",
+        },
+    )
     assert resp.status_code == 200
     assert Review.objects.filter(organizer=organizer).count() == 1
     review = Review.objects.get(organizer=organizer)
@@ -100,30 +105,41 @@ def test_submit_organizer_review_creates_review(client_logged_in, organizer):
 def test_submit_organizer_review_updates_rating_aggregates(client_logged_in, organizer):
     """After review, Organizer.rating_count and avg_rating are updated."""
     url = reverse("review-submit")
-    client_logged_in.post(url, {
-        "target_type": "organizer",
-        "target_id": str(organizer.pk),
-        "rating": "4",
-    })
+    client_logged_in.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "rating": "4",
+        },
+    )
     organizer.refresh_from_db()
     assert organizer.rating_count == 1
     assert organizer.avg_rating == pytest.approx(4.0)
 
 
 @pytest.mark.django_db
-def test_submit_organizer_review_second_time_updates_not_creates(client_logged_in, approved_user, organizer):
+def test_submit_organizer_review_second_time_updates_not_creates(
+    client_logged_in, approved_user, organizer
+):
     """Second submission updates existing review — does not create a duplicate."""
     url = reverse("review-submit")
-    client_logged_in.post(url, {
-        "target_type": "organizer",
-        "target_id": str(organizer.pk),
-        "rating": "4",
-    })
-    client_logged_in.post(url, {
-        "target_type": "organizer",
-        "target_id": str(organizer.pk),
-        "rating": "2",
-    })
+    client_logged_in.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "rating": "4",
+        },
+    )
+    client_logged_in.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "rating": "2",
+        },
+    )
     # Only one review should exist
     assert Review.objects.filter(organizer=organizer).count() == 1
     review = Review.objects.get(organizer=organizer)
@@ -139,11 +155,14 @@ def test_submit_review_unauthenticated_redirects_to_login():
     """Unauthenticated POST -> 302 redirect to login."""
     client = Client()
     url = reverse("review-submit")
-    resp = client.post(url, {
-        "target_type": "organizer",
-        "target_id": "1",
-        "rating": "4",
-    })
+    resp = client.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": "1",
+            "rating": "4",
+        },
+    )
     assert resp.status_code == 302
     assert "/accounts/login/" in resp["Location"]
 
@@ -154,11 +173,14 @@ def test_submit_review_unapproved_user_returns_403(unapproved_user, organizer):
     client = Client()
     client.force_login(unapproved_user)
     url = reverse("review-submit")
-    resp = client.post(url, {
-        "target_type": "organizer",
-        "target_id": str(organizer.pk),
-        "rating": "4",
-    })
+    resp = client.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "rating": "4",
+        },
+    )
     assert resp.status_code == 403
 
 
@@ -166,11 +188,14 @@ def test_submit_review_unapproved_user_returns_403(unapproved_user, organizer):
 def test_submit_review_invalid_rating_returns_400(client_logged_in, organizer):
     """Rating out of range returns 400."""
     url = reverse("review-submit")
-    resp = client_logged_in.post(url, {
-        "target_type": "organizer",
-        "target_id": str(organizer.pk),
-        "rating": "99",
-    })
+    resp = client_logged_in.post(
+        url,
+        {
+            "target_type": "organizer",
+            "target_id": str(organizer.pk),
+            "rating": "99",
+        },
+    )
     assert resp.status_code == 400
 
 
@@ -178,11 +203,14 @@ def test_submit_review_invalid_rating_returns_400(client_logged_in, organizer):
 def test_submit_review_invalid_target_type_returns_400(client_logged_in):
     """Unknown target_type returns 400."""
     url = reverse("review-submit")
-    resp = client_logged_in.post(url, {
-        "target_type": "venue",
-        "target_id": "1",
-        "rating": "3",
-    })
+    resp = client_logged_in.post(
+        url,
+        {
+            "target_type": "venue",
+            "target_id": "1",
+            "rating": "3",
+        },
+    )
     assert resp.status_code == 400
 
 
@@ -190,41 +218,54 @@ def test_submit_review_invalid_target_type_returns_400(client_logged_in):
 # Test: submit_review — event target
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_submit_event_review_creates_review(client_logged_in_with_went, past_event):
     """POST with target_type=event creates a Review row tied to the event."""
     url = reverse("review-submit")
-    resp = client_logged_in_with_went.post(url, {
-        "target_type": "event",
-        "target_id": str(past_event.pk),
-        "rating": "5",
-    })
+    resp = client_logged_in_with_went.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(past_event.pk),
+            "rating": "5",
+        },
+    )
     assert resp.status_code == 200
     assert Review.objects.filter(event=past_event).count() == 1
 
 
 @pytest.mark.django_db
-def test_submit_event_review_updates_rating_count(client_logged_in_with_went, past_event):
+def test_submit_event_review_updates_rating_count(
+    client_logged_in_with_went, past_event
+):
     """After event review, Event.rating_count is updated."""
     url = reverse("review-submit")
-    client_logged_in_with_went.post(url, {
-        "target_type": "event",
-        "target_id": str(past_event.pk),
-        "rating": "3",
-    })
+    client_logged_in_with_went.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(past_event.pk),
+            "rating": "3",
+        },
+    )
     past_event.refresh_from_db()
     assert past_event.rating_count == 1
 
 
 @pytest.mark.django_db
 def test_submit_event_review_updates_avg_rating(client_logged_in_with_went, past_event):
-    """After event review, Event.avg_rating is updated immediately (not just at nightly recompute)."""
+    """After event review, Event.avg_rating is updated immediately (not just at
+    nightly recompute)."""
     url = reverse("review-submit")
-    client_logged_in_with_went.post(url, {
-        "target_type": "event",
-        "target_id": str(past_event.pk),
-        "rating": "4",
-    })
+    client_logged_in_with_went.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(past_event.pk),
+            "rating": "4",
+        },
+    )
     past_event.refresh_from_db()
     assert past_event.avg_rating is not None
     assert abs(past_event.avg_rating - 4.0) < 0.001
@@ -254,11 +295,14 @@ def test_submit_event_review_excludes_hidden_from_aggregates(past_event):
     c = Client()
     c.login(username="ev_agg_user1", password="testpass123")
     url = reverse("review-submit")
-    c.post(url, {
-        "target_type": "event",
-        "target_id": str(past_event.pk),
-        "rating": "5",
-    })
+    c.post(
+        url,
+        {
+            "target_type": "event",
+            "target_id": str(past_event.pk),
+            "rating": "5",
+        },
+    )
     past_event.refresh_from_db()
     # rating_count should be 1 (hidden review excluded), avg_rating = 5.0
     assert past_event.rating_count == 1
@@ -268,6 +312,7 @@ def test_submit_event_review_excludes_hidden_from_aggregates(past_event):
 # ---------------------------------------------------------------------------
 # Test: RATINGS_ENABLED flag
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_submit_review_ratings_disabled_returns_503(client_logged_in, organizer):
@@ -300,9 +345,11 @@ def test_submit_review_ratings_disabled_returns_503(client_logged_in, organizer)
 # Test: MIN_RATINGS_FOR_DISPLAY constant
 # ---------------------------------------------------------------------------
 
+
 def test_min_ratings_for_display_constant():
     """MIN_RATINGS_FOR_DISPLAY is 3 as required."""
     from reviews.views import MIN_RATINGS_FOR_DISPLAY
+
     assert MIN_RATINGS_FOR_DISPLAY == 3
 
 
@@ -310,8 +357,11 @@ def test_min_ratings_for_display_constant():
 # Test: organizer_profile view — rating context
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
-def test_organizer_profile_shows_rating_when_count_meets_threshold(client, organizer, approved_user):
+def test_organizer_profile_shows_rating_when_count_meets_threshold(
+    client, organizer, approved_user
+):
     """When rating_count >= 3, show_rating is True in context."""
     organizer.rating_count = 3
     organizer.avg_rating = 4.0
@@ -339,7 +389,9 @@ def test_organizer_profile_hides_rating_below_threshold(client, organizer):
 
 
 @pytest.mark.django_db
-def test_organizer_profile_includes_user_review_in_context(client_logged_in, approved_user, organizer):
+def test_organizer_profile_includes_user_review_in_context(
+    client_logged_in, approved_user, organizer
+):
     """user_review context key is the user's existing review when present."""
     review = Review.objects.create(
         author=approved_user,
@@ -353,7 +405,9 @@ def test_organizer_profile_includes_user_review_in_context(client_logged_in, app
 
 
 @pytest.mark.django_db
-def test_organizer_profile_user_review_none_when_not_reviewed(client_logged_in, organizer):
+def test_organizer_profile_user_review_none_when_not_reviewed(
+    client_logged_in, organizer
+):
     """user_review is None when the user has no review."""
     url = reverse("organizer-profile", kwargs={"slug": organizer.slug})
     resp = client_logged_in.get(url)

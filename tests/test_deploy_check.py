@@ -1,11 +1,11 @@
 """
 System-check tests for a_core W006/E006 legal-contact deploy checks.
 
-Parametrized across {DEBUG, PUBLIC_READ_ENABLED} × {complete, missing name, missing address, missing email}.
+Parametrized across {DEBUG, PUBLIC_READ_ENABLED} × {complete, missing name, missing
+address, missing email}.
 """
-import pytest
-from django.test import TestCase, override_settings
 
+from django.test import TestCase, override_settings
 
 FULL_LEGAL_SETTINGS = {
     "IMPRESSUM_NAME": "Jane Doe",
@@ -87,6 +87,7 @@ MISSING_EMAIL_SETTINGS = {
 def run_check(**settings_overrides):
     """Run the legal_contact system check with the given settings overrides."""
     from a_core.checks import check_legal_contact
+
     with override_settings(**settings_overrides):
         return check_legal_contact(app_configs=None)
 
@@ -101,8 +102,10 @@ class TestLegalCheckNoErrors(TestCase):
 
     def test_no_errors_when_complete_public_read_enabled(self):
         """Complete settings with PUBLIC_READ_ENABLED=True: no warnings, no errors."""
-        from a_core.models import FeatureFlag
         from django.core.cache import cache
+
+        from a_core.models import FeatureFlag
+
         cache.clear()
         FeatureFlag.objects.update_or_create(
             key="PUBLIC_READ_ENABLED", defaults={"enabled": True}
@@ -111,9 +114,12 @@ class TestLegalCheckNoErrors(TestCase):
         self.assertEqual(errors, [])
 
     def test_no_errors_when_complete_both_flags_off(self):
-        """Complete settings with DEBUG=False and PUBLIC_READ_ENABLED=False: no errors."""
-        from a_core.models import FeatureFlag
+        """Complete settings with DEBUG=False and PUBLIC_READ_ENABLED=False: no
+        errors."""
         from django.core.cache import cache
+
+        from a_core.models import FeatureFlag
+
         cache.clear()
         FeatureFlag.objects.update_or_create(
             key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
@@ -127,8 +133,10 @@ class TestLegalCheckW006(TestCase):
 
     def setUp(self):
         from django.core.cache import cache
+
         cache.clear()
         from a_core.models import FeatureFlag
+
         FeatureFlag.objects.update_or_create(
             key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
         )
@@ -154,6 +162,7 @@ class TestLegalCheckW006(TestCase):
     def test_w006_is_warning_not_error(self):
         """W006 is a Warning (not Error)."""
         from django.core.checks import Warning as DjangoWarning
+
         errors = run_check(DEBUG=True, **MISSING_NAME_SETTINGS)
         self.assertEqual(len(errors), 1)
         self.assertIsInstance(errors[0], DjangoWarning)
@@ -164,26 +173,31 @@ class TestLegalCheckE006(TestCase):
 
     def setUp(self):
         from django.core.cache import cache
+
         cache.clear()
         from a_core.models import FeatureFlag
+
         FeatureFlag.objects.update_or_create(
             key="PUBLIC_READ_ENABLED", defaults={"enabled": True}
         )
 
     def test_e006_missing_name_public_read(self):
-        """E006 error fires when IMPRESSUM_NAME is empty and PUBLIC_READ_ENABLED=True."""
+        """E006 error fires when IMPRESSUM_NAME is empty and
+        PUBLIC_READ_ENABLED=True."""
         errors = run_check(DEBUG=False, **MISSING_NAME_SETTINGS)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, "a_core.E006")
 
     def test_e006_missing_address_public_read(self):
-        """E006 error fires when IMPRESSUM_ADDRESS is empty and PUBLIC_READ_ENABLED=True."""
+        """E006 error fires when IMPRESSUM_ADDRESS is empty and
+        PUBLIC_READ_ENABLED=True."""
         errors = run_check(DEBUG=False, **MISSING_ADDRESS_SETTINGS)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, "a_core.E006")
 
     def test_e006_missing_email_public_read(self):
-        """E006 error fires when IMPRESSUM_EMAIL is empty and PUBLIC_READ_ENABLED=True."""
+        """E006 error fires when IMPRESSUM_EMAIL is empty and
+        PUBLIC_READ_ENABLED=True."""
         errors = run_check(DEBUG=False, **MISSING_EMAIL_SETTINGS)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, "a_core.E006")
@@ -191,6 +205,7 @@ class TestLegalCheckE006(TestCase):
     def test_e006_is_error_not_warning(self):
         """E006 is an Error (not Warning)."""
         from django.core.checks import Error as DjangoError
+
         errors = run_check(DEBUG=False, **MISSING_NAME_SETTINGS)
         self.assertEqual(len(errors), 1)
         self.assertIsInstance(errors[0], DjangoError)
@@ -207,14 +222,17 @@ class TestLegalCheckNoFireWhenBothFalse(TestCase):
 
     def setUp(self):
         from django.core.cache import cache
+
         cache.clear()
         from a_core.models import FeatureFlag
+
         FeatureFlag.objects.update_or_create(
             key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
         )
 
     def test_no_check_fires_when_debug_false_and_public_read_false(self):
-        """No warning or error when DEBUG=False and PUBLIC_READ_ENABLED=False, even with missing vars."""
+        """No warning or error when DEBUG=False and PUBLIC_READ_ENABLED=False, even
+        with missing vars."""
         errors = run_check(DEBUG=False, **MISSING_NAME_SETTINGS)
         self.assertEqual(errors, [])
 
@@ -266,9 +284,9 @@ class TestLegalContactDict(TestCase):
 
     def test_legal_contact_contains_all_keys(self):
         """LEGAL_CONTACT dict has all required keys."""
-        from django.conf import settings
         with override_settings(**FULL_LEGAL_SETTINGS):
             from a_core.legal import get_legal_contact
+
             contact = get_legal_contact()
         self.assertIn("name", contact)
         self.assertIn("address", contact)
@@ -282,6 +300,7 @@ class TestLegalContactDict(TestCase):
         """get_legal_contact() returns values from settings.LEGAL_CONTACT."""
         with override_settings(**FULL_LEGAL_SETTINGS):
             from a_core.legal import get_legal_contact
+
             contact = get_legal_contact()
         self.assertEqual(contact["name"], "Jane Doe")
         self.assertEqual(contact["email"], "jane@example.com")
@@ -290,6 +309,7 @@ class TestLegalContactDict(TestCase):
         """get_legal_contact() returns empty strings for missing optional vars."""
         with override_settings(**MISSING_NAME_SETTINGS):
             from a_core.legal import get_legal_contact
+
             contact = get_legal_contact()
         self.assertEqual(contact["name"], "")
         self.assertEqual(contact["address"], "Musterstr. 1, 12345 Berlin")
@@ -302,6 +322,7 @@ class TestContextProcessor(TestCase):
         """legal_contact_processor returns dict with 'legal_contact' key."""
         with override_settings(**FULL_LEGAL_SETTINGS):
             from a_core.context_processors import legal_contact_processor
+
             ctx = legal_contact_processor(None)
         self.assertIn("legal_contact", ctx)
 
@@ -309,5 +330,6 @@ class TestContextProcessor(TestCase):
         """Context processor's legal_contact.email is populated from settings."""
         with override_settings(**FULL_LEGAL_SETTINGS):
             from a_core.context_processors import legal_contact_processor
+
             ctx = legal_contact_processor(None)
         self.assertEqual(ctx["legal_contact"]["email"], "jane@example.com")

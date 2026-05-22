@@ -283,10 +283,12 @@ def test_verified_method_choices_has_exactly_4_values():
 
     choices = dict(ProfileClaim.VERIFIED_METHOD_CHOICES)
     assert len(choices) == 4, (
-        f"Expected exactly 4 VERIFIED_METHOD_CHOICES per ADR-014 D1, got {len(choices)}: {list(choices.keys())}"
+        f"Expected exactly 4 VERIFIED_METHOD_CHOICES per ADR-014 D1,"
+        f" got {len(choices)}: {list(choices.keys())}"
     )
     assert "magic_link" not in choices, (
-        "'magic_link' must NOT be in VERIFIED_METHOD_CHOICES — it is not a valid verified_method (ADR-014 D1)"
+        "'magic_link' must NOT be in VERIFIED_METHOD_CHOICES — it is not a valid"
+        " verified_method (ADR-014 D1)"
     )
     for expected in ("email_domain", "admin_review", "admin_legacy", "auto_self"):
         assert expected in choices, (
@@ -301,7 +303,8 @@ def test_verified_method_choices_has_exactly_4_values():
 
 @pytest.mark.django_db
 def test_magic_link_token_intended_method_field_exists():
-    """MagicLinkToken.intended_method field exists and accepts 'email_domain' or 'admin_review'."""
+    """MagicLinkToken.intended_method field exists and accepts 'email_domain' or
+    'admin_review'."""
     from organizers.models import MagicLinkToken, Profile
 
     user = User.objects.create_user(

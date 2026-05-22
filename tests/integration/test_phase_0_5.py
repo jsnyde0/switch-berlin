@@ -70,9 +70,7 @@ def feature_flag_ratings_off(db):
     """Set RATINGS_ENABLED=False and clear cache; restore after test."""
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.get_or_create(
-        key="RATINGS_ENABLED", defaults={"enabled": True}
-    )
+    FeatureFlag.objects.get_or_create(key="RATINGS_ENABLED", defaults={"enabled": True})
     FeatureFlag.objects.filter(key="RATINGS_ENABLED").update(enabled=False)
     cache.clear()
     yield
@@ -125,7 +123,8 @@ def test_footer_has_legal_links(client, feature_flag_public_read_on):
 
 @pytest.mark.django_db
 def test_footer_no_placeholders(client, feature_flag_public_read_on):
-    """GET /impressum/ -> footer does NOT contain placeholder 'About us' or 'Jobs' text."""
+    """GET /impressum/ -> footer does NOT contain placeholder 'About us' or 'Jobs'
+    text."""
     response = client.get("/impressum/")
     assert response.status_code == 200
     assert b"About us" not in response.content
@@ -146,7 +145,9 @@ def test_age_gate_redirects_anon(client, published_event, feature_flag_public_re
 
 
 @pytest.mark.django_db
-def test_age_gate_passes_with_cookie(client, published_event, feature_flag_public_read_on):
+def test_age_gate_passes_with_cookie(
+    client, published_event, feature_flag_public_read_on
+):
     """GET /events/ with age_gate=ok cookie -> 200 (age gate passes)."""
     client.cookies["age_gate"] = "ok"
     response = client.get("/events/")
@@ -154,9 +155,13 @@ def test_age_gate_passes_with_cookie(client, published_event, feature_flag_publi
 
 
 @pytest.mark.django_db
-def test_age_gate_bypasses_for_googlebot(client, published_event, feature_flag_public_read_on):
+def test_age_gate_bypasses_for_googlebot(
+    client, published_event, feature_flag_public_read_on
+):
     """Googlebot UA bypasses the age gate (no redirect)."""
-    googlebot_ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    googlebot_ua = (
+        "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    )
     response = client.get(
         "/events/",
         HTTP_USER_AGENT=googlebot_ua,
@@ -167,7 +172,8 @@ def test_age_gate_bypasses_for_googlebot(client, published_event, feature_flag_p
 
 @pytest.mark.django_db
 def test_age_gate_bypassed_when_public_read_off(client, feature_flag_public_read_off):
-    """PUBLIC_READ_ENABLED=False -> anon GET /events/ redirects to login, NOT age-check."""
+    """PUBLIC_READ_ENABLED=False -> anon GET /events/ redirects to login, NOT
+    age-check."""
     response = client.get("/events/", HTTP_ACCEPT="text/html,application/xhtml+xml")
     assert response.status_code == 302
     location = response["Location"]
@@ -179,7 +185,8 @@ def test_age_gate_bypassed_when_public_read_off(client, feature_flag_public_read
 
 @pytest.mark.django_db
 def test_age_check_post_sets_cookie(client):
-    """POST /age-check/ with confirm=yes -> redirects to next and sets age_gate=ok cookie."""
+    """POST /age-check/ with confirm=yes -> redirects to next and sets age_gate=ok
+    cookie."""
     response = client.post(
         "/age-check/",
         {"confirm": "yes", "next": "/"},
@@ -200,7 +207,8 @@ def test_age_check_post_sets_cookie(client):
 
 @pytest.mark.django_db
 def test_takedown_creates_anonymous_flag(client, published_event):
-    """POST /takedown/ as anon with resolvable event_url -> creates Flag with reporter=None."""
+    """POST /takedown/ as anon with resolvable event_url -> creates Flag with
+    reporter=None."""
     from django.urls import reverse
 
     event_url = reverse(
@@ -289,8 +297,11 @@ def test_anonymous_flag_does_not_trigger_autohide(published_event):
 
 
 @pytest.mark.django_db
-def test_private_venue_blurred_for_anon_public(client, published_event, feature_flag_public_read_on):
-    """Anonymous user with age_gate cookie: private venue in GeoJSON has blur_radius_m set."""
+def test_private_venue_blurred_for_anon_public(
+    client, published_event, feature_flag_public_read_on
+):
+    """Anonymous user with age_gate cookie: private venue in GeoJSON has
+    blur_radius_m set."""
     from venues.models import Venue
 
     private_venue = Venue.objects.create(
@@ -366,9 +377,11 @@ def test_autohide_activates_on_auth_flags(db, published_event):
 
 
 @pytest.mark.django_db
-def test_hidden_event_absent_from_list(client, approved_organizer, feature_flag_public_read_on):
+def test_hidden_event_absent_from_list(
+    client, approved_organizer, feature_flag_public_read_on
+):
     """After auto-hide, GET /events/ -> hidden event title not in response."""
-    hidden_event = Event.objects.create(
+    Event.objects.create(
         title="Hidden Rave Night",
         slug="hidden-rave-night",
         organizer=approved_organizer,
@@ -398,7 +411,8 @@ def test_anon_flags_dont_trigger_autohide(published_event):
 
 @pytest.mark.django_db
 def test_duplicate_review_updates_not_creates(approved_user, approved_organizer):
-    """Two reviews by same author for same organizer -> only 1 row in DB (update_or_create)."""
+    """Two reviews by same author for same organizer -> only 1 row in DB
+    (update_or_create)."""
     client = Client()
     client.force_login(approved_user)
 
@@ -421,13 +435,16 @@ def test_duplicate_review_updates_not_creates(approved_user, approved_organizer)
             "body": "Updated review",
         },
     )
-    count = Review.objects.filter(author=approved_user, organizer=approved_organizer).count()
+    count = Review.objects.filter(
+        author=approved_user, organizer=approved_organizer
+    ).count()
     assert count == 1
 
 
 @pytest.mark.django_db
 def test_rating_count_correct_after_update(approved_user, approved_organizer):
-    """After 2 submissions by same user for same organizer -> organizer.rating_count == 1."""
+    """After 2 submissions by same user for same organizer -> organizer.rating_count
+    == 1."""
     client = Client()
     client.force_login(approved_user)
 
@@ -460,8 +477,11 @@ def test_rating_count_correct_after_update(approved_user, approved_organizer):
 
 
 @pytest.mark.django_db
-def test_rating_hidden_below_threshold(client, approved_organizer, feature_flag_public_read_on):
-    """2 reviews -> organizer profile does NOT show rating display (below MIN_RATINGS_FOR_DISPLAY=3)."""
+def test_rating_hidden_below_threshold(
+    client, approved_organizer, feature_flag_public_read_on
+):
+    """2 reviews -> organizer profile does NOT show rating display (below
+    MIN_RATINGS_FOR_DISPLAY=3)."""
     for i in range(2):
         u = User.objects.create_user(
             username=f"reviewer_{i}",
@@ -484,7 +504,9 @@ def test_rating_hidden_below_threshold(client, approved_organizer, feature_flag_
 
 
 @pytest.mark.django_db
-def test_rating_shown_at_threshold(client, approved_organizer, feature_flag_public_read_on):
+def test_rating_shown_at_threshold(
+    client, approved_organizer, feature_flag_public_read_on
+):
     """3 reviews (at threshold) -> organizer profile shows rating display."""
     for i in range(3):
         u = User.objects.create_user(
@@ -535,8 +557,11 @@ def test_event_rating_creates_review(approved_user, published_event):
 
 
 @pytest.mark.django_db
-def test_event_detail_no_rating_display(client, published_event, feature_flag_public_read_on):
-    """Event detail page does NOT display any avg_rating or star rating for the event."""
+def test_event_detail_no_rating_display(
+    client, published_event, feature_flag_public_read_on
+):
+    """Event detail page does NOT display any avg_rating or star rating for the
+    event."""
     client.cookies["age_gate"] = "ok"
     response = client.get(
         f"/events/{published_event.organizer.slug}/{published_event.slug}/"
@@ -553,9 +578,14 @@ def test_event_detail_no_rating_display(client, published_event, feature_flag_pu
 
 @pytest.mark.django_db
 def test_ratings_flag_off_hides_form(
-    client, approved_user, approved_organizer, feature_flag_public_read_on, feature_flag_ratings_off
+    client,
+    approved_user,
+    approved_organizer,
+    feature_flag_public_read_on,
+    feature_flag_ratings_off,
 ):
-    """RATINGS_ENABLED=False -> organizer profile page does not contain the review-submit form."""
+    """RATINGS_ENABLED=False -> organizer profile page does not contain the
+    review-submit form."""
     client.force_login(approved_user)
     response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
@@ -589,7 +619,8 @@ def test_recompute_aggregates_runs(approved_user, approved_organizer, published_
 
 @pytest.mark.django_db
 def test_flag_constraint_no_target():
-    """Flag with all-null FKs (no target) violates the CheckConstraint -> IntegrityError.
+    """Flag with all-null FKs (no target) violates the CheckConstraint ->
+    IntegrityError.
 
     The CheckConstraint 'flag_targets_exactly_one' requires exactly one of
     organizer/event/review to be non-null. A Flag with all three null therefore
@@ -600,7 +631,9 @@ def test_flag_constraint_no_target():
 
 
 @pytest.mark.django_db
-def test_flag_constraint_two_targets(approved_user, approved_organizer, published_event):
+def test_flag_constraint_two_targets(
+    approved_user, approved_organizer, published_event
+):
     """Flag with two targets set -> IntegrityError (violates exactly-one constraint)."""
     with pytest.raises(IntegrityError):
         Flag.objects.create(
@@ -618,7 +651,8 @@ def test_flag_constraint_two_targets(approved_user, approved_organizer, publishe
 
 @pytest.mark.django_db
 def test_rollback_login_wall_reenabled(client, feature_flag_public_read_off):
-    """PUBLIC_READ_ENABLED=False -> anon GET /events/ redirects to /accounts/login/, not age-check."""
+    """PUBLIC_READ_ENABLED=False -> anon GET /events/ redirects to /accounts/login/,
+    not age-check."""
     response = client.get("/events/", HTTP_ACCEPT="text/html,application/xhtml+xml")
     assert response.status_code == 302
     location = response["Location"]
@@ -697,13 +731,15 @@ def test_geojson_no_event_id(client, published_event, feature_flag_public_read_o
     markers_geojson = response.context["markers_geojson"]
     for feature in markers_geojson["features"]:
         assert "event_id" not in feature["properties"], (
-            f"Feature has 'event_id' which should have been removed: {feature['properties']}"
+            f"Feature has 'event_id' which should have been removed:"
+            f" {feature['properties']}"
         )
 
 
 @pytest.mark.django_db
 def test_geojson_has_slug_fields(client, published_event, feature_flag_public_read_on):
-    """GET /events/ -> each marker feature has 'org_slug' and 'event_slug' properties."""
+    """GET /events/ -> each marker feature has 'org_slug' and 'event_slug'
+    properties."""
     from venues.models import Venue
 
     venue = Venue.objects.create(
@@ -723,8 +759,12 @@ def test_geojson_has_slug_fields(client, published_event, feature_flag_public_re
     assert len(markers_geojson["features"]) > 0, "Expected at least one marker feature"
 
     for feature in markers_geojson["features"]:
-        assert "org_slug" in feature["properties"], "Missing 'org_slug' in feature properties"
-        assert "event_slug" in feature["properties"], "Missing 'event_slug' in feature properties"
+        assert "org_slug" in feature["properties"], (
+            "Missing 'org_slug' in feature properties"
+        )
+        assert "event_slug" in feature["properties"], (
+            "Missing 'event_slug' in feature properties"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -767,7 +807,9 @@ def test_hidden_organizer_returns_404(client, feature_flag_public_read_on):
 
 
 @pytest.mark.django_db
-def test_hidden_event_drawer_404(client, approved_organizer, feature_flag_public_read_on):
+def test_hidden_event_drawer_404(
+    client, approved_organizer, feature_flag_public_read_on
+):
     """Hidden event returns 404 on the drawer endpoint."""
     hidden_event = Event.objects.create(
         title="Hidden Drawer Event",

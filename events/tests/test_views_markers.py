@@ -1,4 +1,5 @@
 """Integration tests for event list view: markers payload, tag filter, drawer."""
+
 import json
 import re
 from decimal import Decimal
@@ -15,7 +16,6 @@ User = get_user_model()
 
 
 class EventListMarkersTest(TestCase):
-
     def setUp(self):
         # Create and log in a staff user to pass the login wall
         self.staff_user = User.objects.create_user(
@@ -77,9 +77,7 @@ class EventListMarkersTest(TestCase):
         self.assertIn(b"markers-data", response.content)
 
     def test_tag_filter_returns_partial_with_server_timing(self):
-        response = self.client.get(
-            "/events/", {"tags": "bdsm"}, HTTP_HX_REQUEST="true"
-        )
+        response = self.client.get("/events/", {"tags": "bdsm"}, HTTP_HX_REQUEST="true")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Server-Timing", response)
         # Partial must not contain a full HTML document
@@ -123,11 +121,15 @@ class EventListMarkersTest(TestCase):
             # The hash-based offset guarantees at least 3rd-decimal difference
             # (minimum ~0.001° ≈ 100m). Use places=3 (>= 0.0005° threshold).
             self.assertNotAlmostEqual(
-                coords[0], real_lng, places=3,
+                coords[0],
+                real_lng,
+                places=3,
                 msg="Private venue longitude must be obfuscated",
             )
             self.assertNotAlmostEqual(
-                coords[1], real_lat, places=3,
+                coords[1],
+                real_lat,
+                places=3,
                 msg="Private venue latitude must be obfuscated",
             )
             # Properties must carry blur_radius_m for the obfuscation circle
@@ -172,6 +174,7 @@ class EventListMarkersTest(TestCase):
         self.assertEqual(response.status_code, 200)
         import json
         import re
+
         content = response.content.decode()
         match = re.search(
             r'id="markers-data" type="application/json">(.*?)</script>',
@@ -197,6 +200,7 @@ class EventListMarkersTest(TestCase):
         self.assertEqual(response.status_code, 200)
         import json
         import re
+
         content = response.content.decode()
         match = re.search(
             r'id="markers-data" type="application/json">(.*?)</script>',
@@ -206,7 +210,8 @@ class EventListMarkersTest(TestCase):
         self.assertIsNotNone(match, "markers-data script tag not found")
         geojson = json.loads(match.group(1))
         self.assertEqual(
-            len(geojson["features"]), 0,
+            len(geojson["features"]),
+            0,
             "Expected no markers when bounds exclude all venues",
         )
 
@@ -216,6 +221,7 @@ class EventListMarkersTest(TestCase):
         self.assertEqual(response.status_code, 200)
         import json
         import re
+
         content = response.content.decode()
         match = re.search(
             r'id="markers-data" type="application/json">(.*?)</script>',

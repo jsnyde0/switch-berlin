@@ -94,9 +94,7 @@ def test_follow_model_fields(approved_organizer, staff_user):
     """Follow has user, profile, created_at fields."""
     from organizers.models import Follow
 
-    follow = Follow.objects.create(
-        user=staff_user, profile=approved_organizer
-    )
+    follow = Follow.objects.create(user=staff_user, profile=approved_organizer)
     assert follow.user == staff_user
     assert follow.profile == approved_organizer
     assert follow.created_at is not None
@@ -143,9 +141,7 @@ def test_follow_post_creates_row(client, staff_user, approved_organizer):
     client.force_login(staff_user)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
-    assert Follow.objects.filter(
-        user=staff_user, profile=approved_organizer
-    ).exists()
+    assert Follow.objects.filter(user=staff_user, profile=approved_organizer).exists()
 
 
 @pytest.mark.django_db
@@ -167,9 +163,7 @@ def test_follow_post_twice_deletes_row(client, staff_user, approved_organizer):
     client.force_login(staff_user)
     # First POST — creates the follow
     client.post(f"/o/{approved_organizer.slug}/follow/")
-    assert Follow.objects.filter(
-        user=staff_user, profile=approved_organizer
-    ).exists()
+    assert Follow.objects.filter(user=staff_user, profile=approved_organizer).exists()
     # Second POST — deletes the follow (unfollow)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200

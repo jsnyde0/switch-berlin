@@ -56,10 +56,13 @@ def test_seed_wipe_clears_and_reseeds():
 
     # After wipe+reseed, old PKs should be gone (new rows created)
     assert not first_event_pks.intersection(second_event_pks)
-    assert Event.objects.filter(
-        event_organizer_set__profile__name__startswith="SpikeSeed-",
-        event_organizer_set__is_primary=True,
-    ).count() >= 500
+    assert (
+        Event.objects.filter(
+            event_organizer_set__profile__name__startswith="SpikeSeed-",
+            event_organizer_set__is_primary=True,
+        ).count()
+        >= 500
+    )
 
 
 @pytest.mark.django_db

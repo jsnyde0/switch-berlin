@@ -107,7 +107,8 @@ def test_profile_pronouns_blank_by_default():
 
 @pytest.mark.django_db
 def test_profile_no_claimed_by_field():
-    """Profile no longer has claimed_by FK — replaced by ProfileClaim through-model (ADR-014 D1)."""
+    """Profile no longer has claimed_by FK — replaced by ProfileClaim through-model
+    (ADR-014 D1)."""
     from organizers.models import Profile
 
     p = Profile.objects.create(name="Unclaimed", slug="unclaimed")
@@ -116,7 +117,8 @@ def test_profile_no_claimed_by_field():
 
 @pytest.mark.django_db
 def test_profile_claimants_m2m_via_profile_claim():
-    """Profile.claimants M2M via ProfileClaim works; user.claimed_profiles reverse works."""
+    """Profile.claimants M2M via ProfileClaim works; user.claimed_profiles reverse
+    works."""
     from organizers.models import Profile, ProfileClaim
 
     user = User.objects.create_user(
@@ -248,6 +250,7 @@ def test_event_organizer_fk_targets_profile():
     assert event.organizer == p
     # organizer_id no longer exists (FK removed); verify via EventOrganizer
     from events.models import EventOrganizer
+
     assert EventOrganizer.objects.filter(
         event=event, profile=p, is_primary=True
     ).exists()

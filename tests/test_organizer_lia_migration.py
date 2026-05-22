@@ -173,8 +173,7 @@ class TestAdminDropdown(TestCase):
             f"'legitimate_interest' not in choices: {list(choices_dict.keys())}"
         )
         assert (
-            choices_dict["legitimate_interest"]
-            == "Legitimate interest (Art. 6(1)(f))"
+            choices_dict["legitimate_interest"] == "Legitimate interest (Art. 6(1)(f))"
         )
 
     def test_legitimate_interest_is_first_choice(self):

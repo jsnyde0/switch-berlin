@@ -306,17 +306,18 @@ def test_terms_de_renders_14_tage_frist(client, public_read_on):
 
 @pytest.mark.django_db
 def test_terms_de_renders_german_key_phrases(client, public_read_on):
-    """With LANGUAGE_CODE='de', distinctively German legal phrases appear in the page."""
+    """With LANGUAGE_CODE='de', distinctively German legal phrases appear in the
+    page."""
     with override_settings(LANGUAGE_CODE="de", LANGUAGE_COOKIE_NAME="django_language"):
         client.cookies["django_language"] = "de"
         response = client.get("/terms/")
     assert response.status_code == 200
     # Page title must render in German
-    assert "Nutzungsbedingungen".encode() in response.content
+    assert b"Nutzungsbedingungen" in response.content
     # Severability section heading must appear in German
-    assert "Salvatorische Klausel".encode() in response.content
+    assert b"Salvatorische Klausel" in response.content
     # Widerrufsrecht N/A must be stated in German legal prose
-    assert "unentgeltlich".encode() in response.content
+    assert b"unentgeltlich" in response.content
 
 
 # ===========================================================================
@@ -415,9 +416,7 @@ def test_privacy_has_llm_processor_with_scc_transfer(client, public_read_on):
     assert b"OpenAI" in content or b"Anthropic" in content
     # SCC or Standard Contractual Clauses must be mentioned
     assert (
-        b"SCC" in content
-        or b"Standard Contractual" in content
-        or b"Art. 44" in content
+        b"SCC" in content or b"Standard Contractual" in content or b"Art. 44" in content
     )
 
 
@@ -588,7 +587,7 @@ def test_takedown_de_title_translated(client, public_read_on):
         response = client.get("/takedown/")
     assert response.status_code == 200
     # German title must be present
-    assert "Inhalt melden".encode() in response.content
+    assert b"Inhalt melden" in response.content
 
 
 @pytest.mark.django_db

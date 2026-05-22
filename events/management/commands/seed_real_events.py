@@ -413,9 +413,7 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "iksk-berlin",
         "slug": "turning-men-into-furniture-jun-2026",
-        "external_url": (
-            "https://www.iksk-berlin.de/men-as-furniture-beataf9d4ba79"
-        ),
+        "external_url": ("https://www.iksk-berlin.de/men-as-furniture-beataf9d4ba79"),
         "title": "Turning Men Into Furniture — with Beata & Becky",
         "start": dt(2026, 6, 17, 20, 0),
         "end": dt(2026, 6, 17, 23, 30),
@@ -618,8 +616,7 @@ EVENTS: list[dict] = [
         "organizer_slug": "karada-house",
         "slug": "sm-weekend-face-slapping-biting-scratching",
         "external_url": (
-            "https://karada-house.de/events/"
-            "sm-weekend-face-slapping-biting-scratching/"
+            "https://karada-house.de/events/sm-weekend-face-slapping-biting-scratching/"
         ),
         "title": "SM Weekend: Face Slapping, Biting & Scratching",
         "start": dt(2026, 5, 2, 15, 30),
@@ -691,8 +688,7 @@ EVENTS: list[dict] = [
         "organizer_slug": "karada-house",
         "slug": "sm-weekend-thuddy-impact-kicking-punching",
         "external_url": (
-            "https://karada-house.de/events/"
-            "sm-weekend-thuddy-impact-kicking-punching/"
+            "https://karada-house.de/events/sm-weekend-thuddy-impact-kicking-punching/"
         ),
         "title": "SM Weekend: Thuddy Impact — Kicking & Punching",
         "start": dt(2026, 5, 2, 18, 0),

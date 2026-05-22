@@ -121,9 +121,9 @@ def event_list(request):
     # Filter: ?filter=following — only events from organizers the user follows
     filter_param = request.GET.get("filter", "")
     if filter_param == "following" and request.user.is_authenticated:
-        followed_org_ids = Follow.objects.filter(
-            user=request.user
-        ).values_list("profile_id", flat=True)
+        followed_org_ids = Follow.objects.filter(user=request.user).values_list(
+            "profile_id", flat=True
+        )
         qs = qs.filter(
             event_organizer_set__profile_id__in=followed_org_ids,
             event_organizer_set__is_primary=True,
@@ -222,9 +222,9 @@ def event_list(request):
 
     # "From organizers you follow" section — authenticated users only, capped at 5
     if request.user.is_authenticated:
-        followed_org_ids = Follow.objects.filter(
-            user=request.user
-        ).values_list("profile_id", flat=True)
+        followed_org_ids = Follow.objects.filter(user=request.user).values_list(
+            "profile_id", flat=True
+        )
         following_events = (
             Event.objects.filter(
                 event_organizer_set__profile_id__in=followed_org_ids,

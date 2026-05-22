@@ -4,8 +4,8 @@ Uses SimpleTestCase (no DB required).
 """
 
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.validators import FileExtensionValidator
 from django.test import SimpleTestCase
 
 from a_core.validators import MAX_IMAGE_SIZE, validate_image_size

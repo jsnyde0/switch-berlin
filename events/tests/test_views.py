@@ -1,4 +1,5 @@
 """View tests for events app — map spike views."""
+
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -62,7 +63,8 @@ class EventDrawerContextTest(TestCase):
         self.assertFalse(resp.context["user_has_went_attendance"])
 
     def test_user_without_went_attendance_false(self):
-        """Authenticated user with no 'went' attendance: user_has_went_attendance is False."""
+        """Authenticated user with no 'went' attendance: user_has_went_attendance is
+        False."""
         c = Client()
         c.login(username="drawer_user", password="testpass123")
         resp = c.get(self._drawer_url())
@@ -70,7 +72,8 @@ class EventDrawerContextTest(TestCase):
         self.assertFalse(resp.context["user_has_went_attendance"])
 
     def test_user_with_went_attendance_true(self):
-        """Authenticated user with 'went' attendance: user_has_went_attendance is True."""
+        """Authenticated user with 'went' attendance: user_has_went_attendance is
+        True."""
         from events.models import Attendance
 
         Attendance.objects.create(user=self.user, event=self.event, status="went")

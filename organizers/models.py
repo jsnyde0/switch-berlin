@@ -48,8 +48,10 @@ class Profile(models.Model):
     # Person-specific (optional for either kind)
     pronouns = models.CharField(max_length=100, blank=True)
 
-    # Claim mechanism — ProfileClaim through-model (ADR-014 D1, ADR-007 D5 revised 2026-05-21)
-    # Profile.claimed_by FK removed; use Profile.claimants M2M and Profile.is_claimed property.
+    # Claim mechanism — ProfileClaim through-model
+    # (ADR-014 D1, ADR-007 D5 revised 2026-05-21)
+    # Profile.claimed_by FK removed; use Profile.claimants M2M and
+    # Profile.is_claimed property.
     claimants = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through="ProfileClaim",
@@ -155,16 +157,19 @@ class ProfileClaim(models.Model):
     Through-model for Profile ↔ User M2M claim relationship.
 
     Replaces Profile.claimed_by FK per ADR-014 D1 + ADR-007 D5 (revised 2026-05-21).
-    Cardinality: 0..N — a Profile may have multiple active claimants (e.g. IKSK co-organizers).
+    Cardinality: 0..N — a Profile may have multiple active claimants
+    (e.g. IKSK co-organizers).
 
     verified_method enum vocabulary (ADR-014 D1):
     - "email_domain" — email-domain fast-path (S8 fast-path)
     - "admin_review"  — admin-review fallback track (S9 approval)
     - "admin_legacy"  — data-migration backfill for pre-through-model rows
-    - "auto_self"     — signup-time auto-claim of user's own kind=person Profile (S4)
+    - "auto_self"     — signup-time auto-claim of user's own kind=person Profile
+      (S4)
 
     rejected_at + rejected_by_admin are cheap-foresight soft-delete cols (ADR-003);
-    S9 (admin claim-queue) populates them on revoke. Active claims have rejected_at=NULL.
+    S9 (admin claim-queue) populates them on revoke. Active claims have
+    rejected_at=NULL.
     """
 
     VERIFIED_METHOD_CHOICES = [
@@ -217,8 +222,8 @@ class ProfileClaim(models.Model):
         blank=True,
         default="",
         help_text=(
-            "Optional reason recorded by admin on claim revoke (ADR-003 cheap-foresight; "
-            "kb-m69.9). Populated by S9 admin revoke action."
+            "Optional reason recorded by admin on claim revoke"
+            " (ADR-003 cheap-foresight; kb-m69.9). Populated by S9 admin revoke action."
         ),
     )
 
@@ -374,13 +379,15 @@ class ClaimIntent(models.Model):
 
     # Magic-link confirmation: stamped when the user redeems the email link,
     # proving they control the submitted email address (ADR-014 D2).
-    # NULL = not yet verified via magic-link; non-NULL = email confirmed, awaiting admin.
+    # NULL = not yet verified via magic-link; non-NULL = email confirmed, awaiting
+    # admin.
     submitter_verified_at = models.DateTimeField(
         null=True,
         blank=True,
         help_text=(
-            "Stamped when the submitter clicks their magic-link (proves email control). "
-            "NULL = unverified; non-NULL = email confirmed, awaiting admin approval "
+            "Stamped when the submitter clicks their magic-link (proves email"
+            " control). NULL = unverified; non-NULL = email confirmed, awaiting admin"
+            " approval "
             "(ADR-014 D2 admin-review track)."
         ),
     )

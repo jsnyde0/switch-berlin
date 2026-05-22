@@ -1,6 +1,5 @@
 """Events middleware — response-phase headers per ADR-012 D3."""
 
-
 # X-Robots-Tag values per ADR-012 D3 visibility tiers.
 _ROBOTS_BY_VISIBILITY = {
     "semi_public": "noindex, nofollow",

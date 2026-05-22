@@ -9,7 +9,6 @@ TDD: all tests written before implementation.
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client, RequestFactory
 from django.utils import timezone
 
 from events.models import Event
@@ -24,9 +23,9 @@ User = get_user_model()
 
 def make_org():
     """Create a minimal approved organizer Profile."""
-    from organizers.models import Profile
-
     import uuid
+
+    from organizers.models import Profile
 
     slug = f"org-{uuid.uuid4().hex[:8]}"
     return Profile.objects.create(name="Test Org", slug=slug, status="approved")
@@ -160,7 +159,8 @@ class TestAccessMatrixSemiPublicEvent:
 
 @pytest.mark.django_db
 class TestAccessMatrixUnlistedEvent:
-    """Unlisted events: accessible by direct URL to vouched/staff, denied to anon/open."""
+    """Unlisted events: accessible by direct URL to vouched/staff, denied to
+    anon/open."""
 
     def test_anonymous_cannot_access_unlisted_event(self, client):
         event = make_event(visibility="unlisted")

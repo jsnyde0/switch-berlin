@@ -5,14 +5,14 @@ Per ADR-003 (cheap-foresight — grantor nullable for admin-grants).
 
 Coverage:
 (a) InviteGrant model importable
-(b) InviteGrant has grantor (nullable), recipient, invite_code, granted_at, reason fields
+(b) InviteGrant has grantor (nullable), recipient, invite_code, granted_at, reason
+    fields
 (c) grantor is nullable (cheap-foresight / admin-grants per ADR-003)
 (d) InviteGrant.granted_at auto-set on creation
 (e) reason is blank=True (optional for admin-grants)
 """
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # (a) InviteGrant model importable
@@ -38,8 +38,12 @@ def test_invite_grant_can_be_created():
     from accounts.models import InviteCode, InviteGrant
 
     User = get_user_model()
-    grantor = User.objects.create_user(username="ig_grantor", email="ig_grantor@example.com", password="pass")
-    recipient = User.objects.create_user(username="ig_recip", email="ig_recip@example.com", password="pass")
+    grantor = User.objects.create_user(
+        username="ig_grantor", email="ig_grantor@example.com", password="pass"
+    )
+    recipient = User.objects.create_user(
+        username="ig_recip", email="ig_recip@example.com", password="pass"
+    )
 
     ic = InviteCode.objects.create(created_by=grantor)
     ig = InviteGrant.objects.create(
@@ -69,8 +73,15 @@ def test_invite_grant_grantor_nullable():
 
     User = get_user_model()
     # Create an admin/staff user as created_by for the InviteCode
-    staff = User.objects.create_user(username="ig_staff", email="ig_staff@example.com", password="pass", is_staff=True)
-    recipient = User.objects.create_user(username="ig_recip2", email="ig_recip2@example.com", password="pass")
+    staff = User.objects.create_user(
+        username="ig_staff",
+        email="ig_staff@example.com",
+        password="pass",
+        is_staff=True,
+    )
+    recipient = User.objects.create_user(
+        username="ig_recip2", email="ig_recip2@example.com", password="pass"
+    )
 
     ic = InviteCode.objects.create(created_by=staff)
     ig = InviteGrant.objects.create(
@@ -96,8 +107,12 @@ def test_invite_grant_granted_at_auto_set():
     from accounts.models import InviteCode, InviteGrant
 
     User = get_user_model()
-    grantor = User.objects.create_user(username="igat_grantor", email="igat_grantor@example.com", password="pass")
-    recipient = User.objects.create_user(username="igat_recip", email="igat_recip@example.com", password="pass")
+    grantor = User.objects.create_user(
+        username="igat_grantor", email="igat_grantor@example.com", password="pass"
+    )
+    recipient = User.objects.create_user(
+        username="igat_recip", email="igat_recip@example.com", password="pass"
+    )
 
     ic = InviteCode.objects.create(created_by=grantor)
     before = timezone.now()
@@ -125,8 +140,12 @@ def test_invite_grant_reason_optional():
     from accounts.models import InviteCode, InviteGrant
 
     User = get_user_model()
-    grantor = User.objects.create_user(username="igr_grantor", email="igr_grantor@example.com", password="pass")
-    recipient = User.objects.create_user(username="igr_recip", email="igr_recip@example.com", password="pass")
+    grantor = User.objects.create_user(
+        username="igr_grantor", email="igr_grantor@example.com", password="pass"
+    )
+    recipient = User.objects.create_user(
+        username="igr_recip", email="igr_recip@example.com", password="pass"
+    )
 
     ic = InviteCode.objects.create(created_by=grantor)
     ig = InviteGrant.objects.create(

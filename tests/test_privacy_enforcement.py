@@ -2,6 +2,7 @@
 
 RED-GREEN-REFACTOR — write failing tests first.
 """
+
 import pytest
 
 from venues.serializers import venue_to_geojson
@@ -9,6 +10,7 @@ from venues.serializers import venue_to_geojson
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_venue(**kwargs):
     from venues.models import Venue
@@ -58,6 +60,7 @@ def _make_event(organizer, venue=None, **kwargs):
 # ---------------------------------------------------------------------------
 # Attendance model tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_attendance_model_exists():
@@ -121,6 +124,7 @@ def test_attendance_default_status():
 # ---------------------------------------------------------------------------
 # venue_to_geojson: going_venue_ids parameter
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_private_venue_blurred_when_going_venue_ids_empty():
@@ -189,6 +193,7 @@ def test_neighborhood_blur_unaffected_by_going_venue_ids():
 # ---------------------------------------------------------------------------
 # in_set template filter
 # ---------------------------------------------------------------------------
+
 
 def test_in_set_filter_returns_true_when_value_in_set():
     from events.templatetags.event_tags import in_set

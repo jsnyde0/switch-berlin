@@ -42,6 +42,7 @@ def org(db):
 def _make_review(org, rating, body="", hidden=False):
     """Create a unique user and return a Review for the given org."""
     import uuid
+
     uid = uuid.uuid4().hex[:8]
     author = User.objects.create_user(
         username=f"rev_user_{uid}",

@@ -34,7 +34,10 @@ class OpenSignupForm(SignupForm):
         required=False,
         max_length=48,
         label=_("Invite code"),
-        help_text=_("Optional. If you have an invite code, enter it here to join as a vouched member."),
+        help_text=_(
+            "Optional. If you have an invite code, enter it here to join as a vouched"
+            " member."
+        ),
     )
 
     def clean_turnstile_token(self):
@@ -80,10 +83,10 @@ class OpenSignupForm(SignupForm):
 
         try:
             invite = InviteCode.objects.get(code=code)
-        except InviteCode.DoesNotExist:
+        except InviteCode.DoesNotExist as exc:
             raise forms.ValidationError(
                 _("This invite code is not valid. Please check and try again.")
-            )
+            ) from exc
 
         if not invite.usable():
             raise forms.ValidationError(

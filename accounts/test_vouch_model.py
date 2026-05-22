@@ -13,7 +13,6 @@ Coverage:
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # (a) Vouch model exists
 # ---------------------------------------------------------------------------
@@ -37,8 +36,12 @@ def test_vouch_has_voucher_fk():
     from accounts.models import Vouch
 
     User = get_user_model()
-    voucher = User.objects.create_user(username="voucher1", email="voucher1@example.com", password="pass")
-    vouchee = User.objects.create_user(username="vouchee1", email="vouchee1@example.com", password="pass")
+    voucher = User.objects.create_user(
+        username="voucher1", email="voucher1@example.com", password="pass"
+    )
+    vouchee = User.objects.create_user(
+        username="vouchee1", email="vouchee1@example.com", password="pass"
+    )
 
     v = Vouch.objects.create(voucher=voucher, vouchee=vouchee)
     assert v.voucher == voucher
@@ -54,8 +57,12 @@ def test_vouch_has_created_at():
     from accounts.models import Vouch
 
     User = get_user_model()
-    u1 = User.objects.create_user(username="vca_u1", email="vca_u1@example.com", password="pass")
-    u2 = User.objects.create_user(username="vca_u2", email="vca_u2@example.com", password="pass")
+    u1 = User.objects.create_user(
+        username="vca_u1", email="vca_u1@example.com", password="pass"
+    )
+    u2 = User.objects.create_user(
+        username="vca_u2", email="vca_u2@example.com", password="pass"
+    )
 
     before = timezone.now()
     v = Vouch.objects.create(voucher=u1, vouchee=u2)
@@ -79,8 +86,12 @@ def test_vouch_unique_together_prevents_duplicate():
     from accounts.models import Vouch
 
     User = get_user_model()
-    u1 = User.objects.create_user(username="vut_u1", email="vut_u1@example.com", password="pass")
-    u2 = User.objects.create_user(username="vut_u2", email="vut_u2@example.com", password="pass")
+    u1 = User.objects.create_user(
+        username="vut_u1", email="vut_u1@example.com", password="pass"
+    )
+    u2 = User.objects.create_user(
+        username="vut_u2", email="vut_u2@example.com", password="pass"
+    )
 
     Vouch.objects.create(voucher=u1, vouchee=u2)
 
@@ -101,8 +112,12 @@ def test_vouch_str():
     from accounts.models import Vouch
 
     User = get_user_model()
-    u1 = User.objects.create_user(username="str_u1", email="str_u1@example.com", password="pass")
-    u2 = User.objects.create_user(username="str_u2", email="str_u2@example.com", password="pass")
+    u1 = User.objects.create_user(
+        username="str_u1", email="str_u1@example.com", password="pass"
+    )
+    u2 = User.objects.create_user(
+        username="str_u2", email="str_u2@example.com", password="pass"
+    )
 
     v = Vouch.objects.create(voucher=u1, vouchee=u2)
     s = str(v)
@@ -123,8 +138,12 @@ def test_vouch_cancelled_at_is_nullable():
     from accounts.models import Vouch
 
     User = get_user_model()
-    u1 = User.objects.create_user(username="cat_u1", email="cat_u1@example.com", password="pass")
-    u2 = User.objects.create_user(username="cat_u2", email="cat_u2@example.com", password="pass")
+    u1 = User.objects.create_user(
+        username="cat_u1", email="cat_u1@example.com", password="pass"
+    )
+    u2 = User.objects.create_user(
+        username="cat_u2", email="cat_u2@example.com", password="pass"
+    )
 
     v = Vouch.objects.create(voucher=u1, vouchee=u2)
     assert v.cancelled_at is None

@@ -69,11 +69,11 @@ class TrendingSortOrderingTest(TestCase):
         #   D: interested=0,  days=5, attendance=0  → 0/5 + 0   = 0.0
         #   E: interested=5,  days=1, attendance=3  → 5/1 + 6   = 11.0
         # Expected order: E > B > A > C > D
-        self.event_a = _make_event(self.org, "ts-a", 2,  interested=10, attendance=0)
-        self.event_b = _make_event(self.org, "ts-b", 1,  interested=0,  attendance=5)
+        self.event_a = _make_event(self.org, "ts-a", 2, interested=10, attendance=0)
+        self.event_b = _make_event(self.org, "ts-b", 1, interested=0, attendance=5)
         self.event_c = _make_event(self.org, "ts-c", 10, interested=20, attendance=1)
-        self.event_d = _make_event(self.org, "ts-d", 5,  interested=0,  attendance=0)
-        self.event_e = _make_event(self.org, "ts-e", 1,  interested=5,  attendance=3)
+        self.event_d = _make_event(self.org, "ts-d", 5, interested=0, attendance=0)
+        self.event_e = _make_event(self.org, "ts-e", 1, interested=5, attendance=3)
 
     def test_trending_sort_first_result_is_highest_score(self):
         """?sort=trending: first event in page_obj is the highest-score event (E)."""
@@ -172,12 +172,8 @@ class TrendingSortFlagEnabledTest(TestCase):
     def setUp(self):
         self.org = _make_organizer("ts-flag-on-org")
         # Two events: B has much higher score than A
-        self.event_a = _make_event(
-            self.org, "ts-on-a", 10, interested=0, attendance=0
-        )
-        self.event_b = _make_event(
-            self.org, "ts-on-b", 1, interested=50, attendance=20
-        )
+        self.event_a = _make_event(self.org, "ts-on-a", 10, interested=0, attendance=0)
+        self.event_b = _make_event(self.org, "ts-on-b", 1, interested=50, attendance=20)
 
     def test_flag_enabled_trending_sort_honored(self):
         """With flag=True, ?sort=trending sorts B before A."""

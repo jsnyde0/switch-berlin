@@ -9,8 +9,9 @@ from django.utils.translation import gettext_lazy as _
 class UserStatus(models.TextChoices):
     OPEN = "open", _("Open")
     VOUCHED = "vouched", _("Vouched")
-    SUSPENDED_PENDING_INVESTIGATION = "suspended_pending_investigation", _(
-        "Suspended — Pending Investigation"
+    SUSPENDED_PENDING_INVESTIGATION = (
+        "suspended_pending_investigation",
+        _("Suspended — Pending Investigation"),
     )
     BANNED = "banned", _("Banned")
 
@@ -73,7 +74,8 @@ def generate_code():
 
 
 class InviteCode(models.Model):
-    """Single-use invite code owned by a grantor (vouched user or staff for admin-grants).
+    """Single-use invite code owned by a grantor (vouched user or staff for
+    admin-grants).
 
     Per ADR-013 D6 (V0 admin-grant invite economy).
     Per ADR-008 D3 (fail loud on invalid invite — usable() predicate).
@@ -120,7 +122,8 @@ class Vouch(models.Model):
     """Directed trust relationship: voucher vouches for vouchee.
 
     Per ADR-013 D3 (Vouch graph).
-    Per ADR-003 (cheap-foresight cancelled_at — cancellation logic activates in F1 bead).
+    Per ADR-003 (cheap-foresight cancelled_at — cancellation logic activates in F1
+    bead).
     """
 
     voucher = models.ForeignKey(
@@ -147,7 +150,8 @@ class Vouch(models.Model):
 
 
 class InviteGrant(models.Model):
-    """Audit log: records each time an invite code was redeemed to create a vouched user.
+    """Audit log: records each time an invite code was redeemed to create a vouched
+    user.
 
     Per ADR-013 D4 (InviteGrant audit-log model).
     Per ADR-003 (cheap-foresight — grantor nullable for admin-grants).

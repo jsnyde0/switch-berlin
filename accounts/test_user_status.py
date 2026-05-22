@@ -6,7 +6,6 @@ TDD: all tests were written before implementation.
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # User.status field
 # ---------------------------------------------------------------------------
@@ -57,8 +56,7 @@ def test_user_has_no_is_approved_field():
     User = get_user_model()
     field_names = [f.name for f in User._meta.get_fields()]
     assert "is_approved" not in field_names, (
-        "is_approved should have been dropped, "
-        f"but it's still in fields: {field_names}"
+        f"is_approved should have been dropped, but it's still in fields: {field_names}"
     )
 
 

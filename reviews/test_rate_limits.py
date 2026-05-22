@@ -275,7 +275,9 @@ def test_flag_target_ratelimit_disabled_allows_many_posts(
     RATINGS_ENABLED=True,
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
-def test_submit_review_11th_post_returns_429(approved_client, published_event, went_attendance_for_rl_event):
+def test_submit_review_11th_post_returns_429(
+    approved_client, published_event, went_attendance_for_rl_event
+):
     """11th review POST in same day -> 429 with _rating_form.html."""
     from django.core.cache import cache
 

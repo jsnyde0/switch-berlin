@@ -131,7 +131,9 @@ def test_approved_user_not_blocked_by_middleware(
 
 
 @pytest.mark.django_db
-def test_unapproved_user_gets_403_pending_page_in_rollback_mode(client, unapproved_user):
+def test_unapproved_user_gets_403_pending_page_in_rollback_mode(
+    client, unapproved_user
+):
     """Unapproved user sees 403_pending_approval.html when PUBLIC_READ_ENABLED=False."""
     from django.core.cache import cache
 

@@ -275,9 +275,7 @@ class EventOrganizerPartialUniqueTest(TestCase):
             is_primary=False,
             order=1,
         )
-        self.assertEqual(
-            EventOrganizer.objects.filter(event=self.event).count(), 2
-        )
+        self.assertEqual(EventOrganizer.objects.filter(event=self.event).count(), 2)
 
 
 class EventOrganizerMultipleOrganizersTest(TestCase):

@@ -1,5 +1,5 @@
 """Unit tests for venues/serializers.py — venue_to_geojson privacy enforcement."""
-import hashlib
+
 from decimal import Decimal
 
 from django.test import SimpleTestCase
@@ -51,7 +51,10 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
         )
         feature = venue_to_geojson(v)
         assert feature is not None
-        assert feature["geometry"]["coordinates"] == [round(13.400456, 3), round(52.520123, 3)]
+        assert feature["geometry"]["coordinates"] == [
+            round(13.400456, 3),
+            round(52.520123, 3),
+        ]
         assert feature["properties"]["privacy"] == "neighborhood_blur"
         assert feature["properties"]["blur_radius_m"] == 250
 
@@ -64,7 +67,8 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
         assert feature["properties"]["blur_radius_m"] == 500
 
     def test_private_has_fake_center_geometry(self):
-        """Private venues must use a fake-center Point geometry (not null) for the privacy circle layer."""
+        """Private venues must use a fake-center Point geometry (not null) for the
+        privacy circle layer."""
         v = self._make_venue(
             slug="private-venue",
             latitude=Decimal("52.5"),
@@ -74,7 +78,8 @@ class VenueToGeoJSONPublicTest(SimpleTestCase):
         )
         feature = venue_to_geojson(v)
         assert feature is not None
-        # Geometry must be a Point at the fake center — map.js renders a circle around it
+        # Geometry must be a Point at the fake center — map.js renders a circle
+        # around it
         assert feature["geometry"] is not None
         assert feature["geometry"]["type"] == "Point"
         assert feature["properties"]["privacy"] == "private"

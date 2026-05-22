@@ -264,9 +264,7 @@ class TestFinalizeAttendance:
 class TestRecomputeAggregatesWithWent:
     """After finalize_attendance, recompute_aggregates still counts 'went'."""
 
-    def test_attendance_count_includes_went_after_finalize(
-        self, past_event, make_user
-    ):
+    def test_attendance_count_includes_went_after_finalize(self, past_event, make_user):
         """past event with 3 'going' attendees: after finalize+recompute, count==3."""
         users = [make_user() for _ in range(3)]
         for user in users:
@@ -280,9 +278,7 @@ class TestRecomputeAggregatesWithWent:
         past_event.refresh_from_db()
         assert past_event.attendance_count == 3
 
-    def test_attendance_count_includes_both_going_and_went(
-        self, past_event, make_user
-    ):
+    def test_attendance_count_includes_both_going_and_went(self, past_event, make_user):
         """recompute_aggregates counts both 'going' and 'went' statuses."""
         user_going = make_user()
         user_went = make_user()

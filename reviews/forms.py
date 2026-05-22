@@ -26,7 +26,11 @@ class TakedownForm(forms.ModelForm):
     class Meta:
         model = Flag
         fields = [
-            "reason", "body", "contact_email", "law_reference", "good_faith_confirmed"
+            "reason",
+            "body",
+            "contact_email",
+            "law_reference",
+            "good_faith_confirmed",
         ]
 
     def clean(self):

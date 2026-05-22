@@ -8,9 +8,11 @@ Per ADR-013 D2 (two signup paths), ADR-007 D1 (unified Profile with kind),
 ADR-008 D2 (adapter not signal — one clear path), ADR-008 D3 (fail loud).
 
 Coverage:
-(a) signup creates exactly one Profile(kind=person) + one ProfileClaim(verified_method='auto_self')
+(a) signup creates exactly one Profile(kind=person) + one
+    ProfileClaim(verified_method='auto_self')
 (b) ProfileClaim has verified_at set (not NULL)
-(c) Profile+ProfileClaim creation is atomic with User creation (DB constraint failure rolls back)
+(c) Profile+ProfileClaim creation is atomic with User creation (DB constraint failure
+    rolls back)
 (d) Idempotency: running _create_owned_profile twice doesn't create duplicates
 (e) Profile name is derived from user.get_full_name() falling back to email
 (f) _create_owned_profile is accessible as a named method on the adapter
@@ -76,7 +78,9 @@ def test_save_user_creates_profile_and_claim():
     adapter._create_owned_profile(user)
 
     assert Profile.objects.filter(claimants=user, kind="person").count() == 1
-    assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
+    assert (
+        ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -114,17 +118,17 @@ def test_auto_profile_creation_is_atomic():
     from unittest.mock import patch
 
     from accounts.adapter import OpenSignupAdapter
-    from organizers.models import Profile, ProfileClaim
+    from organizers.models import Profile
 
     adapter = OpenSignupAdapter()
     user = User.objects.create_user(
         username="atomic_user", email="atomic@example.com", password="x"
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):
         with patch(
             "organizers.models.ProfileClaim.objects.create",
-            side_effect=Exception("DB failure"),
+            side_effect=RuntimeError("DB failure"),
         ):
             adapter._create_owned_profile(user)
 
@@ -155,7 +159,9 @@ def test_auto_profile_creation_is_idempotent():
     adapter._create_owned_profile(user)  # second call should be a no-op
 
     assert Profile.objects.filter(claimants=user).count() == 1
-    assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
+    assert (
+        ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +222,8 @@ def test_adapter_has_create_owned_profile_method():
 
 
 # ---------------------------------------------------------------------------
-# (g) Auto-created Profile has status='approved' (Fix 4 — ADR-014 D1 + owner reachability)
+# (g) Auto-created Profile has status='approved'
+#     (Fix 4 — ADR-014 D1 + owner reachability)
 # ---------------------------------------------------------------------------
 
 
@@ -241,5 +248,6 @@ def test_auto_profile_has_status_approved():
 
     profile = Profile.objects.get(claimants=user, kind="person")
     assert profile.status == "approved", (
-        f"Auto-created Profile must have status='approved' so owner can view it; got '{profile.status}'"
+        f"Auto-created Profile must have status='approved' so owner can view it;"
+        f" got '{profile.status}'"
     )

@@ -2,10 +2,12 @@
 Integration tests for kb-2eu.4 — Attend interaction UI: endpoint + HTMX button.
 
 Test plan items (from bead kb-2eu.4):
-1. POST /events/<org_slug>/<event_slug>/attend/ with status=going updates or creates Attendance row.
+1. POST /events/<org_slug>/<event_slug>/attend/ with status=going updates or creates
+   Attendance row.
 2. Response contains HX-Trigger: events:attendance-changed header.
 3. 'Went' button does not appear in _attend_button.html when event_past=False.
-4. Unauthenticated POST to /events/<org_slug>/<event_slug>/attend/ returns 302 to login page.
+4. Unauthenticated POST to /events/<org_slug>/<event_slug>/attend/ returns 302 to
+   login page.
 5. POST to non-existent event slug returns 404.
 6. POST with status='went' on future event clamps to status='going'.
 7. _attend_button.html partial is included in detail.html only when user is
@@ -127,7 +129,8 @@ def approved_user(db):
 
 @pytest.mark.django_db
 def test_attend_post_going_creates_row(client, staff_user, future_event):
-    """POST /events/<org_slug>/<event_slug>/attend/ with status=going creates an Attendance row."""
+    """POST /events/<org_slug>/<event_slug>/attend/ with status=going creates an
+    Attendance row."""
     from events.models import Attendance
 
     client.force_login(staff_user)
@@ -144,7 +147,8 @@ def test_attend_post_going_creates_row(client, staff_user, future_event):
 
 @pytest.mark.django_db
 def test_attend_post_interested_creates_row(client, staff_user, future_event):
-    """POST /events/<org_slug>/<event_slug>/attend/ with status=interested creates Attendance row."""
+    """POST /events/<org_slug>/<event_slug>/attend/ with status=interested creates
+    Attendance row."""
     from events.models import Attendance
 
     client.force_login(staff_user)
@@ -161,7 +165,8 @@ def test_attend_post_interested_creates_row(client, staff_user, future_event):
 
 @pytest.mark.django_db
 def test_attend_post_updates_existing_row(client, staff_user, future_event):
-    """POST /events/<org_slug>/<event_slug>/attend/ updates existing Attendance row (no duplicates)."""
+    """POST /events/<org_slug>/<event_slug>/attend/ updates existing Attendance row
+    (no duplicates)."""
     from events.models import Attendance
 
     # Pre-create an Attendance row
@@ -184,7 +189,8 @@ def test_attend_post_updates_existing_row(client, staff_user, future_event):
 
 @pytest.mark.django_db
 def test_attend_response_has_hx_trigger_header(client, staff_user, future_event):
-    """POST /events/<org_slug>/<event_slug>/attend/ response has HX-Trigger: events:attendance-changed."""
+    """POST /events/<org_slug>/<event_slug>/attend/ response has HX-Trigger:
+    events:attendance-changed."""
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
@@ -236,9 +242,7 @@ def test_attend_button_shows_went_for_past_event(client, staff_user, past_event)
 
 
 @pytest.mark.django_db
-def test_attend_went_on_future_event_clamped_to_going(
-    client, staff_user, future_event
-):
+def test_attend_went_on_future_event_clamped_to_going(client, staff_user, future_event):
     """POST with status='went' on future event clamps Attendance to status='going'."""
     from events.models import Attendance
 
@@ -272,7 +276,8 @@ def test_attend_went_on_past_event_not_clamped(client, staff_user, past_event):
 
 @pytest.mark.django_db
 def test_attend_unauthenticated_redirects_to_login(client, future_event):
-    """Unauthenticated POST /events/<org_slug>/<event_slug>/attend/ returns 302 to login page."""
+    """Unauthenticated POST /events/<org_slug>/<event_slug>/attend/ returns 302 to
+    login page."""
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
     response = client.post(
@@ -329,7 +334,9 @@ def test_attend_idempotent_same_status(client, staff_user, future_event):
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
-    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
+    response = client.post(
+        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
+    )
 
     assert response.status_code == 200
     assert Attendance.objects.filter(user=staff_user, event=future_event).count() == 1
@@ -342,9 +349,7 @@ def test_attend_idempotent_same_status(client, staff_user, future_event):
 
 
 @pytest.mark.django_db
-def test_attend_invalid_status_clamped_to_interested(
-    client, staff_user, future_event
-):
+def test_attend_invalid_status_clamped_to_interested(client, staff_user, future_event):
     """POST with invalid status value creates Attendance with status='interested'."""
     from events.models import Attendance
 
@@ -401,17 +406,13 @@ def test_attend_response_shows_active_button_for_current_status(
 
 
 @pytest.mark.django_db
-def test_event_detail_passes_attendance_to_context(
-    client, staff_user, future_event
-):
+def test_event_detail_passes_attendance_to_context(client, staff_user, future_event):
     """event_detail view passes attendance object to context when user has row."""
     from events.models import Attendance
 
     Attendance.objects.create(user=staff_user, event=future_event, status="going")
     client.force_login(staff_user)
-    response = client.get(
-        f"/events/{future_event.organizer.slug}/{future_event.slug}/"
-    )
+    response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
     assert response.status_code == 200
     # attendance context should be rendered (btn-active class in attend button)
     content = response.content.decode()
@@ -419,14 +420,10 @@ def test_event_detail_passes_attendance_to_context(
 
 
 @pytest.mark.django_db
-def test_event_detail_attendance_is_none_when_no_row(
-    client, staff_user, future_event
-):
+def test_event_detail_attendance_is_none_when_no_row(client, staff_user, future_event):
     """event_detail view context: attendance is None when user has no Attendance row."""
     client.force_login(staff_user)
-    response = client.get(
-        f"/events/{future_event.organizer.slug}/{future_event.slug}/"
-    )
+    response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
     assert response.status_code == 200
     # No btn-active since user hasn't attended
     content = response.content.decode()
@@ -439,9 +436,7 @@ def test_event_detail_includes_attend_button_when_authenticated(
 ):
     """event_detail includes attend button for authenticated user."""
     client.force_login(staff_user)
-    response = client.get(
-        f"/events/{future_event.organizer.slug}/{future_event.slug}/"
-    )
+    response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
     assert response.status_code == 200
     content = response.content.decode()
     assert f'id="attend-{future_event.pk}"' in content
@@ -452,9 +447,7 @@ def test_event_detail_excludes_attend_button_when_not_authenticated(
     client, future_event
 ):
     """event_detail hides attend button for anonymous user."""
-    response = client.get(
-        f"/events/{future_event.organizer.slug}/{future_event.slug}/"
-    )
+    response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
     assert response.status_code == 200
     content = response.content.decode()
     assert f'id="attend-{future_event.pk}"' not in content

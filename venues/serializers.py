@@ -1,4 +1,5 @@
 """GeoJSON serializer for Venue with privacy enforcement."""
+
 import hashlib
 
 

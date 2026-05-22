@@ -9,7 +9,8 @@ Coverage:
     sets resolved_at on intent (atomic)
 (C) approve on already-active claimant fails loud (ADR-008 D3)
 (D) approve on already-resolved intent fails loud (ADR-008 D3)
-(E) reject action sets rejected_at + rejected_by_admin + rejection_reason, no ProfileClaim
+(E) reject action sets rejected_at + rejected_by_admin + rejection_reason,
+    no ProfileClaim
 (F) is_pending computed: resolved_at IS NULL AND rejected_at IS NULL
 (G) list_display includes user, profile, created_at, is_pending
 (H) list_filter on pending/resolved/rejected
@@ -81,13 +82,15 @@ def make_request(admin_user):
     rf = RequestFactory()
     request = rf.post("/admin/organizers/claimintent/")
     request.user = admin_user
-    setattr(request, "session", "session")
-    setattr(request, "_messages", FallbackStorage(request))
+    request.session = "session"
+    request._messages = FallbackStorage(request)
     return request
 
 
 @pytest.mark.django_db
-def test_approve_creates_profile_claim(admin_user, regular_user, profile, pending_intent):
+def test_approve_creates_profile_claim(
+    admin_user, regular_user, profile, pending_intent
+):
     """Approve action creates a ProfileClaim with verified_method='admin_review'."""
     from organizers.admin import ClaimIntentAdmin
 
@@ -111,7 +114,9 @@ def test_approve_creates_profile_claim(admin_user, regular_user, profile, pendin
 
 
 @pytest.mark.django_db
-def test_approve_sets_verified_by_admin(admin_user, regular_user, profile, pending_intent):
+def test_approve_sets_verified_by_admin(
+    admin_user, regular_user, profile, pending_intent
+):
     """Approve action sets verified_by_admin to the admin username."""
     from organizers.admin import ClaimIntentAdmin
 
@@ -135,7 +140,8 @@ def test_approve_sets_verified_by_admin(admin_user, regular_user, profile, pendi
 def test_approve_fails_loud_on_duplicate_active_claimant(
     admin_user, regular_user, profile, pending_intent
 ):
-    """Approve on a user who is already an active claimant fails loud — no duplicate ProfileClaim."""
+    """Approve on a user who is already an active claimant fails loud — no duplicate
+    ProfileClaim."""
     from organizers.admin import ClaimIntentAdmin
 
     # Pre-create an active ProfileClaim
@@ -196,7 +202,9 @@ def test_approve_fails_loud_on_already_resolved_intent(
 
 
 @pytest.mark.django_db
-def test_reject_sets_soft_delete_fields(admin_user, regular_user, profile, pending_intent):
+def test_reject_sets_soft_delete_fields(
+    admin_user, regular_user, profile, pending_intent
+):
     """Reject action sets rejected_at, rejected_by_admin, rejection_reason."""
     from organizers.admin import ClaimIntentAdmin
 

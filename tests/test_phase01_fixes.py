@@ -303,7 +303,8 @@ def test_organizer_admin_event_count_uses_annotation(superuser, client):
 
     assert response.status_code == 200
     # With annotation, event_count does NOT fire per-row. Expect few queries total.
-    # Threshold: ≤ 15 queries regardless of organizer count (session, auth, feature flags, etc.)
+    # Threshold: ≤ 15 queries regardless of organizer count (session, auth, feature
+    # flags, etc.)
     # Profile model has more fields + list_filter choices than old Organizer admin,
     # which increases feature flag reads slightly.
     assert len(ctx.captured_queries) <= 15, (

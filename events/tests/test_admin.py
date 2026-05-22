@@ -17,9 +17,7 @@ class EventAdminTest(TestCase):
             username="admin", email="admin@example.com", password="password"
         )
         self.client.force_login(self.superuser)
-        self.organizer = Profile.objects.create(
-            name="Test Org", slug="test-org-admin"
-        )
+        self.organizer = Profile.objects.create(name="Test Org", slug="test-org-admin")
 
     def _make_event(self, status="draft", **kwargs):
         defaults = dict(

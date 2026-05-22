@@ -1,4 +1,5 @@
 """Custom template tags and filters for the events app."""
+
 import hashlib
 
 from django import template
@@ -15,9 +16,7 @@ def slug_hue(value):
     """
     if not value:
         return 0
-    digest = hashlib.md5(
-        str(value).encode("utf-8"), usedforsecurity=False
-    ).hexdigest()
+    digest = hashlib.md5(str(value).encode("utf-8"), usedforsecurity=False).hexdigest()
     return int(digest[:6], 16) % 360
 
 

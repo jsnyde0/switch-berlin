@@ -273,7 +273,9 @@ def test_private_venue_blurred_without_going(
         None,
     )
     assert feature is not None, "Event feature not found in markers_geojson"
-    assert "event_id" not in feature["properties"], "event_id must not be in GeoJSON properties"
+    assert "event_id" not in feature["properties"], (
+        "event_id must not be in GeoJSON properties"
+    )
 
     # Blurred: coords must NOT be exactly [13.4, 52.5]
     coords = feature["geometry"]["coordinates"]
@@ -304,7 +306,9 @@ def test_private_venue_exact_with_going(
         None,
     )
     assert feature is not None, "Event feature not found in markers_geojson"
-    assert "event_id" not in feature["properties"], "event_id must not be in GeoJSON properties"
+    assert "event_id" not in feature["properties"], (
+        "event_id must not be in GeoJSON properties"
+    )
 
     coords = feature["geometry"]["coordinates"]
     # Exact coords: longitude first, then latitude (GeoJSON convention)
@@ -350,9 +354,7 @@ def test_private_venue_name_hidden_in_detail(
 ):
     """Event detail page shows 'Private venue' for users without going Attendance."""
     client.force_login(approved_user)
-    response = client.get(
-        f"/events/{approved_organizer.slug}/private-event/"
-    )
+    response = client.get(f"/events/{approved_organizer.slug}/private-event/")
     assert response.status_code == 200
     assert b"Private venue" in response.content
 
@@ -379,9 +381,7 @@ def test_private_venue_name_shown_in_detail_for_going_user(
         user=approved_user, event=event_with_private_venue, status="going"
     )
     client.force_login(approved_user)
-    response = client.get(
-        f"/events/{approved_organizer.slug}/private-event/"
-    )
+    response = client.get(f"/events/{approved_organizer.slug}/private-event/")
     assert response.status_code == 200
     assert b"Secret Place" in response.content
     assert b"Private venue" not in response.content
@@ -470,13 +470,16 @@ def test_attend_went_before_event_clamped_to_going(
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "went"})
-    assert Attendance.objects.get(
-        user=approved_user, event=published_event
-    ).status == "going"
+    assert (
+        Attendance.objects.get(user=approved_user, event=published_event).status
+        == "going"
+    )
 
 
 @pytest.mark.django_db
-def test_attend_nonexistent_event_returns_404(client, approved_user, approved_organizer):
+def test_attend_nonexistent_event_returns_404(
+    client, approved_user, approved_organizer
+):
     """POST to non-existent event slug returns 404."""
     client.force_login(approved_user)
     response = client.post(
@@ -494,12 +497,14 @@ def test_attend_idempotent(client, approved_user, published_event):
     event_slug = published_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
-    assert Attendance.objects.filter(
-        user=approved_user, event=published_event
-    ).count() == 1
-    assert Attendance.objects.get(
-        user=approved_user, event=published_event
-    ).status == "going"
+    assert (
+        Attendance.objects.filter(user=approved_user, event=published_event).count()
+        == 1
+    )
+    assert (
+        Attendance.objects.get(user=approved_user, event=published_event).status
+        == "going"
+    )
 
 
 @pytest.mark.django_db
@@ -509,14 +514,16 @@ def test_attend_state_transition(client, approved_user, published_event):
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "interested"})
-    assert Attendance.objects.get(
-        user=approved_user, event=published_event
-    ).status == "interested"
+    assert (
+        Attendance.objects.get(user=approved_user, event=published_event).status
+        == "interested"
+    )
 
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
-    assert Attendance.objects.get(
-        user=approved_user, event=published_event
-    ).status == "going"
+    assert (
+        Attendance.objects.get(user=approved_user, event=published_event).status
+        == "going"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -577,9 +584,7 @@ def test_attend_no_csrf_returns_403(approved_user, published_event):
     c.force_login(approved_user)
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
-    response = c.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = c.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 403
 
 
@@ -604,9 +609,7 @@ def test_map_enabled_false_hides_map(client, staff_user, published_event):
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="MAP_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="MAP_ENABLED", defaults={"enabled": False})
     cache.clear()
     client.force_login(staff_user)
     try:

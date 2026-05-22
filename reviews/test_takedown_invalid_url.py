@@ -54,7 +54,10 @@ _VALID_TAKEDOWN_POST = {
 def test_malformed_url_shows_invalid_url_error_not_generic():
     """POST with a malformed (Resolver404) URL yields a specific 'invalid URL'
     message, not the generic 'could not identify' message."""
-    data = {**_VALID_TAKEDOWN_POST, "event_url": "https://example.com/totally/unknown/path/"}
+    data = {
+        **_VALID_TAKEDOWN_POST,
+        "event_url": "https://example.com/totally/unknown/path/",
+    }
     resp = Client().post(reverse("takedown"), data)
     assert resp.status_code == 200
     content = resp.content.decode()

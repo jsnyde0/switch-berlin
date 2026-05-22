@@ -49,16 +49,29 @@ class ReviewAdmin(admin.ModelAdmin):
 @admin.register(Flag)
 class FlagAdmin(admin.ModelAdmin):
     list_display = [
-        "reporter", "organizer", "event", "reason",
-        "law_reference", "resolved", "created_at",
+        "reporter",
+        "organizer",
+        "event",
+        "reason",
+        "law_reference",
+        "resolved",
+        "created_at",
     ]
     list_filter = ["resolved", "reason", "good_faith_confirmed"]
     readonly_fields = ["created_at", "good_faith_confirmed"]
     fields = [
-        "reporter", "organizer", "event", "review",
-        "reason", "body", "law_reference", "contact_email",
+        "reporter",
+        "organizer",
+        "event",
+        "review",
+        "reason",
+        "body",
+        "law_reference",
+        "contact_email",
         "good_faith_confirmed",
-        "resolved", "resolution_notes", "resolved_by",
+        "resolved",
+        "resolution_notes",
+        "resolved_by",
         "created_at",
     ]
     change_form_template = "admin/reviews/flag/change_form.html"
@@ -89,9 +102,7 @@ class FlagAdmin(admin.ModelAdmin):
                 flag.resolved = True
                 flag.resolved_by = request.user
                 flag.resolution_notes = resolution_notes
-                flag.save(
-                    update_fields=["resolved", "resolved_by", "resolution_notes"]
-                )
+                flag.save(update_fields=["resolved", "resolved_by", "resolution_notes"])
 
     @admin.action(description=_("Mark selected flags resolved — approved"))
     def resolve_approved(self, request, queryset):

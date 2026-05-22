@@ -116,15 +116,15 @@ _PRIVACY_PROBS = [w / 100 for _, w in _PRIVACY_WEIGHTS]
 
 
 _TAG_FIXTURES = [
-    {'slug': 'bdsm',        'label': 'BDSM',         'kind': 'theme'},
-    {'slug': 'rope',        'label': 'Rope',          'kind': 'theme'},
-    {'slug': 'kink-social', 'label': 'Kink Social',   'kind': 'theme'},
-    {'slug': 'sensation',   'label': 'Sensation',     'kind': 'theme'},
-    {'slug': 'workshop',    'label': 'Workshop',      'kind': 'format'},
-    {'slug': 'party',       'label': 'Party',         'kind': 'format'},
-    {'slug': 'munch',       'label': 'Munch',         'kind': 'format'},
-    {'slug': 'queer',       'label': 'Queer',         'kind': 'identity'},
-    {'slug': 'femme',       'label': 'Femme',         'kind': 'identity'},
+    {"slug": "bdsm", "label": "BDSM", "kind": "theme"},
+    {"slug": "rope", "label": "Rope", "kind": "theme"},
+    {"slug": "kink-social", "label": "Kink Social", "kind": "theme"},
+    {"slug": "sensation", "label": "Sensation", "kind": "theme"},
+    {"slug": "workshop", "label": "Workshop", "kind": "format"},
+    {"slug": "party", "label": "Party", "kind": "format"},
+    {"slug": "munch", "label": "Munch", "kind": "format"},
+    {"slug": "queer", "label": "Queer", "kind": "identity"},
+    {"slug": "femme", "label": "Femme", "kind": "identity"},
 ]
 
 
@@ -171,21 +171,18 @@ class Command(BaseCommand):
         wipe = options["wipe"]
         verbosity = options["verbosity"]
 
-        seed_data_exists = Profile.objects.filter(
-            name__startswith=SEED_PREFIX
-        ).exists()
+        seed_data_exists = Profile.objects.filter(name__startswith=SEED_PREFIX).exists()
 
         if seed_data_exists and not wipe:
             raise CommandError(
-                "Seed data already present. "
-                "Run with --wipe to clear and reseed."
+                "Seed data already present. Run with --wipe to clear and reseed."
             )
 
         if seed_data_exists and wipe:
             if verbosity >= 1:
                 self.stdout.write("Wiping existing seed data…")
             # Delete tags first (M2M join rows are cleaned up automatically).
-            Tag.objects.filter(slug__in=[t['slug'] for t in _TAG_FIXTURES]).delete()
+            Tag.objects.filter(slug__in=[t["slug"] for t in _TAG_FIXTURES]).delete()
             # Cascade: deleting organizers removes their events (PROTECT on venue,
             # but we delete venues separately after events).
             # Events reference organizers (PROTECT) — delete events first.
@@ -202,8 +199,8 @@ class Command(BaseCommand):
         all_tags = []
         for t in _TAG_FIXTURES:
             tag, _ = Tag.objects.get_or_create(
-                slug=t['slug'],
-                defaults={'label': t['label'], 'kind': t['kind']},
+                slug=t["slug"],
+                defaults={"label": t["label"], "kind": t["kind"]},
             )
             all_tags.append(tag)
 

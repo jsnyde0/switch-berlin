@@ -16,20 +16,19 @@ from django.utils import timezone
 from events.models import Event
 from organizers.models import Profile
 
-
 _TIERS = [
     (
         "public",
         [
             (
                 "Open House — Intro to the Scene",
-                "An anonymous-friendly intro evening with talks, Q&A, and a sober social. "
-                "No registration; just show up.",
+                "An anonymous-friendly intro evening with talks, Q&A, and a sober"
+                " social. No registration; just show up.",
             ),
             (
                 "Public Workshop — Consent 101",
-                "Drop-in workshop covering consent vocabulary, negotiation, and aftercare. "
-                "All audiences welcome.",
+                "Drop-in workshop covering consent vocabulary, negotiation, and"
+                " aftercare. All audiences welcome.",
             ),
         ],
     ),
@@ -38,11 +37,13 @@ _TIERS = [
         [
             (
                 "Members Mixer — Berlin Chapter",
-                "Casual mixer for vouched members. Bring a friend (must be vouched too).",
+                "Casual mixer for vouched members. Bring a friend (must be vouched"
+                " too).",
             ),
             (
                 "Skillshare Salon — Rope Fundamentals",
-                "Hands-on session for vouched members. No spectators; pair up to learn.",
+                "Hands-on session for vouched members. No spectators; pair up to"
+                " learn.",
             ),
         ],
     ),
@@ -84,7 +85,8 @@ class Command(BaseCommand):
 
         for visibility, events in _TIERS:
             for title, description in events:
-                slug = f"demo-{visibility}-{title.lower().split(' — ')[0].replace(' ', '-')}"
+                title_part = title.lower().split(" — ")[0].replace(" ", "-")
+                slug = f"demo-{visibility}-{title_part}"
                 slug = slug.replace("/", "-")[:200]
                 start = now + timedelta(days=offset_days, hours=19)
                 end = start + timedelta(hours=3)

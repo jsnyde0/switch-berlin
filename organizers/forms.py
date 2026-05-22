@@ -73,8 +73,8 @@ class ClaimForm(forms.Form):
             # Misconfiguration: no secret key — fail loud (ADR-008 D3)
             raise forms.ValidationError(
                 _(
-                    "Claim submission is temporarily unavailable (server misconfiguration). "
-                    "Please try again later."
+                    "Claim submission is temporarily unavailable"
+                    " (server misconfiguration). Please try again later."
                 )
             )
 

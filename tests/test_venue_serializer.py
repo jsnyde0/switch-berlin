@@ -1,4 +1,5 @@
 """Tests for venues.serializers.venue_to_geojson — privacy enforcement."""
+
 import pytest
 
 from venues.serializers import venue_to_geojson
@@ -20,7 +21,9 @@ def _make_venue(**kwargs):
 
 @pytest.mark.django_db
 def test_public_venue_returns_exact_coords():
-    venue = _make_venue(privacy_mode="public", latitude="52.520008", longitude="13.404954")
+    venue = _make_venue(
+        privacy_mode="public", latitude="52.520008", longitude="13.404954"
+    )
     feature = venue_to_geojson(venue)
     assert feature is not None
     coords = feature["geometry"]["coordinates"]

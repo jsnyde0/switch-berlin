@@ -46,7 +46,9 @@ def regular_user(db):
 
 @pytest.fixture
 def profile(db):
-    return Profile.objects.create(name="Revoke Test Profile", slug="revoke-test-profile")
+    return Profile.objects.create(
+        name="Revoke Test Profile", slug="revoke-test-profile"
+    )
 
 
 @pytest.fixture
@@ -64,8 +66,9 @@ def make_request(admin_user):
     request = rf.post("/admin/organizers/profileclaim/")
     request.user = admin_user
     from django.contrib.messages.storage.fallback import FallbackStorage
-    setattr(request, "session", "session")
-    setattr(request, "_messages", FallbackStorage(request))
+
+    request.session = "session"
+    request._messages = FallbackStorage(request)
     return request
 
 

@@ -24,9 +24,9 @@ User = get_user_model()
 
 def make_org():
     """Create a minimal approved organizer Profile."""
-    from organizers.models import Profile
-
     import uuid
+
+    from organizers.models import Profile
 
     slug = f"org-{uuid.uuid4().hex[:8]}"
     return Profile.objects.create(name="Test Org", slug=slug, status="approved")

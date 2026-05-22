@@ -316,9 +316,7 @@ class EventDetailReviewsSectionTest(TestCase):
         _set_flag("EVENT_REVIEWS_DISPLAYED", enabled=True)
         _set_flag("threshold.event_ratings_display", enabled=True, numeric_value=3)
         Event.objects.filter(pk=self.event.pk).update(rating_count=3)
-        hidden_review = _make_review(
-            self.event, hidden=True, username_suffix="hctx1"
-        )
+        hidden_review = _make_review(self.event, hidden=True, username_suffix="hctx1")
         response = self.client.get(self.url)
         pks = [r.pk for r in response.context["event_reviews"]]
         self.assertNotIn(hidden_review.pk, pks)

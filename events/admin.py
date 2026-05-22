@@ -233,7 +233,9 @@ class EventAdmin(admin.ModelAdmin):
     @admin.action(description=_("Publish selected (draft only)"))
     def publish_selected(self, request, queryset):
         count = queryset.filter(status="draft").update(status="published")
-        self.message_user(request, _("%(count)d event(s) published.") % {"count": count})
+        self.message_user(
+            request, _("%(count)d event(s) published.") % {"count": count}
+        )
 
     @admin.action(description=_("Reject selected events"))
     def reject_events(self, request, queryset):

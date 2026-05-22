@@ -216,12 +216,14 @@ class TestVisibleToUrlManager:
 
         class UserWithoutStatus:
             """Simulates a user-like object that has no status field."""
+
             is_authenticated = True
             is_superuser = False
             is_staff = False
 
         user = UserWithoutStatus()
         import pytest as _pytest
+
         with _pytest.raises(AttributeError):
             list(Event.objects.visible_to_url(user))
 

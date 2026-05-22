@@ -221,9 +221,7 @@ class FollowingSectionCapTest(TestCase):
     def test_cap_at_five_events(self):
         """Even with 8 future events from followed org, only 5 returned."""
         for i in range(8):
-            _make_event(
-                self.org, f"follow-cap-ev{i}", start_delta_days=i + 1
-            )
+            _make_event(self.org, f"follow-cap-ev{i}", start_delta_days=i + 1)
         response = self.client.get("/events/")
         following = list(response.context["following_events"])
         self.assertLessEqual(len(following), 5)
@@ -280,9 +278,7 @@ class FollowingFilterParamTest(TestCase):
 
     def test_filter_following_excludes_non_followed_org_events(self):
         """?filter=following excludes events from orgs the user does not follow."""
-        other_event = _make_event(
-            self.other_org, "fp-other-ev1", start_delta_days=3
-        )
+        other_event = _make_event(self.other_org, "fp-other-ev1", start_delta_days=3)
         response = self.client.get("/events/?filter=following")
         page_pks = [e.pk for e in response.context["page_obj"]]
         self.assertNotIn(other_event.pk, page_pks)

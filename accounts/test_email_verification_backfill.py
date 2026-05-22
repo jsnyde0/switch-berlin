@@ -14,7 +14,6 @@ Coverage:
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helper: import the backfill functions from the migration
 # ---------------------------------------------------------------------------
@@ -27,6 +26,7 @@ def get_backfill_functions():
     be imported and tested independently.
     """
     import importlib
+
     migration = importlib.import_module(
         "accounts.migrations.0006_backfill_allauth_email_verification"
     )
@@ -53,9 +53,11 @@ def test_backfill_creates_verified_email_for_active_user():
 
     forwards, _ = get_backfill_functions()
     from django.apps import apps
+
     forwards(apps, None)
 
     from allauth.account.models import EmailAddress
+
     addr = EmailAddress.objects.filter(user=user, email="active@example.com").first()
     assert addr is not None
     assert addr.verified is True
@@ -82,9 +84,11 @@ def test_backfill_creates_unverified_email_for_inactive_user():
 
     forwards, _ = get_backfill_functions()
     from django.apps import apps
+
     forwards(apps, None)
 
     from allauth.account.models import EmailAddress
+
     addr = EmailAddress.objects.filter(user=user, email="inactive@example.com").first()
     assert addr is not None
     assert addr.verified is False
@@ -130,9 +134,8 @@ def test_backfill_raises_for_user_with_blank_email():
 @pytest.mark.django_db
 def test_backfill_skips_users_who_already_have_email_address():
     """If a user already has an allauth EmailAddress, backfill does not duplicate it."""
-    from django.contrib.auth import get_user_model
-
     from allauth.account.models import EmailAddress
+    from django.contrib.auth import get_user_model
 
     User = get_user_model()
     user = User.objects.create_user(
@@ -151,6 +154,7 @@ def test_backfill_skips_users_who_already_have_email_address():
 
     forwards, _ = get_backfill_functions()
     from django.apps import apps
+
     forwards(apps, None)
 
     # Should still be exactly one EmailAddress for this user

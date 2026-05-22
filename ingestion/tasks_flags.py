@@ -53,7 +53,7 @@ def daily_flag_digest():
     lines = [f"Unresolved flags: {count}\n"]
     for (target_type, _target_id, target_label), flags_in_group in groups.items():
         lines.append(
-            f"\n{target_type.title()} \"{target_label}\" ({len(flags_in_group)} flags):"
+            f'\n{target_type.title()} "{target_label}" ({len(flags_in_group)} flags):'
         )
         for flag in flags_in_group:
             admin_url = reverse("admin:reviews_flag_change", args=[flag.pk])

@@ -4,6 +4,7 @@ Static analysis tests for Dockerfile base image pinning (kb-mhi).
 Verifies that all FROM and COPY --from lines reference immutable sha256 digests
 so builds are deterministic and supply-chain compromises become reviewable PRs.
 """
+
 import re
 from pathlib import Path
 
@@ -20,9 +21,9 @@ DOCKERFILE = Path(__file__).parent.parent / "Dockerfile"
 
 # Lines we care about (zero-indexed positions in the file are not stable, so
 # we match by content instead)
-FROM_PATTERN = re.compile(r'^FROM\s+(\S+)', re.MULTILINE)
-COPY_FROM_PATTERN = re.compile(r'^COPY\s+--from=(\S+)', re.MULTILINE)
-DIGEST_RE = re.compile(r'@sha256:[a-f0-9]{64}')
+FROM_PATTERN = re.compile(r"^FROM\s+(\S+)", re.MULTILINE)
+COPY_FROM_PATTERN = re.compile(r"^COPY\s+--from=(\S+)", re.MULTILINE)
+DIGEST_RE = re.compile(r"@sha256:[a-f0-9]{64}")
 
 
 def _get_image_refs():
@@ -48,7 +49,7 @@ class TestDockerfileSha256Pins:
         # Collect FROM stage names so we can skip internal COPY --from refs
         stage_aliases = set()
         for line in content.splitlines():
-            m = re.match(r'^FROM\s+\S+\s+AS\s+(\S+)', line.strip(), re.IGNORECASE)
+            m = re.match(r"^FROM\s+\S+\s+AS\s+(\S+)", line.strip(), re.IGNORECASE)
             if m:
                 stage_aliases.add(m.group(1).lower())
 
@@ -64,8 +65,11 @@ class TestDockerfileSha256Pins:
     def test_node_image_pinned(self):
         """node:22-slim must be pinned."""
         content = DOCKERFILE.read_text()
-        node_lines = [ln.strip() for ln in content.splitlines()
-                      if ln.strip().startswith('FROM') and 'node' in ln]
+        node_lines = [
+            ln.strip()
+            for ln in content.splitlines()
+            if ln.strip().startswith("FROM") and "node" in ln
+        ]
         assert node_lines, "No node FROM line found"
         for line in node_lines:
             assert DIGEST_RE.search(line), (
@@ -75,8 +79,11 @@ class TestDockerfileSha256Pins:
     def test_python_image_pinned(self):
         """python:3.13-slim-bookworm must be pinned."""
         content = DOCKERFILE.read_text()
-        python_lines = [ln.strip() for ln in content.splitlines()
-                        if ln.strip().startswith('FROM') and 'python' in ln]
+        python_lines = [
+            ln.strip()
+            for ln in content.splitlines()
+            if ln.strip().startswith("FROM") and "python" in ln
+        ]
         assert python_lines, "No python FROM line found"
         for line in python_lines:
             assert DIGEST_RE.search(line), (
@@ -86,32 +93,28 @@ class TestDockerfileSha256Pins:
     def test_uv_image_pinned(self):
         """ghcr.io/astral-sh/uv must be pinned and not use :latest."""
         content = DOCKERFILE.read_text()
-        uv_lines = [ln.strip() for ln in content.splitlines()
-                    if 'astral-sh/uv' in ln]
+        uv_lines = [ln.strip() for ln in content.splitlines() if "astral-sh/uv" in ln]
         assert uv_lines, "No uv COPY --from line found"
         for line in uv_lines:
             # Strip inline comment before checking for :latest in the image ref
-            code_part = line.split('#')[0].rstrip()
+            code_part = line.split("#")[0].rstrip()
             assert DIGEST_RE.search(code_part), (
                 f"uv COPY --from line is not digest-pinned: {line!r}"
             )
-            assert ':latest' not in code_part, (
+            assert ":latest" not in code_part, (
                 f"uv image still uses :latest tag: {line!r}"
             )
 
     def test_uv_uses_explicit_version_not_latest(self):
         """uv image must use an explicit version tag, not :latest."""
         content = DOCKERFILE.read_text()
-        uv_lines = [ln.strip() for ln in content.splitlines()
-                    if 'astral-sh/uv' in ln]
+        uv_lines = [ln.strip() for ln in content.splitlines() if "astral-sh/uv" in ln]
         assert uv_lines, "No uv COPY --from line found"
         for line in uv_lines:
             # Strip inline comment before checking for :latest in the image ref
-            code_part = line.split('#')[0].rstrip()
-            assert ':latest' not in code_part, (
-                f"uv image still uses :latest: {line!r}"
-            )
+            code_part = line.split("#")[0].rstrip()
+            assert ":latest" not in code_part, f"uv image still uses :latest: {line!r}"
             # Must have a version tag like :0.X.Y
-            assert re.search(r'uv:\d+\.\d+\.\d+', code_part), (
+            assert re.search(r"uv:\d+\.\d+\.\d+", code_part), (
                 f"uv image does not have an explicit semver tag: {line!r}"
             )

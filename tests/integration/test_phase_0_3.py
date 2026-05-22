@@ -143,7 +143,8 @@ def test_event_list_smoke(client, staff_user, published_event):
 
 @pytest.mark.django_db
 def test_event_detail_smoke(client, staff_user, published_event):
-    """GET /events/<org-slug>/<event-slug>/ returns 200 for staff user with published event."""
+    """GET /events/<org-slug>/<event-slug>/ returns 200 for staff user with published
+    event."""
     client.force_login(staff_user)
     org_slug = published_event.organizer.slug
     response = client.get(f"/events/{org_slug}/{published_event.slug}/")

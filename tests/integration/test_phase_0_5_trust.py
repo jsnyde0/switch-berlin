@@ -172,7 +172,9 @@ def test_flow_a_open_signup_creates_open_user_with_auto_profile():
     # Auto-Profile created (kind=person)
     claim = ProfileClaim.objects.filter(user=user, verified_method="auto_self").first()
     assert claim is not None, "auto_self ProfileClaim was not created"
-    assert claim.profile.kind == "person", f"Expected kind='person', got '{claim.profile.kind}'"
+    assert claim.profile.kind == "person", (
+        f"Expected kind='person', got '{claim.profile.kind}'"
+    )
 
     # Verification email sent
     assert len(mail.outbox) >= 1, "Expected email-verification email in outbox"
@@ -213,12 +215,14 @@ def test_flow_b_vouched_signup_with_valid_invite(grantor, invite_code):
     assert user.status == "vouched", f"Expected status='vouched', got '{user.status}'"
 
     # Vouch row
-    assert Vouch.objects.filter(voucher=grantor, vouchee=user).exists(), "Vouch row missing"
+    assert Vouch.objects.filter(voucher=grantor, vouchee=user).exists(), (
+        "Vouch row missing"
+    )
 
     # InviteGrant audit row
-    assert InviteGrant.objects.filter(recipient=user, invite_code=invite_code).exists(), (
-        "InviteGrant audit row missing"
-    )
+    assert InviteGrant.objects.filter(
+        recipient=user, invite_code=invite_code
+    ).exists(), "InviteGrant audit row missing"
 
     # InviteCode marked used
     invite_code.refresh_from_db()
@@ -310,7 +314,8 @@ def test_flow_c_vouched_signup_with_used_code_fails_loud(grantor):
 def test_flow_d_email_domain_fastpath_claim(vouched_user):
     """
     Flow D: vouched user whose email matches Profile.verified_domain submits ClaimForm.
-    → MagicLinkToken issued with intended_method='email_domain', redirect to check-email.
+    → MagicLinkToken issued with intended_method='email_domain', redirect to
+    check-email.
     Magic-link redemption then creates ProfileClaim(verified_method='email_domain').
 
     ADR-014 D2: Both tracks pass through magic-link confirmation. Fast-path
@@ -331,7 +336,9 @@ def test_flow_d_email_domain_fastpath_claim(vouched_user):
 
     url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(url, {"email": vouched_user.email, "turnstile_token": "VALID"})
+        response = client.post(
+            url, {"email": vouched_user.email, "turnstile_token": "VALID"}
+        )
 
     # Should redirect to check-email page (NOT directly to profile)
     assert response.status_code == 302
@@ -341,13 +348,19 @@ def test_flow_d_email_domain_fastpath_claim(vouched_user):
     ), f"Expected check-email redirect on fast-path, got: {response['Location']}"
 
     # No ProfileClaim created at POST time (magic-link required)
-    assert not ProfileClaim.objects.filter(profile=profile, user=vouched_user).exists(), (
+    assert not ProfileClaim.objects.filter(
+        profile=profile, user=vouched_user
+    ).exists(), (
         "ProfileClaim must NOT be created at POST time on fast-path (ADR-014 D2)"
     )
 
     # MagicLinkToken issued with intended_method='email_domain'
-    token = MagicLinkToken.objects.filter(profile=profile, user_target=vouched_user).first()
-    assert token is not None, "MagicLinkToken should be created on email-domain fast-path"
+    token = MagicLinkToken.objects.filter(
+        profile=profile, user_target=vouched_user
+    ).first()
+    assert token is not None, (
+        "MagicLinkToken should be created on email-domain fast-path"
+    )
     assert token.intended_method == "email_domain", (
         f"Expected intended_method='email_domain', got '{token.intended_method}'"
     )
@@ -362,7 +375,9 @@ def test_flow_d_email_domain_fastpath_claim(vouched_user):
     assert redeem_response.status_code == 302
 
     claim = ProfileClaim.objects.filter(profile=profile, user=vouched_user).first()
-    assert claim is not None, "ProfileClaim was not created after fast-path magic-link redemption"
+    assert claim is not None, (
+        "ProfileClaim was not created after fast-path magic-link redemption"
+    )
     assert claim.verified_method == "email_domain", (
         f"Expected verified_method='email_domain', got '{claim.verified_method}'"
     )
@@ -398,7 +413,9 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     # POST claim form — triggers admin-review path (email domain mismatch)
     url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(url, {"email": vouched_user.email, "turnstile_token": "VALID"})
+        response = client.post(
+            url, {"email": vouched_user.email, "turnstile_token": "VALID"}
+        )
 
     # Should redirect to check-email page
     assert response.status_code == 302
@@ -408,7 +425,9 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     assert intent is not None, "ClaimIntent was not created on admin-review path"
 
     # MagicLinkToken issued with intended_method='admin_review'
-    token = MagicLinkToken.objects.filter(profile=profile, user_target=vouched_user).first()
+    token = MagicLinkToken.objects.filter(
+        profile=profile, user_target=vouched_user
+    ).first()
     assert token is not None, "MagicLinkToken was not created on admin-review path"
     assert token.is_valid, "MagicLinkToken should be valid (not expired, not used)"
     assert token.intended_method == "admin_review", (
@@ -428,12 +447,16 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     # ClaimIntent.submitter_verified_at stamped (email confirmed)
     intent.refresh_from_db()
     assert intent.submitter_verified_at is not None, (
-        "ClaimIntent.submitter_verified_at should be stamped after magic-link redemption"
+        "ClaimIntent.submitter_verified_at should be stamped after magic-link"
+        " redemption"
     )
 
     # No ProfileClaim created yet (admin approval required per ADR-014 D2)
-    assert not ProfileClaim.objects.filter(profile=profile, user=vouched_user).exists(), (
-        "ProfileClaim must NOT be created on admin-review path until admin approves (ADR-014 D2)"
+    assert not ProfileClaim.objects.filter(
+        profile=profile, user=vouched_user
+    ).exists(), (
+        "ProfileClaim must NOT be created on admin-review path until admin approves"
+        " (ADR-014 D2)"
     )
 
     # Token marked as used
@@ -477,7 +500,8 @@ def test_flow_f_magic_link_tamper_wrong_user_fails_loud(vouched_user):
 
     # Must fail loud — 403
     assert response.status_code == 403, (
-        f"Expected 403 for wrong-user redemption (ADR-008 D3), got {response.status_code}"
+        f"Expected 403 for wrong-user redemption (ADR-008 D3),"
+        f" got {response.status_code}"
     )
 
     # No ProfileClaim created

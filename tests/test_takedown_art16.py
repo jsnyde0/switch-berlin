@@ -200,9 +200,7 @@ def test_flag_admin_list_filter_includes_good_faith():
 
 
 @pytest.mark.django_db
-def test_takedown_view_saves_law_reference_and_good_faith(
-    client, published_event
-):
+def test_takedown_view_saves_law_reference_and_good_faith(client, published_event):
     """POST to takedown view with illegal reason saves all new fields on Flag.
 
     We use raise_request_exception=False because the template rendering may

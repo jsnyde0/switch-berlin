@@ -312,14 +312,12 @@ def test_profile_claim_inline_registered_in_admin():
     """ProfileClaimInline is registered as a TabularInline on ProfileAdmin."""
     from django.contrib import admin
 
-    from organizers.admin import ProfileAdmin
     from organizers.models import Profile, ProfileClaim
 
     site = admin.site
     model_admin = site._registry.get(Profile)
     assert model_admin is not None, "Profile not registered in admin"
 
-    inline_classes = [type(inline) for inline in model_admin.inlines]
     inline_model_classes = [
         inline.model for inline in model_admin.inlines if hasattr(inline, "model")
     ]

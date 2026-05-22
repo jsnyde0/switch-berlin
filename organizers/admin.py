@@ -46,8 +46,10 @@ class ProfileAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         # events_organized is the M2M reverse from Event.organizers (kb-n0y)
-        return super().get_queryset(request).annotate(
-            event_count=Count("events_organized", distinct=True)
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(event_count=Count("events_organized", distinct=True))
         )
 
     def event_count(self, obj):
@@ -94,8 +96,10 @@ class ClaimIntentAdmin(admin.ModelAdmin):
 
     Shows pending intents (resolved_at IS NULL AND rejected_at IS NULL).
     Admin actions:
-    - approve_claim: create ProfileClaim with verified_method='admin_review', set resolved_at
-    - reject_claim: set rejected_at + rejected_by_admin + rejection_reason, no ProfileClaim
+    - approve_claim: create ProfileClaim with verified_method='admin_review',
+      set resolved_at
+    - reject_claim: set rejected_at + rejected_by_admin + rejection_reason,
+      no ProfileClaim
 
     Per ADR-014 D2 (admin-review track + soft-delete pattern).
     Per ADR-008 D3 (fail-loud on idempotency violation).

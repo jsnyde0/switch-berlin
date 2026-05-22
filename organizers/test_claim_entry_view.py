@@ -10,8 +10,8 @@ Per ADR-008 D3 — fail loud; explicit branch for user-IS-claimant.
 from unittest.mock import patch
 
 import pytest
-from django.test import override_settings
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from django.urls import reverse
 
 User = get_user_model()
@@ -72,9 +72,7 @@ def test_magic_link_redeem_url_resolves():
 def test_profile_detail_anonymous_sees_sign_in_cta(client):
     """Anonymous viewer on profile detail sees 'Sign in' CTA, no claim form."""
     make_profile("anon-profile")
-    response = client.get(
-        reverse("organizer-profile", kwargs={"slug": "anon-profile"})
-    )
+    response = client.get(reverse("organizer-profile", kwargs={"slug": "anon-profile"}))
     assert response.status_code == 200
     content = response.content.decode()
     # Should contain some reference to sign in or login for claim
@@ -132,9 +130,7 @@ def test_claim_entry_already_claimant_shows_explicit_branch(client):
     )
 
     client.force_login(user)
-    url = reverse(
-        "organizer-claim-entry", kwargs={"slug": "already-claimed-profile"}
-    )
+    url = reverse("organizer-claim-entry", kwargs={"slug": "already-claimed-profile"})
     response = client.get(url)
     assert response.status_code == 200
     content = response.content.decode()
@@ -207,10 +203,12 @@ def test_profile_detail_auth_claimant_sees_manage_badge(client):
 @pytest.mark.django_db
 @override_settings(**TURNSTILE_SETTINGS)
 def test_claim_entry_email_domain_fastpath_redirects_to_check_email(client):
-    """email domain matches verified_domain → MagicLinkToken issued + redirect to check-email.
+    """email domain matches verified_domain → MagicLinkToken issued + redirect to
+    check-email.
 
     ADR-014 D2: BOTH tracks pass through magic-link confirmation. Fast-path must NOT
-    create ProfileClaim directly at POST time — it differs only in post-confirmation routing.
+    create ProfileClaim directly at POST time — it differs only in post-confirmation
+    routing.
     """
     from organizers.models import MagicLinkToken, Profile, ProfileClaim
 
@@ -225,7 +223,9 @@ def test_claim_entry_email_domain_fastpath_redirects_to_check_email(client):
 
     url = reverse("organizer-claim-entry", kwargs={"slug": "fastpath-org"})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(url, {"email": "user@fastpath.org", "turnstile_token": "VALID"})
+        response = client.post(
+            url, {"email": "user@fastpath.org", "turnstile_token": "VALID"}
+        )
 
     # Must redirect to check-email, NOT directly to profile
     assert response.status_code == 302
@@ -250,7 +250,8 @@ def test_claim_entry_email_domain_fastpath_redirects_to_check_email(client):
 @pytest.mark.django_db
 @override_settings(**TURNSTILE_SETTINGS)
 def test_claim_entry_email_domain_fastpath_no_claim_intent_created(client):
-    """Fast-path POST does NOT create a ClaimIntent (that is only for admin-review track)."""
+    """Fast-path POST does NOT create a ClaimIntent (that is only for admin-review
+    track)."""
     from organizers.models import ClaimIntent, Profile
 
     profile = Profile.objects.create(
@@ -293,7 +294,9 @@ def test_claim_entry_admin_review_path_creates_claim_intent(client, mailoutbox):
 
     url = reverse("organizer-claim-entry", kwargs={"slug": "review-org"})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(url, {"email": "user@gmail.com", "turnstile_token": "VALID"})
+        response = client.post(
+            url, {"email": "user@gmail.com", "turnstile_token": "VALID"}
+        )
 
     # Should redirect to check-email page
     assert response.status_code == 302
@@ -330,19 +333,25 @@ def test_claim_form_has_turnstile_token_field():
 
 
 def test_claim_form_turnstile_invalid_raises_validation_error():
-    """ClaimForm with invalid Turnstile token → ValidationError (ADR-008 D3 fail loud)."""
+    """ClaimForm with invalid Turnstile token → ValidationError (ADR-008 D3 fail
+    loud)."""
     from unittest.mock import patch
 
     from organizers.forms import ClaimForm
 
     with patch("accounts.adapter.validate_turnstile_token", return_value=False):
-        form = ClaimForm(data={"email": "test@example.com", "turnstile_token": "BAD"})
+        ClaimForm(data={"email": "test@example.com", "turnstile_token": "BAD"})
         # Force settings to have a key so validation runs
         from django.test import override_settings
+
         with override_settings(TURNSTILE_SECRET_KEY="test-secret"):
-            form2 = ClaimForm(data={"email": "test@example.com", "turnstile_token": "BAD"})
+            form2 = ClaimForm(
+                data={"email": "test@example.com", "turnstile_token": "BAD"}
+            )
             with patch("accounts.adapter.validate_turnstile_token", return_value=False):
-                assert not form2.is_valid(), "Form with bad Turnstile token should be invalid"
+                assert not form2.is_valid(), (
+                    "Form with bad Turnstile token should be invalid"
+                )
                 assert "turnstile_token" in form2.errors
 
 
@@ -368,7 +377,9 @@ def test_claim_entry_admin_review_path_email_domain_mismatch(client, mailoutbox)
 
     url = reverse("organizer-claim-entry", kwargs={"slug": "mismatch-org"})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(url, {"email": "user@other.com", "turnstile_token": "VALID"})
+        response = client.post(
+            url, {"email": "user@other.com", "turnstile_token": "VALID"}
+        )
 
     # Should redirect (not to claim success, but check-email)
     assert response.status_code == 302

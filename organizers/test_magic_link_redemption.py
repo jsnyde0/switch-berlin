@@ -58,7 +58,8 @@ def make_token(user, profile, email=None, hours=24, intended_method="email_domai
 
 @pytest.mark.django_db
 def test_magic_link_redeem_fast_path_creates_profile_claim_with_email_domain(client):
-    """Valid fast-path token redeemed → ProfileClaim with verified_method='email_domain'.
+    """Valid fast-path token redeemed → ProfileClaim with
+    verified_method='email_domain'.
 
     ADR-014 D1: 'magic_link' is not a valid verified_method. Fast-path redemption
     produces verified_method='email_domain'.
@@ -78,13 +79,15 @@ def test_magic_link_redeem_fast_path_creates_profile_claim_with_email_domain(cli
     claim = ProfileClaim.objects.filter(profile=profile, user=user).first()
     assert claim is not None
     assert claim.verified_method == "email_domain", (
-        f"Expected verified_method='email_domain' for fast-path token, got '{claim.verified_method}'"
+        f"Expected verified_method='email_domain' for fast-path token,"
+        f" got '{claim.verified_method}'"
     )
 
 
 @pytest.mark.django_db
 def test_magic_link_redeem_admin_review_marks_claim_intent_verified(client):
-    """Valid admin-review token redeemed → ClaimIntent.submitter_verified_at stamped, no ProfileClaim.
+    """Valid admin-review token redeemed → ClaimIntent.submitter_verified_at stamped,
+    no ProfileClaim.
 
     ADR-014 D2: admin-review track → magic-link redemption marks ClaimIntent verified;
     admin must then approve to create ProfileClaim.
@@ -108,7 +111,8 @@ def test_magic_link_redeem_admin_review_marks_claim_intent_verified(client):
     # ClaimIntent.submitter_verified_at must be stamped
     intent.refresh_from_db()
     assert intent.submitter_verified_at is not None, (
-        "ClaimIntent.submitter_verified_at should be stamped after magic-link redemption"
+        "ClaimIntent.submitter_verified_at should be stamped after magic-link"
+        " redemption"
     )
 
     # No ProfileClaim created (admin must approve first)

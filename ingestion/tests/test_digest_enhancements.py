@@ -211,9 +211,7 @@ class TestDailyFlagDigestGrouping:
 
         body = _get_body(mock_send)
         site_url = settings.SITE_URL
-        assert site_url in body, (
-            f"Expected SITE_URL '{site_url}' in body:\n{body}"
-        )
+        assert site_url in body, f"Expected SITE_URL '{site_url}' in body:\n{body}"
 
     def test_admin_url_contains_flag_change_path(self, five_flags):
         """Admin URLs point to reviews_flag_change path."""
@@ -223,9 +221,7 @@ class TestDailyFlagDigestGrouping:
             daily_flag_digest()
 
         body = _get_body(mock_send)
-        assert "/reviews/flag/" in body, (
-            f"Expected '/reviews/flag/' in body:\n{body}"
-        )
+        assert "/reviews/flag/" in body, f"Expected '/reviews/flag/' in body:\n{body}"
 
     def test_review_flags_suggested_action_is_delete(self, five_flags):
         """Review flags get ?action=delete in admin URL."""
@@ -235,9 +231,7 @@ class TestDailyFlagDigestGrouping:
             daily_flag_digest()
 
         body = _get_body(mock_send)
-        assert "?action=delete" in body, (
-            f"Expected '?action=delete' in body:\n{body}"
-        )
+        assert "?action=delete" in body, f"Expected '?action=delete' in body:\n{body}"
 
     def test_no_flags_returns_early_without_sending(self, db):
         """When there are no unresolved flags, no email is sent."""

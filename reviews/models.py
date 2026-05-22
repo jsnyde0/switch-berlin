@@ -60,27 +60,40 @@ class Review(models.Model):
 class Flag(models.Model):
     reporter = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        null=True, blank=True, on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="flags_reported",
     )
     organizer = models.ForeignKey(
-        "organizers.Profile", null=True, blank=True, on_delete=models.CASCADE,
+        "organizers.Profile",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
         related_name="flags",
     )
     event = models.ForeignKey(
-        "events.Event", null=True, blank=True, on_delete=models.CASCADE,
+        "events.Event",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
         related_name="flags",
     )
     review = models.ForeignKey(
-        "reviews.Review", null=True, blank=True, on_delete=models.CASCADE,
+        "reviews.Review",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
         related_name="flags",
     )
     reason = models.CharField(
         max_length=30,
         choices=[
             ("illegal", "Illegal content — specify law"),
-            ("spam", "Spam"), ("inaccurate", "Inaccurate"),
-            ("harmful", "Harmful"), ("safety", "Safety concern"),
+            ("spam", "Spam"),
+            ("inaccurate", "Inaccurate"),
+            ("harmful", "Harmful"),
+            ("safety", "Safety concern"),
             ("other", "Other"),
         ],
     )
@@ -92,7 +105,10 @@ class Flag(models.Model):
     resolved = models.BooleanField(default=False)
     resolution_notes = models.TextField(blank=True)
     resolved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="flags_resolved",
     )
 
@@ -102,8 +118,12 @@ class Flag(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(organizer__isnull=False, event__isnull=True, review__isnull=True)
-                    | Q(organizer__isnull=True, event__isnull=False, review__isnull=True)
-                    | Q(organizer__isnull=True, event__isnull=True, review__isnull=False)
+                    | Q(
+                        organizer__isnull=True, event__isnull=False, review__isnull=True
+                    )
+                    | Q(
+                        organizer__isnull=True, event__isnull=True, review__isnull=False
+                    )
                 ),
                 name="flag_targets_exactly_one",
             ),

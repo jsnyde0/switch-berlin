@@ -43,9 +43,7 @@ class FullIngestionLoopTest(TestCase):
             username="admin_integ", email="admin@test.com", password="pw"
         )
         self.client.force_login(self.superuser)
-        self.organizer = Profile.objects.create(
-            name="Test Org", slug="test-org-integ"
-        )
+        self.organizer = Profile.objects.create(name="Test Org", slug="test-org-integ")
         self.approved = ApprovedSender.objects.create(telegram_user_id="123456789")
 
     def _event_post_data(self, event, status="published"):

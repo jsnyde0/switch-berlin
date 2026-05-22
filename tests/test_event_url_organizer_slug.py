@@ -89,9 +89,7 @@ def event_beta(db, organizer_beta):
 def test_event_detail_new_url_returns_200(client, staff_user, event_alpha):
     """GET /events/<org-slug>/<event-slug>/ returns 200 for a published event."""
     client.force_login(staff_user)
-    response = client.get(
-        f"/events/{event_alpha.organizer.slug}/{event_alpha.slug}/"
-    )
+    response = client.get(f"/events/{event_alpha.organizer.slug}/{event_alpha.slug}/")
     assert response.status_code == 200
 
 
@@ -99,9 +97,7 @@ def test_event_detail_new_url_returns_200(client, staff_user, event_alpha):
 def test_event_detail_contains_correct_title(client, staff_user, event_alpha):
     """Event detail page contains the event title."""
     client.force_login(staff_user)
-    response = client.get(
-        f"/events/{event_alpha.organizer.slug}/{event_alpha.slug}/"
-    )
+    response = client.get(f"/events/{event_alpha.organizer.slug}/{event_alpha.slug}/")
     assert event_alpha.title.encode() in response.content
 
 
@@ -111,9 +107,7 @@ def test_event_detail_404_for_wrong_organizer(
 ):
     """GET /events/<wrong-org-slug>/<event-slug>/ returns 404 — organizer mismatch."""
     client.force_login(staff_user)
-    response = client.get(
-        f"/events/{organizer_beta.slug}/{event_alpha.slug}/"
-    )
+    response = client.get(f"/events/{organizer_beta.slug}/{event_alpha.slug}/")
     assert response.status_code == 404
 
 

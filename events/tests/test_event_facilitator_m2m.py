@@ -185,12 +185,8 @@ class EventFacilitatorUniquenessTest(TestCase):
         EventFacilitator.objects.create(
             event=self.event, profile=self.profile, role="Lead"
         )
-        EventFacilitator.objects.create(
-            event=self.event, profile=profile2, role="DJ"
-        )
-        self.assertEqual(
-            EventFacilitator.objects.filter(event=self.event).count(), 2
-        )
+        EventFacilitator.objects.create(event=self.event, profile=profile2, role="DJ")
+        self.assertEqual(EventFacilitator.objects.filter(event=self.event).count(), 2)
 
     def test_same_profile_different_events_allowed(self):
         from events.models import Event, EventFacilitator

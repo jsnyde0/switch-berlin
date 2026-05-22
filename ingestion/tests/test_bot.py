@@ -6,7 +6,13 @@ from django.core.cache import cache
 from django.test import TestCase, TransactionTestCase
 
 from a_core.models import FeatureFlag
-from ingestion.bot import _bot_enabled, _is_rate_limited, _rate_buckets, handle_message, run_bot
+from ingestion.bot import (
+    _bot_enabled,
+    _is_rate_limited,
+    _rate_buckets,
+    handle_message,
+    run_bot,
+)
 from ingestion.models import ApprovedSender, RawMessage, RejectedMessageAttempt
 
 
@@ -230,9 +236,8 @@ class RunBotTokenRedactionTest(unittest.TestCase):
         mock_app.run_polling.side_effect = original_exc
 
         with patch("ingestion.bot.Application") as mock_application_cls:
-            mock_application_cls.builder.return_value.token.return_value.build.return_value = (
-                mock_app
-            )
+            builder = mock_application_cls.builder.return_value
+            builder.token.return_value.build.return_value = mock_app
             with self.assertRaises(Exception) as ctx:
                 run_bot(self.FAKE_TOKEN)
 
@@ -245,7 +250,8 @@ class RunBotTokenRedactionTest(unittest.TestCase):
         self.assertIn(
             "<redacted>",
             raised_msg,
-            f"Redacted placeholder must appear in exception message. Got: {raised_msg!r}",
+            f"Redacted placeholder must appear in exception message."
+            f" Got: {raised_msg!r}",
         )
         # __context__ must be cleared so structured telemetry frameworks (logfire,
         # Sentry, structlog) that walk __context__ regardless of __suppress_context__
@@ -263,9 +269,8 @@ class RunBotTokenRedactionTest(unittest.TestCase):
         mock_app.run_polling = MagicMock(return_value=None)
 
         with patch("ingestion.bot.Application") as mock_application_cls:
-            mock_application_cls.builder.return_value.token.return_value.build.return_value = (
-                mock_app
-            )
+            builder = mock_application_cls.builder.return_value
+            builder.token.return_value.build.return_value = mock_app
             run_bot(self.FAKE_TOKEN)
 
         mock_app.run_polling.assert_called_once()

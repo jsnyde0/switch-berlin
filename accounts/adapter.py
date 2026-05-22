@@ -113,7 +113,9 @@ class OpenSignupAdapter(DefaultAccountAdapter):
             )
 
     def save_user(self, request, user, form, commit=True):
-        """Create user + auto-Profile. If invite code supplied, create Vouch + InviteGrant.
+        """Create user + auto-Profile.
+
+        If invite code supplied, create Vouch + InviteGrant.
 
         Turnstile validation already ran in OpenSignupForm.clean_turnstile_token()
         and invite code validation ran in OpenSignupForm.clean_invite_code() before
@@ -140,20 +142,20 @@ class OpenSignupAdapter(DefaultAccountAdapter):
                         invite = InviteCode.objects.select_for_update().get(
                             code=invite_code_str
                         )
-                    except InviteCode.DoesNotExist:
+                    except InviteCode.DoesNotExist as exc:
                         # Should not reach here — form already validated, but
                         # fail loud per ADR-008 D3 if somehow reached
                         raise RuntimeError(
                             f"Invite code {invite_code_str!r} not found at save time "
                             "(form validation passed but code gone). ADR-008 D3."
-                        )
+                        ) from exc
 
                     if not invite.usable():
                         # Race condition: another request used it between form clean
                         # and here. Fail loud — do not silently fall through.
                         raise RuntimeError(
-                            f"Invite code {invite_code_str!r} was valid at form validation "
-                            "but is no longer usable (race). ADR-008 D3."
+                            f"Invite code {invite_code_str!r} was valid at form "
+                            "validation but is no longer usable (race). ADR-008 D3."
                         )
 
                     now = timezone.now()

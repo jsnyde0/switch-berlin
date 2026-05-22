@@ -3,7 +3,8 @@
 Gate logic:
 - Template only shows the review form when user_has_went_attendance=True
 - Direct POST to submit_review without went attendance returns HTTP 429
-- All existing gate conditions (event_past, RATINGS_ENABLED, status='vouched') still apply
+- All existing gate conditions (event_past, RATINGS_ENABLED, status='vouched') still
+  apply
 """
 
 import pytest
@@ -99,7 +100,8 @@ def test_event_detail_context_false_when_no_attendance(
 def test_event_detail_context_true_when_went_attendance(
     approved_user_with_went_attendance, past_event
 ):
-    """event_detail view sets user_has_went_attendance=True when went attendance exists."""
+    """event_detail view sets user_has_went_attendance=True when went attendance
+    exists."""
     client = Client()
     client.force_login(approved_user_with_went_attendance)
     url = reverse(
@@ -315,7 +317,8 @@ def test_submit_review_ratings_disabled_blocks_even_with_went_attendance(
 def test_submit_organizer_review_unaffected_by_attendance_gate(
     approved_user_without_attendance,
 ):
-    """Attendance gate only applies to event target_type; organizer reviews still work."""
+    """Attendance gate only applies to event target_type; organizer reviews still
+    work."""
     org = Profile.objects.create(
         name="Unrelated Organizer", slug="unrelated-org", status="approved"
     )

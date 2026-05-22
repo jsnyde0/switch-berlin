@@ -88,15 +88,21 @@ def submit_review(request):
     with transaction.atomic():
         if target_type == "organizer":
             organizer = get_object_or_404(Profile, pk=target_id, status="approved")
-            existing = Review.objects.filter(
-                author=request.user, organizer=organizer
-            ).only("hidden", "id").first()
+            existing = (
+                Review.objects.filter(author=request.user, organizer=organizer)
+                .only("hidden", "id")
+                .first()
+            )
             if existing and existing.hidden:
                 return render(
                     request,
                     "reviews/_rating_form.html",
-                    {"error": _("This review was hidden by a moderator."
-                                " Contact support to appeal.")},
+                    {
+                        "error": _(
+                            "This review was hidden by a moderator."
+                            " Contact support to appeal."
+                        )
+                    },
                     status=403,
                 )
             review, created = Review.objects.update_or_create(
@@ -135,15 +141,21 @@ def submit_review(request):
                     {"error": _("You can review this event after attending.")},
                     status=429,
                 )
-            existing_event = Review.objects.filter(
-                author=request.user, event=event
-            ).only("hidden", "id").first()
+            existing_event = (
+                Review.objects.filter(author=request.user, event=event)
+                .only("hidden", "id")
+                .first()
+            )
             if existing_event and existing_event.hidden:
                 return render(
                     request,
                     "reviews/_rating_form.html",
-                    {"error": _("This review was hidden by a moderator."
-                                " Contact support to appeal.")},
+                    {
+                        "error": _(
+                            "This review was hidden by a moderator."
+                            " Contact support to appeal."
+                        )
+                    },
                     status=403,
                 )
             review, created = Review.objects.update_or_create(
@@ -205,7 +217,8 @@ def flag_target(request):
         if target_type == "event":
             event = get_object_or_404(Event, pk=target_id)
             flag, created = Flag.objects.get_or_create(
-                reporter=request.user, event=event,
+                reporter=request.user,
+                event=event,
                 defaults={"reason": reason},
             )
             if not created:
@@ -219,7 +232,8 @@ def flag_target(request):
         elif target_type == "organizer":
             organizer = get_object_or_404(Profile, pk=target_id)
             flag, created = Flag.objects.get_or_create(
-                reporter=request.user, organizer=organizer,
+                reporter=request.user,
+                organizer=organizer,
                 defaults={"reason": reason},
             )
             if not created:

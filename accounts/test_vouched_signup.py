@@ -9,7 +9,8 @@ Coverage:
     one Vouch row (voucher=invite_code.created_by, vouchee=user),
     one InviteGrant audit row,
     InviteCode marked as used
-(c) Signup with invalid invite-code → form-invalid, no User created (ADR-008 D3 fail loud)
+(c) Signup with invalid invite-code → form-invalid, no User created
+    (ADR-008 D3 fail loud)
 (d) Signup with already-used invite-code → form-invalid, no User created
 (e) Atomicity: all-or-nothing — if Vouch creation were to fail, User is not created
 (f) Form has optional invite_code field
@@ -17,7 +18,6 @@ Coverage:
 
 import pytest
 from django.test import override_settings
-
 
 # ---------------------------------------------------------------------------
 # (a) Open signup path — no invite code
@@ -73,7 +73,8 @@ def test_open_signup_gives_open_status_no_vouch():
     ACCOUNT_EMAIL_VERIFICATION="mandatory",
 )
 def test_vouched_signup_with_valid_invite_code():
-    """Signup with valid invite code: status='vouched', Vouch row, InviteGrant row, InviteCode marked used."""
+    """Signup with valid invite code: status='vouched', Vouch row, InviteGrant row,
+    InviteCode marked used."""
     from unittest.mock import patch
 
     from django.contrib.auth import get_user_model
@@ -133,7 +134,8 @@ def test_vouched_signup_with_valid_invite_code():
     TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA",
 )
 def test_signup_with_invalid_invite_code_fails_loud():
-    """Signup with invalid invite code must fail form validation, no User created (ADR-008 D3)."""
+    """Signup with invalid invite code must fail form validation, no User created
+    (ADR-008 D3)."""
     from unittest.mock import patch
 
     from django.contrib.auth import get_user_model
