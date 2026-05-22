@@ -1,6 +1,32 @@
-- we can leave out messaging, but I don't see how follows, saves and reviews would be that hard. Reviews for example are basically just a form that needs to be filled in? I mean it shouldn't be the first phase of our roadmap, but we definitely want it on the roadmap I'd say
-- perhaps in general, we shouldn't go with a binary "for MVP or not" but we should think in terms of roadmap and different versions of our product/MVP, you know? Perhaps more helpful to think of it that way. We'll have to create a roadmap anyway, so we don't have to bulid everything at once but can do it in steps that are bite-size, incremental, testable, deployable etc
-- ticketing could be one of the last... implementing this would be a huge step. I want to focus on building a user-base more than monetizing right away
-- I do think something like 'verified' for organisers would be very helpful. This would be something I could do manually, you know. There could be like automatically scraped/derived organiser profiles, then ones that are actually owned by those organisers (so they'd have an actual login to control their organisor page/account) and then ones that I personally gave a 'verified' tag or something, you know?
-- in general, I want to prepare for using LLMs and agents. So in making recommendations, i'd love it if we have enough data on organisers, users, events, venues,... so that when someone promopts an agent on our platform, it could actually make sensible recommendations. Longer term, but something to consider
-- yes we should stick to Berlin only for now
+
+
+
+
+
+
+## Harness
+
+- 
+
+
+
+## fixing legal gaps
+
+1. yes semi-public requires vouched. Perhaps we want to change this again later but this is how I want to get started. So if our code can easily accomodate us choosing/changing this configuration later on again, that'd be great
+2. well a simple intuitive UX for the user to claim a profile would be great where it's clear that either they use an email with matching domain and they'll receieve a magic link, or they can make a request to the admin team with a non-matching domain but they'll have to identify themselves and go through an approval process or something? Perhaps this just means filling a form and the admin sees a claim request with their email and message to explain who they are or something and then admin can either approve directly or of course use their email to contact them for more info?
+3. clearly this isn't the only reason that prod is broken given the missing env vars right?
+4. great, appreciate that
+5. I think first we have to fix everything before this works, no? 
+6. ok I'll take this into another separate session I think
+
+I'd personally fix everything and see fixing prod as part of this, don't mind prod being down atm so it's not urgent
+
+
+
+
+
+
+
+
+
+

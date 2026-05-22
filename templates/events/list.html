@@ -80,23 +80,28 @@
             <span class="h-px w-8 bg-base-content/20"></span>
             <span class="text-fuchsia-300/80">{% blocktrans count counter=page_obj.paginator.count %}{{ counter }} listing{% plural %}{{ counter }} listings{% endblocktrans %}</span>
           </div>
-          <h1 class="kb-display text-[64px] sm:text-[88px] lg:text-[104px] leading-[0.92] font-light text-base-content">
+          <h1 class="kb-display text-[64px] sm:text-[88px] lg:text-[112px] leading-[0.9] font-light text-base-content">
             What's<br>
             happening<br>
-            <span class="kb-display-italic font-normal text-base-content/85">in Berlin.</span>
+            <span class="kb-display-italic font-normal text-fuchsia-300/95">in Berlin.</span>
           </h1>
         </div>
-        <div class="col-span-12 lg:col-span-4 lg:pl-6 lg:border-l lg:border-white/10">
-          <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-3">{% trans "The brief" %}</p>
-          <p class="max-w-sm text-[15px] leading-[1.55] text-base-content/75">
-            {% trans "A working index of queer, kinky, and consent-forward gatherings across the city. Workshops, play parties, rituals, rope jams. Verified organizers only." %}
+        <div class="col-span-12 lg:col-span-4 lg:pl-8 lg:border-l lg:border-white/15">
+          <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-fuchsia-300/80 mb-3">{% trans "The brief" %}</p>
+          <p class="max-w-sm text-[15px] leading-[1.6] text-base-content/85">
+            {% trans "A working index of queer, kinky, and consent-forward gatherings across the city." %}
           </p>
-          <div class="kb-rule mt-6"></div>
-          <dl class="kb-mono mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] uppercase tracking-[0.16em]">
+          <p class="max-w-sm mt-3 text-[13px] leading-[1.6] text-base-content/55">
+            {% trans "Workshops, play parties, rituals, rope jams. Verified organizers only." %}
+          </p>
+          <div class="kb-rule mt-7"></div>
+          <dl class="kb-mono mt-4 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[10px] uppercase tracking-[0.18em]">
             <dt class="text-base-content/40">{% trans "Curation" %}</dt>
-            <dd class="text-base-content/75">{% trans "By hand" %}</dd>
+            <dd class="text-base-content/85">{% trans "By hand" %}</dd>
+            <dt class="text-base-content/40">{% trans "Privacy" %}</dt>
+            <dd class="text-base-content/85">{% trans "Consent-forward" %}</dd>
             <dt class="text-base-content/40">{% trans "Updated" %}</dt>
-            <dd class="text-base-content/75">{% now "D · H:i" %}</dd>
+            <dd class="text-base-content/85">{% now "D · H:i" %}</dd>
           </dl>
         </div>
       </div>

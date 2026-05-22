@@ -87,6 +87,22 @@
 /* Card title underline used in event_card.html — kept tighter and ink-warm */
 .kb-card-title-rule { background: rgba(248, 113, 196, 0.6); }
 
+/* Selected / hovered card states (map ↔ list sync).
+   Editorial register: ban requires no side-stripe colored borders > 1px and no
+   ring halos. We tint the cell background and intensify the top + bottom hairlines.
+   Selected state also drops in a fuchsia hairline on top + bottom so the row
+   reads "marked in the index" rather than "outlined widget". */
+.kb-card-selected > article.kb-card {
+  background: rgba(248, 113, 196, 0.06);
+  border-top-color: rgba(248, 113, 196, 0.55);
+  border-bottom-color: rgba(248, 113, 196, 0.55);
+}
+.kb-card-hovered > article.kb-card {
+  background: rgba(255, 255, 255, 0.025);
+  border-top-color: rgba(248, 113, 196, 0.28);
+  border-bottom-color: rgba(248, 113, 196, 0.28);
+}
+
 
 /* --- /events drawer slide-in --- */
 /* The drawer is HTMX-swapped into #drawer on event select. The `kb-drawer-enter`

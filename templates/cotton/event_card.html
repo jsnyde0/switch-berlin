@@ -8,7 +8,7 @@
   background and the day numeral. Title is set in display serif.
 {% endcomment %}
 <article
-  class="kb-card group/inner relative flex h-full overflow-hidden border-t border-b border-white/8 bg-transparent transition-all duration-300 group-hover/card:bg-base-200/30 group-hover/card:border-white/15"
+  class="kb-card group/inner relative flex h-full overflow-hidden border-t border-b border-white/15 bg-transparent transition-all duration-300 group-hover/card:bg-base-200/40 group-hover/card:border-white/30"
 >
   {% comment %}
     Date column — left, fixed width, editorial weight. Hue derives from slug so the
@@ -19,8 +19,8 @@
       {{ event.start|date:"D" }}
     </div>
     <div class="flex items-baseline gap-1.5 my-3">
-      <span class="kb-display text-[68px] sm:text-[80px] leading-[0.85] font-light text-base-content transition-colors duration-300"
-            style="color: hsl({{ hue_a }} 75% 78%);">
+      <span class="kb-display text-[68px] sm:text-[80px] leading-[0.85] font-light text-base-content transition-all duration-300"
+            style="color: hsl({{ hue_a }} 32% 82%);">
         {{ event.start|date:"j" }}
       </span>
     </div>
@@ -37,7 +37,7 @@
         <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
            class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors w-fit min-w-0">
           <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
-                style="background: hsl({{ hue_a }} 60% 70%);">
+                style="background: hsl({{ hue_a }} 40% 75%);">
             {{ event.organizer.name|first }}
           </span>
           <span class="truncate max-w-[180px]">{{ event.organizer.name }}</span>
