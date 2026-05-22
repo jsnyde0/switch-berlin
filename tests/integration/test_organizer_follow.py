@@ -103,13 +103,14 @@ def test_follow_model_fields(approved_organizer, staff_user):
 @pytest.mark.django_db
 def test_follow_unique_together(approved_organizer, staff_user):
     """Creating duplicate Follow raises IntegrityError."""
-    from django.db import IntegrityError
+    from django.db import IntegrityError, transaction
 
     from organizers.models import Follow
 
     Follow.objects.create(user=staff_user, profile=approved_organizer)
     with pytest.raises(IntegrityError):
-        Follow.objects.create(user=staff_user, profile=approved_organizer)
+        with transaction.atomic():
+            Follow.objects.create(user=staff_user, profile=approved_organizer)
 
 
 @pytest.mark.django_db

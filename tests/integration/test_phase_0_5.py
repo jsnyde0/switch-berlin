@@ -626,8 +626,11 @@ def test_flag_constraint_no_target():
     organizer/event/review to be non-null. A Flag with all three null therefore
     violates the constraint and raises IntegrityError.
     """
+    from django.db import transaction
+
     with pytest.raises(IntegrityError):
-        Flag.objects.create(reporter=None, reason="spam")
+        with transaction.atomic():
+            Flag.objects.create(reporter=None, reason="spam")
 
 
 @pytest.mark.django_db
@@ -635,13 +638,16 @@ def test_flag_constraint_two_targets(
     approved_user, approved_organizer, published_event
 ):
     """Flag with two targets set -> IntegrityError (violates exactly-one constraint)."""
+    from django.db import transaction
+
     with pytest.raises(IntegrityError):
-        Flag.objects.create(
-            reporter=approved_user,
-            organizer=approved_organizer,
-            event=published_event,
-            reason="spam",
-        )
+        with transaction.atomic():
+            Flag.objects.create(
+                reporter=approved_user,
+                organizer=approved_organizer,
+                event=published_event,
+                reason="spam",
+            )
 
 
 # ---------------------------------------------------------------------------
