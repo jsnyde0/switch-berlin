@@ -61,14 +61,14 @@
             {% trans "Workshops, play parties, rituals, rope jams. Verified organizers only." %}
           </p>
           <div class="kb-rule mt-7"></div>
-          <dl class="kb-mono mt-4 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[10px] uppercase tracking-[0.18em]">
+          <c-kb.colophon>
             <dt class="text-base-content/40">{% trans "Curation" %}</dt>
             <dd class="text-base-content/85">{% trans "By hand" %}</dd>
             <dt class="text-base-content/40">{% trans "Privacy" %}</dt>
             <dd class="text-base-content/85">{% trans "Consent-forward" %}</dd>
             <dt class="text-base-content/40">{% trans "Updated" %}</dt>
             <dd class="text-base-content/85">{% now "D · H:i" %}</dd>
-          </dl>
+          </c-kb.colophon>
         </div>
       </div>
     </div>
@@ -87,33 +87,21 @@
       {% with sort_active=sort|default:"date" %}
       <div role="tablist" class="flex items-center flex-wrap gap-x-6 gap-y-3 py-4">
         <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Sort —" %}</span>
-        <a href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}"
-           role="tab"
-           aria-selected="{% if sort_active == 'date' %}true{% else %}false{% endif %}"
-           class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort_active == 'date' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">
-          {% trans "Latest" %}
-        </a>
+        <c-kb.tab href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}"
+                  :active="sort_active == 'date'"
+                  label="{% trans 'Latest' %}" />
         {% if trending_enabled %}
-          <a href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-             role="tab"
-             aria-selected="{% if sort_active == 'trending' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort_active == 'trending' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">
-            {% trans "Trending" %}
-          </a>
+          <c-kb.tab href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+                    :active="sort_active == 'trending'"
+                    label="{% trans 'Trending' %}" />
         {% endif %}
         {% if EVENT_REVIEWS_DISPLAYED %}
-          <a href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-             role="tab"
-             aria-selected="{% if sort_active == 'lowest_rated' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort_active == 'lowest_rated' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">
-            {% trans "Lowest rated" %}
-          </a>
-          <a href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-             role="tab"
-             aria-selected="{% if sort_active == 'most_reviewed' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort_active == 'most_reviewed' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">
-            {% trans "Most reviewed" %}
-          </a>
+          <c-kb.tab href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+                    :active="sort_active == 'lowest_rated'"
+                    label="{% trans 'Lowest rated' %}" />
+          <c-kb.tab href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
+                    :active="sort_active == 'most_reviewed'"
+                    label="{% trans 'Most reviewed' %}" />
         {% endif %}
       </div>
       {% endwith %}

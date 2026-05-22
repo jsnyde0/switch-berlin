@@ -71,12 +71,9 @@
           </svg>
           <span>
             {% if event.venue.privacy_mode == 'private' and not user_going %}
-              <span class="inline-flex items-center gap-1.5">
+              <span class="inline-flex items-center gap-2">
                 <span>{% trans 'Private venue' %}</span>
-                <span class="inline-flex items-center gap-1 rounded-full bg-purple-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-purple-300 ring-1 ring-purple-400/30">
-                  <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                  {% trans 'RSVP to reveal' %}
-                </span>
+                <span class="kb-tag kb-tag-accent normal-case">{% trans 'RSVP to reveal' %}</span>
               </span>
             {% else %}
               {{ event.venue.name }}
@@ -100,7 +97,7 @@
 
     {% if user.is_authenticated %}
       <div class="mt-5 border-t border-white/5 pt-4">
-        <p class="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-base-content/45">{% trans "Your status" %}</p>
+        <p class="kb-mono mb-2 text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Your status" %}</p>
         {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
       </div>
     {% endif %}
@@ -115,7 +112,7 @@
   {# Footer — primary CTA + external link. #}
   <div class="flex flex-shrink-0 items-center gap-2 border-t border-white/5 bg-base-100/60 px-5 py-3 backdrop-blur">
     <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}"
-       class="kb-mono inline-flex flex-1 items-center justify-center gap-1.5 border border-base-content bg-base-content px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-base-100 transition hover:bg-fuchsia-300 hover:border-fuchsia-300 focus-visible:outline-none focus-visible:border-fuchsia-300">
+       class="kb-btn flex-1">
       {% trans "View full event" %}
       <span aria-hidden="true">→</span>
     </a>

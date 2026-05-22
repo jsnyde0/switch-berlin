@@ -117,7 +117,7 @@
 
         <div class="kb-rule mb-6"></div>
 
-        <dl class="kb-mono grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-[11px] uppercase tracking-[0.18em]">
+        <c-kb.colophon density="loose" size="regular" nomargin="true">
           <dt class="text-base-content/40">{% trans "Date" %}</dt>
           <dd class="text-base-content/85">{{ event.start|date:"l, d M Y" }}</dd>
 
@@ -148,7 +148,7 @@
               <span class="text-base-content/55">{% trans "See organizer page" %}</span>
             {% endif %}
           </dd>
-        </dl>
+        </c-kb.colophon>
       </aside>
     </div>
 

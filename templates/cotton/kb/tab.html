@@ -1,0 +1,21 @@
+{% comment %}
+  Editorial sort tab — mono caps underline tab. Active gets fuchsia
+  hairline + ink-white text; inactive gets ink-faint text + transparent
+  underline that lifts to ink-30% on hover.
+
+  Used in cross-cutting "Sort —" rails (events list, organizer profile
+  events, organizer profile reviews). The eyebrow "Sort —" / "Filter —"
+  label is the caller's responsibility — this primitive renders one tab
+  in the row.
+
+  Attributes:
+    href     — href for the underlying <a>
+    active   — truthy when this tab is the current selection
+    label    — slot also accepted; if `label` is set we use it
+{% endcomment %}
+<a href="{{ href }}"
+   role="tab"
+   aria-selected="{% if active %}true{% else %}false{% endif %}"
+   class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if active %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">
+  {% if label %}{{ label }}{% else %}{{ slot }}{% endif %}
+</a>

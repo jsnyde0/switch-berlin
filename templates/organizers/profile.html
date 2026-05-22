@@ -101,18 +101,15 @@
       {% if EVENT_REVIEWS_DISPLAYED %}
         <div class="flex items-center gap-5 mb-6" role="tablist">
           <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Sort —" %}</span>
-          <a href="?event_sort=date{% if sort %}&sort={{ sort }}{% endif %}"
-             role="tab"
-             aria-selected="{% if event_sort == 'date' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if event_sort == 'date' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Latest" %}</a>
-          <a href="?event_sort=lowest_rated{% if sort %}&sort={{ sort }}{% endif %}"
-             role="tab"
-             aria-selected="{% if event_sort == 'lowest_rated' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if event_sort == 'lowest_rated' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Lowest rated" %}</a>
-          <a href="?event_sort=most_reviewed{% if sort %}&sort={{ sort }}{% endif %}"
-             role="tab"
-             aria-selected="{% if event_sort == 'most_reviewed' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if event_sort == 'most_reviewed' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Most reviewed" %}</a>
+          <c-kb.tab href="?event_sort=date{% if sort %}&sort={{ sort }}{% endif %}"
+                    :active="event_sort == 'date'"
+                    label="{% trans 'Latest' %}" />
+          <c-kb.tab href="?event_sort=lowest_rated{% if sort %}&sort={{ sort }}{% endif %}"
+                    :active="event_sort == 'lowest_rated'"
+                    label="{% trans 'Lowest rated' %}" />
+          <c-kb.tab href="?event_sort=most_reviewed{% if sort %}&sort={{ sort }}{% endif %}"
+                    :active="event_sort == 'most_reviewed'"
+                    label="{% trans 'Most reviewed' %}" />
         </div>
       {% endif %}
       {% if upcoming_events %}
@@ -142,18 +139,15 @@
         accent="/ 5"
         aside="{{ rating_count }} {% trans 'reviews' %}">
         <div class="flex gap-5 mb-6" role="tablist">
-          <a href="?sort=recent{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
-             role="tab"
-             aria-selected="{% if sort == 'recent' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort == 'recent' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Recent" %}</a>
-          <a href="?sort=highest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
-             role="tab"
-             aria-selected="{% if sort == 'highest' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort == 'highest' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Highest" %}</a>
-          <a href="?sort=lowest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
-             role="tab"
-             aria-selected="{% if sort == 'lowest' %}true{% else %}false{% endif %}"
-             class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if sort == 'lowest' %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">{% trans "Lowest" %}</a>
+          <c-kb.tab href="?sort=recent{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
+                    :active="sort == 'recent'"
+                    label="{% trans 'Recent' %}" />
+          <c-kb.tab href="?sort=highest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
+                    :active="sort == 'highest'"
+                    label="{% trans 'Highest' %}" />
+          <c-kb.tab href="?sort=lowest{% if event_sort %}&event_sort={{ event_sort }}{% endif %}"
+                    :active="sort == 'lowest'"
+                    label="{% trans 'Lowest' %}" />
         </div>
         <div class="flex flex-col">
           {% for review in reviews %}

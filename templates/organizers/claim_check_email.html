@@ -13,12 +13,12 @@
         <strong class="text-base-content">{{ name }}</strong>. Open it from the same browser to continue.
       {% endblocktrans %}
     </p>
-    <dl class="kb-mono mt-10 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[10px] uppercase tracking-[0.18em]">
+    <c-kb.colophon margin="mt-10">
       <dt class="text-base-content/40">{% trans "Link expires" %}</dt>
       <dd class="text-base-content/80">{% trans "24 hours" %}</dd>
       <dt class="text-base-content/40">{% trans "Missing it?" %}</dt>
       <dd class="text-base-content/80">{% trans "Check spam folder" %}</dd>
-    </dl>
+    </c-kb.colophon>
     <a href="{% url 'organizer-profile' slug=organizer.slug %}"
        class="kb-btn-secondary mt-10">
       ← {% trans "Back to profile" %}

@@ -1,0 +1,25 @@
+{% comment %}
+  Editorial colophon — mono-caps key/value index. The recurring `<dl>`
+  pattern that lives under hero blocks (events index brief), success
+  screens (password reset done, claim email sent), and event detail
+  sidebars. Single grid template; gap variants for tighter / looser
+  density.
+
+  Caller supplies the dt/dd pairs in the slot. Indentation kept
+  meaningful so callers read like:
+
+      <c-kb.colophon>
+        <dt class="text-base-content/40">Curation</dt>
+        <dd class="text-base-content/85">By hand</dd>
+      </c-kb.colophon>
+
+  Attributes:
+    density  — "tight" (default, gap-y-2) | "loose" (gap-y-3)
+    size     — "small" (default, 10px) | "regular" (11px)
+    margin   — Tailwind margin override (e.g. "mt-8"); default "mt-4"
+    nomargin — truthy to drop the top margin entirely (when the parent
+               already supplies vertical rhythm)
+{% endcomment %}
+<dl class="kb-mono {% if nomargin %}{% elif margin %}{{ margin }} {% else %}mt-4 {% endif %}grid grid-cols-[auto_1fr] gap-x-6 {% if density == 'loose' %}gap-y-3{% else %}gap-y-2{% endif %} {% if size == 'regular' %}text-[11px]{% else %}text-[10px]{% endif %} uppercase tracking-[0.18em]">
+  {{ slot }}
+</dl>

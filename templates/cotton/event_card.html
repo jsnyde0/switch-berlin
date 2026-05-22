@@ -51,7 +51,7 @@
           {% trans "Free" %}
         </span>
       {% elif event.price_min_cents %}
-        <span class="kb-mono inline-flex items-center text-[10px] uppercase tracking-[0.14em] text-base-content/55">
+        <span class="kb-mono inline-flex items-center text-[10px] uppercase tracking-[0.16em] text-base-content/55">
           {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
         </span>
       {% endif %}

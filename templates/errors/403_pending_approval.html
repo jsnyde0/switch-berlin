@@ -15,12 +15,12 @@
     <p class="text-[15px] leading-[1.65] text-base-content/75">
       {% trans "Your account is pending approval. We review new requests by hand. You will receive an email when the account is opened." %}
     </p>
-    <dl class="kb-mono mt-8 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[10px] uppercase tracking-[0.18em]">
+    <c-kb.colophon margin="mt-8">
       <dt class="text-base-content/40">{% trans "Curation" %}</dt>
       <dd class="text-base-content/80">{% trans "By hand" %}</dd>
       <dt class="text-base-content/40">{% trans "Typical wait" %}</dt>
       <dd class="text-base-content/80">{% trans "Within 72 hours" %}</dd>
-    </dl>
+    </c-kb.colophon>
     <div class="mt-10 flex items-center gap-4">
       <a href="{% url 'account_logout' %}" class="kb-btn-secondary">
         {% trans "Log out" %}
