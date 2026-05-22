@@ -103,7 +103,11 @@ class Command(BaseCommand):
                     },
                 )
                 if was_created:
-                    event.organizers.add(organizer)
+                    # Use the .organizer setter (compat property) so the
+                    # EventOrganizer row gets is_primary=True. Templates render
+                    # event.organizer.slug for the detail URL; a non-primary
+                    # link leaves organizer=None and 500s the events list.
+                    event.organizer = organizer
                     created += 1
                     self.stdout.write(self.style.SUCCESS(f"  + {visibility}: {title}"))
                 else:

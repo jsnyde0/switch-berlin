@@ -81,6 +81,9 @@ jobs:
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
+          DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
+          DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
         run: |
           umask 077
           # Derive POSTGRES_PASSWORD from DATABASE_URL so one secret rotation
@@ -121,6 +124,9 @@ jobs:
             printf 'FIRECRAWL_API_KEY=%s\n' "$FIRECRAWL_API_KEY"
             printf 'TURNSTILE_SITE_KEY=%s\n' "$TURNSTILE_SITE_KEY"
             printf 'TURNSTILE_SECRET_KEY=%s\n' "$TURNSTILE_SECRET_KEY"
+            printf 'DJANGO_SUPERUSER_USERNAME=%s\n' "$DJANGO_SUPERUSER_USERNAME"
+            printf 'DJANGO_SUPERUSER_EMAIL=%s\n' "$DJANGO_SUPERUSER_EMAIL"
+            printf 'DJANGO_SUPERUSER_PASSWORD=%s\n' "$DJANGO_SUPERUSER_PASSWORD"
           } > "$tmpfile"
           ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'sudo install -m 0600 -o switch -g switch /dev/stdin /opt/switch-berlin/app/.env' < "$tmpfile"
           rm -f "$tmpfile"
