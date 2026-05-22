@@ -220,6 +220,12 @@ jobs:
             docker stop $ORPHANS || true
             docker rm -f $ORPHANS || true
           fi
+          # kb-bsp: belt-and-braces — kill any leftover process holding :8000
+          # (e.g. a hand-started gunicorn from a debug session, or a docker
+          # restart loop container that ss didn't catch in the diagnostic
+          # window). fuser -k sends SIGKILL; safe because nothing legitimate
+          # should be on :8000 at this point in the deploy.
+          sudo fuser -k 8000/tcp || true
           $COMPOSE up -d --remove-orphans --force-recreate
           for i in $(seq 1 30); do
             if $COMPOSE exec -T app true 2>/dev/null; then
