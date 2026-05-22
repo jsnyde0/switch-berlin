@@ -201,6 +201,12 @@ jobs:
           set -euxo pipefail
           cd /opt/switch-berlin/app
           COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+          # kb-bsp: explicit stop+rm of the app container before recreate to
+          # avoid "port 8000 already in use" when a prior failed deploy left a
+          # stale app-app-1 holding 127.0.0.1:8000. --force-recreate alone has
+          # raced the port reclaim. db is left running (data + healthcheck).
+          $COMPOSE stop app || true
+          $COMPOSE rm -f app || true
           $COMPOSE up -d --remove-orphans --force-recreate
           for i in $(seq 1 30); do
             if $COMPOSE exec -T app true 2>/dev/null; then
