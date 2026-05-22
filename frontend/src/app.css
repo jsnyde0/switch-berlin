@@ -8,6 +8,86 @@
 @source "../../**/templates/**/*.html";
 @source "./**/*.{ts,tsx}";
 
+/* --- /events editorial type system ---
+   The /events surface uses a 3-axis type palette:
+   - kb-display : Fraunces serif (variable opsz + wght). Used for h1, event titles,
+     section openers. Italic + light wght reads editorial-zine, not luxury-cream.
+   - kb-mono    : JetBrains Mono. Used for eyebrows, metadata, day numerals.
+     Carries the timetable / venue-sign register.
+   - body       : system sans (daisyui default). Untouched.
+*/
+.kb-display {
+  font-family: "Fraunces", ui-serif, Georgia, serif;
+  font-feature-settings: "ss01", "ss02";
+  font-variation-settings: "opsz" 96, "SOFT" 50, "WONK" 0;
+  letter-spacing: -0.02em;
+}
+.kb-display-italic {
+  font-family: "Fraunces", ui-serif, Georgia, serif;
+  font-style: italic;
+  font-feature-settings: "ss01";
+  font-variation-settings: "opsz" 96, "SOFT" 70, "WONK" 1;
+}
+.kb-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  font-feature-settings: "ss02", "cv11";
+}
+
+/* --- Hairline rules ---
+   Editorial dividers — full-width 1px with a subtle warm tint. Pairs with mono eyebrows. */
+.kb-rule {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.16) 12%, rgba(255, 255, 255, 0.16) 88%, transparent);
+}
+
+/* --- Marquee for the running headline ---
+   Slow continuous scroll of upcoming-week markers in the hero. Pauses on hover.
+   Honors prefers-reduced-motion. */
+@keyframes kb-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.kb-marquee {
+  display: inline-flex;
+  animation: kb-marquee 60s linear infinite;
+  will-change: transform;
+}
+.kb-marquee-wrap:hover .kb-marquee {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kb-marquee { animation: none; }
+}
+
+/* --- /events drawer slide-in --- */
+/* The drawer is HTMX-swapped into #drawer on event select. The `kb-drawer-enter`
+   class on the swapped <aside> plays a one-shot slide+fade so the panel feels
+   anchored to the map rather than appearing instantly. ease-out-quart curve
+   per the studio-bar motion rule (no bounce, no elastic). */
+@keyframes kb-drawer-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+.kb-drawer-enter {
+  animation: kb-drawer-enter 240ms cubic-bezier(0.165, 0.84, 0.44, 1) both;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kb-drawer-enter {
+    animation: none;
+  }
+}
+
+/* Card title underline used in event_card.html — kept tighter and ink-warm */
+.kb-card-title-rule { background: rgba(248, 113, 196, 0.6); }
+
+
 /* --- /events drawer slide-in --- */
 /* The drawer is HTMX-swapped into #drawer on event select. The `kb-drawer-enter`
    class on the swapped <aside> plays a one-shot slide+fade so the panel feels

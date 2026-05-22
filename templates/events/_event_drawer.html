@@ -1,62 +1,55 @@
 {% load i18n event_tags %}
 {% with hue_a=event.slug|slug_hue hue_b=event.slug|slug_hue_b %}
 <aside
-  class="kb-drawer-enter pointer-events-auto flex h-full flex-col overflow-hidden rounded-2xl bg-base-100/85 ring-1 ring-white/10 backdrop-blur-xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)]"
+  class="kb-drawer-enter pointer-events-auto flex h-full flex-col overflow-hidden rounded-md bg-base-100/95 ring-1 ring-white/10 backdrop-blur-xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)]"
   role="dialog"
   aria-labelledby="drawer-event-title">
 
-  {# Banner — matches card aesthetic, slightly taller for hierarchy. #}
-  <div class="relative h-28 flex-shrink-0 overflow-hidden"
-       style="background:
-         radial-gradient(120% 140% at 0% 0%, hsl({{ hue_a }} 75% 55% / 0.6), transparent 55%),
-         radial-gradient(120% 140% at 100% 100%, hsl({{ hue_b }} 80% 50% / 0.6), transparent 55%),
-         linear-gradient(135deg, hsl({{ hue_a }} 38% 16%), hsl({{ hue_b }} 38% 14%));">
-    <div class="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-overlay"
-         style="background-image: radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px); background-size: 3px 3px;"></div>
-
-    {# Date badge — anchored left, parity with card. #}
-    <div class="absolute left-4 top-4 flex items-center gap-3">
-      <div class="flex h-14 w-14 flex-col items-center justify-center rounded-xl bg-base-100/85 backdrop-blur ring-1 ring-white/10 shadow-lg">
-        <span class="text-[10px] font-semibold uppercase tracking-widest text-base-content/60 leading-none">
-          {{ event.start|date:"M" }}
+  {% comment %}
+    Editorial header — no gradient surface. Hue lives on the day numeral only.
+    Mono kicker reads zine, not modal.
+  {% endcomment %}
+  <div class="relative flex-shrink-0 border-b border-white/10 px-5 pt-5 pb-4">
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">
+        {% trans "Preview" %} <span class="text-base-content/25">·</span> {{ event.start|date:"D, d M" }}
+      </p>
+      <button type="button"
+              class="inline-flex h-7 w-7 items-center justify-center border border-white/10 text-base-content/65 transition hover:bg-base-200 hover:text-base-content hover:border-base-content/30 focus-visible:outline-none focus-visible:border-fuchsia-300"
+              aria-label="{% trans 'Close preview' %}"
+              onclick="Alpine.store('map').selectEvent(null); document.getElementById('drawer').innerHTML=''">
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="flex items-baseline gap-3">
+      <span class="kb-display text-[56px] leading-[0.85] font-light"
+            style="color: hsl({{ hue_a }} 75% 78%);">
+        {{ event.start|date:"j" }}
+      </span>
+      <div class="flex flex-col gap-0.5 pb-1">
+        <span class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">
+          {{ event.start|date:"M Y" }}
         </span>
-        <span class="text-2xl font-bold leading-none text-base-content mt-0.5">
-          {{ event.start|date:"j" }}
-        </span>
-      </div>
-      <div class="flex flex-col">
-        <span class="text-[11px] font-medium uppercase tracking-wider text-white/75 leading-none">
-          {{ event.start|date:"l" }}
-        </span>
-        <span class="text-[12px] text-white/65 leading-none mt-1.5">
-          {{ event.start|date:"H:i" }}
-          {% if event.end %}<span class="text-white/40 mx-1">→</span>{{ event.end|date:"H:i" }}{% endif %}
+        <span class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/80">
+          {{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
         </span>
       </div>
     </div>
-
-    {# Close — top right, clear affordance. #}
-    <button type="button"
-            class="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-base-100/70 text-base-content/75 ring-1 ring-white/10 backdrop-blur transition hover:bg-base-100/90 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/60"
-            aria-label="{% trans 'Close preview' %}"
-            onclick="Alpine.store('map').selectEvent(null); document.getElementById('drawer').innerHTML=''">
-      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M18 6 6 18M6 6l12 12"/>
-      </svg>
-    </button>
   </div>
 
   {# Scrollable body. #}
   <div class="flex-1 overflow-y-auto px-5 py-4">
-    <h2 id="drawer-event-title" class="text-lg font-semibold leading-snug tracking-tight text-base-content">
+    <h2 id="drawer-event-title" class="kb-display text-[26px] font-normal leading-[1.08] tracking-tight text-base-content">
       {{ event.title }}
     </h2>
 
     {% if event.organizer %}
       <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
-         class="mt-2 inline-flex items-center gap-2 text-xs text-base-content/70 transition-colors hover:text-base-content">
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold uppercase text-white"
-              style="background: linear-gradient(135deg, hsl({{ hue_a }} 70% 55%), hsl({{ hue_b }} 70% 45%));">
+         class="kb-mono mt-3 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-base-content/65 transition-colors hover:text-base-content">
+        <span class="inline-flex h-4 w-4 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
+              style="background: hsl({{ hue_a }} 60% 70%);">
           {{ event.organizer.name|first }}
         </span>
         <span class="truncate">{{ event.organizer.name }}</span>
@@ -122,13 +115,13 @@
   {# Footer — primary CTA + external link. #}
   <div class="flex flex-shrink-0 items-center gap-2 border-t border-white/5 bg-base-100/60 px-5 py-3 backdrop-blur">
     <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}"
-       class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-fuchsia-500/20 ring-1 ring-white/10 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300">
+       class="kb-mono inline-flex flex-1 items-center justify-center gap-1.5 border border-base-content bg-base-content px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-base-100 transition hover:bg-fuchsia-300 hover:border-fuchsia-300 focus-visible:outline-none focus-visible:border-fuchsia-300">
       {% trans "View full event" %}
-      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+      <span aria-hidden="true">→</span>
     </a>
     {% if event.external_url %}
       <a href="{{ event.external_url }}" target="_blank" rel="noopener"
-         class="inline-flex items-center justify-center gap-1.5 rounded-full bg-base-200/70 px-3.5 py-2 text-xs font-medium text-base-content/85 ring-1 ring-white/10 transition hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/40"
+         class="inline-flex items-center justify-center gap-1.5 border border-white/15 px-3 py-2.5 text-base-content/75 transition hover:text-base-content hover:border-base-content/40 focus-visible:outline-none focus-visible:border-fuchsia-300"
          aria-label="{% trans 'Open organizer site in new tab' %}">
         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
       </a>

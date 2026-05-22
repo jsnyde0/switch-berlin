@@ -14,6 +14,13 @@
       {% endblock title %}
     </title>
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+
+    {# Display + mono faces. Fraunces is a variable serif with optical sizes — used at large sizes only for editorial register; body stays on system sans. JetBrains Mono carries metadata + section eyebrows (timetable / venue-sign feel). #}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..800,0..100,0..1&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
     {% vite_hmr_client %}
     <link rel="stylesheet" href="{% vite_asset_url 'src/app.css' %}">
 

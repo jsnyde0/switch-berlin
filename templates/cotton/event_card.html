@@ -1,118 +1,108 @@
 {% load i18n event_tags %}
 {% with hue_a=event.slug|slug_hue hue_b=event.slug|slug_hue_b %}
+{% comment %}
+  Editorial listing card.
+  Old: gradient-mesh banner + floating date chip + body — read as SaaS event tile.
+  New: left date column (serif day numeral over mono month) + right content stack.
+  No gradient banner. Single hairline rule top + bottom. Hover tints the row
+  background and the day numeral. Title is set in display serif.
+{% endcomment %}
 <article
-  class="group/inner relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-base-200/60 backdrop-blur-sm shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_8px_24px_-12px_rgba(0,0,0,0.45)] transition-all duration-300 group-hover/card:-translate-y-0.5 group-hover/card:border-white/10 group-hover/card:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_18px_40px_-16px_rgba(0,0,0,0.6)]"
+  class="kb-card group/inner relative flex h-full overflow-hidden border-t border-b border-white/8 bg-transparent transition-all duration-300 group-hover/card:bg-base-200/30 group-hover/card:border-white/15"
 >
-  {# Decorative gradient banner — seeded per-event so the grid feels alive. #}
-  <div class="relative h-24 overflow-hidden"
-       style="background:
-         radial-gradient(120% 140% at 0% 0%, hsl({{ hue_a }} 75% 55% / 0.55), transparent 55%),
-         radial-gradient(120% 140% at 100% 100%, hsl({{ hue_b }} 80% 50% / 0.55), transparent 55%),
-         linear-gradient(135deg, hsl({{ hue_a }} 35% 14%), hsl({{ hue_b }} 35% 12%));">
-    {# Subtle grain via radial mask. #}
-    <div class="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-overlay"
-         style="background-image: radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px); background-size: 3px 3px;"></div>
-
-    {# Date badge — large day number + month — sits over the banner. #}
-    <div class="absolute left-4 top-4 flex items-center gap-2">
-      <div class="flex h-14 w-14 flex-col items-center justify-center rounded-xl bg-base-100/85 backdrop-blur ring-1 ring-white/10 shadow-lg">
-        <span class="text-[10px] font-semibold uppercase tracking-widest text-base-content/60 leading-none">
-          {{ event.start|date:"M" }}
-        </span>
-        <span class="text-2xl font-bold leading-none text-base-content mt-0.5">
-          {{ event.start|date:"j" }}
-        </span>
-      </div>
-      <div class="hidden sm:flex flex-col">
-        <span class="text-[11px] font-medium uppercase tracking-wider text-white/70 leading-none">
-          {{ event.start|date:"D" }}
-        </span>
-        <span class="text-[11px] text-white/55 leading-none mt-1">
-          {{ event.start|date:"H:i" }}
-        </span>
-      </div>
+  {% comment %}
+    Date column — left, fixed width, editorial weight. Hue derives from slug so the
+    grid feels varied without a gradient banner doing the work.
+  {% endcomment %}
+  <div class="relative flex w-[110px] sm:w-[128px] flex-shrink-0 flex-col items-start justify-between border-r border-white/8 px-4 py-5 group-hover/card:border-white/15">
+    <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">
+      {{ event.start|date:"D" }}
     </div>
+    <div class="flex items-baseline gap-1.5 my-3">
+      <span class="kb-display text-[68px] sm:text-[80px] leading-[0.85] font-light text-base-content transition-colors duration-300"
+            style="color: hsl({{ hue_a }} 75% 78%);">
+        {{ event.start|date:"j" }}
+      </span>
+    </div>
+    <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">
+      {{ event.start|date:"M Y" }}
+    </div>
+  </div>
 
-    {# Top-right price/free pill. #}
-    <div class="absolute right-3 top-3 flex items-center gap-1.5">
+  {# Body — right column. #}
+  <div class="relative flex flex-1 flex-col gap-2 px-5 py-5 min-w-0">
+    {# Top meta line — organizer + price/free, balanced. #}
+    <div class="flex items-center justify-between gap-3 mb-1">
+      {% if event.organizer %}
+        <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
+           class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors w-fit min-w-0">
+          <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
+                style="background: hsl({{ hue_a }} 60% 70%);">
+            {{ event.organizer.name|first }}
+          </span>
+          <span class="truncate max-w-[180px]">{{ event.organizer.name }}</span>
+        </a>
+      {% else %}
+        <span></span>
+      {% endif %}
+
       {% if event.is_free %}
-        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-400/30 backdrop-blur">
-          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12V8H6a2 2 0 1 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+        <span class="kb-mono inline-flex items-center gap-1 border border-emerald-400/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
           {% trans "Free" %}
         </span>
       {% elif event.price_min_cents %}
-        <span class="inline-flex items-center rounded-full bg-base-100/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-base-content/80 ring-1 ring-white/10 backdrop-blur">
+        <span class="kb-mono inline-flex items-center text-[10px] uppercase tracking-[0.14em] text-base-content/55">
           {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
         </span>
       {% endif %}
     </div>
-  </div>
 
-  {# Card body. #}
-  <div class="relative flex flex-1 flex-col gap-3 p-5">
-    {# Preview affordance — appears on card hover (not title hover), bottom-right corner. #}
-    <span class="pointer-events-none absolute bottom-3 right-4 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-fuchsia-300/0 transition-all duration-200 group-hover/card:text-fuchsia-300/80">
-      {% trans "Preview" %}
-      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-    </span>
-    <h2 class="text-base font-semibold leading-snug tracking-tight line-clamp-2 pr-2">
+    {# Title — display serif, larger, the visual anchor. #}
+    <h2 class="kb-display text-[22px] sm:text-[26px] leading-[1.08] font-normal tracking-tight text-base-content line-clamp-2 pr-6">
       <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}"
          class="relative inline transition-colors duration-200 hover:text-fuchsia-200 focus-visible:outline-none focus-visible:text-fuchsia-200 [&:hover>span.kb-card-title-rule]:scale-x-100">
         <span>{{ event.title }}</span>
-        <span class="kb-card-title-rule pointer-events-none absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 bg-fuchsia-300/70 transition-transform duration-300 ease-out" aria-hidden="true"></span>
+        <span class="kb-card-title-rule pointer-events-none absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 transition-transform duration-300 ease-out" aria-hidden="true"></span>
       </a>
     </h2>
 
-    {% if event.organizer %}
-      <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
-         class="inline-flex items-center gap-2 text-xs text-base-content/70 transition-colors hover:text-base-content w-fit">
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold uppercase text-white"
-              style="background: linear-gradient(135deg, hsl({{ hue_a }} 70% 55%), hsl({{ hue_b }} 70% 45%));">
-          {{ event.organizer.name|first }}
+    {# Lower meta — time + venue, hairline-divided. Mono throughout for index feel. #}
+    <div class="mt-auto pt-3 border-t border-white/5 flex flex-wrap items-center gap-x-4 gap-y-1 kb-mono text-[10px] uppercase tracking-[0.16em] text-base-content/55">
+      <span class="inline-flex items-center gap-1.5">
+        <span class="text-base-content/35">{% trans "Time" %}</span>
+        <span class="text-base-content/80">
+          {{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
         </span>
-        <span class="truncate max-w-[200px]">{{ event.organizer.name }}</span>
-      </a>
-    {% endif %}
-
-    <div class="mt-auto flex flex-col gap-1.5 pt-1 text-xs text-base-content/65">
-      {# Time row — date is in the badge; on mobile the badge has no day/time column so include the weekday + time here. On sm+ the badge carries those and we just show time + optional duration. #}
-      <div class="flex items-center gap-2">
-        <svg class="h-3.5 w-3.5 flex-shrink-0 text-base-content/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-        </svg>
-        <span>
-          <span class="sr-only">{{ event.start|date:"l, d F Y, " }}</span>
-          <span class="sm:hidden">{{ event.start|date:"D, H:i" }}</span>
-          <span class="hidden sm:inline">{{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/35">→</span> {{ event.end|date:"H:i" }}{% endif %}</span>
-        </span>
-      </div>
+      </span>
 
       {% if event.venue %}
-        <div class="flex items-center gap-2">
-          <svg class="h-3.5 w-3.5 flex-shrink-0 text-base-content/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-          <span class="truncate">
+        <span class="inline-flex items-center gap-1.5 min-w-0">
+          <span class="text-base-content/35">{% trans "Venue" %}</span>
+          <span class="text-base-content/80 truncate max-w-[180px]">
             {% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}
               {% trans 'Private venue' %}
             {% else %}
               {{ event.venue.name }}
             {% endif %}
           </span>
-        </div>
+        </span>
+      {% endif %}
+
+      {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
+        <span class="inline-flex items-center gap-1 text-amber-300/85">
+          <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+          <span>{{ event.avg_rating|floatformat:1 }} · {{ event.rating_count }}</span>
+        </span>
       {% endif %}
     </div>
 
-    {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
-      <div class="flex items-center gap-1.5 text-xs text-amber-300/90">
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-        <span class="font-medium">{{ event.avg_rating|floatformat:1 }}</span>
-        <span class="text-base-content/40">·</span>
-        <span class="text-base-content/50">{{ event.rating_count }} {% trans "reviews" %}</span>
-      </div>
-    {% endif %}
+    {# Preview affordance — appears on card hover bottom-right of the body. #}
+    <span class="pointer-events-none absolute bottom-3 right-4 kb-mono text-[9px] uppercase tracking-[0.22em] text-fuchsia-300/0 transition-all duration-200 group-hover/card:text-fuchsia-300/85">
+      {% trans "Preview" %} ↗
+    </span>
   </div>
 </article>
 {% endwith %}
+
