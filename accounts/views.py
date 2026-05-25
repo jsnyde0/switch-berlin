@@ -34,7 +34,13 @@ class RateLimitedSignupView(SignupView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["turnstile_site_key"] = getattr(settings, "TURNSTILE_SITE_KEY", "")
+        # Suppress Turnstile in DEBUG (dev/localhost): the prod site key won't
+        # validate against a localhost origin, so loading the widget renders
+        # Cloudflare's "Unable to connect to website" error frame inline. In
+        # prod (DEBUG=False) the configured key is used as normal.
+        ctx["turnstile_site_key"] = (
+            "" if settings.DEBUG else getattr(settings, "TURNSTILE_SITE_KEY", "")
+        )
         return ctx
 
 

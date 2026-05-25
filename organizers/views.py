@@ -267,6 +267,16 @@ def claim_entry(request, slug):
 
     from django.conf import settings as django_settings
 
+    # Suppress Turnstile in DEBUG (dev/localhost): the prod site key won't
+    # validate against a localhost origin, so loading the widget renders
+    # Cloudflare's "Unable to connect to website" error frame inline. In
+    # prod (DEBUG=False) the configured key is used as normal.
+    turnstile_site_key = (
+        ""
+        if django_settings.DEBUG
+        else getattr(django_settings, "TURNSTILE_SITE_KEY", "")
+    )
+
     return render(
         request,
         "organizers/claim_start.html",
@@ -274,7 +284,7 @@ def claim_entry(request, slug):
             "organizer": profile,
             "form": form,
             "already_claimant": False,
-            "turnstile_site_key": getattr(django_settings, "TURNSTILE_SITE_KEY", ""),
+            "turnstile_site_key": turnstile_site_key,
         },
     )
 
