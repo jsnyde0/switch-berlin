@@ -192,3 +192,7 @@ static/dist/
 .worktrees/
 
 tmp/
+
+# Local agent / tooling artifacts (machine-specific, not portable)
+.claude/scheduled_tasks.lock
+.rip-cage.yaml
