@@ -128,7 +128,7 @@ class MeViewFollowedOrganizersTest(TestCase):
         """No follows → empty state text shown."""
         response = self.client.get("/me/")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "not following anyone")
+        self.assertContains(response, "Not following anyone yet")
 
     def test_followed_organizer_appears(self):
         """After following an organizer, its name appears on /me/."""
