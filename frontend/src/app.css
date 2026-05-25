@@ -50,6 +50,13 @@
   --kb-track-meta:    0.16em;
 }
 
+/* All kb-* primitives below live in @layer components so Tailwind utilities
+   composed on the same element (e.g., `<a class="kb-link ml-2">`) reliably
+   win the cascade without `!important` gymnastics. Tokens (:root above) and
+   @keyframes (kb-marquee, kb-drawer-enter — defined at the file end) stay
+   at global scope because @layer doesn't accept at-rules of those kinds. */
+@layer components {
+
 /* ── Type primitives ──────────────────────────────────────────────── */
 .kb-display {
   font-family: "Fraunces", ui-serif, Georgia, serif;
@@ -631,3 +638,5 @@
   border-top-color:    var(--kb-accent-hair);
   border-bottom-color: var(--kb-accent-hair);
 }
+
+} /* end @layer components */
