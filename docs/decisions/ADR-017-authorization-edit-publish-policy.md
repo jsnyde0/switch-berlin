@@ -20,6 +20,8 @@ The C3/C5 authoring-UX brainstorm (2026-05-26) converged the policy; this ADR is
 
 A principal may edit/publish an Event — and its Posts and PlatformProjections — iff the principal is a **claimant (via `ProfileClaim`) of a Profile that is an `EventOrganizer` of that Event**, OR is a **paired agent of such a claimant** (the agent inherits its principal's organizer authority per ADR-016 D3). `EventFacilitator`s are **credited-only**: listed and rendered, but not authorized to edit. Authority thus derives from *which through-table you are in* (organizer = controller; facilitator = credit) — no new permission field is introduced at v0. v0 single-facilitator is the trivial case (one organizer Profile, one claimant) and ships correctly under this rule.
 
+**Deferred mechanism — how a `can_edit` call resolves an authenticated *agent* to its claimant's authority.** D1 asserts a paired agent inherits its principal's organizer authority, but the binding (which `ProfileClaim` an authenticated agent maps to) is not yet specified — it depends on the `agents/register` data model (ADR-016 D3), which is itself a v0 deliverable not yet designed. Working assumption: agent registration (ADR-016 D3's browser-mediated one-time flow) binds the issued Bearer credential to the **registering user's identity**, and `can_edit` resolves the agent to that user's `ProfileClaim` set — i.e. the agent presents *as* its owning claimant for authz purposes, holding no independent authority scope. The concrete binding (a column on the agent-credential record, or a join) is settled when `agents/register` is built; until then this is a flagged open question, not a closed decision. Resolution path: the C2/C8 API-skeleton + agent-registration beads.
+
 **Rationale:**
 
 - `external:` C3/C5 brainstorm 2026-05-26 — user chose model (a): *"organizers (and their agents) edit; facilitators are credited-only; rights derive from the table you're in, no new field."*
@@ -39,11 +41,11 @@ A principal may edit/publish an Event — and its Posts and PlatformProjections 
 - Multi-facilitator dogfooding surfaces that being-listed-as-organizer should NOT automatically grant edit — organizers want to add a co-organizer for credit/visibility but gate edit behind an explicit trust step. Substantive observation; introduce a grant step (likely via the D3 role seam) without abandoning the table-derived default.
 - A real workflow needs a specific `EventFacilitator` (e.g. a co-running host filed as facilitator) to hold edit rights. Operational signal; either refile them as an organizer or revisit the facilitator-credited-only rule.
 
-### D2: All edit/publish authorization routes through a single predicate (the authorization chokepoint)
+### D2: All edit/publish authorization routes through a single authorization seam (the chokepoint)
 
-**Firmness: FLEXIBLE** — same convergence. Reversible only in the sense that the predicate's internal logic evolves; the single-chokepoint shape is the cheap-foresight commitment.
+**Firmness: FLEXIBLE** — same convergence. Reversible only in the sense that the seam's internal logic evolves; the single-chokepoint shape is the cheap-foresight commitment.
 
-Every authorization check — web edit views, the Django Ninja API handlers, the switch-cli verbs, the adapter publish paths, the agent path — routes through **one predicate**, e.g. `can_edit(user, event)` (and its publish sibling), rather than scattering `is_primary`/claimant checks across call sites. At v0 the predicate implements D1 (claimant of an organizer Profile; facilitators excluded; the `ProfileClaim.role` check is trivially satisfied since all claimants are `admin`). When team management arrives (D3), the role logic enriches **this one function** and every call site inherits it.
+Every authorization check — web edit views, the Django Ninja API handlers, the switch-cli verbs, the adapter publish paths, the agent path — routes through **one authorization seam** (a single module), rather than scattering `is_primary`/claimant checks across call sites. The seam exposes the small set of write-authority questions the surfaces actually ask: `can_edit(user, event)` and its publish sibling `can_publish(user, event)`. "Single" refers to the **seam**, not literally one function — edit and publish are sibling predicates that **share the same v0 derivation** (claimant-of-an-`EventOrganizer`-Profile per D1); they are co-located so the future role logic enriches one place. At v0 both implement D1 identically (claimant of an organizer Profile; facilitators excluded; the `ProfileClaim.role` check is trivially satisfied since all claimants are `admin`). When team management arrives (D3) — or when edit and publish authority legitimately diverge (the invalidation case below) — the role logic enriches **this one seam** and every call site inherits it.
 
 **Rationale:**
 
@@ -69,7 +71,7 @@ Every authorization check — web edit views, the Django Ninja API handlers, the
 
 - **add a user to a team** = grant a `ProfileClaim` (the existing claim flow, ADR-014).
 - **remove a user** = revoke the claim.
-- **assign roles / permissions** = widen the existing `ProfileClaim.role` enum (`admin` → `owner` / `editor` / `viewer` / …) and enrich the D2 predicate.
+- **assign roles / permissions** = widen the existing `ProfileClaim.role` enum and enrich the D2 predicate. **The role vocabulary is ADR-014's to set, not this ADR's** — ADR-014 D1 already reserves `role` with cheap-foresight values `contributor` (reduced edit rights) and `former` (archived claim) beyond the v0 `admin`. ADR-017 does not introduce a competing vocabulary; whatever values team-management needs are added to ADR-014's reservation in place, and the D2 seam maps them to edit/publish authority. (The point of D3 is *where the seam lives* — `ProfileClaim.role` — not which strings populate it.)
 
 At v0 none of this is built — `role` stays `admin` and the D2 predicate's role check is trivially true. The decision is the *shape commitment*: the seam is `ProfileClaim.role`, not a future `Membership`/`TeamMember` model.
 
