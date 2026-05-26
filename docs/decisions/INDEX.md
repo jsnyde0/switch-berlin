@@ -23,6 +23,8 @@ Navigation surface for `docs/decisions/`. Each ADR captures a cross-cutting, loa
 | [ADR-015](ADR-015-payment-processor-strategy-for-explicit-event-ticketing.md) | Payment-processor strategy for explicit-event ticketing | payment-infra | Accepted 2026-05-21 | V0/V1 tactical: organizer-direct Stripe in Mode A coordination-layer + cutover-readiness (kb-y6w/kb-6y6/kb-d9s/kb-bw0/kb-94h). Long-term sister-platform: pending via kb-hm0. Both legs FLEXIBLE. |
 | [ADR-016](ADR-016-outbound-syndication-architecture-event-post-projections.md) | Outbound syndication architecture — canonical Event + Post, per-platform projections, agent + UI co-equal API clients | arch | Accepted 2026-05-25 (revised 2026-05-26) | Canonical Event and Post are separate entities (Event = structured facts, Post = communication artifact, one Event many Posts). Per-platform projections of kind ∈ {listing, promotion} carry editable copies (live-canonical + override_data + provenance) + content-policy filtering (kb-o0j). D4: projections target a `PlatformConnection` destination (not a platform string), eager-fanned per enabled connection × supported kind. D5: explicit, actor-attested publish lifecycle (`mark-published` is a co-equal API verb; draft=WIP, draft→ready=completeness gate). Web UI and external agents are co-equal HTTP API clients (Moltbook-pattern Bearer + identity-token). D6: API framework = Django Ninja (in-process, shared service layer with HTMX views; django-bolt rejected — its separate Rust server breaks the co-equal-handler constraint). BYO-agent at v0; bundled-agent deferred. All decisions FLEXIBLE. |
 
+| [ADR-017](ADR-017-authorization-edit-publish-policy.md) | Authorization policy — who may edit/publish an Event/Post/Projection | authz | Accepted 2026-05-26 | Edit/publish authority = claimant of an `EventOrganizer` Profile (+ their paired agent); `EventFacilitator`s credited-only; rights derive from which through-table you're in, no new field. All authz routes through a single `can_edit` predicate (chokepoint, cheap foresight vs scattered checks). `ProfileClaim` is the team-membership seam — future roles/team-mgmt widen `ProfileClaim.role` + grant/revoke claims, no new model. All FLEXIBLE; authz distinct from ADR-016 D3 authn. |
+
 ## Scope tags
 
 Single-keyword filter for "which ADRs might constrain this work?". Not exhaustive — propose new tags rather than over-fit existing ones.
@@ -37,6 +39,7 @@ Single-keyword filter for "which ADRs might constrain this work?". Not exhaustiv
 - **code-posture** — refactor / error-handling / abstraction discipline
 - **social-graph** — Connection / Follow / Vouch / visibility / ranking posture
 - **payment-infra** — payment-processor selection, merchant-of-record posture, content-policy risk routing
+- **authz** — authorization policy: who may edit/publish/act on a resource (distinct from authentication and from read-side visibility)
 
 ## When to consult
 
