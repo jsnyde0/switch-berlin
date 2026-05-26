@@ -15,7 +15,6 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from a_core.models import get_flag, get_numeric
-from accounts.decorators import approved_required
 from events.models import Attendance, Event
 from reviews.models import Review
 
@@ -149,8 +148,13 @@ def organizer_profile(request, slug):
 
 @require_POST
 @login_required
-@approved_required
 def organizer_follow(request, slug):
+    # Following is a private subscription powering the personalized feed, open
+    # to any logged-in user — NOT a vouched-gated capability. ADR-013 scopes
+    # `vouched` to restricted-event reads, rating signals, and invite grants;
+    # follow is none of those. If follow is ever re-gated to vouched, the gate
+    # must fail loud (visible error) and the button must be hidden for
+    # non-vouched users — never a silent 403 (ADR-008 D3). See kb follow-gate bead.
     organizer = get_object_or_404(Profile, slug=slug, status="approved")
     follow, created = Follow.objects.get_or_create(user=request.user, profile=organizer)
     if not created:

@@ -76,6 +76,28 @@ def regular_approved_user(db):
     return user
 
 
+@pytest.fixture
+def open_tier_user(db):
+    """Open-tier user (plain signup, status='open', not vouched, not staff).
+
+    Following is a private subscription, not a vouched-gated capability per
+    ADR-013 (vouched buys restricted-event reads, rating signals, invites —
+    not follow). This fixture guards that an open-tier user can follow.
+    """
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    user = User.objects.create_user(
+        username="follow_open",
+        email="follow_open@example.com",
+        password="x",
+        is_staff=False,
+    )
+    user.status = "open"
+    user.save()
+    return user
+
+
 # ---------------------------------------------------------------------------
 # Model tests
 # ---------------------------------------------------------------------------
@@ -143,6 +165,26 @@ def test_follow_post_creates_row(client, staff_user, approved_organizer):
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
     assert Follow.objects.filter(user=staff_user, profile=approved_organizer).exists()
+
+
+@pytest.mark.django_db
+def test_follow_post_open_tier_user_can_follow(
+    client, open_tier_user, approved_organizer
+):
+    """Open-tier (non-vouched, non-staff) users can follow.
+
+    Following is a private subscription powering the personalized feed, not a
+    vouched-gated capability per ADR-013. An open-tier user POSTing to the
+    follow endpoint must succeed (200) and create the Follow row — not 403.
+    """
+    from organizers.models import Follow
+
+    client.force_login(open_tier_user)
+    response = client.post(f"/o/{approved_organizer.slug}/follow/")
+    assert response.status_code == 200
+    assert Follow.objects.filter(
+        user=open_tier_user, profile=approved_organizer
+    ).exists()
 
 
 @pytest.mark.django_db
