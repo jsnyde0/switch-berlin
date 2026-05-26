@@ -47,6 +47,42 @@ def test_open_signup_form_inherits_allauth_fields():
 
 
 @pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_signup_turnstile_bypassed_in_debug():
+    """In DEBUG the widget is suppressed, so clean_turnstile_token must not flag
+    a missing token (no network call) — signup is submittable locally (kb-cyp)."""
+    from accounts.forms import OpenSignupForm
+
+    form = OpenSignupForm(
+        data={
+            "email": "debugbypass@example.com",
+            "password1": "Str0ng!Pass123",
+            "password2": "Str0ng!Pass123",
+        }
+    )
+    form.is_valid()
+    assert "turnstile_token" not in form.errors
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=False, TURNSTILE_SECRET_KEY="")
+def test_signup_requires_turnstile_when_not_debug():
+    """With DEBUG=False the gate is unchanged — a missing secret key fails loud
+    rather than bypassing (kb-cyp / ADR-014 D4)."""
+    from accounts.forms import OpenSignupForm
+
+    form = OpenSignupForm(
+        data={
+            "email": "guard@example.com",
+            "password1": "Str0ng!Pass123",
+            "password2": "Str0ng!Pass123",
+        }
+    )
+    assert not form.is_valid()
+    assert "turnstile_token" in form.errors
+
+
+@pytest.mark.django_db
 @override_settings(
     TURNSTILE_SITE_KEY="1x00000000000000000000AA",
     TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA",

@@ -355,6 +355,27 @@ def test_claim_form_turnstile_invalid_raises_validation_error():
                 assert "turnstile_token" in form2.errors
 
 
+@override_settings(DEBUG=True)
+def test_claim_form_turnstile_bypassed_in_debug():
+    """In DEBUG the widget is suppressed, so the form must validate without a
+    token and without any network call (kb-cyp)."""
+    from organizers.forms import ClaimForm
+
+    form = ClaimForm(data={"email": "test@example.com", "message": ""})
+    assert form.is_valid(), form.errors
+
+
+@override_settings(DEBUG=False, TURNSTILE_SECRET_KEY="")
+def test_claim_form_requires_turnstile_when_not_debug():
+    """With DEBUG=False the gate is unchanged — a missing secret key fails loud
+    rather than bypassing (kb-cyp / ADR-014 D3)."""
+    from organizers.forms import ClaimForm
+
+    form = ClaimForm(data={"email": "test@example.com", "message": ""})
+    assert not form.is_valid()
+    assert "turnstile_token" in form.errors
+
+
 # ---------------------------------------------------------------------------
 # Admin-review path: ClaimIntent + MagicLinkToken created, email sent
 # ---------------------------------------------------------------------------
