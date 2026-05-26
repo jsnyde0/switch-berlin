@@ -19,20 +19,17 @@
 {% endcomment %}
 <label class="kb-field" for="{{ id|default:"field-"|add:name }}">
   {% if label %}<span class="kb-field-label">{{ label }}</span>{% endif %}
-  <input
-    type="{{ type|default:"text" }}"
-    id="{{ id|default:"field-"|add:name }}"
-    name="{{ name }}"
-    {% if value %}value="{{ value }}"{% endif %}
-    {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
-    {% if required %}required{% endif %}
-    {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
-    {% if inputmode %}inputmode="{{ inputmode }}"{% endif %}
-    class="kb-input">
+  <input type="{{ type|default:"text" }}"
+         id="{{ id|default:"field-"|add:name }}"
+         name="{{ name }}"
+         {% if value %}value="{{ value }}"{% endif %}
+         {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+         {% if required %}required{% endif %}
+         {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+         {% if inputmode %}inputmode="{{ inputmode }}"{% endif %}
+         class="kb-input">
   {% if hint %}<span class="kb-field-hint">{{ hint }}</span>{% endif %}
   {% if errors %}
-    {% for error in errors %}
-      <span class="kb-field-error">{{ error }}</span>
-    {% endfor %}
+    {% for error in errors %}<span class="kb-field-error">{{ error }}</span>{% endfor %}
   {% endif %}
 </label>

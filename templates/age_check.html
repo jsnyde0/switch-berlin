@@ -1,47 +1,52 @@
 {% extends "_base.html" %}
 {% load i18n %}
-{% block title %}{% trans "Age Verification" %} — Switch Berlin{% endblock title %}
+{% block title %}
+  {% trans "Age Verification" %} — Switch Berlin
+{% endblock title %}
 {% block layout %}
-<main class="min-h-[88vh] flex items-center justify-center px-4 sm:px-6 lg:px-8" role="main"
-      aria-labelledby="age-gate-heading">
-  <div class="w-full max-w-xl">
-    <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
-      {% trans "Vorabkontrolle · Notice" %}
-    </p>
-    <h1 id="age-gate-heading"
-        class="kb-display text-[44px] sm:text-[64px] lg:text-[76px] leading-[0.95] font-light text-base-content">
-      {% trans "Eighteen" %}
-      <span class="kb-display-italic font-normal text-fuchsia-300/95">{% trans "& over." %}</span>
-    </h1>
-    <div class="kb-rule mt-8 mb-7"></div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-[14px] leading-[1.6] text-base-content/80">
-      <p>{% trans "This platform lists adult-oriented events. By entering, you confirm you are at least eighteen." %}</p>
-      <p lang="de" class="text-base-content/55">
-        {% trans "Diese Seite enthält Inhalte für Erwachsene. Du musst 18 Jahre oder älter sein, um einzutreten." %}
+  <main class="min-h-[88vh] flex items-center justify-center px-4 sm:px-6 lg:px-8"
+        role="main"
+        aria-labelledby="age-gate-heading">
+    <div class="w-full max-w-xl">
+      <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
+        {% trans "Vorabkontrolle · Notice" %}
       </p>
-    </div>
-
-    <form method="post" action="{% url 'age-check' %}" class="mt-10 flex flex-col gap-5">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{{ next_url }}">
-      <label class="inline-flex items-center gap-3 cursor-pointer">
-        <input type="checkbox" name="remember" value="1" class="kb-check">
-        <span class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55">
-          {% trans "Remember for one year" %}
-        </span>
-      </label>
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-        <button type="submit" name="confirm" value="yes" class="kb-btn flex-1 justify-center">
-          {% trans "Yes — I am 18 or over" %}
-          <span aria-hidden="true">→</span>
-        </button>
-        <a href="https://www.google.de" class="kb-btn-quiet self-center sm:ml-2">
-          ← {% trans "Leave" %}
-        </a>
+      <h1 id="age-gate-heading"
+          class="kb-display text-[44px] sm:text-[64px] lg:text-[76px] leading-[0.95] font-light text-base-content">
+        {% trans "Eighteen" %}
+        <span class="kb-display-italic font-normal text-fuchsia-300/95">{% trans "& over." %}</span>
+      </h1>
+      <div class="kb-rule mt-8 mb-7"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-[14px] leading-[1.6] text-base-content/80">
+        <p>{% trans "This platform lists adult-oriented events. By entering, you confirm you are at least eighteen." %}</p>
+        <p lang="de" class="text-base-content/55">
+          {% trans "Diese Seite enthält Inhalte für Erwachsene. Du musst 18 Jahre oder älter sein, um einzutreten." %}
+        </p>
       </div>
-    </form>
-  </div>
-</main>
+      <form method="post"
+            action="{% url 'age-check' %}"
+            class="mt-10 flex flex-col gap-5">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <label class="inline-flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="remember" value="1" class="kb-check">
+          <span class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55">
+            {% trans "Remember for one year" %}
+          </span>
+        </label>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+          <button type="submit"
+                  name="confirm"
+                  value="yes"
+                  class="kb-btn flex-1 justify-center">
+            {% trans "Yes — I am 18 or over" %}
+            <span aria-hidden="true">→</span>
+          </button>
+          <a href="https://www.google.de" class="kb-btn-quiet self-center sm:ml-2">← {% trans "Leave" %}</a>
+        </div>
+      </form>
+    </div>
+  </main>
 {% endblock layout %}
-{% block footer %}{% endblock footer %}
+{% block footer %}
+{% endblock footer %}

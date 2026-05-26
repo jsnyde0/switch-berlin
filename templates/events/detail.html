@@ -1,10 +1,13 @@
 {% extends "layouts/_default.html" %}
 {% load i18n event_tags %}
-{% block title %}{{ event.title }} — Switch Berlin{% endblock title %}
+{% block title %}
+  {{ event.title }} — Switch Berlin
+{% endblock title %}
 {% block og_meta %}
   {% if PUBLIC_READ_ENABLED %}
     <meta property="og:title" content="{{ event.title }}" />
-    <meta property="og:description" content="{{ event.description|truncatewords:30 }}" />
+    <meta property="og:description"
+          content="{{ event.description|truncatewords:30 }}" />
     <meta property="og:type" content="event" />
     {% if cover_image %}
       <meta property="og:image"
@@ -15,117 +18,117 @@
 {% endblock og_meta %}
 {% block content %}
   {% with hue_a=event.slug|slug_hue %}
-  <div class="max-w-5xl">
-    {% comment %}
+    <div class="max-w-5xl">
+      {% comment %}
       Editorial event page — two-column at lg.
       Left: serif title + organizer byline + serif body.
       Right: colophon dl with the index data (Date, Time, Venue, Price).
-    {% endcomment %}
-    <a href="{% url 'event-list' %}"
-       class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-base-content/45 hover:text-base-content pt-10 transition-colors">
-      <span aria-hidden="true">←</span>
-      <span>{% trans "Back to listings" %}</span>
-    </a>
-
-    <header class="pt-6 pb-8">
-      <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
-        {% trans "Event" %} <span class="mx-2 text-base-content/15">·</span>
-        {{ event.start|date:"D, d F Y" }}
-      </p>
-      <h1 class="kb-display text-[44px] sm:text-[64px] lg:text-[80px] leading-[0.95] font-light text-base-content tracking-tight">
-        {{ event.title }}
-      </h1>
-      {% if event.organizer %}
-        <div class="mt-6">
-          <c-organizer-mini-card :organizer="event.organizer" />
-        </div>
+      {% endcomment %}
+      <a href="{% url 'event-list' %}"
+         class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-base-content/45 hover:text-base-content pt-10 transition-colors">
+        <span aria-hidden="true">←</span>
+        <span>{% trans "Back to listings" %}</span>
+      </a>
+      <header class="pt-6 pb-8">
+        <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
+          {% trans "Event" %} <span class="mx-2 text-base-content/15">·</span>
+          {{ event.start|date:"D, d F Y" }}
+        </p>
+        <h1 class="kb-display text-[44px] sm:text-[64px] lg:text-[80px] leading-[0.95] font-light text-base-content tracking-tight">
+          {{ event.title }}
+        </h1>
+        {% if event.organizer %}
+          <div class="mt-6">
+            <c-organizer-mini-card :organizer="event.organizer" />
+          </div>
+        {% endif %}
+      </header>
+      {% if cover_image %}
+        <figure class="my-4">
+          <img src="{{ cover_image.image.url }}"
+               alt="{{ cover_image.alt|default:event.title }}"
+               width="1280"
+               height="640"
+               class="w-full object-cover max-h-[420px] ring-1 ring-white/10">
+        </figure>
       {% endif %}
-    </header>
-
-    {% if cover_image %}
-      <figure class="my-4">
-        <img src="{{ cover_image.image.url }}"
-             alt="{{ cover_image.alt|default:event.title }}"
-             width="1280" height="640"
-             class="w-full object-cover max-h-[420px] ring-1 ring-white/10">
-      </figure>
-    {% endif %}
-
-    <div class="kb-rule mt-8 mb-10"></div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-8">
-      {# Left — body. #}
-      <div class="lg:col-span-7">
-        {% if event.description %}
-          <section class="kb-prose">{{ event.description|linebreaks }}</section>
-        {% endif %}
-
-        {% if event.tags.all %}
-          <div class="mt-8 flex flex-wrap gap-2">
-            {% for tag in event.tags.all %}
-              <a href="{% url 'event-list' %}?tags={{ tag.slug }}"
-                 class="kb-tag hover:text-base-content hover:border-fuchsia-300/60 transition-colors lowercase">
-                {{ tag.label|lower }}
-              </a>
-            {% endfor %}
-          </div>
-        {% endif %}
-
-        {% if event.tickets_url or event.external_url %}
-          <div class="mt-10 flex flex-wrap items-center gap-3">
-            {% if event.tickets_url %}
-              <a href="{{ event.tickets_url }}" target="_blank" rel="noopener noreferrer" class="kb-btn">
-                {% trans "Get tickets" %}
-                <span aria-hidden="true">↗</span>
-              </a>
-            {% endif %}
-            {% if event.external_url %}
-              <a href="{{ event.external_url }}" target="_blank" rel="noopener noreferrer" class="kb-btn-secondary">
-                {% trans "Organizer page" %}
-                <span aria-hidden="true">↗</span>
-              </a>
-            {% endif %}
-          </div>
-        {% endif %}
-
-        {% if user.is_authenticated %}
-          <div class="mt-10 pt-6 border-t border-white/8">
-            <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-3">{% trans "Your status" %}</p>
-            {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
-          </div>
-        {% endif %}
-
-        {% if user.is_authenticated and user.status == "vouched" and event_past and RATINGS_ENABLED and user_has_went_attendance %}
-          <div class="mt-10 pt-6 border-t border-white/8">
-            {% include "reviews/_rating_form.html" with target_type="event" target_id=event.pk form_id="event-detail-rating-form" %}
-          </div>
-        {% endif %}
-      </div>
-
-      {# Right — colophon dl. #}
-      <aside class="lg:col-span-5 lg:pl-10 lg:border-l lg:border-white/15">
-        <div class="flex items-baseline gap-3 mb-7">
-          <span class="kb-display text-[88px] leading-[0.85] font-light"
-                style="color: hsl({{ hue_a }} 32% 82%);">{{ event.start|date:"j" }}</span>
-          <div class="flex flex-col gap-1 pb-2">
-            <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/50">{{ event.start|date:"M Y" }}</span>
-            <span class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/85">
-              {{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
-            </span>
-          </div>
+      <div class="kb-rule mt-8 mb-10"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-8">
+        {# Left — body. #}
+        <div class="lg:col-span-7">
+          {% if event.description %}
+            <section class="kb-prose">
+              {{ event.description|linebreaks }}
+            </section>
+          {% endif %}
+          {% if event.tags.all %}
+            <div class="mt-8 flex flex-wrap gap-2">
+              {% for tag in event.tags.all %}
+                <a href="{% url 'event-list' %}?tags={{ tag.slug }}"
+                   class="kb-tag hover:text-base-content hover:border-fuchsia-300/60 transition-colors lowercase">
+                  {{ tag.label|lower }}
+                </a>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if event.tickets_url or event.external_url %}
+            <div class="mt-10 flex flex-wrap items-center gap-3">
+              {% if event.tickets_url %}
+                <a href="{{ event.tickets_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="kb-btn">
+                  {% trans "Get tickets" %}
+                  <span aria-hidden="true">↗</span>
+                </a>
+              {% endif %}
+              {% if event.external_url %}
+                <a href="{{ event.external_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="kb-btn-secondary">
+                  {% trans "Organizer page" %}
+                  <span aria-hidden="true">↗</span>
+                </a>
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if user.is_authenticated %}
+            <div class="mt-10 pt-6 border-t border-white/8">
+              <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-3">{% trans "Your status" %}</p>
+              {% include 'events/_attend_button.html' with event=event attendance=attendance event_past=event_past %}
+            </div>
+          {% endif %}
+          {% if user.is_authenticated and user.status == "vouched" and event_past and RATINGS_ENABLED and user_has_went_attendance %}
+            <div class="mt-10 pt-6 border-t border-white/8">
+              {% include "reviews/_rating_form.html" with target_type="event" target_id=event.pk form_id="event-detail-rating-form" %}
+            </div>
+          {% endif %}
         </div>
-
-        <div class="kb-rule mb-6"></div>
-
-        <c-kb.colophon density="loose" size="regular" nomargin="true">
+        {# Right — colophon dl. #}
+        <aside class="lg:col-span-5 lg:pl-10 lg:border-l lg:border-white/15">
+          <div class="flex items-baseline gap-3 mb-7">
+            <span class="kb-display text-[88px] leading-[0.85] font-light"
+                  style="color: hsl({{ hue_a }} 32% 82%)">{{ event.start|date:"j" }}</span>
+            <div class="flex flex-col gap-1 pb-2">
+              <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/50">{{ event.start|date:"M Y" }}</span>
+              <span class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/85">
+                {{ event.start|date:"H:i" }}
+                {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
+              </span>
+            </div>
+          </div>
+          <div class="kb-rule mb-6"></div>
+          <c-kb.colophon density="loose" size="regular" nomargin="true">
           <dt class="text-base-content/40">{% trans "Date" %}</dt>
-          <dd class="text-base-content/85">{{ event.start|date:"l, d M Y" }}</dd>
-
+          <dd class="text-base-content/85">
+            {{ event.start|date:"l, d M Y" }}
+          </dd>
           <dt class="text-base-content/40">{% trans "Time" %}</dt>
           <dd class="text-base-content/85">
-            {{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
+            {{ event.start|date:"H:i" }}
+            {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
           </dd>
-
           {% if event.venue %}
             <dt class="text-base-content/40">{% trans "Venue" %}</dt>
             <dd class="text-base-content/85">
@@ -133,31 +136,32 @@
                 {% trans 'Private venue' %}
                 <span class="kb-tag kb-tag-accent ml-1 normal-case">{% trans 'RSVP to reveal' %}</span>
               {% else %}
-                {{ event.venue.name }}{% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+                {{ event.venue.name }}
+                {% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
               {% endif %}
             </dd>
           {% endif %}
-
           <dt class="text-base-content/40">{% trans "Price" %}</dt>
           <dd class="text-base-content/85">
             {% if event.is_free %}
               <span class="kb-tag kb-tag-success normal-case">{% trans "Free" %}</span>
             {% elif event.price_min_cents %}
-              {{ event.currency }} {{ event.price_min_cents|cents_to_display }}{% if event.price_max_cents %} <span class="text-base-content/30">→</span> {{ event.price_max_cents|cents_to_display }}{% endif %}{% if event.sliding_scale %} <span class="text-base-content/45 normal-case">({% trans "sliding scale" %})</span>{% endif %}
+              {{ event.currency }} {{ event.price_min_cents|cents_to_display }}
+              {% if event.price_max_cents %}
+                <span class="text-base-content/30">→</span> {{ event.price_max_cents|cents_to_display }}
+              {% endif %}
+              {% if event.sliding_scale %}
+                <span class="text-base-content/45 normal-case">({% trans "sliding scale" %})</span>
+              {% endif %}
             {% else %}
               <span class="text-base-content/55">{% trans "See organizer page" %}</span>
             {% endif %}
           </dd>
-        </c-kb.colophon>
-      </aside>
-    </div>
-
-    {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
-      <c-kb.section
-        eyebrow="{% trans 'Reviews' %}"
-        title="{{ event.avg_rating|floatformat:1 }}"
-        accent="/ 5"
-        aside="{{ event.rating_count }} {% trans 'reviews' %}">
+          </c-kb.colophon>
+        </aside>
+      </div>
+      {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
+        <c-kb.section eyebrow="{% trans 'Reviews' %}" title="{{ event.avg_rating|floatformat:1 }}" accent="/ 5" aside="{{ event.rating_count }} {% trans 'reviews' %}">
         <div class="flex flex-col">
           {% for review in event_reviews %}
             <article class="grid grid-cols-[120px_1fr] gap-x-6 py-5 border-t border-white/8 first:border-t-0">
@@ -173,19 +177,20 @@
               </div>
             </article>
           {% empty %}
-            <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">— {% trans "No reviews yet" %} —</p>
+            <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">
+              — {% trans "No reviews yet" %} —
+            </p>
           {% endfor %}
         </div>
-      </c-kb.section>
-    {% endif %}
-
-    <footer class="mt-16 pt-6 border-t border-white/10">
-      <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/35">
-        {% trans "Safety first" %} <span class="mx-2 text-base-content/15">·</span>
-        {% trans "Consent is mandatory" %} <span class="mx-2 text-base-content/15">·</span>
-        {% trans "Look out for each other" %}
-      </p>
-    </footer>
-  </div>
+        </c-kb.section>
+      {% endif %}
+      <footer class="mt-16 pt-6 border-t border-white/10">
+        <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/35">
+          {% trans "Safety first" %} <span class="mx-2 text-base-content/15">·</span>
+          {% trans "Consent is mandatory" %} <span class="mx-2 text-base-content/15">·</span>
+          {% trans "Look out for each other" %}
+        </p>
+      </footer>
+    </div>
   {% endwith %}
 {% endblock content %}

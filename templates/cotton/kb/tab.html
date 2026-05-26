@@ -17,5 +17,9 @@
    role="tab"
    aria-selected="{% if active %}true{% else %}false{% endif %}"
    class="kb-mono text-[11px] uppercase tracking-[0.18em] pb-1 border-b transition-colors {% if active %}text-base-content border-fuchsia-300{% else %}text-base-content/50 border-transparent hover:text-base-content/85 hover:border-base-content/30{% endif %}">
-  {% if label %}{{ label }}{% else %}{{ slot }}{% endif %}
+  {% if label %}
+    {{ label }}
+  {% else %}
+    {{ slot }}
+  {% endif %}
 </a>

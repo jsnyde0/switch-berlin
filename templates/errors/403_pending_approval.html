@@ -1,33 +1,38 @@
 {% extends "_base.html" %}
 {% load i18n %}
-{% block title %}{% trans "Account Pending Approval" %} — Switch Berlin{% endblock title %}
+{% block title %}
+  {% trans "Account Pending Approval" %} — Switch Berlin
+{% endblock title %}
 {% block layout %}
-<main class="min-h-[80vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
-  <div class="w-full max-w-lg">
-    <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
-      {% trans "Account · Review queue" %}
-    </p>
-    <h1 class="kb-display text-[44px] sm:text-[56px] leading-[0.95] font-light text-base-content">
-      {% trans "Under" %}
-      <span class="kb-display-italic font-normal text-fuchsia-300/95">{% trans "review." %}</span>
-    </h1>
-    <div class="kb-rule mt-7 mb-6"></div>
-    <p class="text-[15px] leading-[1.65] text-base-content/75">
-      {% trans "Your account is pending approval. We review new requests by hand. You will receive an email when the account is opened." %}
-    </p>
-    <c-kb.colophon margin="mt-8">
+  <main class="min-h-[80vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
+    <div class="w-full max-w-lg">
+      <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
+        {% trans "Account · Review queue" %}
+      </p>
+      <h1 class="kb-display text-[44px] sm:text-[56px] leading-[0.95] font-light text-base-content">
+        {% trans "Under" %}
+        <span class="kb-display-italic font-normal text-fuchsia-300/95">{% trans "review." %}</span>
+      </h1>
+      <div class="kb-rule mt-7 mb-6"></div>
+      <p class="text-[15px] leading-[1.65] text-base-content/75">
+        {% trans "Your account is pending approval. We review new requests by hand. You will receive an email when the account is opened." %}
+      </p>
+      <c-kb.colophon margin="mt-8">
       <dt class="text-base-content/40">{% trans "Curation" %}</dt>
-      <dd class="text-base-content/80">{% trans "By hand" %}</dd>
+      <dd class="text-base-content/80">
+        {% trans "By hand" %}
+      </dd>
       <dt class="text-base-content/40">{% trans "Typical wait" %}</dt>
-      <dd class="text-base-content/80">{% trans "Within 72 hours" %}</dd>
-    </c-kb.colophon>
-    <div class="mt-10 flex items-center gap-4">
-      <a href="{% url 'account_logout' %}" class="kb-btn-secondary">
-        {% trans "Log out" %}
-      </a>
-      <a href="/" class="kb-btn-quiet">← {% trans "Back to listings" %}</a>
+      <dd class="text-base-content/80">
+        {% trans "Within 72 hours" %}
+      </dd>
+      </c-kb.colophon>
+      <div class="mt-10 flex items-center gap-4">
+        <a href="{% url 'account_logout' %}" class="kb-btn-secondary">{% trans "Log out" %}</a>
+        <a href="/" class="kb-btn-quiet">← {% trans "Back to listings" %}</a>
+      </div>
     </div>
-  </div>
-</main>
+  </main>
 {% endblock layout %}
-{% block footer %}{% endblock footer %}
+{% block footer %}
+{% endblock footer %}

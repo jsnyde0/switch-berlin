@@ -10,8 +10,6 @@
   {{ slot }}
   {% if hint %}<span class="kb-field-hint">{{ hint }}</span>{% endif %}
   {% if errors %}
-    {% for error in errors %}
-      <span class="kb-field-error">{{ error }}</span>
-    {% endfor %}
+    {% for error in errors %}<span class="kb-field-error">{{ error }}</span>{% endfor %}
   {% endif %}
 </label>

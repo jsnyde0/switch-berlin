@@ -14,7 +14,6 @@
       {% endblock title %}
     </title>
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
-
     {% comment %}
       Display + mono faces. Fraunces is a variable serif with optical sizes — used
       at large sizes for editorial register and now also as body type on forms.
@@ -24,18 +23,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..800,0..100,0..1&family=JetBrains+Mono:wght@400;500;600&display=swap">
-
     {% vite_hmr_client %}
     <link rel="stylesheet" href="{% vite_asset_url 'src/app.css' %}">
-
     {% htmx_script %}
-    <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"
+    <script defer
+            src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"
             integrity="sha384-9Ax3MmS9AClxJyd5/zafcXXjxmwFhZCdsT6HJoJjarvCaAkJlk5QDzjLJm+Wdx5F"
             crossorigin="anonymous"></script>
     {% block extra_head %}
     {% endblock extra_head %}
     {% if PUBLIC_READ_ENABLED %}
-    {% block og_meta %}{% endblock og_meta %}
+      {% block og_meta %}
+      {% endblock og_meta %}
     {% endif %}
   </head>
   {% comment %}

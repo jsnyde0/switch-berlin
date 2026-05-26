@@ -2,15 +2,14 @@
 {% load i18n %}
 {% load account %}
 {% load allauth %}
-{% block head_title %}{% trans "Confirm Email Address" %}{% endblock head_title %}
+{% block head_title %}
+  {% trans "Confirm Email Address" %}
+{% endblock head_title %}
 {% block content %}
   <div class="w-full max-w-lg">
     {% if confirmation %}
       {% if can_confirm %}
-        <c-kb.page-header
-          eyebrow="{% trans 'Account · Verification' %}"
-          title="{% trans 'Confirm your' %}"
-          accent="{% trans 'email.' %}" />
+        <c-kb.page-header eyebrow="{% trans 'Account · Verification' %}" title="{% trans 'Confirm your' %}" accent="{% trans 'email.' %}" />
         <p class="kb-mono text-[12px] uppercase tracking-[0.18em] text-base-content/65 pt-2 pb-8">
           <span class="text-base-content/40">{% trans "Address" %} —</span>
           <span class="text-fuchsia-300/95 ml-2">{{ confirmation.email_address.email }}</span>
@@ -26,10 +25,7 @@
           </button>
         </form>
       {% else %}
-        <c-kb.page-header
-          eyebrow="{% trans 'Account · Verification' %}"
-          title="{% trans 'Already' %}"
-          accent="{% trans 'confirmed.' %}" />
+        <c-kb.page-header eyebrow="{% trans 'Account · Verification' %}" title="{% trans 'Already' %}" accent="{% trans 'confirmed.' %}" />
         <p class="text-[15px] leading-relaxed text-base-content/75 pt-2">
           {% blocktrans with email=confirmation.email_address.email %}
             We can't confirm {{ email }} — it is already confirmed by a different account.
@@ -38,15 +34,10 @@
       {% endif %}
     {% else %}
       {% url 'account_email' as email_url %}
-      <c-kb.page-header
-        eyebrow="{% trans 'Account · Verification' %}"
-        title="{% trans 'Link' %}"
-        accent="{% trans 'expired.' %}" />
+      <c-kb.page-header eyebrow="{% trans 'Account · Verification' %}" title="{% trans 'Link' %}" accent="{% trans 'expired.' %}" />
       <p class="text-[15px] leading-relaxed text-base-content/75 pt-2">
         {% blocktrans %}This confirmation link expired or is invalid.{% endblocktrans %}
-        <a href="{{ email_url }}" class="kb-link ml-1">
-          {% trans "Request a new link" %}
-        </a>.
+        <a href="{{ email_url }}" class="kb-link ml-1">{% trans "Request a new link" %}</a>.
       </p>
     {% endif %}
   </div>

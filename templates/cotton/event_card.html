@@ -1,108 +1,95 @@
 {% load i18n event_tags %}
 {% with hue_a=event.slug|slug_hue hue_b=event.slug|slug_hue_b %}
-{% comment %}
+  {% comment %}
   Editorial listing card.
   Old: gradient-mesh banner + floating date chip + body — read as SaaS event tile.
   New: left date column (serif day numeral over mono month) + right content stack.
   No gradient banner. Single hairline rule top + bottom. Hover tints the row
   background and the day numeral. Title is set in display serif.
-{% endcomment %}
-<article
-  class="kb-card group/inner relative flex h-full overflow-hidden border-t border-b border-white/15 bg-transparent transition-all duration-300 group-hover/card:bg-base-200/40 group-hover/card:border-white/30"
->
-  {% comment %}
+  {% endcomment %}
+  <article class="kb-card group/inner relative flex h-full overflow-hidden border-t border-b border-white/15 bg-transparent transition-all duration-300 group-hover/card:bg-base-200/40 group-hover/card:border-white/30">
+    {% comment %}
     Date column — left, fixed width, editorial weight. Hue derives from slug so the
     grid feels varied without a gradient banner doing the work.
-  {% endcomment %}
-  <div class="relative flex w-[110px] sm:w-[128px] flex-shrink-0 flex-col items-start justify-between border-r border-white/8 px-4 py-5 group-hover/card:border-white/15">
-    <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">
-      {{ event.start|date:"D" }}
+    {% endcomment %}
+    <div class="relative flex w-[110px] sm:w-[128px] flex-shrink-0 flex-col items-start justify-between border-r border-white/8 px-4 py-5 group-hover/card:border-white/15">
+      <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"D" }}</div>
+      <div class="flex items-baseline gap-1.5 my-3">
+        <span class="kb-display text-[68px] sm:text-[80px] leading-[0.85] font-light text-base-content transition-all duration-300"
+              style="color: hsl({{ hue_a }} 32% 82%)">{{ event.start|date:"j" }}</span>
+      </div>
+      <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"M Y" }}</div>
     </div>
-    <div class="flex items-baseline gap-1.5 my-3">
-      <span class="kb-display text-[68px] sm:text-[80px] leading-[0.85] font-light text-base-content transition-all duration-300"
-            style="color: hsl({{ hue_a }} 32% 82%);">
-        {{ event.start|date:"j" }}
-      </span>
-    </div>
-    <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">
-      {{ event.start|date:"M Y" }}
-    </div>
-  </div>
-
-  {# Body — right column. #}
-  <div class="relative flex flex-1 flex-col gap-2 px-5 py-5 min-w-0">
-    {# Top meta line — organizer + price/free, balanced. #}
-    <div class="flex items-center justify-between gap-3 mb-1">
-      {% if event.organizer %}
-        <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
-           class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors w-fit min-w-0">
-          <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
-                style="background: hsl({{ hue_a }} 40% 75%);">
-            {{ event.organizer.name|first }}
+    {# Body — right column. #}
+    <div class="relative flex flex-1 flex-col gap-2 px-5 py-5 min-w-0">
+      {# Top meta line — organizer + price/free, balanced. #}
+      <div class="flex items-center justify-between gap-3 mb-1">
+        {% if event.organizer %}
+          <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
+             class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors w-fit min-w-0">
+            <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
+                  style="background: hsl({{ hue_a }} 40% 75%)">{{ event.organizer.name|first }}</span>
+            <span class="truncate max-w-[180px]">{{ event.organizer.name }}</span>
+          </a>
+        {% else %}
+          <span></span>
+        {% endif %}
+        {% if event.is_free %}
+          <span class="kb-mono inline-flex items-center gap-1 border border-emerald-400/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
+            {% trans "Free" %}
           </span>
-          <span class="truncate max-w-[180px]">{{ event.organizer.name }}</span>
+        {% elif event.price_min_cents %}
+          <span class="kb-mono inline-flex items-center text-[10px] uppercase tracking-[0.16em] text-base-content/55">
+            {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
+          </span>
+        {% endif %}
+      </div>
+      {# Title — display serif, larger, the visual anchor. #}
+      <h2 class="kb-display text-[22px] sm:text-[26px] leading-[1.08] font-normal tracking-tight text-base-content line-clamp-2 pr-6">
+        <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}"
+           class="relative inline transition-colors duration-200 hover:text-fuchsia-200 focus-visible:outline-none focus-visible:text-fuchsia-200 [&:hover>span.kb-card-title-rule]:scale-x-100">
+          <span>{{ event.title }}</span>
+          <span class="kb-card-title-rule pointer-events-none absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 transition-transform duration-300 ease-out"
+                aria-hidden="true"></span>
         </a>
-      {% else %}
-        <span></span>
-      {% endif %}
-
-      {% if event.is_free %}
-        <span class="kb-mono inline-flex items-center gap-1 border border-emerald-400/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
-          {% trans "Free" %}
-        </span>
-      {% elif event.price_min_cents %}
-        <span class="kb-mono inline-flex items-center text-[10px] uppercase tracking-[0.16em] text-base-content/55">
-          {{ event.currency }} {{ event.price_min_cents|cents_to_display }}+
-        </span>
-      {% endif %}
-    </div>
-
-    {# Title — display serif, larger, the visual anchor. #}
-    <h2 class="kb-display text-[22px] sm:text-[26px] leading-[1.08] font-normal tracking-tight text-base-content line-clamp-2 pr-6">
-      <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}"
-         class="relative inline transition-colors duration-200 hover:text-fuchsia-200 focus-visible:outline-none focus-visible:text-fuchsia-200 [&:hover>span.kb-card-title-rule]:scale-x-100">
-        <span>{{ event.title }}</span>
-        <span class="kb-card-title-rule pointer-events-none absolute inset-x-0 -bottom-0.5 h-px origin-left scale-x-0 transition-transform duration-300 ease-out" aria-hidden="true"></span>
-      </a>
-    </h2>
-
-    {# Lower meta — time + venue, hairline-divided. Mono throughout for index feel. #}
-    <div class="mt-auto pt-3 border-t border-white/5 flex flex-wrap items-center gap-x-4 gap-y-1 kb-mono text-[10px] uppercase tracking-[0.16em] text-base-content/55">
-      <span class="inline-flex items-center gap-1.5">
-        <span class="text-base-content/35">{% trans "Time" %}</span>
-        <span class="text-base-content/80">
-          {{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
-        </span>
-      </span>
-
-      {% if event.venue %}
-        <span class="inline-flex items-center gap-1.5 min-w-0">
-          <span class="text-base-content/35">{% trans "Venue" %}</span>
-          <span class="text-base-content/80 truncate max-w-[180px]">
-            {% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}
-              {% trans 'Private venue' %}
-            {% else %}
-              {{ event.venue.name }}
-            {% endif %}
+      </h2>
+      {# Lower meta — time + venue, hairline-divided. Mono throughout for index feel. #}
+      <div class="mt-auto pt-3 border-t border-white/5 flex flex-wrap items-center gap-x-4 gap-y-1 kb-mono text-[10px] uppercase tracking-[0.16em] text-base-content/55">
+        <span class="inline-flex items-center gap-1.5">
+          <span class="text-base-content/35">{% trans "Time" %}</span>
+          <span class="text-base-content/80">
+            {{ event.start|date:"H:i" }}
+            {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
           </span>
         </span>
-      {% endif %}
-
-      {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
-        <span class="inline-flex items-center gap-1 text-amber-300/85">
-          <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-          </svg>
-          <span>{{ event.avg_rating|floatformat:1 }} · {{ event.rating_count }}</span>
-        </span>
-      {% endif %}
+        {% if event.venue %}
+          <span class="inline-flex items-center gap-1.5 min-w-0">
+            <span class="text-base-content/35">{% trans "Venue" %}</span>
+            <span class="text-base-content/80 truncate max-w-[180px]">
+              {% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}
+                {% trans 'Private venue' %}
+              {% else %}
+                {{ event.venue.name }}
+              {% endif %}
+            </span>
+          </span>
+        {% endif %}
+        {% if EVENT_REVIEWS_DISPLAYED and event.rating_count >= EVENT_RATING_THRESHOLD %}
+          <span class="inline-flex items-center gap-1 text-amber-300/85">
+            <svg class="h-2.5 w-2.5"
+                 viewBox="0 0 24 24"
+                 fill="currentColor"
+                 aria-hidden="true">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <span>{{ event.avg_rating|floatformat:1 }} · {{ event.rating_count }}</span>
+          </span>
+        {% endif %}
+      </div>
+      {# Preview affordance — appears on card hover bottom-right of the body. #}
+      <span class="pointer-events-none absolute bottom-3 right-4 kb-mono text-[9px] uppercase tracking-[0.22em] text-fuchsia-300/0 transition-all duration-200 group-hover/card:text-fuchsia-300/85">
+        {% trans "Preview" %} ↗
+      </span>
     </div>
-
-    {# Preview affordance — appears on card hover bottom-right of the body. #}
-    <span class="pointer-events-none absolute bottom-3 right-4 kb-mono text-[9px] uppercase tracking-[0.22em] text-fuchsia-300/0 transition-all duration-200 group-hover/card:text-fuchsia-300/85">
-      {% trans "Preview" %} ↗
-    </span>
-  </div>
-</article>
+  </article>
 {% endwith %}
-

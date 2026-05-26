@@ -1,12 +1,11 @@
 {% extends "account/base_manage.html" %}
 {% load allauth i18n %}
-{% block head_title %}{% trans "Sign Out" %}{% endblock head_title %}
+{% block head_title %}
+  {% trans "Sign Out" %}
+{% endblock head_title %}
 {% block content %}
   <div class="w-full max-w-md">
-    <c-kb.page-header
-      eyebrow="{% trans 'Account · Session' %}"
-      title="{% trans 'Sign' %}"
-      accent="{% trans 'out?' %}" />
+    <c-kb.page-header eyebrow="{% trans 'Account · Session' %}" title="{% trans 'Sign' %}" accent="{% trans 'out?' %}" />
     <p class="text-[15px] leading-relaxed text-base-content/75 pt-2 pb-8">
       {% trans "Your session will end on this device. You can sign back in any time." %}
     </p>
@@ -15,9 +14,7 @@
           class="flex flex-col gap-4">
       {% csrf_token %}
       {{ form }}
-      <button class="kb-btn-danger w-full justify-center" type="submit">
-        {% trans "Confirm sign out" %}
-      </button>
+      <button class="kb-btn-danger w-full justify-center" type="submit">{% trans "Confirm sign out" %}</button>
       <a href="/" class="kb-btn-quiet self-center">← {% trans "Stay signed in" %}</a>
     </form>
   </div>

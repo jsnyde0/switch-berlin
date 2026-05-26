@@ -1,140 +1,119 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
-{% block title %}{% trans "Terms of Use" %} — Switch Berlin{% endblock title %}
+{% block title %}
+  {% trans "Terms of Use" %} — Switch Berlin
+{% endblock title %}
 {% block content %}
-<c-kb.page-header
-  eyebrow="{% trans 'Legal · House rules' %}"
-  title="{% trans 'Terms' %}"
-  accent="{% trans 'of use.' %}"
-  caption="{% trans 'Age restriction, content policy, moderation, and appeal path.' %}" />
-<article class="kb-prose pt-6">
-  {# DSA Art. 12 contact point #}
-  <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/60">
-    {% blocktrans with email=legal_contact.dsa_email %}DSA contact (Art. 12) — {{ email }}, Berlin.{% endblocktrans %}
-    <a href="/impressum/" class="ml-2">{% trans "Operator identity" %}</a>
-  </p>
-  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">
-    {% trans "Last updated" %} <span class="mx-2">·</span> {{ terms_last_updated }}
-  </p>
-
-  {# Section 1: Age restriction — JuSchG #}
-  <h2>{% trans "Age restriction (JuSchG)" %}</h2>
-  <p>
-    {% blocktrans %}
+  <c-kb.page-header eyebrow="{% trans 'Legal · House rules' %}" title="{% trans 'Terms' %}" accent="{% trans 'of use.' %}" caption="{% trans 'Age restriction, content policy, moderation, and appeal path.' %}" />
+  <article class="kb-prose pt-6">
+    {# DSA Art. 12 contact point #}
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/60">
+      {% blocktrans with email=legal_contact.dsa_email %}DSA contact (Art. 12) — {{ email }}, Berlin.{% endblocktrans %}
+      <a href="/impressum/" class="ml-2">{% trans "Operator identity" %}</a>
+    </p>
+    <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">
+      {% trans "Last updated" %} <span class="mx-2">·</span> {{ terms_last_updated }}
+    </p>
+    {# Section 1: Age restriction — JuSchG #}
+    <h2>{% trans "Age restriction (JuSchG)" %}</h2>
+    <p>
+      {% blocktrans %}
     This platform contains adult-oriented content (kink and queer-adjacent events).
     Access requires self-declaration of age 18+ via the age gate. Use by minors is
     prohibited (JuSchG §§ 4, 5 / JMStV). No age-verification mechanism replaces this
     self-declaration; the platform relies on the age-gate cookie to prevent accidental
     access by persons under 18.
     {% endblocktrans %}
-  </p>
-
-  {# Section 2: User obligations #}
-  <h2>{% trans "User obligations" %}</h2>
-  <ul>
-    <li>
-      {% trans "You must be 18 years of age or older to use this platform." %}
-    </li>
-    <li>
-      {% trans "You agree to submit only lawful content. Content that is illegal under German or EU law is prohibited." %}
-    </li>
-    <li>
-      {% trans "Harassment, hate speech, and content targeting individuals for harm are prohibited." %}
-    </li>
-    <li>
-      {% trans "You are responsible for the accuracy of any event information you submit." %}
-    </li>
-  </ul>
-
-  {# Section 3: Content policy #}
-  <h2>{% trans "Content policy" %}</h2>
-  <p>
-    {% trans "Switch Berlin is a platform for queer, kinky, and conscious events, primarily focused on Berlin. We welcome:" %}
-  </p>
-  <ul>
-    <li>{% trans "LGBTQ+ community events" %}</li>
-    <li>{% trans "Kink and fetish events for adults (18+)" %}</li>
-    <li>{% trans "Conscious sexuality and intimacy workshops" %}</li>
-    <li>{% trans "Queer arts, culture, and social events" %}</li>
-  </ul>
-  <p>
-    {% trans "We do not list events that promote exploitation, lack informed consent, or violate applicable law." %}
-  </p>
-
-  {# Section 4: Content moderation — DSA Art. 14 #}
-  <h2>{% trans "Content moderation (DSA Art. 14)" %}</h2>
-  <p>
-    {% blocktrans %}
+    </p>
+    {# Section 2: User obligations #}
+    <h2>{% trans "User obligations" %}</h2>
+    <ul>
+      <li>{% trans "You must be 18 years of age or older to use this platform." %}</li>
+      <li>
+        {% trans "You agree to submit only lawful content. Content that is illegal under German or EU law is prohibited." %}
+      </li>
+      <li>{% trans "Harassment, hate speech, and content targeting individuals for harm are prohibited." %}</li>
+      <li>{% trans "You are responsible for the accuracy of any event information you submit." %}</li>
+    </ul>
+    {# Section 3: Content policy #}
+    <h2>{% trans "Content policy" %}</h2>
+    <p>
+      {% trans "Switch Berlin is a platform for queer, kinky, and conscious events, primarily focused on Berlin. We welcome:" %}
+    </p>
+    <ul>
+      <li>{% trans "LGBTQ+ community events" %}</li>
+      <li>{% trans "Kink and fetish events for adults (18+)" %}</li>
+      <li>{% trans "Conscious sexuality and intimacy workshops" %}</li>
+      <li>{% trans "Queer arts, culture, and social events" %}</li>
+    </ul>
+    <p>{% trans "We do not list events that promote exploitation, lack informed consent, or violate applicable law." %}</p>
+    {# Section 4: Content moderation — DSA Art. 14 #}
+    <h2>{% trans "Content moderation (DSA Art. 14)" %}</h2>
+    <p>
+      {% blocktrans %}
     Where content is found to violate these Terms or applicable law, the platform
     maintainer may take the following actions: hide the content from public view,
     remove it permanently, suspend the responsible account, or de-list the associated
     event or organizer.
     {% endblocktrans %}
-  </p>
-  <p>
-    {% blocktrans %}
+    </p>
+    <p>
+      {% blocktrans %}
     Moderation decisions are made by the platform maintainer. We aim to review
     substantiated notices best-effort within 72 hours of receipt.
     {% endblocktrans %}
-  </p>
-
-  {# Section 5: Appeal path — DSA Art. 20 #}
-  <h2>{% trans "Appeal of moderation decisions (DSA Art. 20)" %}</h2>
-  <p>
-    {% blocktrans %}
+    </p>
+    {# Section 5: Appeal path — DSA Art. 20 #}
+    <h2>{% trans "Appeal of moderation decisions (DSA Art. 20)" %}</h2>
+    <p>
+      {% blocktrans %}
     To appeal a moderation decision, reply to the moderation notification email within
     14 days of receiving it. Include your reasons for appeal. The maintainer will review
     the appeal and respond within a reasonable time.
     {% endblocktrans %}
-  </p>
-
-  {# Section 6: User-generated content #}
-  <h2>{% trans "User-generated content" %}</h2>
-  <p>
-    {% blocktrans %}
+    </p>
+    {# Section 6: User-generated content #}
+    <h2>{% trans "User-generated content" %}</h2>
+    <p>
+      {% blocktrans %}
     Ratings and flags are user-generated content. By submitting a rating or flag,
     you warrant that your submission is made in good faith and is accurate to the
     best of your knowledge. The platform does not endorse user-generated content
     and will remove content upon substantiated notice.
     {% endblocktrans %}
-  </p>
-
-  {# Section 7: Governing law and jurisdiction #}
-  <h2>{% trans "Governing law and jurisdiction" %}</h2>
-  <p>
-    {% blocktrans %}
+    </p>
+    {# Section 7: Governing law and jurisdiction #}
+    <h2>{% trans "Governing law and jurisdiction" %}</h2>
+    <p>
+      {% blocktrans %}
     German law applies to these Terms and any disputes arising from use of this
     platform. For disputes with non-consumers, the exclusive place of jurisdiction
     is Berlin.
     {% endblocktrans %}
-  </p>
-
-  {# Section 8: No paid product — Widerrufsrecht N/A #}
-  <h2>{% trans "Right of withdrawal" %}</h2>
-  <p>
-    {% blocktrans %}
+    </p>
+    {# Section 8: No paid product — Widerrufsrecht N/A #}
+    <h2>{% trans "Right of withdrawal" %}</h2>
+    <p>
+      {% blocktrans %}
     This platform provides a free service. No contract for a paid product is
     concluded. Accordingly, no right of withdrawal (Widerrufsrecht) arises under
     § 312g BGB.
     {% endblocktrans %}
-  </p>
-
-  {# Section 9: Severability + termination #}
-  <h2>{% trans "Severability and termination" %}</h2>
-  <p>
-    {% blocktrans %}
+    </p>
+    {# Section 9: Severability + termination #}
+    <h2>{% trans "Severability and termination" %}</h2>
+    <p>
+      {% blocktrans %}
     If any provision of these Terms is found to be invalid or unenforceable, the
     remaining provisions shall continue in full force and effect. Either party may
     terminate use of this platform at any time. Upon termination, existing data will
     be handled in accordance with our Privacy Policy.
     {% endblocktrans %}
-  </p>
-
-  {# Changes to terms #}
-  <h2>{% trans "Changes to these terms" %}</h2>
-  <p>
-    {% trans "We may update these terms from time to time. Continued use of the platform constitutes acceptance of any updated terms." %}
-  </p>
-
-</article>
+    </p>
+    {# Changes to terms #}
+    <h2>{% trans "Changes to these terms" %}</h2>
+    <p>
+      {% trans "We may update these terms from time to time. Continued use of the platform constitutes acceptance of any updated terms." %}
+    </p>
+  </article>
 {% endblock content %}

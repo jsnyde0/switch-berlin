@@ -4,22 +4,23 @@
 {% elif error %}
   <p class="kb-field-error">{{ error }}</p>
 {% else %}
-<form hx-post="{% url 'flag-target' %}"
-      hx-target="closest form"
-      hx-swap="outerHTML"
-      class="inline-flex items-center gap-2">
-  {% csrf_token %}
-  <input type="hidden" name="target_type" value="{{ target_type }}">
-  <input type="hidden" name="target_id" value="{{ target_id }}">
-  <select name="reason" class="kb-select !text-[11px] !font-mono uppercase tracking-[0.16em] !pb-1 !pt-1"
-          style="font-family: 'JetBrains Mono', monospace;"
-          aria-label="{% trans 'Reason' %}">
-    <option value="spam">{% trans "Spam" %}</option>
-    <option value="inaccurate">{% trans "Inaccurate" %}</option>
-    <option value="harmful">{% trans "Harmful" %}</option>
-    <option value="safety">{% trans "Safety concern" %}</option>
-    <option value="other">{% trans "Other" %}</option>
-  </select>
-  <button type="submit" class="kb-btn-quiet">{% trans "Report" %} ↗</button>
-</form>
+  <form hx-post="{% url 'flag-target' %}"
+        hx-target="closest form"
+        hx-swap="outerHTML"
+        class="inline-flex items-center gap-2">
+    {% csrf_token %}
+    <input type="hidden" name="target_type" value="{{ target_type }}">
+    <input type="hidden" name="target_id" value="{{ target_id }}">
+    <select name="reason"
+            class="kb-select !text-[11px] !font-mono uppercase tracking-[0.16em] !pb-1 !pt-1"
+            style="font-family: 'JetBrains Mono', monospace"
+            aria-label="{% trans 'Reason' %}">
+      <option value="spam">{% trans "Spam" %}</option>
+      <option value="inaccurate">{% trans "Inaccurate" %}</option>
+      <option value="harmful">{% trans "Harmful" %}</option>
+      <option value="safety">{% trans "Safety concern" %}</option>
+      <option value="other">{% trans "Other" %}</option>
+    </select>
+    <button type="submit" class="kb-btn-quiet">{% trans "Report" %} ↗</button>
+  </form>
 {% endif %}

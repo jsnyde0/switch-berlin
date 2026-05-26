@@ -6,9 +6,7 @@
 <a href="{% url 'organizer-profile' slug=organizer.slug %}"
    class="kb-mono inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-base-content/65 hover:text-base-content transition-colors">
   <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
-        style="background: var(--kb-accent-soft);">
-    {{ organizer.name|first }}
-  </span>
+        style="background: var(--kb-accent-soft)">{{ organizer.name|first }}</span>
   <span>{{ organizer.name }}</span>
   {% if organizer.verified_badge %}
     <span class="kb-tag kb-tag-accent ml-1">{% trans "Verified" %}</span>

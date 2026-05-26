@@ -9,23 +9,20 @@
 {% endblock title %}
 {% block extra_head %}
   {% if turnstile_site_key %}
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+            async
+            defer></script>
   {% endif %}
 {% endblock extra_head %}
 {% block content %}
   <div class="max-w-3xl">
-    <c-kb.page-header
-      eyebrow="{% trans 'Organizer · Claim' %}"
-      title="{{ organizer.name }}" />
-
+    <c-kb.page-header eyebrow="{% trans 'Organizer · Claim' %}" title="{{ organizer.name }}" />
     {% if already_claimant %}
       <c-kb.alert variant="info" kicker="{% trans 'Already yours' %}">
-        <p>{% trans "You are already listed as a claimant for this profile." %}</p>
+      <p>{% trans "You are already listed as a claimant for this profile." %}</p>
       </c-kb.alert>
       <a href="{% url 'organizer-profile' slug=organizer.slug %}"
-         class="kb-btn-secondary mt-8">
-        ← {% trans "Back to profile" %}
-      </a>
+         class="kb-btn-secondary mt-8">← {% trans "Back to profile" %}</a>
     {% else %}
       <p class="text-[15px] leading-[1.65] text-base-content/75 pt-2 max-w-2xl">
         {% blocktrans with name=organizer.name %}
@@ -33,55 +30,40 @@
           <strong class="text-base-content">{{ name }}</strong>. We'll send you a verification link.
         {% endblocktrans %}
       </p>
-
       <div class="mt-7 mb-9">
         <c-kb.alert variant="info" kicker="{% trans 'Two ways in' %}">
-          <p>
-            {% blocktrans %}
+        <p>
+          {% blocktrans %}
               <strong>(1)</strong> If your email's domain matches this profile's verified domain,
               you'll be auto-approved after clicking the link in your inbox.
               <strong>(2)</strong> Otherwise, your request joins the admin review queue — tell us
               who you are below so we can verify it.
             {% endblocktrans %}
-          </p>
+        </p>
         </c-kb.alert>
       </div>
-
       <form method="post" class="flex flex-col gap-7 max-w-2xl">
         {% csrf_token %}
-
-        <c-kb.field-wrap
-          label="{{ form.email.label }}"
-          for_id="{{ form.email.id_for_label }}"
-          hint="{{ form.email.help_text }}"
-          errors="{{ form.email.errors }}">
-          {{ form.email }}
+        <c-kb.field-wrap label="{{ form.email.label }}" for_id="{{ form.email.id_for_label }}" hint="{{ form.email.help_text }}" errors="{{ form.email.errors }}">
+        {{ form.email }}
         </c-kb.field-wrap>
-
-        <c-kb.field-wrap
-          label="{{ form.message.label }}"
-          for_id="{{ form.message.id_for_label }}"
-          hint="{{ form.message.help_text }}"
-          errors="{{ form.message.errors }}">
-          {{ form.message }}
+        <c-kb.field-wrap label="{{ form.message.label }}" for_id="{{ form.message.id_for_label }}" hint="{{ form.message.help_text }}" errors="{{ form.message.errors }}">
+        {{ form.message }}
         </c-kb.field-wrap>
-
         {% if turnstile_site_key %}
-          <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
-          {% if form.turnstile_token.errors %}
-            <span class="kb-field-error">{{ form.turnstile_token.errors }}</span>
-          {% endif %}
+          <div class="cf-turnstile"
+               data-sitekey="{{ turnstile_site_key }}"
+               data-theme="dark"></div>
+          {% if form.turnstile_token.errors %}<span class="kb-field-error">{{ form.turnstile_token.errors }}</span>{% endif %}
           {{ form.turnstile_token }}
         {% endif %}
-
         <div class="flex items-center gap-5 pt-2">
           <button type="submit" class="kb-btn">
             {% trans "Send verification link" %}
             <span aria-hidden="true">→</span>
           </button>
-          <a href="{% url 'organizer-profile' slug=organizer.slug %}" class="kb-btn-quiet">
-            ← {% trans "Cancel" %}
-          </a>
+          <a href="{% url 'organizer-profile' slug=organizer.slug %}"
+             class="kb-btn-quiet">← {% trans "Cancel" %}</a>
         </div>
       </form>
     {% endif %}

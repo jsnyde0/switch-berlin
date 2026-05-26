@@ -11,13 +11,16 @@
     {% if kicker %}
       {{ kicker }}
     {% else %}
-      {% if variant == "error" %}Error
-      {% elif variant == "success" %}Confirmed
-      {% elif variant == "warn" %}Notice
-      {% else %}Note{% endif %}
+      {% if variant == "error" %}
+        Error
+      {% elif variant == "success" %}
+        Confirmed
+      {% elif variant == "warn" %}
+        Notice
+      {% else %}
+        Note
+      {% endif %}
     {% endif %}
   </div>
-  <div class="kb-alert-body">
-    {{ slot }}
-  </div>
+  <div class="kb-alert-body">{{ slot }}</div>
 </div>

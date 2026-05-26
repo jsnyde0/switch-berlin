@@ -1,98 +1,63 @@
 {% extends "account/base_entrance.html" %}
 {% load allauth i18n %}
-{% block head_title %}{% trans "Signup" %}{% endblock head_title %}
+{% block head_title %}
+  {% trans "Signup" %}
+{% endblock head_title %}
 {% block extra_head %}
   {% if turnstile_site_key %}
     {# Cloudflare Turnstile widget — loaded only when a site key is configured. #}
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+            async
+            defer></script>
   {% endif %}
 {% endblock extra_head %}
 {% block content %}
   <div class="w-full max-w-md">
-    <c-kb.page-header
-      eyebrow="{% trans 'Account · Request' %}"
-      title="{% trans 'Join the' %}"
-      accent="{% trans 'index.' %}"
-      caption="{% trans 'Verified organizers only. Hand-curated. Privacy-forward.' %}" />
-
+    <c-kb.page-header eyebrow="{% trans 'Account · Request' %}" title="{% trans 'Join the' %}" accent="{% trans 'index.' %}" caption="{% trans 'Verified organizers only. Hand-curated. Privacy-forward.' %}" />
     <form method="post"
           action="{% url 'account_signup' %}"
           class="flex flex-col gap-7 pt-2">
       {% csrf_token %}
       {{ redirect_field }}
-
       {% if error %}
         <c-kb.alert variant="error" kicker="{% trans 'Cannot register' %}">
-          <p>{{ error }}</p>
+        <p>{{ error }}</p>
         </c-kb.alert>
       {% endif %}
-
       {% if form.errors %}
         <c-kb.alert variant="error" kicker="{% trans 'Check the fields' %}">
-          {% for field, errors in form.errors.items %}
-            {% for error in errors %}<p><strong>{{ field }}:</strong> {{ error }}</p>{% endfor %}
+        {% for field, errors in form.errors.items %}
+          {% for error in errors %}
+            <p>
+              <strong>{{ field }}:</strong> {{ error }}
+            </p>
           {% endfor %}
+        {% endfor %}
         </c-kb.alert>
       {% endif %}
-
-      <c-kb.field
-        label="{% trans 'Email' %}"
-        name="email"
-        type="email"
-        placeholder="you@domain.org"
-        required="true"
-        autocomplete="email"
-        errors="{{ form.email.errors }}" />
-
-      <c-kb.field
-        label="{% trans 'Password' %}"
-        name="password1"
-        type="password"
-        placeholder="••••••••"
-        required="true"
-        autocomplete="new-password"
-        errors="{{ form.password1.errors }}" />
-
-      <c-kb.field
-        label="{% trans 'Confirm password' %}"
-        name="password2"
-        type="password"
-        placeholder="••••••••"
-        required="true"
-        autocomplete="new-password"
-        errors="{{ form.password2.errors }}" />
-
-      <c-kb.field
-        label="{% trans 'Invite code · optional' %}"
-        name="invite_code"
-        type="text"
-        placeholder="{% trans 'If you have one' %}"
-        value="{{ form.invite_code.value|default:'' }}"
-        errors="{{ form.invite_code.errors }}"
-        hint="{% trans 'Without a code, your account joins the review queue.' %}" />
-
+      <c-kb.field label="{% trans 'Email' %}" name="email" type="email" placeholder="you@domain.org" required="true" autocomplete="email" errors="{{ form.email.errors }}" />
+      <c-kb.field label="{% trans 'Password' %}" name="password1" type="password" placeholder="••••••••" required="true" autocomplete="new-password" errors="{{ form.password1.errors }}" />
+      <c-kb.field label="{% trans 'Confirm password' %}" name="password2" type="password" placeholder="••••••••" required="true" autocomplete="new-password" errors="{{ form.password2.errors }}" />
+      <c-kb.field label="{% trans 'Invite code · optional' %}" name="invite_code" type="text" placeholder="{% trans 'If you have one' %}" value="{{ form.invite_code.value|default:'' }}" errors="{{ form.invite_code.errors }}" hint="{% trans 'Without a code, your account joins the review queue.' %}" />
       {% if turnstile_site_key %}
-        <div class="cf-turnstile pt-2" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
-        {% if form.turnstile_token.errors %}
-          <span class="kb-field-error">{{ form.turnstile_token.errors }}</span>
-        {% endif %}
+        <div class="cf-turnstile pt-2"
+             data-sitekey="{{ turnstile_site_key }}"
+             data-theme="dark"></div>
+        {% if form.turnstile_token.errors %}<span class="kb-field-error">{{ form.turnstile_token.errors }}</span>{% endif %}
         {{ form.turnstile_token }}
       {% endif %}
-
       {% if redirect_field_value %}
-        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+        <input type="hidden"
+               name="{{ redirect_field_name }}"
+               value="{{ redirect_field_value }}" />
       {% endif %}
-
       <button class="kb-btn w-full justify-center mt-2" type="submit">
         {% trans "Request account" %}
         <span aria-hidden="true">→</span>
       </button>
-
       <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/45 text-center">
         {% trans "Already in?" %}
-        <a href="{% url 'account_login' %}" class="kb-link ml-2">
-          {% trans "Sign in" %}
-        </a>
+        <a href="{% url 'account_login' %}" class="kb-link ml-2">{% trans "Sign in" %}</a>
       </p>
     </form>
   </div>

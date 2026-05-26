@@ -1,6 +1,5 @@
 {% load i18n %}
 {{ markers_geojson|json_script:"markers-data" }}
-
 <div x-data="{}" class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0">
   {% for event in page_obj %}
     <div data-event-slug="{{ event.organizer.slug }}/{{ event.slug }}"
@@ -18,12 +17,10 @@
   {% empty %}
     <div class="col-span-full flex flex-col items-start gap-4 border-t border-b border-white/10 py-20 px-2">
       <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">— {% trans "Nothing tonight" %} —</p>
-      <h3 class="kb-display text-3xl font-light text-base-content/80">
-        {% trans "No listings match the filter." %}
-      </h3>
-      <a href="?" class="kb-mono text-[11px] uppercase tracking-[0.18em] text-fuchsia-300 hover:text-fuchsia-200 transition border-b border-fuchsia-300/50 pb-0.5">{% trans "Clear filters" %} →</a>
+      <h3 class="kb-display text-3xl font-light text-base-content/80">{% trans "No listings match the filter." %}</h3>
+      <a href="?"
+         class="kb-mono text-[11px] uppercase tracking-[0.18em] text-fuchsia-300 hover:text-fuchsia-200 transition border-b border-fuchsia-300/50 pb-0.5">{% trans "Clear filters" %} →</a>
     </div>
   {% endfor %}
 </div>
-
 <c-pagination :page_obj="page_obj" />

@@ -1,35 +1,45 @@
 {% load i18n %}
 {% if submitted %}
-  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-emerald-300">— {% trans "Review submitted. Thank you" %} —</p>
+  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-emerald-300">
+    — {% trans "Review submitted. Thank you" %} —
+  </p>
 {% elif error %}
   <p class="kb-field-error">{{ error }}</p>
 {% else %}
-<form id="{{ form_id|default:'rating-form' }}"
-      hx-post="{% url 'review-submit' %}"
-      hx-target="#{{ form_id|default:'rating-form' }}"
-      hx-swap="outerHTML"
-      class="flex flex-col gap-3">
-  {% csrf_token %}
-  <input type="hidden" name="target_type" value="{{ target_type }}">
-  <input type="hidden" name="target_id" value="{{ target_id }}">
-  <fieldset class="flex flex-col gap-3">
-    <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Rate this" %}</legend>
-    <div class="flex items-center gap-1" role="radiogroup" aria-label="{% trans 'Rating' %}">
-      {% for i in "12345" %}
-        <label class="cursor-pointer">
-          <input type="radio" name="rating" value="{{ i }}" class="sr-only peer"
-                 {% if user_rating == i %}checked{% endif %}
-                 aria-label="{{ i }} {% trans 'stars' %}">
-          <span class="kb-display text-[26px] font-light text-base-content/25 leading-none px-0.5 peer-checked:text-fuchsia-300 hover:text-fuchsia-200 transition-colors">{{ i }}</span>
-        </label>
-      {% endfor %}
-      <span class="kb-mono ml-3 text-[10px] uppercase tracking-[0.22em] text-base-content/30">/5</span>
-    </div>
-    <textarea name="body" rows="3" class="kb-textarea" placeholder="{% trans 'Optional comment…' %}"></textarea>
-    <button type="submit" class="kb-btn-secondary self-start">
-      {% trans "Submit review" %}
-      <span aria-hidden="true">→</span>
-    </button>
-  </fieldset>
-</form>
+  <form id="{{ form_id|default:'rating-form' }}"
+        hx-post="{% url 'review-submit' %}"
+        hx-target="#{{ form_id|default:'rating-form' }}"
+        hx-swap="outerHTML"
+        class="flex flex-col gap-3">
+    {% csrf_token %}
+    <input type="hidden" name="target_type" value="{{ target_type }}">
+    <input type="hidden" name="target_id" value="{{ target_id }}">
+    <fieldset class="flex flex-col gap-3">
+      <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Rate this" %}</legend>
+      <div class="flex items-center gap-1"
+           role="radiogroup"
+           aria-label="{% trans 'Rating' %}">
+        {% for i in "12345" %}
+          <label class="cursor-pointer">
+            <input type="radio"
+                   name="rating"
+                   value="{{ i }}"
+                   class="sr-only peer"
+                   {% if user_rating == i %}checked{% endif %}
+                   aria-label="{{ i }} {% trans 'stars' %}">
+            <span class="kb-display text-[26px] font-light text-base-content/25 leading-none px-0.5 peer-checked:text-fuchsia-300 hover:text-fuchsia-200 transition-colors">{{ i }}</span>
+          </label>
+        {% endfor %}
+        <span class="kb-mono ml-3 text-[10px] uppercase tracking-[0.22em] text-base-content/30">/5</span>
+      </div>
+      <textarea name="body"
+                rows="3"
+                class="kb-textarea"
+                placeholder="{% trans 'Optional comment…' %}"></textarea>
+      <button type="submit" class="kb-btn-secondary self-start">
+        {% trans "Submit review" %}
+        <span aria-hidden="true">→</span>
+      </button>
+    </fieldset>
+  </form>
 {% endif %}

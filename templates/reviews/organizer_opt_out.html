@@ -1,51 +1,31 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
-
 {% block content %}
   <div class="w-full max-w-3xl">
-    <c-kb.page-header
-      eyebrow="{% trans 'Organizer · GDPR Opt-out' %}"
-      title="{% trans 'Remove your' %}"
-      accent="{% trans 'listings.' %}"
-      caption="{% trans 'Identity verified via Telegram user ID. No login required.' %}" />
-
+    <c-kb.page-header eyebrow="{% trans 'Organizer · GDPR Opt-out' %}" title="{% trans 'Remove your' %}" accent="{% trans 'listings.' %}" caption="{% trans 'Identity verified via Telegram user ID. No login required.' %}" />
     {% if submitted %}
       <c-kb.alert variant="success" kicker="{% trans 'Processed' %}">
-        <p>{% trans "Your opt-out request has been processed. Your organizer account has been suspended." %}</p>
+      <p>{% trans "Your opt-out request has been processed. Your organizer account has been suspended." %}</p>
       </c-kb.alert>
     {% else %}
       {% if error %}
         <c-kb.alert variant="error" kicker="{% trans 'Could not verify' %}">
-          <p>{{ error }}</p>
-          <p class="mt-2 text-[12px] text-base-content/60">
-            {% trans "If you cannot verify via Telegram, please use the" %}
-            <a href="{% url 'takedown' %}" class="kb-link">{% trans "takedown form" %}</a>
-            {% trans "to request manual processing." %}
-          </p>
+        <p>{{ error }}</p>
+        <p class="mt-2 text-[12px] text-base-content/60">
+          {% trans "If you cannot verify via Telegram, please use the" %}
+          <a href="{% url 'takedown' %}" class="kb-link">{% trans "takedown form" %}</a>
+          {% trans "to request manual processing." %}
+        </p>
         </c-kb.alert>
       {% endif %}
-
       <p class="text-[14px] leading-[1.65] text-base-content/70 pt-2 pb-6 max-w-2xl">
         {% trans "As an organizer, you may request removal of your data from our platform. Identity is verified via your Telegram user ID to prevent unauthorized removals." %}
       </p>
-
       <form method="post" class="flex flex-col gap-7">
         {% csrf_token %}
-        <c-kb.field
-          label="{% trans 'Your Telegram user ID' %}"
-          name="telegram_user_id"
-          type="text"
-          placeholder="123456789"
-          inputmode="numeric"
-          hint="{% trans 'Find your user ID by messaging @userinfobot on Telegram.' %}" />
-        <c-kb.field
-          label="{% trans 'Organizer slug from your profile URL' %}"
-          name="organizer_slug"
-          type="text"
-          placeholder="my-organizer-name" />
-        <button type="submit" class="kb-btn-danger self-start">
-          {% trans "Request data removal" %}
-        </button>
+        <c-kb.field label="{% trans 'Your Telegram user ID' %}" name="telegram_user_id" type="text" placeholder="123456789" inputmode="numeric" hint="{% trans 'Find your user ID by messaging @userinfobot on Telegram.' %}" />
+        <c-kb.field label="{% trans 'Organizer slug from your profile URL' %}" name="organizer_slug" type="text" placeholder="my-organizer-name" />
+        <button type="submit" class="kb-btn-danger self-start">{% trans "Request data removal" %}</button>
       </form>
     {% endif %}
   </div>

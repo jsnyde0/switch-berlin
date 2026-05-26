@@ -18,17 +18,17 @@
     The first loop had two competing gradients (fuchsia + indigo) plus dots; that read SaaS-aurora.
     One warm anchor + grain reads like newsprint under a single bulb.
   {% endcomment %}
-  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+       aria-hidden="true">
     <div class="absolute -bottom-32 -left-32 h-[520px] w-[520px] rounded-full bg-rose-700/10 blur-[140px]"></div>
     <div class="absolute inset-0 opacity-[0.035]"
-         style="background-image: radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px); background-size: 28px 28px;"></div>
+         style="background-image: radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px);
+                background-size: 28px 28px"></div>
   </div>
-
   {# ─── Top bar ──────────────────────────────────────────────────────── #}
   {# Single canonical masthead — same component every interior surface uses. #}
   {# The hairline rule below the bar lives in cotton/navbar.html. #}
   <c-navbar />
-
   {# ─── Hero ─────────────────────────────────────────────────────────── #}
   {% comment %}
     Editorial masthead — issue/date eyebrow (mono), large serif headline, paired
@@ -47,8 +47,10 @@
             <span class="text-fuchsia-300/80">{% blocktrans count counter=page_obj.paginator.count %}{{ counter }} listing{% plural %}{{ counter }} listings{% endblocktrans %}</span>
           </div>
           <h1 class="kb-display text-[64px] sm:text-[88px] lg:text-[112px] leading-[0.9] font-light text-base-content">
-            What's<br>
-            happening<br>
+            What's
+            <br>
+            happening
+            <br>
             <span class="kb-display-italic font-normal text-fuchsia-300/95">in Berlin.</span>
           </h1>
         </div>
@@ -62,18 +64,23 @@
           </p>
           <div class="kb-rule mt-7"></div>
           <c-kb.colophon>
-            <dt class="text-base-content/40">{% trans "Curation" %}</dt>
-            <dd class="text-base-content/85">{% trans "By hand" %}</dd>
-            <dt class="text-base-content/40">{% trans "Privacy" %}</dt>
-            <dd class="text-base-content/85">{% trans "Consent-forward" %}</dd>
-            <dt class="text-base-content/40">{% trans "Updated" %}</dt>
-            <dd class="text-base-content/85">{% now "D · H:i" %}</dd>
+          <dt class="text-base-content/40">{% trans "Curation" %}</dt>
+          <dd class="text-base-content/85">
+            {% trans "By hand" %}
+          </dd>
+          <dt class="text-base-content/40">{% trans "Privacy" %}</dt>
+          <dd class="text-base-content/85">
+            {% trans "Consent-forward" %}
+          </dd>
+          <dt class="text-base-content/40">{% trans "Updated" %}</dt>
+          <dd class="text-base-content/85">
+            {% now "D · H:i" %}
+          </dd>
           </c-kb.colophon>
         </div>
       </div>
     </div>
   </section>
-
   {# ─── Sort + filter bar ────────────────────────────────────────────── #}
   {% comment %}
     A single editorial control row: a mono "Sort —" eyebrow, then sort options
@@ -85,30 +92,30 @@
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div class="kb-rule"></div>
       {% with sort_active=sort|default:"date" %}
-      <div role="tablist" class="flex items-center flex-wrap gap-x-6 gap-y-3 py-4">
-        <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Sort —" %}</span>
-        <c-kb.tab href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}"
-                  :active="sort_active == 'date'"
-                  label="{% trans 'Latest' %}" />
-        {% if trending_enabled %}
-          <c-kb.tab href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-                    :active="sort_active == 'trending'"
-                    label="{% trans 'Trending' %}" />
-        {% endif %}
-        {% if EVENT_REVIEWS_DISPLAYED %}
-          <c-kb.tab href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-                    :active="sort_active == 'lowest_rated'"
-                    label="{% trans 'Lowest rated' %}" />
-          <c-kb.tab href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}"
-                    :active="sort_active == 'most_reviewed'"
-                    label="{% trans 'Most reviewed' %}" />
-        {% endif %}
-      </div>
+        <div role="tablist"
+             class="flex items-center flex-wrap gap-x-6 gap-y-3 py-4">
+          <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Sort —" %}</span>
+          <c-kb.tab href="?
+          {% if filter_query_string %}{{ filter_query_string }}{% endif %}
+          " :active="sort_active == 'date'" label="{% trans 'Latest' %}" />
+          {% if trending_enabled %}
+            <c-kb.tab href="?sort=trending
+            {% if filter_query_string %}&{{ filter_query_string }}{% endif %}
+            " :active="sort_active == 'trending'" label="{% trans 'Trending' %}" />
+          {% endif %}
+          {% if EVENT_REVIEWS_DISPLAYED %}
+            <c-kb.tab href="?sort=lowest_rated
+            {% if filter_query_string %}&{{ filter_query_string }}{% endif %}
+            " :active="sort_active == 'lowest_rated'" label="{% trans 'Lowest rated' %}" />
+            <c-kb.tab href="?sort=most_reviewed
+            {% if filter_query_string %}&{{ filter_query_string }}{% endif %}
+            " :active="sort_active == 'most_reviewed'" label="{% trans 'Most reviewed' %}" />
+          {% endif %}
+        </div>
       {% endwith %}
       <div class="kb-rule"></div>
     </div>
   </section>
-
   {# ─── Filters ─────────────────────────────────────────────────────── #}
   <section class="relative">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
@@ -121,7 +128,6 @@
       </form>
     </div>
   </section>
-
   {# ─── Map ─────────────────────────────────────────────────────────── #}
   {% comment %}
     Compressed (340px) and corner-square — the prior 460px panel above the grid
@@ -135,46 +141,57 @@
           <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">
             {% trans "Geography — drag to filter by area" %}
           </p>
-          <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/30">
-            {% trans "Berlin · DE" %}
-          </p>
+          <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/30">{% trans "Berlin · DE" %}</p>
         </div>
         <div class="relative overflow-hidden rounded-md ring-1 ring-white/10 shadow-2xl shadow-black/40"
-             style="height: 340px; width: 100%;">
+             style="height: 340px;
+                    width: 100%">
           <div id="map" hx-preserve="true" style="height: 100%; width: 100%;"></div>
-
           {# Legend — squared editorial pill, hairline border. #}
           <details class="absolute left-3 bottom-3 z-10 max-w-[220px] border border-white/15 bg-base-100/90 backdrop-blur-md group/legend">
             <summary class="kb-mono flex cursor-pointer items-center gap-2 list-none px-2.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-base-content/70 hover:text-base-content [&::-webkit-details-marker]:hidden">
               <span>{% trans "Legend" %}</span>
-              <svg class="ml-auto h-3 w-3 text-base-content/45 transition-transform group-open/legend:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              <svg class="ml-auto h-3 w-3 text-base-content/45 transition-transform group-open/legend:rotate-180"
+                   viewBox="0 0 24 24"
+                   fill="none"
+                   stroke="currentColor"
+                   stroke-width="2.2"
+                   stroke-linecap="round"
+                   stroke-linejoin="round"
+                   aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
             </summary>
             <div class="flex flex-col gap-1.5 border-t border-white/10 px-2.5 py-2">
               <div class="flex items-center gap-2">
-                <span class="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full" style="background:#a855f7;"></span>
+                <span class="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                      style="background:#a855f7"></span>
                 <span class="text-[11px] text-base-content/80">{% trans "Public venue" %}</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="inline-block h-4 w-4 flex-shrink-0 rounded-full" style="background:rgba(168,85,247,0.18); border:2px solid rgba(168,85,247,0.45); box-sizing:border-box;"></span>
+                <span class="inline-block h-4 w-4 flex-shrink-0 rounded-full"
+                      style="background:rgba(168,85,247,0.18);
+                             border:2px solid rgba(168,85,247,0.45);
+                             box-sizing:border-box"></span>
                 <span class="text-[11px] text-base-content/80">{% trans "Private (approx.)" %}</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white" style="background:#6366f1;">3</span>
+                <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
+                      style="background:#6366f1">3</span>
                 <span class="text-[11px] text-base-content/80">{% trans "Multiple events" %}</span>
               </div>
             </div>
           </details>
-
           {# Slide-in event drawer — anchored top-right, overlays the map. #}
           {# `empty:hidden` keeps it out of the layout/pointer-events when no event is selected; #}
           {# HTMX fills it on card or marker click and clears it on Close. #}
           <div id="drawer"
-               class="pointer-events-none absolute inset-y-3 right-3 z-20 w-[min(360px,calc(100%-1.5rem))] empty:hidden [&:not(:empty)]:pointer-events-auto"></div>
+               class="pointer-events-none absolute inset-y-3 right-3 z-20 w-[min(360px,calc(100%-1.5rem))] empty:hidden [&:not(:empty)]:pointer-events-auto">
+          </div>
         </div>
       </div>
     </section>
   {% endif %}
-
   {# ─── Following (auth only) ──────────────────────────────────────── #}
   {% if user.is_authenticated and following_events %}
     <section class="relative">
@@ -184,7 +201,8 @@
           <h2 class="kb-display text-3xl font-normal tracking-tight text-base-content">
             {% trans "From organizers you" %} <span class="kb-display-italic text-fuchsia-300/90">{% trans "follow" %}</span>
           </h2>
-          <a href="?filter=following" class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content transition-colors">{% trans "View all" %} →</a>
+          <a href="?filter=following"
+             class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content transition-colors">{% trans "View all" %} →</a>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {% for event in following_events %}<c-event-card :event="event" />{% endfor %}
@@ -192,7 +210,6 @@
       </div>
     </section>
   {% endif %}
-
   {# ─── Event grid ─────────────────────────────────────────────────── #}
   <section class="relative">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-16">
