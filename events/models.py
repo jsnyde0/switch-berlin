@@ -231,6 +231,80 @@ class Event(models.Model):
     rating_count = models.IntegerField(default=0)
     avg_rating = models.FloatField(null=True, blank=True)
 
+    # --- Syndication extensions (kb-a4u.1, ADR-016 D1) ---
+
+    # Content policy fields (listing-platform structured data)
+    dress_code = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Dress code for the event (e.g., 'Fetish attire required').",
+    )
+    content_warnings = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of content warning strings (e.g., ['nudity', 'bdsm']).",
+    )
+    age_restriction = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Minimum age for attendees; null = no age restriction.",
+    )
+
+    # --- Recurrence reservation (ADR-016 Consequences, ADR-003 cheap foresight) ---
+    # Data-shape only. Recurring-events behavioral epic ships later.
+
+    recurrence_rule = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text=(
+            "RESERVED: iCal RRULE string for recurring events "
+            "(e.g., 'FREQ=WEEKLY;BYDAY=SA'). null = one-time event. "
+            "Behavior: recurring-events epic."
+        ),
+    )
+    recurrence_parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurrence_instances",
+        help_text=(
+            "RESERVED: FK to the canonical recurring event this instance was generated from. "
+            "null = original / standalone. Behavior: recurring-events epic."
+        ),
+    )
+
+    # --- Ticket type taxonomy reservation (ADR-016 Consequences, ADR-003) ---
+    ticket_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "RESERVED: full ticket type taxonomy "
+            "(e.g., [{'name': 'Early Bird', 'price_cents': 1500, 'capacity': 20}]). "
+            "Behavior: ticketing epic (ADR-015)."
+        ),
+    )
+
+    # --- Buyer / attendee screening question reservations (ADR-016 Consequences) ---
+    buyer_questions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "RESERVED: screening questions asked at ticket purchase "
+            "(e.g., [{'question': 'Have you attended before?', 'type': 'bool'}]). "
+            "Behavior: RSVP+screening epic."
+        ),
+    )
+    attendee_questions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "RESERVED: screening questions asked at event entry / check-in. "
+            "Behavior: RSVP+screening epic."
+        ),
+    )
+
     # Provenance (F7)
     raw_message = models.ForeignKey(
         "ingestion.RawMessage",

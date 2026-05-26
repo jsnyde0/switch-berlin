@@ -108,6 +108,7 @@ INSTALLED_APPS = [
     "events",
     "ingestion",
     "reviews",
+    "syndication",
 ]
 
 MIDDLEWARE = [
