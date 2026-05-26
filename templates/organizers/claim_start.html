@@ -44,6 +44,12 @@
       </div>
       <form method="post" class="flex flex-col gap-7 max-w-2xl">
         {% csrf_token %}
+        {% if form.non_field_errors or form.turnstile_token.errors %}
+          <c-kb.alert variant="error" kicker="{% trans 'Could not submit' %}">
+          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+          {% for error in form.turnstile_token.errors %}<p>{{ error }}</p>{% endfor %}
+          </c-kb.alert>
+        {% endif %}
         <c-kb.field-wrap label="{{ form.email.label }}" for_id="{{ form.email.id_for_label }}" hint="{{ form.email.help_text }}" errors="{{ form.email.errors }}">
         {{ form.email }}
         </c-kb.field-wrap>
@@ -54,7 +60,6 @@
           <div class="cf-turnstile"
                data-sitekey="{{ turnstile_site_key }}"
                data-theme="dark"></div>
-          {% if form.turnstile_token.errors %}<span class="kb-field-error">{{ form.turnstile_token.errors }}</span>{% endif %}
           {{ form.turnstile_token }}
         {% endif %}
         <div class="flex items-center gap-5 pt-2">

@@ -67,6 +67,14 @@ class ClaimForm(forms.Form):
         from accounts.adapter import validate_turnstile_token
 
         token = self.cleaned_data.get("turnstile_token", "")
+
+        if settings.DEBUG:
+            # DEBUG-only bypass: the widget is suppressed in DEBUG (commit f1b84aa),
+            # so there is no token to validate. Scoped to DEBUG=True — the Django
+            # test runner forces DEBUG=False, and production runs DEBUG=False, so the
+            # ADR-014 D3 Turnstile gate is unchanged everywhere it matters.
+            return token
+
         secret_key = getattr(settings, "TURNSTILE_SECRET_KEY", "")
 
         if not secret_key:
