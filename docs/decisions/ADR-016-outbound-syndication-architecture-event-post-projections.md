@@ -203,6 +203,32 @@ The status enum `{draft, ready, published, failed}` (D2) carries these transitio
 - The actor-attested model proves unreliable for no-API platforms (agents mis-attest published when the post didn't actually land, or humans forget to attest and the board lies). Operational signal; layer verification requirements onto the attest verb.
 - The `{draft, ready, published, failed}` enum proves too coarse (e.g., a load-bearing "agent-suggested, not yet human-reviewed" state emerges). Operational signal; refine the enum in place per the D2 note.
 
+### D6: API framework = Django Ninja (in-process, Django-routed); django-bolt rejected for breaking the co-equal-handler constraint
+
+**Firmness: FLEXIBLE** — user-confirmed at decomposition (2026-05-26); v0 tactical. Reversible if Ninja's in-process model can't cleanly share handler/auth with the HTMX views (D3 co-equal test can't go green without a private fast-path) or if perf needs exceed in-process Python.
+
+The HTTP API surface (D3) is built with **Django Ninja**. Ninja handlers are ordinary in-process Django-routed callables, so the JSON API and the HTMX HTML views can sit over a **shared service/domain layer** and resolve to identical persistence + auth middleware — the mechanism that makes D3's "co-equal clients, no private fast-path" satisfiable and the co-equal integration test (kb-a4u.9) meaningful. Ninja also auto-generates the OpenAPI/JSON-schema docs D3's consequences rely on as the interim agent contract (pre-`skill.md`). The app lives in a dedicated `syndication/` Django app (already created in C1).
+
+**Rationale:**
+
+- `reasoned:` co-equal (D3) requires the web UI and agents to hit the *same* logic; an in-process framework lets HTML views and JSON handlers share a service layer and the same Django auth middleware. A framework that runs its own server can't share the Django request/handler path.
+- `external:` django-bolt README — it runs a **separate Rust (Actix Web + PyO3) server** via `manage.py runbolt` with its own Rust-side auth; that is structurally a different handler from Django's, so it cannot be the co-equal same-handler D3 mandates.
+- `reasoned:` Ninja's auto-OpenAPI gives D3's interim agent contract nearly for free; DRF would need extra schema wiring; raw Django views would need hand-rolled typed schemas + docs.
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| django-bolt (Rust Actix + PyO3) | `external:` django-bolt README — separate `runbolt` Rust server with Rust-side auth; `reasoned:` structurally not the same Django handler the HTMX views use → breaks ADR-016 D3 co-equal-handler. Its perf win (188k RPS) is irrelevant at v0 scale and is the explicit tripwire to revisit, not a v0 need. |
+| Django REST Framework | `reasoned:` viable in-process and co-equal-compatible, but heavier (serializer/viewset ceremony) and needs extra wiring for OpenAPI; Ninja gives typed schemas + auto-docs with less boilerplate. Not wrong — just more for the same v0 outcome. |
+| FastAPI (standalone ASGI) | `reasoned:` separate ASGI app, not Django-routed → loses native ORM/admin/middleware integration and the shared-handler property; reintroduces the two-surfaces drift D3 forbids. |
+| Raw Django views + manual JSON | `reasoned:` no auto OpenAPI (D3's interim contract), hand-rolled request/response typing for every endpoint; more boilerplate and drift risk for a typed agent-facing API. |
+
+**What would invalidate this:**
+
+- The co-equal integration test (kb-a4u.9) can't be made green with Ninja without introducing a web-only fast-path — i.e., Ninja's request model and the HTMX view layer can't actually share handler/auth cleanly. Substantive observation at C2/C8; revisit framework.
+- In-process Python throughput becomes load-bearing (the django-bolt tripwire fires under real traffic). Operational signal; revisit, having already isolated logic in a service layer so the swap is contained.
+
 ## Consequences
 
 ### Direct
