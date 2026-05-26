@@ -1,6 +1,6 @@
 # ADR-016: Outbound syndication architecture — canonical Event + Post, per-platform projections, agent + UI co-equal API clients
 
-**Status:** Accepted 2026-05-25
+**Status:** Accepted 2026-05-25 (D2 refined + D4/D5 added 2026-05-26 via C3/C5 authoring-UX brainstorm)
 **Parent:** [ADR-010 D1 — event-based product posture](ADR-010-event-based-product-posture.md) (real-world action drives the existence of both Event and Post); [ADR-011 D1 — personal-agent layer additive](ADR-011-personal-agent-layer-additive.md) (already names per-target syndication + promo-post drafting as agent-extended scope; this ADR canonicalizes the entity model and API contract within that framing)
 **Scope:** data-model + API-surface architecture for how Switch produces outbound to external platforms — both event listings (FetLife / Ticket Tailor / Switch's own event page / Eventbrite-later / IG-as-listing-later) and promotion posts (Telegram / IG-later / FB-later). Distinct from ADR-010 (product-posture / why syndicate at all), ADR-011 (agent-vs-SaaS placement of the cleaning logic), ADR-012 (visibility tiers that constrain which projections are allowed), and ADR-015 (payment-processor binding for the ticketing leg).
 
@@ -56,15 +56,19 @@ This ADR canonicalizes the entity model and the API contract; cleaning-policy de
 
 A **projection** is a per-platform editable copy of either an Event (kind=listing) or a Post (kind=promotion), carrying:
 
-- `platform_id` (e.g., `fetlife`, `tickettailor`, `switch-berlin-own`, `telegram-channel:<channel_id>`)
+- `connection` (FK to a `PlatformConnection` destination — see D4; **supersedes** the `platform_id` string the as-built C1 schema shipped, refront via the kb-a4u.1 follow-up refactor bead)
 - `kind` ∈ {`listing`, `promotion`}
 - `source_ref` (FK to Event for kind=listing, FK to Post for kind=promotion)
-- `status` ∈ {`draft`, `ready`, `published`, `failed`} — tracks publication lifecycle
+- `status` ∈ {`draft`, `ready`, `published`, `failed`} — tracks publication lifecycle (see D5)
 - `external_id?`, `external_url?`, `syndicated_at?` — populated after publication
-- per-field overrides (every field of the source can be independently overridden on the projection; absent override means "use canonical value")
+- per-field overrides (`override_data` — every field of the source can be independently overridden on the projection; absent key means "use canonical value")
+- `provenance` ∈ {`rule_template`, `agent_supplied`, `manual`} — how the *current* effective content was last produced; flips to `manual` the moment a human edits an override. Carries the generated-vs-edited signal the review board surfaces without any version machinery
+- `generated_by?` (nullable agent identity) + `last_generated_at?` — ADR-003 reservation fields; empty for human-driven flows, populated when an agent supplies content. They are the columns a future `ProjectionRevision` history table would key on
 - platform-specific action elements (e.g., Telegram inline buttons, IG bio-link routing target, FetLife "interested" prompt copy) — these live on the projection, not on the canonical, because they're rendering choices specific to the platform
 
-Each projection is generated initially from the canonical (Event for listing, Post for promotion) with content-policy filtering applied per platform (the filter rules live in kb-o0j cleaning-policy substrate, NOT in this ADR). Facilitator or agent edits the projection before flipping status to `ready` then `published`. When the canonical changes, projections do **not** auto-rewrite — they remain at their last-edited state until the facilitator or agent reviews and decides what to re-push.
+**Effective content = live canonical (Event/Post fields) + `override_data`.** There is no stored `generated_body`/`override_body` two-field split: a listing's non-overridden fields track the Event automatically (no stale stored copy), and an override is a per-field delta. The template seed is one-time at projection creation, not a re-runnable regenerate. No version history at v0 — the additive path is a future append-only `ProjectionRevision` table keyed on `provenance` + `generated_by` + `last_generated_at`. (Dolt-style data versioning rejected for app data: its branch/merge superpower is unneeded for linear projection revisions; a plain Postgres revision table is the right tool when the agent-iteration loop makes history load-bearing.)
+
+Each projection is generated initially from the canonical (Event for listing, Post for promotion) with content-policy filtering applied per platform (the filter rules live in kb-o0j cleaning-policy substrate, NOT in this ADR). Facilitator or agent edits the projection before flipping status to `ready` then `published`. When the canonical changes, non-overridden fields track it automatically; overridden fields remain at their last-edited state until the facilitator or agent reviews and decides what to re-push.
 
 **The agent's job becomes two-step:** (a) given a canonical Event, generate listing projections for each listing-platform target (event-structured shape + per-platform content-policy adaptation); (b) given a canonical Post + reference to its Event, generate promotion projections for each promotion-platform target (post-content shape + small set of inlined event facts + link back to a listing + per-platform content-policy adaptation).
 
@@ -134,12 +138,80 @@ Switch exposes an HTTP API as the canonical surface for Event/Post/Projection op
 - Moltbook-pattern auth proves insufficient for a real-world security concern (e.g., agent-side credential theft surfaces a need for per-action confirmation beyond identity-token verification). Substantive observation; layer additional auth without abandoning the base pattern.
 - The `skill.md` extraction from dogfooding doesn't converge — facilitators' agents keep needing different primitive shapes — suggesting the API isn't co-equal in practice but is web-UI-shaped. Operational signal; reshape API primitives toward agent-naturalness.
 
+### D4: A projection targets a `PlatformConnection` (a specific destination), not a platform string; connections are eager-fanned into draft projections per enabled connection × supported kind
+
+**Firmness: FLEXIBLE** — landed via the C3/C5 authoring-UX brainstorm 2026-05-26, dogfooding-imminent. Reversible if dogfooding shows organizers never run more than one destination per platform AND the connection indirection adds friction without value, or if eager creation produces draft clutter that organizers find noisier than an explicit "add a destination" gesture.
+
+A **`PlatformConnection`** is a specific syndication destination owned by an organizer: one Telegram channel, one FetLife account, the Switch own-event-page, one Ticket Tailor account. It carries: organizer/Profile (per ADR-007 D2), `platform`, the destination identifier, per-destination credentials, an `enabled` flag, and the `kinds` it supports (Switch page → listing; Ticket Tailor → listing; Telegram → promotion; FetLife → **both**). A `PlatformProjection` FKs to a connection, **not** to a bare platform string.
+
+This unifies two surfaces that would otherwise drift apart: the organizer's **"which platforms am I syndicating to" setting** and the **per-organizer adapter credential store** the adapter beads (kb-a4u.10–.16) needed anyway. They are the same model. An organizer may hold **multiple connections per platform** (three Telegram channels = three connection rows); "many channels later" is additive rows, zero reshape. Person/DM-level targeting *within* a destination is explicitly out of scope at v0 — v0 is destination/channel-level.
+
+**Eager creation:** when an Event is authored, eager-create `draft` listing projections for each enabled connection that supports `listing`; when a Post is authored, eager-create `draft` promotion projections for each enabled connection that supports `promotion`. FetLife (both kinds) gets a listing row from the Event and promotion rows from Posts. **Per-event/post inclusion is expressed through status, not a separate toggle**: leaving a row in `draft` = "don't publish there this time." The status board is thereby honest-by-default — every possible destination is visible as a draft row, nothing is silently absent.
+
+**Rationale:**
+
+- `external:` C3/C5 brainstorm 2026-05-26 — user named the multi-destination reality directly: *"on Telegram you can post this in many channels… perhaps we should have a config there of which channels it gets posted to (by default) and then per event or per post you can tweak that"* and corrected FetLife as both-kinds (*"it's like Facebook where you can post events but also create posts"*). The destination model shapes for a stated, present requirement — ADR-003 cheap foresight, not ADR-008 D2 speculation.
+- `reasoned:` credentials, the `enabled` default, and multi-channel all need a home; a `platform_id` string has nowhere to put them. One model (`PlatformConnection`) serving both settings and credential storage is fewer moving parts than a settings blob + a separate credential store.
+- `reasoned:` eager creation makes the review board's "what's going where" complete by default (the visibility property worth stealing from a campaign-composer UI without building one), and gives an agent a stable set of draft rows to fill rather than requiring it to know the platform catalog to create rows.
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| `platform_id` string on the projection (as-built C1) | `direct:` `syndication/models.py` shipped `platform_id = CharField` with `'telegram-channel:<id>'` encoding — the channel-in-a-string gesture shows destinations were anticipated but had nowhere structured to live. `reasoned:` no home for credentials / `enabled` / multiple channels; settings and adapter-creds would drift into separate ad-hoc stores. |
+| Separate `Destination`/`Target` model distinct from a per-platform `Connection` | `reasoned:` over-modeled at v0 — one connection *is* one destination; "multiple Telegram channels" is multiple connection rows, no second model needed. Collapsing destination into connection is the simplest thing that supports the stated multi-channel requirement. |
+| Lazy / on-demand projection creation (rows created only when a destination is chosen) | `reasoned:` the board only shows chosen channels, losing the honest-by-default "here's everywhere this could go" overview; and an agent must enumerate the platform catalog to create rows rather than filling a stable pre-existing set. `external:` user's "configurable per user… eager model" steer. |
+| Per-event explicit platform toggle (separate from connection `enabled`) | `reasoned:` redundant with status — `draft` already expresses "not publishing here this time"; a second toggle is two mechanisms for one intent. |
+
+**What would invalidate this:**
+
+- Dogfooding organizers consistently run exactly one destination per platform AND report the connection FK / settings indirection as friction without offsetting value. Operational signal across the first cohort; collapse toward a thinner platform-enum if so.
+- Eager draft rows prove to be clutter organizers actively dismiss rather than a useful overview (e.g., they want to opt *in* to destinations, not opt *out*). Operational signal; flip to lazy creation.
+- Destination-level targeting proves too coarse — a real workflow needs per-person/segment targeting inside a channel at v0. Substantive observation; the connection shape doesn't preclude a sub-target later, but the v0 scope-out would be wrong.
+
+### D5: Publish lifecycle is explicit and actor-attested — `draft → ready` is the completeness gate; `ready → published` is an explicit action; `mark-published` is a co-equal API verb
+
+**Firmness: FLEXIBLE** — landed via the C3/C5 brainstorm 2026-05-26. Reversible if dogfooding shows the explicit publish step is friction organizers want automated away, or if the actor-attested model proves unreliable for no-API platforms.
+
+The status enum `{draft, ready, published, failed}` (D2) carries these transition semantics:
+
+- **`draft` doubles as work-in-progress.** Saving an incomplete Event/projection is always allowed; it sits in `draft`. The fail-loud "missing X" state (per ADR-008 D3 — no silent zero-fill) is therefore also the **save-and-resume affordance**: an organizer returning later sees clearly that the projection isn't ready and exactly what's blocking it.
+- **`draft → ready` is the completeness gate.** This transition — an explicit approve action — is where required-input completeness is enforced. Completeness is gated *here*, never at save-time.
+- **`ready → published` is an explicit publish action** (per-row, plus a batch "publish all ready"), **never auto-on-`ready`**. `ready` means "approved/staged"; `published` means "it's actually out there." Keeping the push deliberate (a) makes fail-loud a chosen act rather than a side-effect of approval, (b) gives an agent two clean composable verbs (`set-ready`, then `publish`) instead of one overloaded one, and (c) is the only model that works for no-API platforms.
+- **`mark-published` is a first-class co-equal API verb** (per D3 — co-equal clients), not a UI-only button. The web "mark as posted" control and an agent's `switch projection publish <id>` hit the *same* verb. The distinction across platforms is **push-API-exists vs not**: push-API platforms (Telegram, Ticket Tailor) — the publish verb performs the push and auto-confirms `published`/`failed`; no-API platforms (FetLife) — the actor does the push out-of-band (human copy-paste, or agent browser-automation **with verification**) and then attests via `mark-published`. An agent is a *better* attestor than a human here because it can verify the post landed before attesting.
+
+**Failed-push is governed by FIRM ADR-008 D3/D4** (not restated here): transport blips → up to 2 retries → `failed`; platform 4xx/5xx, content rejection, validation → no retry → immediate `failed`; `failed` is never silent — the row surfaces the platform's actual reason and offers a manual retry. Only push-API platforms can reach `failed` (a human is the transport for no-API platforms). **Content-policy pre-publish surfacing:** `clean_for_platform` (kb-o0j) flags terms a platform may reject; surface that as a pre-publish warning on the row rather than letting the push fail downstream. **Edit + re-publish of an already-`published` projection is deferred** (adapter-specific — some platforms support edit-in-place, some don't).
+
+**Rationale:**
+
+- `external:` C3/C5 brainstorm 2026-05-26 — user chose explicit publish (*"yes explicit"*) and reframed the no-API path as agent-attestable: *"keep in mind we'll probably want to enable our agent to do it for us. So the agent can then also verify, and use the cli… to mark as actually published."* Also surfaced the WIP insight: the incomplete-state display *"would allow users to save progress… and come back later… it's clear the event isn't 'ready' yet."*
+- `reasoned:` actor-attested-via-a-shared-verb is the only model consistent with D3's co-equal principle — a UI-only "mark posted" button would be a private web fast-path, exactly what D3 forbids.
+- `reasoned:` making `draft → ready` the single completeness gate (rather than gating at save) is what lets `draft` serve double duty as WIP without a separate "incomplete" state.
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| Auto-publish on `ready` (approval *is* publication) | `external:` user chose explicit. `reasoned:` makes the push a side-effect of approval (fail-loud becomes incidental, not deliberate); collapses the agent's two composable verbs into one; cannot express the no-API "staged, awaiting out-of-band post" state. |
+| Human-only "mark as posted" UI button for no-API platforms | `reasoned:` a UI-only attest path is a private web fast-path — violates D3 co-equal. The attest must be a shared API verb so an agent can call it (and verify before attesting). |
+| Gate completeness at save-time (can't save an incomplete Event) | `external:` user's save-and-resume framing. `reasoned:` blocks the partial-draft workflow; forces organizers to complete in one sitting; loses `draft`-as-WIP. |
+| Auto-rewrite/auto-republish published projections when canonical changes | `reasoned:` adapter-specific and surprising (silent re-push of already-public content); deferred until the edit-in-place capability per adapter is known. |
+
+**What would invalidate this:**
+
+- Dogfooding organizers experience the explicit publish step as friction they'd rather have automated (e.g., "I always publish-all immediately after marking ready — why two steps?"). Operational signal; consider an opt-in auto-publish per connection.
+- The actor-attested model proves unreliable for no-API platforms (agents mis-attest published when the post didn't actually land, or humans forget to attest and the board lies). Operational signal; layer verification requirements onto the attest verb.
+- The `{draft, ready, published, failed}` enum proves too coarse (e.g., a load-bearing "agent-suggested, not yet human-reviewed" state emerges). Operational signal; refine the enum in place per the D2 note.
+
 ## Consequences
 
 ### Direct
 
 - The v0 organizer-hub impl bead (spawned from kb-dko at close) must implement Event and Post as separate Django models with FK from Post to Event; not embed Post fields in Event.
-- The v0 impl ships projection records for at minimum: FetLife listing, Ticket Tailor listing, Switch's own event page listing, Telegram channel promotion. Each projection carries the full schema in D2 (platform_id, kind, source_ref, status, external_id?, external_url?, syndicated_at?, per-field overrides).
+- The v0 impl ships projection records for at minimum: FetLife listing, Ticket Tailor listing, Switch's own event page listing, Telegram channel promotion. Each projection carries the full schema in D2 (connection FK per D4, kind, source_ref, status, external_id?, external_url?, syndicated_at?, override_data, provenance, generated_by?, last_generated_at?).
+- The as-built C1 schema (`syndication/models.py`, kb-a4u.1 closed 2026-05-26) predates D2's refinement + D4/D5: it shipped `platform_id` as a string and lacks `provenance` / `generated_by` / `last_generated_at` / `PlatformConnection`. A follow-up refactor bead (discovered-from kb-a4u.1) adds `PlatformConnection`, refronts the projection FK, and adds the provenance + attribution fields. Pre-launch, squashable migration per ADR-008 D1.
+- A `PlatformConnection` model (D4) lands in v0: organizer/Profile FK, platform, destination identifier, per-destination credentials, `enabled` flag, supported `kinds`. It is both the organizer's syndication-targets setting and the per-organizer adapter credential store the adapter beads consume.
+- The authoring + review web UX (kb-a4u.3 / kb-a4u.5) is an Event-page-as-hub composition of independently-addressable HTMX-swappable fragments (event facts, posts, syndication board), domain-named so a later reorg (e.g. a Posts tab) is a route+nav change, not a re-plumb. The projection-review board is a panel on the Event page, not a separate destination. (UX/IA detail lives in those beads' `--design`, not this ADR.)
 - The v0 impl exposes an HTTP API at the perimeter Web UI consumes — same endpoints, same auth, no private fast-path. `agents/register` and `verify-identity` endpoints land in v0.
 - `switch-berlin/skill.md` is **not** a v0 deliverable; it gets extracted from dogfooding once the API has shaken out (Tier-2). Until then, the API itself is the contract; OpenAPI/JSON-schema docs at the API endpoints suffice.
 - The Switch facilitator agent (planned in ADR-011 D1, dogfooded by the project owner first) interacts with Switch exclusively through this API contract — no direct DB access, no internal-only RPCs, no agent-special-casing in the codebase.
@@ -170,7 +242,7 @@ Switch exposes an HTTP API as the canonical surface for Event/Post/Projection op
 - [ADR-001 D8](ADR-001-core-product-and-stack.md) — normalized schema from day 1; Event and Post will be Django models in the existing schema layer.
 - [ADR-003](ADR-003-cheap-foresight-patterns.md) — cheap foresight on data shape; ticket_types, buyer_questions, attendee_questions, recurrence, multi-Post-per-Event campaign all reserve schema shape now, behavior later.
 - [ADR-007 D2](ADR-007-profile-centric-schema.md) — EventOrganizer + EventFacilitator through-tables; Event uses these for organizer/co-hosts; projections render through-table names.
-- [ADR-008 D2](ADR-008-code-posture-refactor-hard-fail-loud.md) — no speculative abstraction; v0 projection plumbing covers exactly the four target platforms; abstraction shape emerges from the second platform within each kind.
+- [ADR-008 D2, D3, D4](ADR-008-code-posture-refactor-hard-fail-loud.md) — D2: no speculative abstraction (v0 projection plumbing covers exactly the four target platforms; abstraction shape emerges from the second platform within each kind; D4's connection-over-string and D5's lifecycle shape for stated requirements, not speculation). D3: fail-loud on data integrity — the "missing X" draft state (D5) is the visible-error realization, no silent zero-fill. D4 (retry): governs failed-push in D5 — transport→2 retries→failed, data/4xx/5xx→no retry.
 - [ADR-010 D1](ADR-010-event-based-product-posture.md) — real-world action drives the existence of both Event (the action) and Post (announcement of the action); business model cannot monetize engagement-on-Posts.
 - [ADR-011 D1, D2](ADR-011-personal-agent-layer-additive.md) — agent layer additive; agent-extended scope already names per-target syndication + promo-post drafting; ADR-016 D3 canonicalizes the API contract within that framing.
 - [ADR-012](ADR-012-event-visibility-tiers.md) — visibility tiers constrain projection generation; unlisted Events generate no external projections by default.
@@ -186,7 +258,7 @@ Switch exposes an HTTP API as the canonical surface for Event/Post/Projection op
 | Question | Resolution path |
 |---|---|
 | When does `switch-berlin/skill.md` get extracted from dogfooding? | Defer to post-v0; trigger is "dogfooding has surfaced enough friction patterns that a markdown spec for external agents adds more value than the API + OpenAPI docs alone." Likely Tier-2 deliverable in v0.5. |
-| What's the projection-publication trust model for manual-assisted platforms (FetLife)? | Defer to v0 impl bead; working assumption: facilitator manually pastes; status=published is set by facilitator action in the web UI, not auto-detected. Could evolve to browser-automation later if FetLife ToS allows. |
-| How do projection-edit-conflicts resolve when canonical changes after projection was edited? | Defer to dogfooding; working assumption: projections don't auto-rewrite; UI surfaces a "canonical has changed, review projection" affordance. |
+| ~~What's the projection-publication trust model for manual-assisted platforms (FetLife)?~~ | **Resolved by D5 (2026-05-26):** actor-attested via a shared `mark-published` API verb. The actor (human copy-paste or agent browser-automation+verify) does the out-of-band push, then attests; an agent is a better attestor because it can verify. |
+| ~~How do projection-edit-conflicts resolve when canonical changes after projection was edited?~~ | **Resolved by D2 refinement (2026-05-26):** non-overridden fields track the live canonical automatically (no stale stored copy); only overridden fields hold until reviewed. Edit + re-publish of an already-published projection remains deferred (adapter-specific). |
 | Does the bundled-agent posture (deferred at v0) get a separate ADR when revisited, or does it land as an evolution of ADR-016 D3? | Defer; working assumption: in-place evolution of D3 (firmness shift + explicit bundled-agent decision), not a new ADR. Per ADR-011 D1 in-place mutation discipline. |
 | What happens to `kb-o0j` cleaning-policy substrate if the listing-vs-promotion shape distinction collapses (D2 invalidation)? | Defer to that observation if it lands; kb-o0j's per-platform rules likely still apply but the "rules per kind" framing may collapse. |
