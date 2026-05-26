@@ -152,8 +152,8 @@ def test_follow_post_returns_following_true(client, staff_user, approved_organiz
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
     content = response.content.decode()
-    # btn-active class indicates "Following" state
-    assert "btn-active" in content
+    # "Following" button text indicates "Following" state
+    assert "Following" in content
 
 
 @pytest.mark.django_db
@@ -182,8 +182,8 @@ def test_follow_post_unfollow_returns_follow_button(
     client.post(f"/o/{approved_organizer.slug}/follow/")
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     content = response.content.decode()
-    # btn-active should NOT be present after unfollow
-    assert "btn-active" not in content
+    # "Following" button text should NOT be present after unfollow
+    assert "Following" not in content
 
 
 @pytest.mark.django_db
@@ -242,7 +242,7 @@ def test_profile_shows_follow_button_for_authenticated_user(
 def test_profile_follow_button_shows_following_when_followed(
     client, staff_user, approved_organizer
 ):
-    """GET /p/<slug>/ shows Following (btn-active) when user already follows."""
+    """GET /p/<slug>/ shows Following button when user already follows."""
     from organizers.models import Follow
 
     Follow.objects.create(user=staff_user, profile=approved_organizer)
@@ -250,7 +250,7 @@ def test_profile_follow_button_shows_following_when_followed(
     response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
     content = response.content.decode()
-    assert "btn-active" in content
+    assert "Following" in content
 
 
 @pytest.mark.django_db
@@ -264,8 +264,8 @@ def test_profile_follow_button_shows_follow_when_not_followed(
     content = response.content.decode()
     # The follow button id should be there
     assert f"follow-{approved_organizer.slug}" in content
-    # But btn-active should not be present (not following)
-    assert "btn-active" not in content
+    # "Following" text should not be present (not following, showing Follow state)
+    assert "Following" not in content
 
 
 @pytest.mark.django_db

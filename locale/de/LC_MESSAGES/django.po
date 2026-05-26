@@ -404,9 +404,9 @@ msgstr ""
 msgid "Terms"
 msgstr ""
 
-#: templates/cotton/footer.html:7 tmp/bead4_desc.txt:137
+#: templates/cotton/footer.html:7 templates/reviews/takedown.html:5 tmp/bead4_desc.txt:137
 msgid "Report content"
-msgstr ""
+msgstr "Inhalt melden"
 
 #: templates/cotton/footer.html:10 tmp/bead4_desc.txt:140
 msgid "Switch Berlin — queer, kinky, and conscious events"
@@ -1588,10 +1588,6 @@ msgstr ""
 msgid "Request Data Removal"
 msgstr ""
 
-#: templates/reviews/takedown.html:6
-msgid "Report Content (DSA Takedown)"
-msgstr "Inhalt melden (DSA-Takedown)"
-
 #: templates/reviews/takedown.html:10
 msgid ""
 "Your report has been submitted. We aim to review takedown requests within 72 "
@@ -1614,12 +1610,10 @@ msgstr ""
 "<a href='/terms/' class='link'>Nutzungsbedingungen</a> oder geltendes Recht "
 "verstoßen. Ihre Meldung wird innerhalb von 72 Stunden geprüft."
 
-#: templates/reviews/takedown.html:43
-msgid ""
-"Warning: Knowingly false reports may be rejected and escalated per DSA Art. "
-"16(6)."
+#: templates/reviews/takedown.html:40
+msgid "Knowingly false reports may be rejected and escalated per DSA Art. 16(6)."
 msgstr ""
-"Warnung: Wissentlich falsche Meldungen können abgelehnt und gemäß DSA Art. "
+"Wissentlich falsche Meldungen können abgelehnt und gemäß DSA Art. "
 "16(6) eskaliert werden."
 
 #: templates/reviews/takedown.html:51
@@ -1671,8 +1665,8 @@ msgstr ""
 "DSGVO verarbeitet. Weitere Informationen finden Sie in unserer "
 "<a href='/privacy/' class='link'>Datenschutzerklärung</a>."
 
-#: templates/reviews/takedown.html:137
-msgid "Submit Report"
+#: templates/reviews/takedown.html:89
+msgid "Submit report"
 msgstr "Meldung absenden"
 
 #: templates/reviews/takedown.html:141

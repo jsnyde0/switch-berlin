@@ -389,7 +389,7 @@ def test_attend_response_contains_attend_button_partial(
 def test_attend_response_shows_active_button_for_current_status(
     client, staff_user, future_event
 ):
-    """Response partial shows btn-active on the button matching current status."""
+    """Response partial shows active styling on the button matching current status."""
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
@@ -397,7 +397,7 @@ def test_attend_response_shows_active_button_for_current_status(
         f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
     )
     content = response.content.decode()
-    assert "btn-active" in content
+    assert "bg-fuchsia-300/8" in content
 
 
 # ---------------------------------------------------------------------------
@@ -414,9 +414,9 @@ def test_event_detail_passes_attendance_to_context(client, staff_user, future_ev
     client.force_login(staff_user)
     response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
     assert response.status_code == 200
-    # attendance context should be rendered (btn-active class in attend button)
+    # attendance context should be rendered (fuchsia active style on attend button)
     content = response.content.decode()
-    assert "btn-active" in content
+    assert "bg-fuchsia-300/8" in content
 
 
 @pytest.mark.django_db
@@ -425,9 +425,9 @@ def test_event_detail_attendance_is_none_when_no_row(client, staff_user, future_
     client.force_login(staff_user)
     response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
     assert response.status_code == 200
-    # No btn-active since user hasn't attended
+    # No active styling since user hasn't attended
     content = response.content.decode()
-    assert "btn-active" not in content
+    assert "bg-fuchsia-300/8" not in content
 
 
 @pytest.mark.django_db

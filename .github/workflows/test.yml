@@ -107,6 +107,12 @@ jobs:
       - name: Run migrations
         run: uv run python manage.py migrate
 
+      # .mo files are gitignored, so compile the committed .po before pytest —
+      # the takedown DE translation tests assert German strings that gettext can
+      # only return from a compiled catalog. gettext is installed above.
+      - name: Compile translations
+        run: uv run python manage.py compilemessages --locale=de
+
       - name: pytest
         run: uv run pytest
 

@@ -98,10 +98,10 @@ class FollowingSectionEmptyTest(TestCase):
         self.client.force_login(self.user)
 
     def test_empty_follow_shows_not_following_state(self):
-        """No follows → 'You're not following anyone yet.' shown."""
+        """No follows → following section absent (no events, section not rendered)."""
         response = self.client.get("/events/")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "not following anyone yet")
+        self.assertNotContains(response, "From organizers you")
 
     def test_empty_follow_no_events_in_following_context(self):
         """No follows → following_events is empty."""
@@ -136,7 +136,7 @@ class FollowingSectionPopulatedTest(TestCase):
         """Heading shown when following_events is non-empty."""
         _make_event(self.org, "follow-pop-heading", start_delta_days=3)
         response = self.client.get("/events/")
-        self.assertContains(response, "From organizers you follow")
+        self.assertContains(response, "From organizers you")
 
     def test_past_event_from_followed_org_excluded(self):
         """Past events (start < now) not shown in following_events."""

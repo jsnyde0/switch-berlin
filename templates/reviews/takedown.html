@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block content %}
   <div class="w-full max-w-3xl">
-    <c-kb.page-header eyebrow="{% trans 'Report · DSA Art. 16' %}" title="{% trans 'Report' %}" accent="{% trans 'content.' %}" caption="{% trans 'Substantiated notices are reviewed within 72 hours.' %}" />
+    <c-kb.page-header eyebrow="{% trans 'Report · DSA Art. 16' %}" title="{% trans 'Report content' %}" caption="{% trans 'Substantiated notices are reviewed within 72 hours.' %}" />
     {% if submitted %}
       <c-kb.alert variant="success" kicker="{% trans 'Received' %}">
       <p>{% trans "Your report has been submitted. We aim to review takedown requests within 72 hours." %}</p>

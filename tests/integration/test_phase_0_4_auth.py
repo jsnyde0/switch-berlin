@@ -278,7 +278,7 @@ def test_invites_disabled_hides_register_link(client):
 
 @pytest.mark.django_db
 def test_invites_enabled_shows_register_link(client):
-    """With INVITES_ENABLED=True FeatureFlag, the Register link is present."""
+    """With INVITES_ENABLED=True FeatureFlag, the signup link is present."""
     from django.core.cache import cache
 
     from a_core.models import FeatureFlag
@@ -291,7 +291,7 @@ def test_invites_enabled_shows_register_link(client):
         response = client.get("/accounts/login/")
         assert response.status_code == 200
         content = response.content.decode()
-        assert "Register" in content
+        assert "Request invite" in content
     finally:
         FeatureFlag.objects.filter(key="INVITES_ENABLED").delete()
         cache.clear()

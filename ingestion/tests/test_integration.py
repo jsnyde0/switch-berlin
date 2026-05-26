@@ -179,6 +179,7 @@ class FullIngestionLoopTest(TestCase):
             mock_resp = MagicMock()
             mock_resp.text = f"<html><body>Content from {url}</body></html>"
             mock_resp.status_code = 200
+            mock_resp.is_redirect = False
             return mock_resp
 
         text = "Check https://site1.com and https://site2.com and https://site3.com"

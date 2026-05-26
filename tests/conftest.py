@@ -219,15 +219,21 @@ def isolate_logfire_token(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def clear_cache_between_tests():
-    """Clear Django's cache before every test.
+def clear_cache_between_tests(settings):
+    """Clear Django's cache before every test, on a per-test LocMemCache.
 
-    django-ratelimit stores counters in the default cache (LocMemCache in tests).
-    Without this fixture, rate-limit state leaks across tests because the
-    in-process cache is never reset between test functions, causing false 429
-    responses when tests share rate-limit keys (e.g. same user PK across DB
-    resets).
+    Production CACHES uses the DatabaseCache backend so rate-limit counters are
+    shared across gunicorn workers. In tests that backend would make this
+    autouse fixture's cache.clear() touch the DB on every test — including
+    tests with no django_db marker — raising "Database access not allowed".
+    Override to LocMemCache here: it matches the per-process test model, keeps
+    cache.clear() DB-free, and still isolates django-ratelimit counters between
+    tests (which otherwise leak via the shared in-process cache and cause false
+    429s when tests reuse rate-limit keys, e.g. same user PK across DB resets).
     """
+    settings.CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    }
     from django.core.cache import cache
 
     cache.clear()

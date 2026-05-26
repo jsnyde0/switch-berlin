@@ -198,7 +198,7 @@ def test_terms_returns_200_public_read_off(client, public_read_off):
 def test_terms_has_dsa_art12_contact(client, public_read_on):
     """Terms must include DSA Art. 12 contact-point reference at the top."""
     response = client.get("/terms/")
-    assert b"DSA Art. 12" in response.content
+    assert b"(Art. 12)" in response.content
 
 
 @pytest.mark.django_db

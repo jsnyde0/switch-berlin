@@ -321,6 +321,11 @@ def test_submit_review_11th_post_returns_429(
 @pytest.mark.django_db
 @override_settings(
     RATELIMIT_ENABLE=True,
+    # Empty key → the signup form fails Turnstile validation locally instead of
+    # making a real Cloudflare siteverify call (which leaks when a dev has a real
+    # TURNSTILE_SECRET_KEY in .env and flakes on any DNS hiccup). The view-level
+    # rate-limit decorator fires before form validation, so the 429 still asserts.
+    TURNSTILE_SECRET_KEY="",
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
 def test_signup_4th_attempt_from_same_ip_returns_429():
@@ -365,6 +370,9 @@ def test_signup_4th_attempt_from_same_ip_returns_429():
 @pytest.mark.django_db
 @override_settings(
     RATELIMIT_ENABLE=False,
+    # See test_signup_4th_attempt_from_same_ip_returns_429 — empty key keeps the
+    # signup form network-free so this test can't flake on real Cloudflare calls.
+    TURNSTILE_SECRET_KEY="",
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
 def test_signup_ratelimit_disabled_allows_many_attempts():

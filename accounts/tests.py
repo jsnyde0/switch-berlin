@@ -52,7 +52,7 @@ def test_always_public_prefixes_includes_static():
 
 
 def test_loginwall_static_path_passes_through_for_anon():
-    """Static asset requests must pass through LoginWallMiddleware for unauthenticated users."""
+    """Static requests must pass through LoginWallMiddleware for anon users."""
     from accounts.middleware import LoginWallMiddleware
 
     def _get_response(req):
@@ -69,7 +69,7 @@ def test_loginwall_static_path_passes_through_for_anon():
         response = mw(request)
 
     assert response.status_code == 200, (
-        f"Static assets must be accessible to unauthenticated users, got {response.status_code}"
+        f"Static assets must be accessible to anon users, got {response.status_code}"
     )
 
 

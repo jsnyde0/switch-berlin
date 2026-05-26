@@ -18,7 +18,11 @@ class EnrichUrlsTest(TestCase):
         mock_resp = MagicMock()
         mock_resp.text = "<html><body><h1>Event</h1></body></html>"
         mock_resp.status_code = 200
-        with patch("ingestion.enrichment.httpx.get", return_value=mock_resp):
+        mock_resp.is_redirect = False
+        with (
+            patch("ingestion.enrichment.httpx.get", return_value=mock_resp),
+            patch("ingestion.enrichment._is_safe_url", return_value=True),
+        ):
             result = enrich_urls("See https://example.com for details")
         self.assertIn("Event", result["url_content"])
 
@@ -36,6 +40,7 @@ class EnrichUrlsTest(TestCase):
             mock_resp = MagicMock()
             mock_resp.text = f"<html><body>Content from {url}</body></html>"
             mock_resp.status_code = 200
+            mock_resp.is_redirect = False
             return mock_resp
 
         # All three calls are inside the patch -- no real HTTP requests made.
@@ -66,7 +71,11 @@ class EnrichUrlsTest(TestCase):
         mock_resp = MagicMock()
         mock_resp.text = "<html>" + ("x" * 25_000) + "</html>"
         mock_resp.status_code = 200
-        with patch("ingestion.enrichment.httpx.get", return_value=mock_resp):
+        mock_resp.is_redirect = False
+        with (
+            patch("ingestion.enrichment.httpx.get", return_value=mock_resp),
+            patch("ingestion.enrichment._is_safe_url", return_value=True),
+        ):
             result = enrich_urls("https://big.com")
         self.assertLessEqual(
             len(result["url_content"]), 20_100

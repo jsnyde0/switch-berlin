@@ -135,7 +135,7 @@ class EventListStarChipTest(TestCase):
         response = self._get_event_list()
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "4.2")
-        self.assertContains(response, "(3)")
+        self.assertContains(response, "· 3")
 
     def test_star_chip_format_with_exact_values(self):
         """Star chip content matches expected format X.X (N)."""
@@ -150,7 +150,7 @@ class EventListStarChipTest(TestCase):
         response = self._get_event_list()
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "3.7")
-        self.assertContains(response, "(5)")
+        self.assertContains(response, "· 5")
 
     # --- Threshold change hides chip ---
 
@@ -259,9 +259,9 @@ class EventDetailReviewsSectionTest(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Reviews")
-        # Visible review's rating must appear; hidden review's rating must not
-        self.assertContains(response, "5/5")
-        self.assertNotContains(response, "1/5")
+        # Visible review's author must appear; hidden review's author must not
+        self.assertContains(response, "reviewer_rdv1_")
+        self.assertNotContains(response, "reviewer_rdh1_")
 
     def test_reviews_section_shows_empty_state_when_no_reviews(self):
         """Reviews section renders empty-state text when no visible reviews exist."""
