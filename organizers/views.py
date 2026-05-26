@@ -49,8 +49,9 @@ def organizer_profile(request, slug):
         event_sort = "date"
 
     upcoming_events_qs = (
-        Event.objects.visible()
+        Event.objects.visible_to(request.user)
         .filter(
+            hidden=False,
             event_organizer_set__profile=organizer,
             event_organizer_set__is_primary=True,
             status="published",
@@ -73,8 +74,9 @@ def organizer_profile(request, slug):
     upcoming_events = upcoming_events_qs[:50]
 
     past_events = (
-        Event.objects.visible()
+        Event.objects.visible_to(request.user)
         .filter(
+            hidden=False,
             event_organizer_set__profile=organizer,
             event_organizer_set__is_primary=True,
             status="published",

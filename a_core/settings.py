@@ -275,7 +275,10 @@ TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
 
 LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="claude-opus-4-7")
 
-RATELIMIT_ENABLE = env.bool("RATELIMIT_ENABLE", default=True)
+# Off by default in local dev (DEBUG) so repeated login/signup during manual
+# testing doesn't trip the limiter; on by default in prod. Override explicitly
+# via the env var either way. Rate-limit tests pin RATELIMIT_ENABLE per-test.
+RATELIMIT_ENABLE = env.bool("RATELIMIT_ENABLE", default=not DEBUG)
 # Fail open when the cache backend is unavailable. Narrow risk window is the
 # few seconds during a fresh deploy between gunicorn worker boot and the
 # 0007_cache_table migration finishing — without this, any rate-limited POST
