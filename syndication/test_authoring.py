@@ -489,10 +489,10 @@ class EventAPICreateTest(TestCase):
         )
 
     def _get_identity_token(self):
+        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        from syndication.test_api import _register_and_get_api_key
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg = client.post("/api/agents/register")
-        api_key = json.loads(reg.content)["api_key"]
         ex = client.post(
             "/api/agents/token",
             data=json.dumps({"api_key": api_key}),
@@ -604,10 +604,10 @@ class PostAPICreateTest(TestCase):
         )
 
     def _get_identity_token(self):
+        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        from syndication.test_api import _register_and_get_api_key
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg = client.post("/api/agents/register")
-        api_key = json.loads(reg.content)["api_key"]
         ex = client.post(
             "/api/agents/token",
             data=json.dumps({"api_key": api_key}),
@@ -1104,10 +1104,10 @@ class PermissionErrorTo403Test(TestCase):
         )
 
     def _get_identity_token_for(self, user):
+        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        from syndication.test_api import _register_and_get_api_key
+        api_key = _register_and_get_api_key(user)
         client = Client()
-        client.force_login(user)
-        reg = client.post("/api/agents/register")
-        api_key = json.loads(reg.content)["api_key"]
         ex = client.post(
             "/api/agents/token",
             data=json.dumps({"api_key": api_key}),
@@ -1196,10 +1196,10 @@ class EventAPIRoundTripTest(TestCase):
         )
 
     def _get_identity_token(self):
+        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        from syndication.test_api import _register_and_get_api_key
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg = client.post("/api/agents/register")
-        api_key = json.loads(reg.content)["api_key"]
         ex = client.post(
             "/api/agents/token",
             data=json.dumps({"api_key": api_key}),

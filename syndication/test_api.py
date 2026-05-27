@@ -77,8 +77,40 @@ class UnauthenticatedRejectionTest(TestCase):
         self.assertEqual(response.status_code, 401)
 
 
+def _register_and_get_api_key(user):
+    """
+    Helper: run the full pairing flow (register → redeem) and return the raw Bearer key.
+
+    kb-a4u.6 pairing flow:
+    1. POST /api/agents/register (session auth) → pairing token
+    2. POST /api/agents/redeem (no auth, pairing token) → Bearer API key
+
+    The Bearer key is then usable for /api/agents/token exchanges.
+    Used by multiple test classes that need a Bearer key without caring about the
+    pairing mechanic itself (the pairing mechanic is tested in test_agent_pairing.py).
+    """
+    client = Client()
+    client.force_login(user)
+    reg_response = client.post("/api/agents/register")
+    assert reg_response.status_code == 200, f"register failed: {reg_response.content}"
+    pairing_token = json.loads(reg_response.content)["pairing_token"]
+    redeem_response = client.post(
+        "/api/agents/redeem",
+        data=json.dumps({"pairing_token": pairing_token}),
+        content_type="application/json",
+    )
+    assert redeem_response.status_code == 200, f"redeem failed: {redeem_response.content}"
+    return json.loads(redeem_response.content)["api_key"]
+
+
 class AgentRegisterTest(TestCase):
-    """agents/register: returns a Bearer API key (long-lived, displayed once)."""
+    """
+    agents/register: now returns a one-time pairing token (kb-a4u.6).
+
+    The pairing token is the short-lived, single-use envelope. The Bearer API key
+    is only issued after redemption at /agents/redeem. The full pairing mechanic
+    is tested in test_agent_pairing.py; this class tests the register surface.
+    """
 
     def setUp(self):
         self.user = _make_vouched_user(
@@ -87,15 +119,20 @@ class AgentRegisterTest(TestCase):
             password="testpass123",
         )
 
-    def test_register_returns_api_key(self):
-        """POST /api/agents/register (authenticated user) → returns api_key."""
+    def test_register_returns_pairing_token(self):
+        """
+        POST /api/agents/register (authenticated user) → returns pairing_token.
+
+        kb-a4u.6: register now mints a pairing token (not a Bearer key directly).
+        The Bearer key is issued at /agents/redeem after the agent redeems the token.
+        """
         client = Client()
         client.force_login(self.user)
         response = client.post("/api/agents/register")
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
-        self.assertIn("api_key", data)
-        self.assertTrue(len(data["api_key"]) > 20)
+        self.assertIn("pairing_token", data)
+        self.assertTrue(len(data["pairing_token"]) > 20)
 
     def test_register_unauthenticated_rejected(self):
         """POST /api/agents/register without session auth → 401."""
@@ -103,24 +140,25 @@ class AgentRegisterTest(TestCase):
         response = client.post("/api/agents/register")
         self.assertEqual(response.status_code, 401)
 
-    def test_register_creates_agent_credential(self):
-        """Registering creates an AgentCredential record in DB."""
+    def test_register_creates_agent_credential_after_full_pairing(self):
+        """
+        Full pairing (register → redeem) creates an AgentCredential record.
+
+        register alone does NOT create a credential (pairing token only).
+        After redeem, exactly one AgentCredential exists.
+        """
         from syndication.models import AgentCredential
 
-        client = Client()
-        client.force_login(self.user)
-        client.post("/api/agents/register")
+        _api_key = _register_and_get_api_key(self.user)
         self.assertEqual(AgentCredential.objects.filter(user=self.user).count(), 1)
 
     def test_bearer_key_can_be_exchanged_multiple_times(self):
         """
         F1/F3: The Bearer API key is LONG-LIVED and reusable for many exchanges.
-        'One-time' means displayed-once-on-register (raw key), NOT single-use semantics.
+        After full pairing (register → redeem), the issued key must be reusable.
         """
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg_response = client.post("/api/agents/register")
-        api_key = json.loads(reg_response.content)["api_key"]
 
         # Exchange first time — should work
         ex_response = client.post(
@@ -142,10 +180,8 @@ class AgentRegisterTest(TestCase):
         """
         F1: Bearer key is long-lived — three exchanges all succeed (belt-and-suspenders).
         """
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg_response = client.post("/api/agents/register")
-        api_key = json.loads(reg_response.content)["api_key"]
 
         for i in range(3):
             ex_response = client.post(
@@ -167,10 +203,7 @@ class IdentityTokenExchangeTest(TestCase):
         )
 
     def _register_and_get_api_key(self):
-        client = Client()
-        client.force_login(self.user)
-        reg_response = client.post("/api/agents/register")
-        return json.loads(reg_response.content)["api_key"]
+        return _register_and_get_api_key(self.user)
 
     def test_valid_api_key_returns_identity_token(self):
         """POST /api/agents/token with valid api_key → identity_token."""
@@ -296,10 +329,8 @@ class ActorMarkerTest(TestCase):
         )
 
     def _get_identity_token(self):
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg_response = client.post("/api/agents/register")
-        api_key = json.loads(reg_response.content)["api_key"]
         ex_response = client.post(
             "/api/agents/token",
             data=json.dumps({"api_key": api_key}),
@@ -339,10 +370,8 @@ class StubEndpointSurfaceTest(TestCase):
         )
 
     def _get_identity_token(self):
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg_response = client.post("/api/agents/register")
-        api_key = json.loads(reg_response.content)["api_key"]
         ex_response = client.post(
             "/api/agents/token",
             data=json.dumps({"api_key": api_key}),
@@ -553,12 +582,9 @@ class RevokedCredentialTest(TestCase):
         """
         from syndication.models import AgentCredential
 
-        # Register to get a credential
+        # Full pairing flow (register → redeem) to get a credential
+        api_key = _register_and_get_api_key(self.user)
         client = Client()
-        client.force_login(self.user)
-        reg_response = client.post("/api/agents/register")
-        self.assertEqual(reg_response.status_code, 200)
-        api_key = json.loads(reg_response.content)["api_key"]
 
         # Verify it works before revocation
         ex_response = client.post(
@@ -630,11 +656,9 @@ class NonVouchedChainTest(TestCase):
         """
         from syndication.models import AgentCredential
 
-        # Register while vouched to get a valid credential
+        # Full pairing flow while vouched (register → redeem)
+        api_key = _register_and_get_api_key(self.vouched_user)
         client = Client()
-        client.force_login(self.vouched_user)
-        reg_response = client.post("/api/agents/register")
-        api_key = json.loads(reg_response.content)["api_key"]
 
         # Verify it works while vouched
         ex_response = client.post(

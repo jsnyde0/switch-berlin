@@ -21,7 +21,7 @@ kb-a4u.3 additions:
 
 from django.http import HttpRequest
 
-from syndication.models import AgentCredential, IdentityToken
+from syndication.models import AgentCredential, AgentPairingToken, IdentityToken
 
 # ---------------------------------------------------------------------------
 # Actor-marker (ADR-017 D1)
@@ -50,12 +50,81 @@ def get_actor_marker(request: HttpRequest) -> str:
 
 def register_agent_credential(user):
     """
-    Issue a new AgentCredential for user.
+    Issue a new AgentPairingToken for user (kb-a4u.6 pairing-token mechanic).
 
-    Returns (credential, raw_key). The caller MUST return raw_key to the
-    user exactly once — it is never stored and cannot be recovered.
+    The v0 decided mechanic is one-time pairing-token redemption (NOT raw key-paste):
+    1. This function mints a SHORT-LIVED, SINGLE-USE pairing token.
+    2. The facilitator hands the pairing token to their agent.
+    3. The agent redeems it via redeem_pairing_token() to receive the long-lived
+       Bearer key. The long-lived secret NEVER transits the facilitator's clipboard.
+
+    Returns (pairing_token_record, raw_pairing_token). The caller MUST return
+    raw_pairing_token to the facilitator exactly once — it is never stored
+    (SHA-256 hash only) and cannot be recovered.
+
+    Per ADR-008 D1 (no backward-compat shims, pre-launch): this replaces the
+    old raw-key model inline — the old `return AgentCredential.issue(user)` path
+    is removed. The Bearer key now only issues at redemption.
     """
-    return AgentCredential.issue(user)
+    return AgentPairingToken.issue(user)
+
+
+def redeem_pairing_token(raw_pairing_token: str):
+    """
+    Redeem a pairing token: validate it, mark it used, and issue a long-lived
+    Bearer key (AgentCredential) bound to the registering User.
+
+    This is the second step of the pairing flow (kb-a4u.6):
+    - Acquires a row-level lock on the pairing token (SELECT FOR UPDATE) inside
+      an atomic transaction to prevent TOCTOU double-redemption (finding #1).
+    - Re-checks validity under the lock (expired / used) — fail loud (ADR-008 D3).
+    - Marks the token used within the same transaction (atomic mark-and-issue).
+    - Issues a new AgentCredential bound to the token's user.
+    - Returns (credential, raw_key). The caller MUST return raw_key to the
+      agent exactly once — it is never stored and cannot be recovered.
+
+    The issued credential→User binding is the load-bearing ADR-017 D1 seam:
+    authz resolves through credential.user's ProfileClaim set.
+
+    Raises AgentPairingToken.DoesNotExist or ValueError on failure
+    (ADR-008 D3: fail loud — invalid/expired/used token → raise, never succeed silently).
+
+    Concurrency guarantee: two simultaneous requests with the same token cannot
+    both issue a credential — the row lock serialises the check+mark block.
+    """
+    from django.db import transaction
+    from syndication.models import _hash_key  # module-private helper
+
+    token_hash = _hash_key(raw_pairing_token)
+
+    with transaction.atomic():
+        # SELECT FOR UPDATE: acquire row-level lock before any validity check.
+        # A concurrent request for the same token blocks here until we commit,
+        # then it will see used_at stamped and raise (finding #1 TOCTOU fix).
+        try:
+            pairing_token = (
+                AgentPairingToken.objects
+                .select_for_update()
+                .select_related("user")
+                .get(token_hash=token_hash)
+            )
+        except AgentPairingToken.DoesNotExist as exc:
+            raise AgentPairingToken.DoesNotExist("Invalid pairing token.") from exc
+
+        # Re-check validity under the lock (ADR-008 D3: fail loud, no silent fallback).
+        if pairing_token.is_used:
+            raise ValueError("Pairing token has already been redeemed.")
+        if pairing_token.is_expired:
+            raise ValueError("Pairing token has expired.")
+
+        user = pairing_token.user
+        # Mark used BEFORE issuing — within the same transaction so the lock
+        # is held until both writes commit atomically.
+        pairing_token.mark_used()
+        # Issue long-lived Bearer key bound to the registering User (ADR-017 D1)
+        credential, raw_key = AgentCredential.issue(user)
+
+    return credential, raw_key
 
 
 # ---------------------------------------------------------------------------

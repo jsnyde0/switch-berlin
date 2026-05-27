@@ -488,6 +488,156 @@ class AgentCredential(models.Model):
         return cred, cred.user
 
 
+# ---------------------------------------------------------------------------
+# Agent pairing token (kb-a4u.6 — one-time pairing-token redemption mechanic)
+# ---------------------------------------------------------------------------
+# AgentPairingToken is the SHORT-LIVED, SINGLE-USE envelope that a facilitator
+# shows to their agent. The agent redeems it once to receive the LONG-LIVED
+# Bearer key (AgentCredential). The long-lived secret never transits the
+# facilitator's clipboard — only the agent ever holds it.
+#
+# Mirrors MagicLinkToken envelope (organizers/models.py) in structure:
+#   - Single-use (used_at stamped on first valid redemption — NULL = unused)
+#   - Short-lived (expires_at, ~15 min TTL default)
+#   - URL-safe random raw token for display
+#
+# DIVERGENCE from MagicLinkToken — storage security:
+#   AgentPairingToken stores SHA-256(raw_token) — the raw value is NEVER stored.
+#   MagicLinkToken stores a plaintext UUID.  Do NOT "align" these to match each
+#   other; the hashing here is intentional and more secure.  Any future
+#   maintainer who removes the hash to match MagicLinkToken would be a regression.
+#
+# kb-eya divergence from MagicLinkToken:
+#   MagicLinkToken binds (email, profile_id, user_target) triple because the
+#   magic-link flow involves an out-of-band email delivery to prove address
+#   control. AgentPairingToken binds ONLY to the registering User — the
+#   facilitator is already authenticated (session), so email verification is
+#   not needed; the pairing token is purely a short-lived handoff envelope.
+#   No email, profile, or intended_method fields here.
+# ---------------------------------------------------------------------------
+
+def _generate_pairing_token():
+    """Generate a URL-safe 32-byte random token for display to the facilitator."""
+    return secrets.token_urlsafe(32)
+
+
+class AgentPairingToken(models.Model):
+    """
+    Short-lived, single-use pairing token for the agent-credential issuance flow
+    (kb-a4u.6 — pairing-token redemption mechanic, ADR-016 D3).
+
+    Step 1: facilitator hits agents/register → receives raw pairing token (once).
+    Step 2: agent redeems raw token at agents/redeem → receives long-lived Bearer key.
+
+    The raw token is shown ONCE at registration and never stored (SHA-256 hash only).
+    On redemption: token is marked used (single-use), AgentCredential is issued.
+
+    Short TTL (default 15 min) prevents stale tokens from being redeemed.
+    Fail loud on invalid/expired/used token (ADR-008 D3).
+
+    Structure mirrors MagicLinkToken envelope (organizers/models.py): single-use,
+    short-lived, URL-safe random raw token.  Storage diverges intentionally:
+    AgentPairingToken hashes the raw value (SHA-256); MagicLinkToken stores
+    plaintext UUID.  The hash here is MORE secure — do NOT remove it to align
+    with MagicLinkToken (that would be a security regression, not an alignment).
+    kb-eya divergence: binds to User only — no email/profile triple needed
+    because the facilitator is already authenticated when issuing the token.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="agent_pairing_tokens",
+        help_text="The facilitator User who initiated agent registration.",
+    )
+    token_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="SHA-256 of the raw pairing token. Raw token never stored.",
+    )
+    expires_at = models.DateTimeField(
+        help_text="Expiry timestamp — ~15 min from creation. Token invalid after this.",
+    )
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Stamped on first valid redemption — NULL means unused.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("agent pairing token")
+        verbose_name_plural = _("agent pairing tokens")
+
+    def __str__(self):
+        return f"AgentPairingToken({self.user}, expires={self.expires_at})"
+
+    @property
+    def is_expired(self):
+        """True if the token has passed its expiry time."""
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_used(self):
+        """True if the token has already been redeemed."""
+        return self.used_at is not None
+
+    @property
+    def is_valid(self):
+        """True if the token is neither expired nor used."""
+        return not self.is_expired and not self.is_used
+
+    def mark_used(self):
+        """Stamp used_at to invalidate the token for future redemptions."""
+        self.used_at = timezone.now()
+        self.save(update_fields=["used_at"])
+
+    @classmethod
+    def issue(cls, user, ttl_seconds=900):
+        """
+        Issue a fresh short-lived pairing token for user.
+
+        Default TTL: 900 seconds (15 minutes).
+        Returns (token_record, raw_token). The caller MUST return raw_token
+        to the facilitator exactly once — it is never stored and cannot be recovered.
+        """
+        raw_token = _generate_pairing_token()
+        token_hash = _hash_key(raw_token)
+        expires_at = timezone.now() + timezone.timedelta(seconds=ttl_seconds)
+        record = cls.objects.create(
+            user=user,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+        return record, raw_token
+
+    @classmethod
+    def validate(cls, raw_token: str):
+        """
+        Validate a raw pairing token: must exist, not be expired, not be used.
+
+        Returns (token_record, user) on success.
+        Does NOT consume the token — call mark_used() after issuing the credential.
+
+        Raises AgentPairingToken.DoesNotExist or ValueError on failure
+        (ADR-008 D3: fail loud, no silent fallback).
+        """
+        token_hash = _hash_key(raw_token)
+        try:
+            record = cls.objects.select_related("user").get(token_hash=token_hash)
+        except cls.DoesNotExist as exc:
+            raise cls.DoesNotExist("Invalid pairing token.") from exc
+
+        if record.is_used:
+            raise ValueError("Pairing token has already been redeemed.")
+
+        if record.is_expired:
+            raise ValueError("Pairing token has expired.")
+
+        return record, record.user
+
+
 class IdentityToken(models.Model):
     """
     Short-lived (~1h) identity token issued after API key exchange

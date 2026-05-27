@@ -568,6 +568,37 @@ def projection_override(request, pk):
 
 
 @login_required
+def agent_pairing_page(request):
+    """
+    Agent pairing page (kb-a4u.6).
+
+    Allows a logged-in facilitator to start the agent-pairing flow:
+    GET: render the pairing form (instructions + "Generate pairing token" button).
+    POST: call register_agent_credential to mint a one-time pairing token, then
+          render the page with the pairing token shown once for the facilitator
+          to hand off to their agent.
+
+    The page shows the PAIRING TOKEN (not the Bearer key) — the Bearer key is
+    only issued at redemption (agents/redeem). The long-lived secret never transits
+    the facilitator's clipboard.
+
+    ADR-004: Django + HTMX + Alpine.
+    Each swapped Alpine partial needs its own x-data root (known repo gotcha).
+    Page kept simple — no HTMX swaps needed here (single-action flow).
+    """
+    from syndication.services import register_agent_credential
+
+    pairing_token = None
+
+    if request.method == "POST":
+        _token_record, pairing_token = register_agent_credential(request.user)
+
+    return render(request, "syndication/agent_pairing.html", {
+        "pairing_token": pairing_token,
+    })
+
+
+@login_required
 def projection_batch_publish(request, event_pk):
     """
     Batch-publish all ready projections for an event.

@@ -48,6 +48,7 @@ from syndication.services import (
     create_event,
     create_post,
     exchange_api_key_for_identity_token,
+    redeem_pairing_token,
     register_agent_credential,
     update_event,
     update_post,
@@ -177,6 +178,28 @@ def handle_permission_error(request, exc):
 # ---------------------------------------------------------------------------
 
 class RegisterResponse(Schema):
+    """
+    Response for agents/register: returns the one-time pairing token (kb-a4u.6).
+
+    The pairing token is shown once and handed to the agent. The agent redeems it
+    at agents/redeem to receive the long-lived Bearer key. The Bearer key never
+    transits the facilitator's clipboard.
+    """
+    pairing_token: str
+
+
+class RedeemRequest(Schema):
+    pairing_token: str
+
+
+class RedeemResponse(Schema):
+    """
+    Response for agents/redeem: returns the long-lived Bearer API key.
+
+    The agent redeems the one-time pairing token to receive the Bearer key.
+    The Bearer key is long-lived and reusable for many identity-token exchanges.
+    It is shown once and never stored in plaintext.
+    """
     api_key: str
 
 
@@ -206,11 +229,13 @@ class VerifyResponse(Schema):
     "/agents/register",
     auth=SessionMarkerAuth(),
     response=RegisterResponse,
-    summary="Register agent — issue one-time Bearer API key",
+    summary="Register agent — issue one-time pairing token (kb-a4u.6)",
     description=(
-        "Vouched (session) user registers an agent credential. "
-        "Returns a one-time Bearer API key. Exchange it at /agents/token. "
-        "C6/kb-a4u.6 owns the full browser pairing flow (ProfileClaim binding). "
+        "Vouched (session) facilitator starts agent-pairing: mints a SHORT-LIVED, "
+        "SINGLE-USE pairing token. The facilitator shows this token to their agent. "
+        "The agent redeems the pairing token at /agents/redeem to receive the "
+        "long-lived Bearer API key. The Bearer key NEVER transits the facilitator's "
+        "clipboard — only the agent ever holds it (kb-a4u.6 v0 decided mechanic). "
         "Non-vouched users are rejected — ADR-017 D1: agent has identical authority "
         "to its user; a non-vouched user is walled, so their credential-issuance "
         "must be walled too (ADR-008 D3)."
@@ -218,14 +243,54 @@ class VerifyResponse(Schema):
 )
 def agents_register(request):
     """
-    Leg 1 of the auth chain (ADR-016 D3).
+    Leg 1 of the pairing flow (kb-a4u.6, ADR-016 D3).
 
-    Issue a Bearer API key bound to the authenticated, VOUCHED session user.
-    The raw key is returned once and never stored — store it securely.
+    Issue a short-lived, single-use pairing token for the authenticated VOUCHED
+    session user. The raw pairing token is returned once and never stored.
+    The facilitator hands it to their agent; the agent redeems it at /agents/redeem.
     Vouching enforced via SessionMarkerAuth (same gate as protected endpoints).
-    Actor-marker is web_session (user authenticated via Django session).
     """
-    _credential, raw_key = register_agent_credential(request.auth)
+    _token_record, raw_pairing_token = register_agent_credential(request.auth)
+    return {"pairing_token": raw_pairing_token}
+
+
+@api.post(
+    "/agents/redeem",
+    auth=None,  # Public — pairing token is the credential
+    response={200: RedeemResponse, 400: dict, 401: dict},
+    summary="Redeem pairing token — issue long-lived Bearer API key (kb-a4u.6)",
+    description=(
+        "Leg 1b of the pairing flow (kb-a4u.6): the agent redeems the one-time "
+        "pairing token to receive the long-lived Bearer API key. "
+        "The pairing token is SINGLE-USE — second redemption is rejected. "
+        "The pairing token is SHORT-LIVED (~15 min) — expired token is rejected. "
+        "The issued Bearer key is bound to the registering User (ADR-017 D1). "
+        "Exchange the Bearer key at /agents/token to receive a short-lived identity token."
+    ),
+)
+def agents_redeem(request, body: RedeemRequest):
+    """
+    Leg 1b of the pairing flow (kb-a4u.6).
+
+    Agent redeems the one-time pairing token and receives the long-lived Bearer key.
+    The Bearer key is bound to the registering facilitator User (ADR-017 D1).
+
+    Fail loud (ADR-008 D3):
+    - Invalid/unknown pairing token → 401
+    - Expired pairing token → 400
+    - Already-used pairing token → 400
+    """
+    from syndication.models import AgentPairingToken
+    try:
+        _credential, raw_key = redeem_pairing_token(body.pairing_token)
+    except AgentPairingToken.DoesNotExist:
+        logger.warning("agents/redeem: invalid pairing token (DoesNotExist)")
+        return Status(401, {"detail": "Invalid pairing token."})
+    except ValueError as exc:
+        # Log specific reason server-side but return generic message to caller
+        # (avoids enumeration oracle distinguishing used vs. expired — finding #4).
+        logger.warning("agents/redeem: pairing token rejected: %s", exc)
+        return Status(400, {"detail": "Invalid pairing token."})
     return {"api_key": raw_key}
 
 
@@ -562,10 +627,15 @@ def events_create(request, body: EventCreateIn):
     summary="Get Event detail",
 )
 def events_detail(request, event_id: int):
-    """Get a single Event by ID."""
+    """Get a single Event by ID (ownership-gated, finding #2 — same authz as PATCH)."""
     from django.shortcuts import get_object_or_404
     from events.models import Event
+    from syndication.authz import can_edit
     event = get_object_or_404(Event, pk=event_id)
+    if not can_edit(request.auth, event):
+        # Raises PermissionError → handled by @api.exception_handler(PermissionError) → 403.
+        # Same pattern as update_event/create_post service layer (ADR-008 D3, finding #2).
+        raise PermissionError("Agent lacks authority over this event.")
     data = {
         "id": event.pk,
         "title": event.title,
@@ -652,11 +722,15 @@ def events_update(request, event_id: int, body: EventUpdateIn):
     summary="List Posts for an Event",
 )
 def event_posts_list(request, event_id: int):
-    """List all Posts for a given Event."""
+    """List all Posts for a given Event (ownership-gated, finding #2 — same authz as PATCH)."""
     from django.shortcuts import get_object_or_404
     from events.models import Event
     from syndication.models import Post
+    from syndication.authz import can_edit
     event = get_object_or_404(Event, pk=event_id)
+    if not can_edit(request.auth, event):
+        # Raises PermissionError → handled by @api.exception_handler(PermissionError) → 403.
+        raise PermissionError("Agent lacks authority over this event.")
     posts = Post.objects.filter(event=event).order_by("-created_at")
     data = [
         {

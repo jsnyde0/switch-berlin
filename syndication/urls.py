@@ -16,6 +16,9 @@ from syndication import views
 app_name = "syndication"
 
 urlpatterns = [
+    # --- Agent pairing flow (kb-a4u.6) ---
+    path("agents/pair/", views.agent_pairing_page, name="agent-pairing"),
+
     # --- Events ---
     path("events/new/", views.event_create, name="event-create"),
     path("events/<int:pk>/", views.event_hub, name="event-hub"),
