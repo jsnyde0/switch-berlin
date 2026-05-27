@@ -16,7 +16,9 @@ ADR-016 D2: PlatformProjection carries kind ∈ {listing, promotion},
             reservation fields generated_by and last_generated_at.
 ADR-016 D3: v0 auth shape — long-lived Bearer API key → short-lived identity
             token exchange. AgentCredential mirrors MagicLinkToken envelope
-            (organizers/models.py): token stored hashed, single-use flag.
+            (organizers/models.py): hashed-storage + displayed-once. Single-use
+            semantics were deliberately rejected — the key is long-lived and
+            reusable; identity tokens are reusable within their TTL.
 ADR-016 D4: PlatformConnection is a specific syndication destination owned
             by an organizer. PlatformProjection FKs to PlatformConnection,
             not to a bare platform_id string.
@@ -446,7 +448,9 @@ class AgentCredential(models.Model):
         unexpired, and return (credential, user).
 
         Does NOT consume the key — it is long-lived and reusable.
-        Use revoke() to invalidate a credential.
+        To revoke a credential: set enabled=False (and optionally stamp
+        revoked_at for audit). There is no revoke() method — callers set
+        the field directly (ADR-008 D2: no speculative abstraction).
 
         Raises AgentCredential.DoesNotExist or ValueError on failure (fail loud
         per ADR-008 D3).

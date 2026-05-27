@@ -81,7 +81,6 @@ class AgentRegisterTest(TestCase):
     """agents/register: returns a Bearer API key (long-lived, displayed once)."""
 
     def setUp(self):
-        # register endpoint uses NinjaSessionAuth directly (no vouching gate here)
         self.user = _make_vouched_user(
             username="agent_user",
             email="agent@example.com",
@@ -276,8 +275,7 @@ class VerifyIdentityStubTest(TestCase):
         """GET /api/agents/verify returns 200 with stub body (no consumer at v0)."""
         client = Client()
         response = client.post("/api/agents/verify", content_type="application/json")
-        # Stub: present, not 404. Body is minimal.
-        self.assertNotEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
 
     def test_verify_identity_stub_body(self):
         """verify-identity stub response includes a 'stub' indicator."""
@@ -360,27 +358,27 @@ class StubEndpointSurfaceTest(TestCase):
             "/api/events/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
-        self.assertNotEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
 
     def test_posts_list_stub_endpoint_exists(self):
-        """GET /api/posts/ returns non-404 (stubbed body) with valid identity token."""
+        """GET /api/posts/ returns 200 (stubbed body) with valid identity token."""
         token = self._get_identity_token()
         client = Client()
         response = client.get(
             "/api/posts/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
-        self.assertNotEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
 
     def test_projections_list_stub_endpoint_exists(self):
-        """GET /api/projections/ returns non-404 (stubbed body) with valid identity token."""
+        """GET /api/projections/ returns 200 (stubbed body) with valid identity token."""
         token = self._get_identity_token()
         client = Client()
         response = client.get(
             "/api/projections/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
-        self.assertNotEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
 
     def test_stub_endpoints_return_schema_with_stub_field(self):
         """
@@ -521,3 +519,132 @@ class TokenNegativeTests(TestCase):
             HTTP_AUTHORIZATION=f"Bearer {valid_token.token}",
         )
         self.assertEqual(response.status_code, 200, "Vouched user must be accepted")
+
+
+class RevokedCredentialTest(TestCase):
+    """
+    Fix 2 (round-2 review): revoked credential is rejected at agents/token exchange.
+
+    Exercises the primary revocation mechanism (enabled=False on AgentCredential),
+    currently untested.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(
+            username="revoke_user",
+            email="revoke@example.com",
+            password="testpass123",
+        )
+
+    def test_revoked_credential_rejected_at_token_exchange(self):
+        """
+        Set enabled=False on an AgentCredential; exchange attempt must return 401.
+        """
+        from syndication.models import AgentCredential
+
+        # Register to get a credential
+        client = Client()
+        client.force_login(self.user)
+        reg_response = client.post("/api/agents/register")
+        self.assertEqual(reg_response.status_code, 200)
+        api_key = json.loads(reg_response.content)["api_key"]
+
+        # Verify it works before revocation
+        ex_response = client.post(
+            "/api/agents/token",
+            data=json.dumps({"api_key": api_key}),
+            content_type="application/json",
+        )
+        self.assertEqual(ex_response.status_code, 200, "Should work before revocation")
+
+        # Revoke the credential
+        cred = AgentCredential.objects.get(user=self.user)
+        cred.enabled = False
+        cred.save()
+
+        # Exchange attempt must now be rejected
+        ex_response2 = client.post(
+            "/api/agents/token",
+            data=json.dumps({"api_key": api_key}),
+            content_type="application/json",
+        )
+        self.assertEqual(
+            ex_response2.status_code,
+            401,
+            "Revoked credential (enabled=False) must be rejected at token exchange",
+        )
+
+
+class NonVouchedChainTest(TestCase):
+    """
+    Fix 3 (round-2 review): non-vouched user is walled at agents/register and
+    agents/token per ADR-017 D1 (agent has identical authority to its user; a
+    non-vouched user is walled by LoginWallMiddleware, so agent-provisioning must
+    be walled too).
+
+    Exercises the REAL chain from the endpoints — not hand-constructed rows.
+    """
+
+    def setUp(self):
+        self.open_user = _make_open_user(
+            username="nonvouched_chain_user",
+            email="nonvouched_chain@example.com",
+            password="testpass123",
+        )
+        self.vouched_user = _make_vouched_user(
+            username="vouched_chain_user",
+            email="vouched_chain@example.com",
+            password="testpass123",
+        )
+
+    def test_non_vouched_user_rejected_at_register(self):
+        """
+        A non-vouched (status='open') authenticated user calling agents/register
+        must receive 401/403 — credential issuance is walled by the vouching gate.
+        """
+        client = Client()
+        client.force_login(self.open_user)
+        response = client.post("/api/agents/register")
+        self.assertIn(
+            response.status_code,
+            [401, 403],
+            "Non-vouched user must be rejected at agents/register",
+        )
+
+    def test_non_vouched_user_token_exchange_rejected(self):
+        """
+        A non-vouched user who somehow obtains a credential (e.g. was vouched at
+        register, then un-vouched) must be rejected at agents/token exchange — the
+        exchange endpoint checks vouching on the credential's owning user.
+        """
+        from syndication.models import AgentCredential
+
+        # Register while vouched to get a valid credential
+        client = Client()
+        client.force_login(self.vouched_user)
+        reg_response = client.post("/api/agents/register")
+        api_key = json.loads(reg_response.content)["api_key"]
+
+        # Verify it works while vouched
+        ex_response = client.post(
+            "/api/agents/token",
+            data=json.dumps({"api_key": api_key}),
+            content_type="application/json",
+        )
+        self.assertEqual(ex_response.status_code, 200, "Should work while vouched")
+
+        # Un-vouch the user (simulate the latent invariant gap scenario)
+        self.vouched_user.status = "open"
+        self.vouched_user.save()
+
+        # Exchange must now be rejected
+        ex_response2 = client.post(
+            "/api/agents/token",
+            data=json.dumps({"api_key": api_key}),
+            content_type="application/json",
+        )
+        self.assertIn(
+            ex_response2.status_code,
+            [401, 403],
+            "Non-vouched user must be rejected at agents/token even with a valid credential",
+        )

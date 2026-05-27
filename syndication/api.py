@@ -168,24 +168,27 @@ class VerifyResponse(Schema):
 
 @api.post(
     "/agents/register",
-    auth=NinjaSessionAuth(),
+    auth=SessionMarkerAuth(),
     response=RegisterResponse,
     summary="Register agent — issue one-time Bearer API key",
     description=(
-        "Authenticated (session) user registers an agent credential. "
+        "Vouched (session) user registers an agent credential. "
         "Returns a one-time Bearer API key. Exchange it at /agents/token. "
-        "C6/kb-a4u.6 owns the full browser pairing flow (ProfileClaim binding)."
+        "C6/kb-a4u.6 owns the full browser pairing flow (ProfileClaim binding). "
+        "Non-vouched users are rejected — ADR-017 D1: agent has identical authority "
+        "to its user; a non-vouched user is walled, so their credential-issuance "
+        "must be walled too (ADR-008 D3)."
     ),
 )
 def agents_register(request):
     """
     Leg 1 of the auth chain (ADR-016 D3).
 
-    Issue a one-time Bearer API key bound to the authenticated user.
+    Issue a Bearer API key bound to the authenticated, VOUCHED session user.
     The raw key is returned once and never stored — store it securely.
+    Vouching enforced via SessionMarkerAuth (same gate as protected endpoints).
     Actor-marker is web_session (user authenticated via Django session).
     """
-    request._actor_marker = ACTOR_SESSION
     _credential, raw_key = register_agent_credential(request.auth)
     return {"api_key": raw_key}
 
@@ -210,11 +213,19 @@ def agents_token(request, body: TokenRequest):
     Validates the long-lived API key (reusable; fails loud on invalid/revoked
     key per ADR-008 D3). Issues a fresh short-lived identity token (~1h TTL,
     reusable within that window).
+
+    Vouching is enforced here (ADR-017 D1, ADR-008 D3): the credential's owning
+    user must be vouched. A non-vouched user who somehow holds a credential (e.g.
+    registered while vouched, then un-vouched) is rejected — agent-provisioning
+    must mirror the user's wall.
     """
     try:
-        identity_token, _user = exchange_api_key_for_identity_token(body.api_key)
+        identity_token, user = exchange_api_key_for_identity_token(body.api_key)
     except (AgentCredential.DoesNotExist, ValueError):
         return Status(401, {"detail": "Invalid or revoked API key."})
+
+    if not _is_vouched(user):
+        return Status(401, {"detail": "User is not vouched."})
 
     return {
         "identity_token": str(identity_token.token),
