@@ -282,6 +282,24 @@ class PlatformProjection(models.Model):
         help_text="Per-field overrides for this projection. Absent key = use canonical value.",
     )
 
+    # Frozen content snapshot (ADR-016 D2, kb-a4u.20 hybrid content model).
+    # Null while status=draft (projection tracks live canonical + override_data).
+    # Materialized at draft→ready transition: stores the full effective content
+    # (canonical fields + overrides at that instant) as a stable artifact.
+    # From ready onward (ready, published, failed), render_projection returns
+    # this snapshot — NOT the live canonical. ADR-008 D3: fail loud if a
+    # non-draft projection has no frozen_content (missing = bug, not fallback).
+    frozen_content = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Effective content frozen at draft→ready transition. "
+            "Null while status=draft. "
+            "From ready onward, render_projection returns this snapshot."
+        ),
+    )
+
     # Provenance and attribution reservation fields (ADR-016 D2, ADR-003).
     # provenance tracks how the current effective content was last produced.
     # Flips to 'manual' the moment a human edits an override.

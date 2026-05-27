@@ -44,6 +44,7 @@ _LEGAL_TRANSITIONS = frozenset(
         ("draft", "ready"),
         ("ready", "published"),
         ("ready", "failed"),
+        ("ready", "draft"),   # re-open for re-approval (kb-a4u.20 hybrid model)
         ("published", "failed"),
         ("failed", "draft"),  # reset for retry
     ]
@@ -73,7 +74,22 @@ def transition_status(projection: PlatformProjection, new_status: str) -> None:
         )
 
     projection.status = new_status
-    projection.save(update_fields=["status", "updated_at"])
+
+    if from_status == "draft" and new_status == "ready":
+        # ADR-016 D2 (kb-a4u.20 hybrid model): freeze the effective content at
+        # draft→ready. Materialize live canonical + override_data into
+        # frozen_content so from-ready reads never touch the live canonical.
+        # ADR-008 D3: fail loud if the effective content cannot be derived.
+        frozen_body = _render_draft_body(projection)
+        projection.frozen_content = {"body": frozen_body}
+        projection.save(update_fields=["status", "frozen_content", "updated_at"])
+    elif new_status == "draft":
+        # Re-opening (ready→draft or failed→draft): clear frozen_content so
+        # the draft tracks the live canonical again.
+        projection.frozen_content = None
+        projection.save(update_fields=["status", "frozen_content", "updated_at"])
+    else:
+        projection.save(update_fields=["status", "updated_at"])
 
 
 # ---------------------------------------------------------------------------
@@ -201,12 +217,27 @@ def generate_projection(
             f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'"
         )
 
-    # --- Persist: snapshot body into override_data (ADR-016 D2) ---
-    # override_data["body"] is the stable rendered output for this projection.
-    # Absent key would mean "use canonical" but post-generation there is always
-    # a snapshotted value here.
-    # ADR-008 D3: provenance is always set explicitly — no silent model-default fallback.
-    override_data = {"body": composed_body}
+    # --- Persist: override_data and override_data only for explicit overrides ---
+    # ADR-016 D2 (kb-a4u.20 hybrid model): Draft projections track the live
+    # canonical. Stability is achieved by freezing at draft→ready, NOT by
+    # snapshotting into override_data["body"] at generation time.
+    #
+    # rule_based: do NOT write override_data["body"] — the draft will derive
+    # the body from the live canonical fields. At draft→ready, _render_draft_body
+    # composes from the live canonical at that instant and freezes into
+    # frozen_content. This is what makes canonical edits visible in draft but
+    # not after ready.
+    #
+    # agent_assisted: WRITE override_data["body"] — the agent-supplied body is
+    # an explicit per-field override that must persist in draft (and will be
+    # included in the frozen snapshot at draft→ready).
+    #
+    # ADR-008 D3: provenance is always set explicitly — no silent model-default.
+    if mode == "rule_based":
+        override_data = {}
+    else:
+        # agent_assisted: store the agent-supplied body as an explicit override
+        override_data = {"body": composed_body}
 
     proj = PlatformProjection.objects.create(
         kind=kind,
@@ -224,25 +255,24 @@ def generate_projection(
 # render_projection — produce the final output string
 # ---------------------------------------------------------------------------
 
-def render_projection(projection: PlatformProjection) -> str:
+def _render_draft_body(projection: PlatformProjection) -> str:
     """
-    Render the projection's output body.
+    Derive the effective body for a DRAFT projection.
 
-    If override_data contains 'body', that is the stable rendered output
-    (snapshotted at generation time — ADR-016 D2 override-independence).
+    Draft projections track the live canonical: if override_data contains
+    'body', that per-field override is the effective body. Otherwise, compose
+    from the live canonical source (listing from source_event fields, promotion
+    from source_post fields).
 
-    ADR-016 D2: "Absent override means use canonical value."
-    For body, absent override means we fall back to the canonical source body.
-    But rule_based generation always writes override_data["body"], so this
-    fallback path is for manually-created projections only.
+    Used both by render_projection (when status==draft) and by
+    transition_status (to materialize the freeze snapshot at draft→ready).
 
-    ADR-008 D3: fail loud if neither override nor canonical body is available.
+    ADR-008 D3: fail loud if no body can be derived.
     """
     if "body" in projection.override_data:
         return projection.override_data["body"]
 
-    # Fallback: derive from canonical source (only reached for projections not
-    # generated through generate_projection — e.g. manually created).
+    # No override → derive from live canonical source fields.
     platform = projection.connection.platform
     if projection.kind == PlatformProjection.Kind.LISTING and projection.source_event:
         return _compose_listing_body(projection.source_event, platform)
@@ -254,3 +284,30 @@ def render_projection(projection: PlatformProjection) -> str:
         "no body override and no source to derive from. "
         "(ADR-008 D3: fail loud — no silent zero-fill)"
     )
+
+
+def render_projection(projection: PlatformProjection) -> str:
+    """
+    Render the projection's output body.
+
+    ADR-016 D2 (kb-a4u.20 hybrid content model):
+    - status=draft: track live canonical — return _render_draft_body()
+      (override_data["body"] if present, else compose from live canonical fields).
+    - status=ready/published/failed: return frozen_content["body"] (the snapshot
+      materialized at draft→ready). Fail loud if frozen_content is absent —
+      that is a data-integrity bug, not a fallback opportunity (ADR-008 D3).
+
+    No hidden live-canonical fallback for non-draft projections.
+    """
+    if projection.status == PlatformProjection.Status.DRAFT:
+        return _render_draft_body(projection)
+
+    # Non-draft (ready / published / failed): return the frozen snapshot.
+    if projection.frozen_content is None:
+        raise ValueError(
+            f"Cannot render projection {projection.pk!r}: "
+            f"status={projection.status!r} but frozen_content is None. "
+            "frozen_content must be set at draft→ready transition. "
+            "(ADR-008 D3: fail loud — no silent fallback to live canonical)"
+        )
+    return projection.frozen_content["body"]

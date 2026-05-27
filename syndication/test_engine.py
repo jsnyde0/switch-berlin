@@ -156,17 +156,28 @@ class StateMachineTest(TestCase):
 
 class OverrideIndependenceTest(TestCase):
     """
-    ADR-016 D2: projections are editable copies, not live views.
+    ADR-016 D2 (kb-a4u.20 hybrid content model): projections are editable copies
+    with a hybrid live-vs-frozen model:
 
-    Rule: rule_based generation SNAPSHOTS body at generation time.
-    An explicit override must be immune to later canonical mutation.
+    DRAFT: tracks live canonical — canonical mutations ARE visible in render.
+    READY/PUBLISHED: frozen snapshot — canonical mutations are NOT visible.
+
+    Rule: stability is achieved by freezing at draft→ready, not by snapshotting
+    override_data["body"] at generation time. An explicit agent override
+    (override_data["body"]) persists in draft and is included in the freeze.
     """
 
-    def test_rule_based_body_stable_after_canonical_mutation(self):
+    def test_rule_based_draft_body_tracks_canonical_mutation(self):
         """
-        Generate a listing projection via rule_based, then mutate event.title.
-        The projection's rendered body MUST reflect the ORIGINAL title,
-        not the mutated one — because rule_based snapshots body at generation time.
+        ADR-016 D2 hybrid model: draft projections TRACK live canonical.
+
+        Generate a listing projection via rule_based (lands in draft), then
+        mutate event.title. The draft projection's rendered body MUST reflect
+        the mutated title — draft projections are live views of the canonical.
+
+        Stability (frozen snapshot) is achieved at draft→ready, not before.
+        (Updated kb-a4u.20: old test asserted DRAFT was stable; new model is
+        that DRAFT tracks live and READY is stable.)
         """
         event = _make_event(title="Original Title", description="Original desc")
         conn = _make_connection(destination_id="fl-override-test")
@@ -181,7 +192,40 @@ class OverrideIndependenceTest(TestCase):
         event.title = "Mutated Title"
         event.save()
 
-        # Projection body was snapshotted at generation time; must not reflect mutation
+        # Draft projection MUST reflect the mutation (live canonical tracking)
+        from syndication.engine import render_projection
+        body = render_projection(proj)
+        self.assertIn("Mutated Title", body)
+        self.assertNotIn("Original Title", body)
+
+    def test_rule_based_ready_body_stable_after_canonical_mutation(self):
+        """
+        ADR-016 D2 hybrid model: ready projections hold a FROZEN SNAPSHOT.
+
+        Generate a listing projection via rule_based, transition to ready
+        (freezing the snapshot), then mutate event.title. The ready projection's
+        rendered body MUST reflect the ORIGINAL title (at-freeze value), not
+        the mutated one.
+        """
+        event = _make_event(title="Original Title", description="Original desc", slug="override-ready-test")
+        conn = _make_connection(destination_id="fl-override-ready-test")
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+
+        # Transition to ready: freeze the snapshot
+        from syndication.engine import transition_status
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
+
+        # Mutate canonical AFTER freezing
+        event.title = "Mutated Title"
+        event.save()
+
+        # Ready projection must return the frozen (pre-mutation) snapshot
         from syndication.engine import render_projection
         body = render_projection(proj)
         self.assertIn("Original Title", body)
