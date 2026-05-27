@@ -27,24 +27,45 @@ def publish_switch_own_page(projection: PlatformProjection) -> None:
 
     Switch own-page is the canonical Switch event detail page — no external
     API call is needed. The publish verb:
-    1. Validates the projection is kind=listing (fail loud otherwise).
-    2. Resolves the public external_url via reverse('event-detail', ...).
-       Requires: projection.source_event with a slug AND a primary organizer.
-    3. Transitions status: ready → published.
-    4. Stamps external_url and syndicated_at.
+    1. Precondition: projection.status must be ready (fail loud otherwise).
+    2. Validates the projection is kind=listing (fail loud otherwise).
+    3. Resolves the public external_url via reverse('event-detail', ...).
+       Requires: projection.source_event with a non-empty slug AND a primary
+       organizer with a non-empty slug.
+    4. Transitions status: ready → published.
+    5. Stamps external_url and syndicated_at.
 
-    On data-integrity failure (missing source_event, missing primary organizer):
+    On data-integrity failure (missing source_event, missing primary organizer,
+    missing/empty slug on event or organizer):
     - Sets status=failed via the state machine (ready → failed).
     - Raises ValueError (ADR-008 D3 — fail loud, never silently succeed).
+
+    Note: override_data is intentionally a no-op for own-page listing — the
+    listing IS the live canonical detail page (/events/<org_slug>/<event_slug>/),
+    so there is no body to override. This is correct, not an oversight.
 
     Args:
         projection: A PlatformProjection in status=ready on a Switch own-page
                     PlatformConnection with kind=listing.
 
     Raises:
-        ValueError: if kind != listing, source_event is missing, or event has
-                    no primary organizer (needed to resolve org_slug for the URL).
+        ValueError: if status != ready, kind != listing, source_event is
+                    missing, event/organizer slug is empty, or event has no
+                    primary organizer (needed to resolve org_slug for the URL).
     """
+    # Precondition guard: status must be ready before ANY data-integrity checks
+    # or state transitions. Without this, a draft projection would hit the
+    # fail-loud branches below, which call transition_status(proj, "failed") —
+    # but "draft→failed" is not a legal transition, masking the real error.
+    # (ADR-008 D3: the correct error must surface, not an opaque state-machine error)
+    if projection.status != PlatformProjection.Status.READY:
+        raise ValueError(
+            f"publish_switch_own_page requires status=ready; "
+            f"got status={projection.status!r}. "
+            "Advance the projection to ready before publishing. "
+            "(ADR-008 D3 — fail loud)"
+        )
+
     # Guard: only listing kind is valid for Switch own-page
     if projection.kind != PlatformProjection.Kind.LISTING:
         raise ValueError(
@@ -70,6 +91,27 @@ def publish_switch_own_page(projection: PlatformProjection) -> None:
         raise ValueError(
             f"Cannot publish Switch own-page projection {projection.pk!r}: "
             f"event {event.slug!r} has no primary organizer — "
+            "cannot resolve org_slug for the event-detail URL. "
+            "(ADR-008 D3 — fail loud, no silent fallback)"
+        )
+
+    # Guard: slug presence required before reverse() — an empty slug produces
+    # NoReverseMatch (or a malformed URL), bypassing the fail-loud-to-failed
+    # pattern and leaving the projection in ready with an opaque error.
+    # (ADR-008 D3: data-integrity errors must set status=failed and raise clearly)
+    if not event.slug:
+        transition_status(projection, PlatformProjection.Status.FAILED)
+        raise ValueError(
+            f"Cannot publish Switch own-page projection {projection.pk!r}: "
+            f"event {event.pk!r} has an empty slug — "
+            "cannot resolve event_slug for the event-detail URL. "
+            "(ADR-008 D3 — fail loud, no silent fallback)"
+        )
+    if not organizer.slug:
+        transition_status(projection, PlatformProjection.Status.FAILED)
+        raise ValueError(
+            f"Cannot publish Switch own-page projection {projection.pk!r}: "
+            f"organizer {organizer.pk!r} has an empty slug — "
             "cannot resolve org_slug for the event-detail URL. "
             "(ADR-008 D3 — fail loud, no silent fallback)"
         )

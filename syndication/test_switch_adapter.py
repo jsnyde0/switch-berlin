@@ -108,17 +108,26 @@ class SwitchOwnPagePublishTest(TestCase):
 
     def test_published_external_url_returns_200_for_public_event(self):
         """
-        Harness item (additional): a GET on the resolved external_url returns 200
-        for a public, published event. Validates the URL actually resolves in Django.
+        Harness item (additional): an ANONYMOUS GET on the resolved external_url
+        returns 200 for a public, published event. Validates:
+        - The URL resolves in Django (not 404/NoReverseMatch)
+        - Anonymous users can access the page (genuine public accessibility)
+        The event is explicitly set to visibility=public to make the contract clear.
+        URL-to-event binding is covered by test_publish_external_url_matches_reverse.
         """
+        from django.test import Client
         from syndication.adapters import publish_switch_own_page
+
+        # Confirm the event is public (explicit — don't rely on setUp default)
+        self.event.visibility = "public"
+        self.event.save(update_fields=["visibility"])
+
         publish_switch_own_page(self.proj)
         self.proj.refresh_from_db()
 
-        # Confirm the URL is navigable (not a 404 / NoReverseMatch)
-        response = self.client.get(self.proj.external_url)
-        # 200 or redirect (302) — both indicate the URL resolves.
-        # event_detail is an HTMX page; accept 200.
+        # Use anonymous client — proves public accessibility, not just auth-gated
+        anon_client = Client()
+        response = anon_client.get(self.proj.external_url)
         self.assertEqual(response.status_code, 200)
 
     def test_publish_sets_syndicated_at(self):
@@ -242,5 +251,185 @@ class SwitchPublishKindGuardTest(TestCase):
         )
 
         from syndication.adapters import publish_switch_own_page
+        with self.assertRaises(ValueError):
+            publish_switch_own_page(proj)
+
+
+# ---------------------------------------------------------------------------
+# 4. Draft-precondition guard (Fix 1+2 — kb-a4u.10 review)
+# ---------------------------------------------------------------------------
+
+class SwitchPublishDraftPreconditionTest(TestCase):
+    """
+    publish_switch_own_page requires status=ready at entry.
+
+    Without the guard, a draft projection hits the data-integrity fail-loud
+    branch which calls transition_status(proj, "failed") — but "draft→failed"
+    is not a legal transition, so an opaque illegal-transition error is raised
+    instead of the real data-integrity error (ADR-008 D3 violation: wrong
+    error surfaces, masking the real problem).
+
+    The precondition guard surfaces the right error early AND ensures the
+    ready→failed transitions in data-integrity branches are always legal.
+    """
+
+    def setUp(self):
+        self.profile = _make_organizer_profile(slug="switch-draft-precond-org")
+        self.event = _make_event_with_organizer(self.profile, slug="switch-draft-precond-event")
+        self.conn = _make_switch_connection(self.profile)
+
+    def test_publish_on_draft_projection_raises_clear_precondition_error(self):
+        """
+        Calling publish_switch_own_page on a status=draft projection must raise
+        a clear ValueError naming the status precondition (requires ready) —
+        NOT an opaque "Illegal status transition draft→failed" error.
+        """
+        proj = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            connection=self.conn,
+            source_event=self.event,
+        )
+
+        from syndication.adapters import publish_switch_own_page
+        with self.assertRaises(ValueError) as ctx:
+            publish_switch_own_page(proj)
+
+        error_msg = str(ctx.exception)
+        # Must name the precondition (ready) and the actual status (draft)
+        self.assertIn("ready", error_msg.lower())
+        self.assertIn("draft", error_msg.lower())
+        # Must NOT be the masked illegal-transition error from the state machine
+        self.assertNotIn("Illegal status transition", error_msg)
+
+
+# ---------------------------------------------------------------------------
+# 5. Missing-slug fail-loud (Fix 3 — kb-a4u.10 review)
+# ---------------------------------------------------------------------------
+
+class SwitchPublishMissingSlugTest(TestCase):
+    """
+    Before calling reverse(), the adapter must guard that event.slug and
+    organizer.slug are present. Missing slugs produce NoReverseMatch or
+    malformed URLs, bypassing the fail-loud-to-failed pattern and leaving the
+    projection in ready with an opaque error.
+
+    Fix 3: guard slugs before reverse(); on missing slug → set status=failed
+    then raise ValueError (ADR-008 D3 — fail loud, consistent with other branches).
+    """
+
+    def setUp(self):
+        self.profile = _make_organizer_profile(slug="switch-slug-guard-org")
+        self.conn = _make_switch_connection(self.profile)
+
+    def test_publish_fails_loud_when_event_slug_is_empty(self):
+        """
+        An event with an empty slug cannot produce a resolvable external_url.
+        publish_switch_own_page must set status=failed and raise ValueError
+        naming the slug data-integrity problem (not a raw NoReverseMatch).
+        """
+        event_no_slug = Event.objects.create(
+            title="No Slug Party",
+            slug="",  # deliberately empty
+            start=timezone.now(),
+        )
+        EventOrganizer.objects.create(
+            event=event_no_slug,
+            profile=self.profile,
+            is_primary=True,
+        )
+        proj = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.READY,
+            connection=self.conn,
+            source_event=event_no_slug,
+        )
+
+        from syndication.adapters import publish_switch_own_page
+        with self.assertRaises(ValueError) as ctx:
+            publish_switch_own_page(proj)
+
+        # Projection must be failed, not left in ready
+        proj.refresh_from_db()
+        self.assertEqual(proj.status, PlatformProjection.Status.FAILED)
+        # Error must name the data-integrity problem
+        self.assertIn("slug", str(ctx.exception).lower())
+
+    def test_publish_fails_loud_when_organizer_slug_is_empty(self):
+        """
+        An organizer with an empty slug cannot produce a resolvable external_url.
+        publish_switch_own_page must set status=failed and raise ValueError.
+        """
+        profile_no_slug = Profile.objects.create(name="No Slug Organizer", slug="")
+        conn_no_slug = PlatformConnection.objects.create(
+            organizer=profile_no_slug,
+            platform="switch",
+            destination_id="own-page",
+            kinds=["listing"],
+            credentials={},
+        )
+        event = Event.objects.create(
+            title="Slugless Org Party",
+            slug="slugless-org-party",
+            start=timezone.now(),
+        )
+        EventOrganizer.objects.create(
+            event=event,
+            profile=profile_no_slug,
+            is_primary=True,
+        )
+        proj = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.READY,
+            connection=conn_no_slug,
+            source_event=event,
+        )
+
+        from syndication.adapters import publish_switch_own_page
+        with self.assertRaises(ValueError) as ctx:
+            publish_switch_own_page(proj)
+
+        proj.refresh_from_db()
+        self.assertEqual(proj.status, PlatformProjection.Status.FAILED)
+        self.assertIn("slug", str(ctx.exception).lower())
+
+
+# ---------------------------------------------------------------------------
+# 6. Double-publish contract (Fix 7 — kb-a4u.10 review)
+# ---------------------------------------------------------------------------
+
+class SwitchPublishDoublePublishTest(TestCase):
+    """
+    Re-publishing an already-published projection raises. This is acceptable
+    fail-loud behavior — edit+re-publish is deferred per ADR-016. This test
+    locks the contract so the behavior is explicit and doesn't accidentally
+    change.
+    """
+
+    def setUp(self):
+        self.profile = _make_organizer_profile(slug="switch-double-pub-org")
+        self.event = _make_event_with_organizer(self.profile, slug="switch-double-pub-event")
+        self.conn = _make_switch_connection(self.profile)
+
+    def test_double_publish_raises(self):
+        """
+        Publishing an already-published projection raises ValueError.
+        The precondition guard (status must be ready) rejects published→? cleanly.
+        Edit+re-publish is deferred per ADR-016; this test locks the contract.
+        """
+        proj = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.READY,
+            connection=self.conn,
+            source_event=self.event,
+        )
+
+        from syndication.adapters import publish_switch_own_page
+        # First publish succeeds
+        publish_switch_own_page(proj)
+        proj.refresh_from_db()
+        self.assertEqual(proj.status, PlatformProjection.Status.PUBLISHED)
+
+        # Second publish raises — precondition guard rejects non-ready status
         with self.assertRaises(ValueError):
             publish_switch_own_page(proj)
