@@ -45,7 +45,7 @@
   <body class="kb-page bg-base-100 text-base-content antialiased"
         hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% block body_content %}
-      <div class="container mx-auto mt-4">
+      <div class="max-w-7xl mx-auto mt-4">
         {% block layout %}
         {% endblock layout %}
       </div>

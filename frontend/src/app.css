@@ -3,6 +3,13 @@
   themes: dark --default;
 }
 
+/* Reserve scrollbar gutter on every page so content width is stable
+   regardless of whether a vertical scrollbar is present. Prevents the
+   horizontal navbar shift on navigation between pages of different heights. */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* Shared styles for both the Django-rendered pages and the React island. */
 @source "../../templates/**/*.html";
 @source "../../**/templates/**/*.html";

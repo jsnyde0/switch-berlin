@@ -185,8 +185,12 @@ def test_submit_review_unapproved_user_returns_403(unapproved_user, organizer):
 
 
 @pytest.mark.django_db
-def test_submit_review_invalid_rating_returns_400(client_logged_in, organizer):
-    """Rating out of range returns 400."""
+def test_submit_review_invalid_rating_returns_200_with_error(client_logged_in, organizer):
+    """Rating out of range returns 200 with inline error form (not a bare 400 page).
+
+    Updated by kb-ikj: validation errors must render inline within the form, not
+    return a bare 400 fragment that replaces the page chrome.
+    """
     url = reverse("review-submit")
     resp = client_logged_in.post(
         url,
@@ -196,7 +200,9 @@ def test_submit_review_invalid_rating_returns_400(client_logged_in, organizer):
             "rating": "99",
         },
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 200
+    assert b"Rating must be between 1 and 5" in resp.content
+    assert b"<form" in resp.content
 
 
 @pytest.mark.django_db

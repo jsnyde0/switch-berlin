@@ -99,10 +99,21 @@ def organizer_profile(request, slug):
         viewer_is_claimant = organizer.active_claimants.filter(
             pk=request.user.pk
         ).exists()
+        # CTA state: viewer has a pending ClaimIntent (unresolved, not rejected)
+        viewer_claim_is_pending = (
+            not viewer_is_claimant
+            and ClaimIntent.objects.filter(
+                user=request.user,
+                profile=organizer,
+                resolved_at__isnull=True,
+                rejected_at__isnull=True,
+            ).exists()
+        )
     else:
         following = False
         going_venue_ids = []
         viewer_is_claimant = False
+        viewer_claim_is_pending = False
 
     rating_count = organizer.rating_count
     avg_rating = organizer.avg_rating
@@ -144,6 +155,7 @@ def organizer_profile(request, slug):
         "MIN_RATINGS_FOR_DISPLAY": threshold,
         # Claim CTA state (ADR-014 D2, ADR-008 D3)
         "viewer_is_claimant": viewer_is_claimant,
+        "viewer_claim_is_pending": viewer_claim_is_pending,
     }
     return render(request, "organizers/profile.html", context)
 

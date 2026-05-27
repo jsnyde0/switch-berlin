@@ -79,8 +79,11 @@ def submit_review(request):
         return render(
             request,
             "reviews/_rating_form.html",
-            {"error": "Rating must be between 1 and 5."},
-            status=400,
+            {
+                "error": "Rating must be between 1 and 5.",
+                "target_type": target_type,
+                "target_id": target_id,
+            },
         )
 
     body = request.POST.get("body", "").strip()

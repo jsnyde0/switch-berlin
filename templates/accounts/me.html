@@ -6,6 +6,22 @@
 {% block content %}
   <div class="max-w-4xl">
     <c-kb.page-header eyebrow="{% trans 'Account · You' %}" title="{% trans 'Your' %}" accent="{% trans 'index.' %}" caption="{% trans 'Followed organizers, attendance, and consent state.' %}" />
+    <div class="mb-8 pb-8 border-b border-white/8">
+      <p class="kb-mono text-[14px] text-base-content/80">{{ user.email }}</p>
+      <div class="mt-3">
+        {% if user.status == "vouched" %}
+          <span class="kb-tag kb-tag-success">{% trans "Vouched" %}</span>
+        {% elif user.status == "open" %}
+          <span class="kb-tag">{% trans "Open" %}</span>
+        {% elif user.status == "suspended_pending_investigation" %}
+          <span class="kb-tag kb-tag-warning">{% trans "Suspended — Pending Investigation" %}</span>
+        {% elif user.status == "banned" %}
+          <span class="kb-tag kb-tag-error">{% trans "Banned" %}</span>
+        {% else %}
+          <span class="kb-tag kb-tag-warning">{% blocktrans with s=user.status %}Unknown status: {{ s }}{% endblocktrans %}</span>
+        {% endif %}
+      </div>
+    </div>
     {% if user.art9_consent_given_at %}
       <div class="mb-10">
         <c-kb.alert variant="warn" kicker="{% trans 'Consent — Art. 9' %}">

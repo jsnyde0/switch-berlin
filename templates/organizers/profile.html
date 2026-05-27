@@ -71,6 +71,10 @@
             <span class="kb-tag kb-tag-success self-start">
               {% trans "You manage this profile" %}
             </span>
+          {% elif viewer_claim_is_pending %}
+            <span class="kb-tag self-start">
+              {% trans "Claim Pending" %}
+            </span>
           {% else %}
             <a href="{% url 'organizer-claim-entry' slug=organizer.slug %}" class="kb-btn-secondary">
               {% trans "Claim this profile" %}

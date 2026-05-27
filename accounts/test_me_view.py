@@ -309,3 +309,49 @@ class MeViewFollowedOrganizersFilterTest(TestCase):
         self.assertEqual(response.status_code, 200)
         followed = list(response.context["followed"])
         self.assertIn(org, [f.profile for f in followed])
+
+
+# ---------------------------------------------------------------------------
+# Account masthead (kb-3u1)
+# ---------------------------------------------------------------------------
+
+
+class MeViewMastheadTest(TestCase):
+    """The /me/ page must show the user's email address and account status.
+
+    /me/ is behind LoginWallMiddleware: only vouched users (or staff) can access it.
+    Tests use vouched users or staff to get a 200.
+    """
+
+    def test_shows_user_email(self):
+        """Email address must appear in the page response."""
+        user = _make_user("mastheaduser", status="vouched")
+        self.client.force_login(user)
+        response = self.client.get("/me/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, user.email)
+
+    def test_shows_status_label_vouched(self):
+        """Status label 'Vouched' must appear for a vouched user."""
+        user = _make_user("mastheadvouched", status="vouched")
+        self.client.force_login(user)
+        response = self.client.get("/me/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vouched")
+
+    def test_staff_sees_email_and_open_status(self):
+        """Staff user with status='open' bypasses the wall and sees their email and status."""
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="mastheadstaff",
+            email="mastheadstaff@example.com",
+            password="testpass123",
+            is_staff=True,
+        )
+        user.status = "open"
+        user.save()
+        self.client.force_login(user)
+        response = self.client.get("/me/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, user.email)
+        self.assertContains(response, "Open")
