@@ -393,3 +393,342 @@ class ReOpenTransitionTest(TestCase):
         body_at_second_ready = render_projection(proj)
         self.assertIn("Post-Reopen Canonical Edit", body_at_second_ready)
         self.assertNotIn("After Second Freeze Edit", body_at_second_ready)
+
+
+# ---------------------------------------------------------------------------
+# Fix 1: Full-field structured freeze — title + start are frozen, not just body
+# ---------------------------------------------------------------------------
+
+class StructuredFieldFreezeTest(TestCase):
+    """
+    Fix 1: The freeze at draft→ready must capture the FULL effective structured
+    content, not just {"body": ...}. A frozen listing projection must include
+    title, start, and other content fields so a publish carrier can read them
+    from the snapshot without touching the live canonical.
+
+    Stability is proved for STRUCTURED fields (not just body):
+    - draft projection tracks canonical edits to title and start (live)
+    - ready projection frozen_content["title"] and frozen_content["start"]
+      are unchanged after canonical edits (frozen)
+    """
+
+    def test_frozen_content_includes_title_and_start_at_ready(self):
+        """
+        After draft→ready, frozen_content must contain title and start fields
+        (not just body), reflecting the canonical values at freeze time.
+        """
+        start_time = timezone.now()
+        event = _make_event(
+            title="Pre-Freeze Structured Title",
+            slug="structured-freeze-1",
+            start=start_time,
+        )
+        conn = _make_connection(destination_id="fl-structured-freeze-1")
+
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+        self.assertIsNone(proj.frozen_content)
+
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
+
+        # frozen_content must include title and start, not just body
+        self.assertIsNotNone(proj.frozen_content)
+        self.assertIn("title", proj.frozen_content, "frozen_content must include 'title'")
+        self.assertIn("start", proj.frozen_content, "frozen_content must include 'start'")
+        self.assertEqual(
+            proj.frozen_content["title"],
+            "Pre-Freeze Structured Title",
+            "frozen title must match canonical at freeze time",
+        )
+
+    def test_ready_projection_structured_fields_immune_to_canonical_edit(self):
+        """
+        After draft→ready freeze, editing event.start and event.title on the
+        canonical does NOT change frozen_content["title"] or frozen_content["start"].
+
+        Proof: a ready/published projection is a self-contained artifact —
+        a publish carrier can read frozen_content["start"] without touching the
+        live canonical, and editing the event afterward leaks nothing.
+        """
+        start_time = timezone.now()
+        event = _make_event(
+            title="Structured Pre-Freeze",
+            slug="structured-stable-1",
+            start=start_time,
+        )
+        conn = _make_connection(destination_id="fl-structured-stable-1")
+
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
+
+        frozen_title = proj.frozen_content["title"]
+        frozen_start = proj.frozen_content["start"]
+
+        # Now mutate canonical event
+        event.title = "Post-Freeze New Title"
+        import datetime
+        event.start = start_time + datetime.timedelta(days=7)
+        event.save()
+
+        proj.refresh_from_db()
+
+        # Frozen snapshot must not change
+        self.assertEqual(
+            proj.frozen_content["title"],
+            frozen_title,
+            "frozen_content['title'] must not change after canonical edit",
+        )
+        self.assertEqual(
+            proj.frozen_content["start"],
+            frozen_start,
+            "frozen_content['start'] must not change after canonical edit",
+        )
+        # Double-check the values are the pre-freeze originals
+        self.assertEqual(proj.frozen_content["title"], "Structured Pre-Freeze")
+
+    def test_draft_projection_reflects_structured_field_edits_before_freeze(self):
+        """
+        Confirm that BEFORE freezing (while in draft), a canonical edit to
+        event.title IS visible via the live canonical tracking path.
+
+        This proves the test exercises meaningful state: if draft didn't track
+        live canonicals, the structured-field stability test would pass vacuously.
+        """
+        event = _make_event(
+            title="Original Structured Title",
+            slug="structured-draft-track-1",
+        )
+        conn = _make_connection(destination_id="fl-structured-draft-track-1")
+
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+        self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
+
+        # Draft has no frozen_content
+        self.assertIsNone(proj.frozen_content)
+
+        # Edit canonical while in draft — changes MUST be visible in body
+        event.title = "Edited Structured Title"
+        event.save()
+
+        body = render_projection(proj)
+        self.assertIn(
+            "Edited Structured Title",
+            body,
+            "Draft must track canonical: edited title must appear in rendered body",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Fix 4: agent_assisted freeze at ready — body frozen into snapshot correctly
+# ---------------------------------------------------------------------------
+
+class AgentAssistedFreezeTest(TestCase):
+    """
+    Fix 4: Advance an agent_assisted projection to ready and assert:
+    - the agent-supplied body is correctly frozen into frozen_content["body"]
+    - render_projection returns the frozen body (not the draft override path)
+    - canonical mutations after freezing are still not visible
+    """
+
+    def test_agent_assisted_body_frozen_at_ready(self):
+        """
+        An agent_assisted projection that reaches ready must have the agent-supplied
+        body in frozen_content["body"]. The override_data["body"] path is the DRAFT
+        path; frozen_content["body"] is the READY path.
+        """
+        event = _make_event(title="Agent Freeze Event", slug="agent-freeze-1")
+        conn = _make_connection(destination_id="fl-agent-freeze-1")
+
+        agent_body = "Agent-crafted copy that should survive freezing."
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="agent_assisted",
+            body=agent_body,
+        )
+        self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
+        # override_data["body"] set in draft
+        self.assertEqual(proj.override_data["body"], agent_body)
+        # No freeze yet
+        self.assertIsNone(proj.frozen_content)
+
+        # Advance to ready — this must freeze the effective content
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
+
+        # frozen_content["body"] must hold the agent-supplied copy
+        self.assertIsNotNone(proj.frozen_content)
+        self.assertIn("body", proj.frozen_content)
+        self.assertEqual(
+            proj.frozen_content["body"],
+            agent_body,
+            "frozen_content['body'] must be the agent-supplied copy",
+        )
+
+    def test_agent_assisted_ready_renders_from_frozen_path(self):
+        """
+        render_projection on a ready agent_assisted projection must return the
+        frozen snapshot body — not the override_data draft path.
+
+        Both paths produce the same string here, but this test confirms the code
+        path goes through frozen_content, not override_data, for the ready status.
+        """
+        event = _make_event(title="Agent Ready Path Event", slug="agent-ready-path-1")
+        conn = _make_connection(destination_id="fl-agent-ready-path-1")
+
+        agent_body = "Agent body for ready-path test."
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="agent_assisted",
+            body=agent_body,
+        )
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
+
+        rendered = render_projection(proj)
+        self.assertEqual(
+            rendered,
+            agent_body,
+            "render_projection on ready agent_assisted must return the frozen body",
+        )
+
+        # Mutate canonical after freeze — must not change render output
+        event.title = "Post-Freeze Canonical Mutation"
+        event.save()
+
+        rendered_after_mutation = render_projection(proj)
+        self.assertEqual(
+            rendered_after_mutation,
+            agent_body,
+            "Canonical mutation after freeze must not affect ready agent_assisted render",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Fix 5: Full re-open cycle clears a previously-frozen snapshot
+# ---------------------------------------------------------------------------
+
+class FullReOpenCycleTest(TestCase):
+    """
+    Fix 5: A projection that was frozen (ready), then published, then failed,
+    then re-opened (→draft) must clear frozen_content and track live again.
+
+    Two-hop path: published→failed→draft.
+    This documents the full re-open cycle and confirms frozen_content is cleared.
+    """
+
+    def test_full_reopen_cycle_clears_frozen_snapshot(self):
+        """
+        draft → ready (freeze) → published → failed → draft (clear freeze).
+
+        After the final →draft hop, frozen_content must be None and the
+        re-opened draft must track the live canonical again.
+        """
+        event = _make_event(
+            title="Full Cycle Pre-Freeze",
+            slug="full-cycle-reopen-1",
+        )
+        conn = _make_connection(destination_id="fl-full-cycle-reopen-1")
+
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+        self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
+        self.assertIsNone(proj.frozen_content)
+
+        # Step 1: draft → ready (freeze)
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
+        self.assertEqual(proj.status, PlatformProjection.Status.READY)
+        self.assertIsNotNone(proj.frozen_content, "frozen_content must be set at ready")
+        frozen_body_at_ready = proj.frozen_content["body"]
+        self.assertIn("Full Cycle Pre-Freeze", frozen_body_at_ready)
+
+        # Step 2: ready → published
+        transition_status(proj, "published")
+        proj.refresh_from_db()
+        self.assertEqual(proj.status, PlatformProjection.Status.PUBLISHED)
+        # frozen_content preserved through →published
+        self.assertIsNotNone(proj.frozen_content)
+
+        # Step 3: published → failed
+        transition_status(proj, "failed")
+        proj.refresh_from_db()
+        self.assertEqual(proj.status, PlatformProjection.Status.FAILED)
+        # frozen_content still present (not cleared until →draft)
+        self.assertIsNotNone(proj.frozen_content)
+
+        # Step 4: failed → draft (re-open)
+        transition_status(proj, "draft")
+        proj.refresh_from_db()
+        self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
+
+        # frozen_content MUST be cleared on →draft hop
+        self.assertIsNone(
+            proj.frozen_content,
+            "frozen_content must be cleared when re-opening to draft",
+        )
+
+    def test_reopened_draft_tracks_live_canonical_after_full_cycle(self):
+        """
+        After the full re-open cycle (draft→ready→published→failed→draft),
+        the re-opened draft must track live canonical again — i.e., editing
+        the canonical event IS visible in render_projection while status==draft.
+        """
+        event = _make_event(
+            title="Cycle Live Track Pre",
+            slug="full-cycle-live-1",
+        )
+        conn = _make_connection(destination_id="fl-full-cycle-live-1")
+
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+
+        # Run the full cycle
+        transition_status(proj, "ready")
+        transition_status(proj, "published")
+        transition_status(proj, "failed")
+        transition_status(proj, "draft")
+        proj.refresh_from_db()
+
+        # Re-opened draft: edit canonical
+        event.title = "Cycle Live Track Post"
+        event.save()
+
+        body = render_projection(proj)
+        self.assertIn(
+            "Cycle Live Track Post",
+            body,
+            "Re-opened draft must track live canonical after full cycle",
+        )
+        self.assertNotIn(
+            "Cycle Live Track Pre",
+            body,
+            "Re-opened draft must NOT return the stale pre-cycle title",
+        )

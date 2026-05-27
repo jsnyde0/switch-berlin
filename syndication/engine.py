@@ -6,12 +6,26 @@ Provides three public callables:
 - render_projection(proj) → str
 - transition_status(proj, new_status) → None (saves, raises on illegal transition)
 
-ADR-016 D2: Projections are editable copies, not live views.
-    rule_based: body is SNAPSHOTTED at generation time into override_data["body"].
-    agent_assisted: agent-supplied body is stored in override_data["body"].
-    Either way, override_data["body"] is the stable rendered output; absent
-    "body" key means "use canonical" (not applicable post-generation since
-    rule_based always writes override_data["body"]).
+ADR-016 D2 (kb-a4u.20 hybrid content model):
+    Draft projections TRACK the live canonical — override_data layered on top,
+    absent key means use live canonical. Stability is achieved at draft→ready.
+
+    At draft→ready, the FULL effective structured content is materialized into
+    frozen_content: all content-relevant canonical fields with override_data
+    applied. For kind=listing this includes body, title, start, end, dress_code,
+    age_restriction, capacity, content_warnings, tickets_url, and description;
+    for kind=promotion this includes body, headline, post_body, cta, and imagery.
+
+    From ready onward (ready, published, failed), render_projection returns
+    frozen_content["body"]; other consumers (e.g. publish carriers) may read
+    any field from frozen_content without touching the live canonical.
+
+    rule_based draft: does NOT write override_data["body"] — draft derives from
+    live canonical. At draft→ready, _materialize_*_fields() captures the full
+    effective content including a freshly composed body.
+
+    agent_assisted draft: WRITES override_data["body"] as an explicit per-field
+    override. At draft→ready, the override is included in the freeze snapshot.
 
 ADR-016 D4: PlatformProjection FKs to PlatformConnection — not a bare
     platform string. The connection carries the platform identifier; callers
@@ -76,12 +90,14 @@ def transition_status(projection: PlatformProjection, new_status: str) -> None:
     projection.status = new_status
 
     if from_status == "draft" and new_status == "ready":
-        # ADR-016 D2 (kb-a4u.20 hybrid model): freeze the effective content at
-        # draft→ready. Materialize live canonical + override_data into
-        # frozen_content so from-ready reads never touch the live canonical.
+        # ADR-016 D2 (kb-a4u.20 hybrid model): freeze the FULL effective structured
+        # content at draft→ready. Materialize all content-relevant canonical fields
+        # + override_data into frozen_content so from-ready reads never touch the
+        # live canonical. Includes body, title, start, end, and all other fields
+        # so a publish carrier (FetLife/TT adapter) can fill structured fields
+        # from the snapshot without touching the live canonical.
         # ADR-008 D3: fail loud if the effective content cannot be derived.
-        frozen_body = _render_draft_body(projection)
-        projection.frozen_content = {"body": frozen_body}
+        projection.frozen_content = _materialize_effective_fields(projection)
         projection.save(update_fields=["status", "frozen_content", "updated_at"])
     elif new_status == "draft":
         # Re-opening (ready→draft or failed→draft): clear frozen_content so
@@ -170,9 +186,12 @@ def generate_projection(
     Raises:
         ValueError: if mode=agent_assisted without body, or unknown mode/kind.
 
-    ADR-016 D2: The body is ALWAYS snapshotted into override_data["body"] at
-                generation time. This makes the projection immune to later
-                canonical mutations (override_data["body"] is stable).
+    ADR-016 D2 (hybrid content model): Draft projections track the live canonical.
+                rule_based: override_data["body"] is NOT written at generation —
+                draft renders from live canonical fields; freeze happens at draft→ready.
+                agent_assisted: override_data["body"] IS written (explicit override);
+                the agent-supplied body persists through draft and is included in
+                the frozen snapshot at draft→ready.
 
     ADR-016 D4: connection is a PlatformConnection FK, not a bare platform string.
 
@@ -249,6 +268,113 @@ def generate_projection(
         provenance=provenance,
     )
     return proj
+
+
+# ---------------------------------------------------------------------------
+# Full-field materialization helpers (Fix 1, kb-a4u.20 adversarial review)
+# ---------------------------------------------------------------------------
+
+def _isoformat_or_none(dt) -> str | None:
+    """Return ISO 8601 string for a datetime, or None if dt is None."""
+    if dt is None:
+        return None
+    return dt.isoformat()
+
+
+def _materialize_listing_fields(projection: PlatformProjection) -> dict:
+    """
+    Materialize the full effective structured content for a kind=listing projection.
+
+    Returns a dict of all content-relevant Event fields with override_data applied.
+    This is the canonical "effective content" at a point in time — the frozen
+    snapshot stored in frozen_content captures exactly this dict so that a publish
+    carrier (e.g. FetLife/TT adapter agent) can fill structured date/location fields
+    from the snapshot without touching the live canonical.
+
+    override_data keys shadow the corresponding canonical field. Unknown override_data
+    keys are passed through as-is (forward-compatible for future per-field overrides).
+
+    ADR-008 D3: fail loud if source_event is missing.
+    """
+    event = projection.source_event
+    if event is None:
+        raise ValueError(
+            f"Cannot materialize listing fields for projection {projection.pk!r}: "
+            "source_event is None. (ADR-008 D3: fail loud)"
+        )
+
+    platform = projection.connection.platform
+    override = projection.override_data or {}
+
+    # Compose body from live canonical + override, then apply override if present
+    if "body" in override:
+        body = override["body"]
+    else:
+        body = _compose_listing_body(event, platform)
+
+    return {
+        "body": body,
+        "title": override.get("title", event.title),
+        "description": override.get("description", event.description),
+        "start": override.get("start", _isoformat_or_none(event.start)),
+        "end": override.get("end", _isoformat_or_none(event.end)),
+        "dress_code": override.get("dress_code", event.dress_code),
+        "age_restriction": override.get("age_restriction", event.age_restriction),
+        "capacity": override.get("capacity", event.capacity),
+        "content_warnings": override.get("content_warnings", event.content_warnings),
+        "tickets_url": override.get("tickets_url", event.tickets_url),
+    }
+
+
+def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
+    """
+    Materialize the full effective structured content for a kind=promotion projection.
+
+    Returns a dict of all content-relevant Post fields with override_data applied.
+    Analogous to _materialize_listing_fields for kind=promotion.
+
+    ADR-008 D3: fail loud if source_post is missing.
+    """
+    post = projection.source_post
+    if post is None:
+        raise ValueError(
+            f"Cannot materialize promotion fields for projection {projection.pk!r}: "
+            "source_post is None. (ADR-008 D3: fail loud)"
+        )
+
+    platform = projection.connection.platform
+    override = projection.override_data or {}
+
+    if "body" in override:
+        body = override["body"]
+    else:
+        body = _compose_promotion_body(post, platform)
+
+    return {
+        "body": body,
+        "headline": override.get("headline", post.headline),
+        "post_body": override.get("post_body", post.body),
+        "cta": override.get("cta", post.cta),
+        "imagery": override.get("imagery", post.imagery),
+        "voice": override.get("voice", post.voice),
+    }
+
+
+def _materialize_effective_fields(projection: PlatformProjection) -> dict:
+    """
+    Dispatch to the appropriate materialization helper based on projection.kind.
+
+    Called at draft→ready to produce the frozen_content snapshot.
+    ADR-008 D3: fail loud on unknown kind.
+    """
+    if projection.kind == PlatformProjection.Kind.LISTING:
+        return _materialize_listing_fields(projection)
+    if projection.kind == PlatformProjection.Kind.PROMOTION:
+        return _materialize_promotion_fields(projection)
+    raise ValueError(
+        f"Cannot materialize fields for projection {projection.pk!r}: "
+        f"unknown kind={projection.kind!r}. (ADR-008 D3: fail loud)"
+    )
 
 
 # ---------------------------------------------------------------------------

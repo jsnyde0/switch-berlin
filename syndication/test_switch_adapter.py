@@ -23,6 +23,7 @@ from django.utils import timezone
 
 from events.models import Event, EventOrganizer
 from organizers.models import Profile
+from syndication.engine import generate_projection, transition_status
 from syndication.models import PlatformConnection, PlatformProjection
 
 
@@ -72,12 +73,16 @@ class SwitchOwnPagePublishTest(TestCase):
         self.profile = _make_organizer_profile()
         self.event = _make_event_with_organizer(self.profile)
         self.conn = _make_switch_connection(self.profile)
-        self.proj = PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.LISTING,
-            status=PlatformProjection.Status.READY,
+        # Use generate_projection + transition_status to reach a valid ready state
+        # with a properly frozen snapshot (never bypass transition_status for ready).
+        self.proj = generate_projection(
+            kind="listing",
             connection=self.conn,
             source_event=self.event,
+            mode="rule_based",
         )
+        transition_status(self.proj, "ready")
+        self.proj.refresh_from_db()
 
     def test_publish_reaches_status_published(self):
         """
@@ -183,11 +188,14 @@ class SwitchPublishFailLoudTest(TestCase):
             slug="no-org-party",
             start=timezone.now(),
         )
+        # Provide valid frozen_content (projection was properly frozen at some point)
+        # — testing the adapter's data-integrity fail-loud branch, not the freeze.
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_event=event_no_org,
+            frozen_content={"body": "frozen listing body", "title": "No Organizer Party"},
         )
 
         from syndication.adapters import publish_switch_own_page
@@ -202,11 +210,13 @@ class SwitchPublishFailLoudTest(TestCase):
         A listing projection with no source_event cannot publish.
         publish_switch_own_page must set status=failed.
         """
+        # Provide valid frozen_content — testing adapter data-integrity branch.
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_event=None,
+            frozen_content={"body": "frozen listing body", "title": "No Source Event"},
         )
 
         from syndication.adapters import publish_switch_own_page
@@ -243,11 +253,14 @@ class SwitchPublishKindGuardTest(TestCase):
             headline="Promo for Switch",
             body="Come join us.",
         )
+        # Provide frozen_content for a valid ready state (kind guard fires before
+        # any frozen_content check — testing kind validation, not the freeze).
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.PROMOTION,
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_post=post,
+            frozen_content={"body": "frozen promo body", "headline": "Promo for Switch"},
         )
 
         from syndication.adapters import publish_switch_own_page
@@ -343,6 +356,7 @@ class SwitchPublishMissingSlugTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_event=event_no_slug,
+            frozen_content={"body": "frozen listing body", "title": "No Slug Party"},
         )
 
         from syndication.adapters import publish_switch_own_page
@@ -383,6 +397,7 @@ class SwitchPublishMissingSlugTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=conn_no_slug,
             source_event=event,
+            frozen_content={"body": "frozen listing body", "title": "Slugless Org Party"},
         )
 
         from syndication.adapters import publish_switch_own_page
@@ -417,12 +432,15 @@ class SwitchPublishDoublePublishTest(TestCase):
         The precondition guard (status must be ready) rejects published→? cleanly.
         Edit+re-publish is deferred per ADR-016; this test locks the contract.
         """
-        proj = PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.LISTING,
-            status=PlatformProjection.Status.READY,
+        # Use generate_projection + transition_status to reach valid ready state.
+        proj = generate_projection(
+            kind="listing",
             connection=self.conn,
             source_event=self.event,
+            mode="rule_based",
         )
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
 
         from syndication.adapters import publish_switch_own_page
         # First publish succeeds

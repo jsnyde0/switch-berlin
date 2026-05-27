@@ -84,24 +84,22 @@ class StateMachineTest(TestCase):
 
     def test_ready_to_published_is_legal(self):
         from syndication.engine import transition_status
-        self.proj.status = "ready"
-        self.proj.save()
+        transition_status(self.proj, "ready")
         transition_status(self.proj, "published")
         self.proj.refresh_from_db()
         self.assertEqual(self.proj.status, "published")
 
     def test_ready_to_failed_is_legal(self):
         from syndication.engine import transition_status
-        self.proj.status = "ready"
-        self.proj.save()
+        transition_status(self.proj, "ready")
         transition_status(self.proj, "failed")
         self.proj.refresh_from_db()
         self.assertEqual(self.proj.status, "failed")
 
     def test_published_to_failed_is_legal(self):
         from syndication.engine import transition_status
-        self.proj.status = "published"
-        self.proj.save()
+        transition_status(self.proj, "ready")
+        transition_status(self.proj, "published")
         transition_status(self.proj, "failed")
         self.proj.refresh_from_db()
         self.assertEqual(self.proj.status, "failed")
@@ -121,24 +119,24 @@ class StateMachineTest(TestCase):
     def test_published_to_draft_is_illegal(self):
         """No backward transition allowed."""
         from syndication.engine import transition_status
-        self.proj.status = "published"
-        self.proj.save()
+        transition_status(self.proj, "ready")
+        transition_status(self.proj, "published")
         with self.assertRaises(ValueError):
             transition_status(self.proj, "draft")
 
     def test_published_to_ready_is_illegal(self):
         """No backward transition."""
         from syndication.engine import transition_status
-        self.proj.status = "published"
-        self.proj.save()
+        transition_status(self.proj, "ready")
+        transition_status(self.proj, "published")
         with self.assertRaises(ValueError):
             transition_status(self.proj, "ready")
 
     def test_failed_to_draft_is_legal(self):
         """Failed projections can be reset to draft for retry."""
         from syndication.engine import transition_status
-        self.proj.status = "failed"
-        self.proj.save()
+        transition_status(self.proj, "ready")
+        transition_status(self.proj, "failed")
         transition_status(self.proj, "draft")
         self.proj.refresh_from_db()
         self.assertEqual(self.proj.status, "draft")
