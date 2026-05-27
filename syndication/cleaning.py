@@ -9,7 +9,7 @@ but the real rules land as a separate bead (soft dep, do not implement here).
 """
 
 
-def clean_for_platform(text: str, platform_id: str) -> str:
+def clean_for_platform(text: str, platform: str) -> str:
     """
     Apply per-platform content-policy cleaning to text.
 
@@ -19,7 +19,9 @@ def clean_for_platform(text: str, platform_id: str) -> str:
 
     Args:
         text: The raw text to clean.
-        platform_id: Target platform identifier (e.g. 'fetlife', 'telegram-channel:123').
+        platform: Target platform identifier (e.g. 'fetlife', 'telegram', 'switch').
+                  This is connection.platform — a plain platform string, not a
+                  compound encoding.
 
     Returns:
         Cleaned text (at v0: identical to input).

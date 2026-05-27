@@ -17,8 +17,14 @@ ADR-016 D4: PlatformProjection FKs to PlatformConnection — not a bare
     platform string. The connection carries the platform identifier; callers
     pass a PlatformConnection.
 
+ADR-016 carried-forward (REVISED 2026-05-27): There is NO visibility write-gate.
+    Event.visibility governs read-side rendering on switch.berlin (visible_to) only —
+    it does NOT gate outbound syndication. Eager creation is uniform across all
+    visibility tiers (unlisted/semi_public/public produce the same draft set).
+
 ADR-008 D3: fail loud — illegal transitions raise ValueError, missing body
-    raises ValueError.
+    raises ValueError. No silent provenance defaults — mode→provenance mapping
+    is always written explicitly.
 ADR-008 D4: retry policy seam — transport errors get ≤2 retries,
     data-integrity errors never retry. Modelled as status machine (failed
     state) + policy constants exported here. Actual platform push logic
@@ -82,26 +88,6 @@ DATA_INTEGRITY_MAX_RETRIES = 0
 
 
 # ---------------------------------------------------------------------------
-# Visibility write-gate (ADR-012)
-# ---------------------------------------------------------------------------
-
-def _check_visibility_gate(event) -> None:
-    """
-    Raise ValueError if the Event's visibility disallows external projection generation.
-
-    ADR-012 + ADR-016 Consequences: unlisted Events generate no external projections.
-    This is a write-side gate distinct from events/managers.py visible_to() (read-side).
-
-    ADR-008 D3: fail loud — raise, never silently drop.
-    """
-    if event.visibility == "unlisted":
-        raise ValueError(
-            f"Event {event.pk!r} (title={event.title!r}) has visibility='unlisted'. "
-            "Unlisted Events generate no external projections per ADR-012 + ADR-016."
-        )
-
-
-# ---------------------------------------------------------------------------
 # Template body composition (rule_based)
 # ---------------------------------------------------------------------------
 
@@ -157,8 +143,7 @@ def generate_projection(
         kind: 'listing' or 'promotion'
         connection: PlatformConnection instance. The specific destination
                     this projection targets (ADR-016 D4).
-        source_event: Event instance. Required when kind='listing';
-                      also used as the visibility gate source for kind='promotion'.
+        source_event: Event instance. Required when kind='listing'.
         source_post: Post instance. Required when kind='promotion'.
         mode: 'rule_based' (default) or 'agent_assisted'.
         body: Required when mode='agent_assisted'; ignored for 'rule_based'.
@@ -167,8 +152,7 @@ def generate_projection(
         Persisted PlatformProjection in status=draft.
 
     Raises:
-        ValueError: if event is unlisted, mode=agent_assisted without body,
-                    or unknown mode/kind.
+        ValueError: if mode=agent_assisted without body, or unknown mode/kind.
 
     ADR-016 D2: The body is ALWAYS snapshotted into override_data["body"] at
                 generation time. This makes the projection immune to later
@@ -178,28 +162,30 @@ def generate_projection(
 
     ADR-008 D3: fail loud on all integrity violations.
     """
-    # --- Resolve the governing Event for the visibility gate ---
+    # --- Validate kind and resolve the source ---
     if kind == "listing":
         if source_event is None:
             raise ValueError("source_event is required for kind='listing'")
-        gate_event = source_event
+        canonical_event = source_event
     elif kind == "promotion":
         if source_post is None:
             raise ValueError("source_post is required for kind='promotion'")
-        gate_event = source_post.event
+        canonical_event = source_post.event
     else:
         raise ValueError(f"Unknown kind {kind!r}. Valid: 'listing', 'promotion'")
 
-    # --- Visibility write-gate (ADR-012 + ADR-016 Consequences) ---
-    _check_visibility_gate(gate_event)
+    # ADR-016 carried-forward (REVISED 2026-05-27): NO visibility write-gate.
+    # Event.visibility is a read-side concern (switch.berlin visible_to) only.
+    # Eager creation is uniform across all visibility tiers.
 
     # --- Compose the body ---
     platform = connection.platform
     if mode == "rule_based":
         if kind == "listing":
-            composed_body = _compose_listing_body(gate_event, platform)
+            composed_body = _compose_listing_body(canonical_event, platform)
         else:
             composed_body = _compose_promotion_body(source_post, platform)
+        provenance = PlatformProjection.Provenance.RULE_TEMPLATE
     elif mode == "agent_assisted":
         if body is None:
             raise ValueError(
@@ -209,6 +195,7 @@ def generate_projection(
         # Agent-supplied body is accepted as-is; the agent does the voice work.
         # ADR-011 D1: agent layer is additive — we accept + persist, not re-process.
         composed_body = body
+        provenance = PlatformProjection.Provenance.AGENT_SUPPLIED
     else:
         raise ValueError(
             f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'"
@@ -218,6 +205,7 @@ def generate_projection(
     # override_data["body"] is the stable rendered output for this projection.
     # Absent key would mean "use canonical" but post-generation there is always
     # a snapshotted value here.
+    # ADR-008 D3: provenance is always set explicitly — no silent model-default fallback.
     override_data = {"body": composed_body}
 
     proj = PlatformProjection.objects.create(
@@ -227,6 +215,7 @@ def generate_projection(
         source_event=source_event,
         source_post=source_post,
         override_data=override_data,
+        provenance=provenance,
     )
     return proj
 

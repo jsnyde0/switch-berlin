@@ -3,10 +3,12 @@ TDD tests for the syndication engine (kb-a4u.4).
 
 Five harness checks per acceptance contract:
 1. State-machine: legal transitions succeed, illegal ones raise.
-2. Override-independence: projection body stable after canonical mutation post-generation.
-3. mode=rule_based produces deterministic template body from canonical fields.
-4. mode=agent_assisted accepts and stores an agent-supplied body.
-5. unlisted Event → generation produces NO external projection.
+2a. Override-independence: overridden field stable when canonical mutates post-generation.
+2b. Live-tracking: non-overridden canonical field tracks canonical automatically.
+3. mode=rule_based template generation sets provenance=rule_template.
+4. mode=agent_assisted accepts and stores agent body, provenance=agent_supplied.
+5. Eager creation is visibility-tier-AGNOSTIC — unlisted/semi_public/public Events
+   each produce the SAME draft set; no tier gating.
 """
 
 from django.test import TestCase
@@ -292,6 +294,25 @@ class RuleBasedGenerationTest(TestCase):
         body = render_projection(proj)
         self.assertIn("Save the Date: Bubble Night!", body)
 
+    def test_rule_based_sets_provenance_rule_template(self):
+        """
+        Harness item (3): mode=rule_based generation sets provenance=rule_template.
+        ADR-008 D3: fail loud — no silent data-integrity fallback.
+        """
+        event = _make_event(title="Provenance Test Event")
+        conn = _make_connection(destination_id="fl-prov-rule")
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+        self.assertEqual(
+            proj.provenance,
+            "rule_template",
+            "rule_based generation must set provenance=rule_template",
+        )
+
 
 # ---------------------------------------------------------------------------
 # 4. mode=agent_assisted: accepts and stores agent-supplied body
@@ -341,53 +362,93 @@ class AgentAssistedGenerationTest(TestCase):
         self.assertIn("body", proj.override_data)
         self.assertEqual(proj.override_data["body"], "Agent content")
 
+    def test_agent_assisted_sets_provenance_agent_supplied(self):
+        """
+        Harness item (4): mode=agent_assisted generation sets provenance=agent_supplied.
+        ADR-008 D3: fail loud — no silent data-integrity fallback; the model default
+        is rule_template, so without an explicit set, this would be wrong.
+        """
+        event = _make_event()
+        conn = _make_connection(destination_id="fl-agent-prov")
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="agent_assisted",
+            body="Agent-authored copy for provenance test.",
+        )
+        self.assertEqual(
+            proj.provenance,
+            "agent_supplied",
+            "agent_assisted generation must set provenance=agent_supplied",
+        )
+
 
 # ---------------------------------------------------------------------------
-# 5. unlisted Event → generation produces NO external projection
+# 5. Eager creation is visibility-tier-AGNOSTIC (harness item 5)
 # ---------------------------------------------------------------------------
 
-class UnlistedVisibilityGateTest(TestCase):
+class VisibilityTierAgnosticTest(TestCase):
     """
-    ADR-012 + ADR-016 Consequences:
-    unlisted Events generate no external projections (write-side gate).
+    ADR-016 carried-forward (REVISED 2026-05-27): There is NO visibility write-gate.
+    unlisted/semi_public/public Events each produce the SAME draft set.
+    Event.visibility governs read-side rendering only, not outbound syndication.
     """
 
-    def test_unlisted_event_raises_on_generate(self):
-        """
-        generate_projection for an unlisted event MUST raise, not silently
-        return None or create a projection record.
-        """
-        event = _make_event(visibility="unlisted")
-        conn = _make_connection(destination_id="fl-unlisted-1")
-        with self.assertRaises(ValueError):
-            generate_projection(
-                kind="listing",
-                connection=conn,
-                source_event=event,
-                mode="rule_based",
-            )
+    def _draft_count_for(self, event, conn):
+        """Helper: count draft projections created for a (event, conn) pair."""
+        return PlatformProjection.objects.filter(
+            source_event=event,
+            connection=conn,
+            status=PlatformProjection.Status.DRAFT,
+        ).count()
 
-    def test_unlisted_event_leaves_no_projection_record(self):
-        """Even after a failed generate call, no PlatformProjection should exist."""
-        event = _make_event(visibility="unlisted")
-        conn = _make_connection(destination_id="fl-unlisted-2")
-        initial_count = PlatformProjection.objects.filter(source_event=event).count()
-        try:
-            generate_projection(
-                kind="listing",
-                connection=conn,
-                source_event=event,
-                mode="rule_based",
-            )
-        except ValueError:
-            pass
-        final_count = PlatformProjection.objects.filter(source_event=event).count()
-        self.assertEqual(initial_count, final_count)
+    def test_unlisted_event_generates_same_draft_set_as_public(self):
+        """
+        An unlisted Event must produce the same number of draft projections
+        as a public Event. No tier gating on syndication write path.
+        """
+        conn_public = _make_connection(destination_id="fl-pub-vis")
+        conn_unlisted = _make_connection(destination_id="fl-unl-vis")
 
-    def test_public_event_can_generate(self):
-        """public visibility allows projection generation."""
+        event_public = _make_event(visibility="public")
+        event_unlisted = _make_event(visibility="unlisted", slug="unlisted-event-vis")
+
+        proj_public = generate_projection(
+            kind="listing",
+            connection=conn_public,
+            source_event=event_public,
+            mode="rule_based",
+        )
+        proj_unlisted = generate_projection(
+            kind="listing",
+            connection=conn_unlisted,
+            source_event=event_unlisted,
+            mode="rule_based",
+        )
+
+        self.assertIsNotNone(proj_public)
+        self.assertIsNotNone(proj_unlisted)
+        self.assertEqual(proj_public.status, PlatformProjection.Status.DRAFT)
+        self.assertEqual(proj_unlisted.status, PlatformProjection.Status.DRAFT)
+
+    def test_semi_public_event_generates_draft(self):
+        """semi_public visibility produces a draft projection — same as public/unlisted."""
+        event = _make_event(visibility="semi_public", slug="semi-public-event-vis")
+        conn = _make_connection(destination_id="fl-semi-vis")
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+        self.assertIsNotNone(proj)
+        self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
+
+    def test_public_event_generates_draft(self):
+        """public visibility produces a draft projection."""
         event = _make_event(visibility="public")
-        conn = _make_connection(destination_id="fl-public")
+        conn = _make_connection(destination_id="fl-pub-vis2")
         proj = generate_projection(
             kind="listing",
             connection=conn,
@@ -395,33 +456,28 @@ class UnlistedVisibilityGateTest(TestCase):
             mode="rule_based",
         )
         self.assertIsNotNone(proj)
+        self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
 
-    def test_semi_public_event_can_generate(self):
-        """semi_public visibility allows projection generation (only unlisted is blocked)."""
-        event = _make_event(visibility="semi_public")
-        conn = _make_connection(destination_id="fl-semi-public")
-        proj = generate_projection(
-            kind="listing",
-            connection=conn,
-            source_event=event,
-            mode="rule_based",
-        )
-        self.assertIsNotNone(proj)
-
-    def test_promotion_unlisted_source_event_raises(self):
+    def test_all_three_visibility_tiers_produce_same_draft_count(self):
         """
-        Promotion projections whose source Post's event is unlisted also blocked.
-        The write-gate consults the related Event even for promotion-kind.
+        Across unlisted, semi_public, and public — each produces exactly one
+        draft projection per connection. No tier is special.
         """
-        event = _make_event(visibility="unlisted")
-        conn = _make_connection(platform="telegram", destination_id="channel-unlisted")
-        post = _make_post(event)
-        with self.assertRaises(ValueError):
-            generate_projection(
-                kind="promotion",
+        tiers = ["unlisted", "semi_public", "public"]
+        for i, visibility in enumerate(tiers):
+            conn = _make_connection(destination_id=f"fl-tier-{i}")
+            event = _make_event(visibility=visibility, slug=f"tier-event-{i}")
+            proj = generate_projection(
+                kind="listing",
                 connection=conn,
-                source_post=post,
+                source_event=event,
                 mode="rule_based",
+            )
+            self.assertIsNotNone(proj, f"Expected draft for visibility={visibility!r}")
+            self.assertEqual(
+                proj.status,
+                PlatformProjection.Status.DRAFT,
+                f"Expected DRAFT status for visibility={visibility!r}",
             )
 
 
@@ -450,7 +506,7 @@ class CleaningSeamTest(TestCase):
         from unittest.mock import patch
         event = _make_event(title="Seam Test Event")
         conn = _make_connection(destination_id="fl-seam-test")
-        with patch("syndication.engine.clean_for_platform", wraps=lambda text, pid: text) as mock_clean:
+        with patch("syndication.engine.clean_for_platform", wraps=lambda text, platform: text) as mock_clean:
             generate_projection(
                 kind="listing",
                 connection=conn,
