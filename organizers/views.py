@@ -212,7 +212,10 @@ def claim_entry(request, slug):
             {"organizer": profile, "already_claimant": True},
         )
 
-    form = ClaimForm(request.POST or None)
+    # Pre-fill with the logged-in user's email (the common case: claiming with
+    # your own address). Editable so org-domain users can swap in a matching
+    # address for the email_domain fast-path. initial only applies on GET (unbound).
+    form = ClaimForm(request.POST or None, initial={"email": request.user.email})
 
     if request.method == "POST" and form.is_valid():
         email = form.cleaned_data["email"]
@@ -297,12 +300,22 @@ def claim_entry(request, slug):
 
 @login_required
 def claim_check_email(request, slug):
-    """'Check your email' page shown after admin-review path submission."""
+    """Post-submission page for the admin-review claim track.
+
+    Serves two states for the same URL:
+    - pre-redeem: 'check your inbox' (the verification email was just sent).
+    - post-redeem: the magic-link redeem view stamps ClaimIntent.submitter_verified_at
+      and redirects back here — so render 'email verified, claim pending review'
+      instead of telling the user to check their inbox for a link they just used.
+    """
     profile = get_object_or_404(Profile, slug=slug)
+    verified = ClaimIntent.objects.filter(
+        user=request.user, profile=profile, submitter_verified_at__isnull=False
+    ).exists()
     return render(
         request,
         "organizers/claim_check_email.html",
-        {"organizer": profile},
+        {"organizer": profile, "verified": verified},
     )
 
 

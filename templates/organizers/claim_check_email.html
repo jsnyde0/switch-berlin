@@ -1,10 +1,25 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
 {% block title %}
-  {% trans "Check your email" %} — {{ organizer.name }}
+  {% if verified %}{% trans "Claim pending review" %}{% else %}{% trans "Check your email" %}{% endif %} — {{ organizer.name }}
 {% endblock title %}
 {% block content %}
   <div class="max-w-3xl">
+    {% if verified %}
+    <c-kb.page-header eyebrow="{% trans 'Organizer · Claim submitted' %}" title="{% trans 'Email' %}" accent="{% trans 'verified.' %}" />
+    <p class="text-[15px] leading-[1.65] text-base-content/75 pt-2 max-w-2xl">
+      {% blocktrans with name=organizer.name %}
+        Your email is verified and your claim on
+        <strong class="text-base-content">{{ name }}</strong> is now pending review by our team. We'll email you once it's approved.
+      {% endblocktrans %}
+    </p>
+    <c-kb.colophon margin="mt-10">
+    <dt class="text-base-content/40">{% trans "Status" %}</dt>
+    <dd class="text-base-content/80">
+      {% trans "Pending admin review" %}
+    </dd>
+    </c-kb.colophon>
+    {% else %}
     <c-kb.page-header eyebrow="{% trans 'Organizer · Claim sent' %}" title="{% trans 'Check your' %}" accent="{% trans 'inbox.' %}" />
     <p class="text-[15px] leading-[1.65] text-base-content/75 pt-2 max-w-2xl">
       {% blocktrans with name=organizer.name %}
@@ -22,6 +37,7 @@
       {% trans "Check spam folder" %}
     </dd>
     </c-kb.colophon>
+    {% endif %}
     <a href="{% url 'organizer-profile' slug=organizer.slug %}"
        class="kb-btn-secondary mt-10">← {% trans "Back to profile" %}</a>
   </div>

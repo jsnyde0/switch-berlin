@@ -109,6 +109,21 @@ def test_claim_entry_returns_200_for_auth_user(client):
     assert response.status_code == 200
 
 
+@pytest.mark.django_db
+def test_claim_entry_prefills_email_with_logged_in_user(client):
+    """GET claim form pre-fills the email field with the logged-in user's email
+    (editable so org-domain users can swap in a fast-path address)."""
+    make_profile("prefill-profile")
+    user = make_user("prefill_user", email="prefill_user@example.com")
+    client.force_login(user)
+    url = reverse("organizer-claim-entry", kwargs={"slug": "prefill-profile"})
+    response = client.get(url)
+    assert response.status_code == 200
+    assert 'value="prefill_user@example.com"' in response.content.decode(), (
+        "claim form email field should be pre-filled with the logged-in user's email"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Auth'd claimant viewer: sees "you manage" branch (ADR-008 D3 — explicit, not absent)
 # ---------------------------------------------------------------------------

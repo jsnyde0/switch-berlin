@@ -122,6 +122,36 @@ def test_magic_link_redeem_admin_review_marks_claim_intent_verified(client):
 
 
 @pytest.mark.django_db
+def test_check_email_page_shows_verified_state_after_admin_review_redeem(client):
+    """After redeeming an admin-review token, the check-email page must reflect
+    the verified/pending-review state — NOT tell the user to check their inbox
+    for a link they just used.
+
+    Regression: redeem redirects back to check-email; before the fix the page
+    rendered the pre-redeem 'check your inbox' copy, implying nothing happened.
+    """
+    from organizers.models import ClaimIntent
+
+    profile = make_profile("redeem-verified-copy")
+    user = make_user("redeem_verified_copy")
+    ClaimIntent.objects.create(user=user, profile=profile)
+    token = make_token(user, profile, intended_method="admin_review")
+
+    client.force_login(user)
+    redeem_url = reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
+    # follow=True walks the 302 to the check-email page
+    response = client.get(redeem_url, follow=True)
+
+    assert response.status_code == 200
+    body = response.content.decode().lower()
+    assert "verified" in body, "post-redeem page must say the email is verified"
+    assert "pending" in body, "post-redeem page must say the claim is pending review"
+    assert "inbox" not in body, (
+        "post-redeem page must NOT show the pre-redeem 'check your inbox' copy"
+    )
+
+
+@pytest.mark.django_db
 def test_magic_link_redeem_marks_token_used(client):
     """Valid redemption marks the token as used (single-use)."""
     profile = make_profile("redeem-used-profile")
