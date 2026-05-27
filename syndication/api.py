@@ -5,18 +5,30 @@ Django Ninja API per ADR-016 D6 (in-process handlers → JSON API + HTMX views
 share ONE auth + service layer).
 
 Auth chain (ADR-016 D3):
-  Leg 1: POST /api/agents/register  (session auth)     → one-time Bearer API key
-  Leg 2: POST /api/agents/token     (no auth required) → short-lived identity token
+  Leg 1: POST /api/agents/register  (session auth)     → long-lived Bearer API key
+  Leg 2: POST /api/agents/token     (no auth required) → short-lived (~1h) identity token
   Leg 3: POST /api/agents/verify    (STUBBED — ADR-008 D2)
+
+Token lifecycle (kb-a4u.2 fix):
+  - Bearer API key (AgentCredential) is LONG-LIVED + reusable for many exchanges.
+    "Displayed once" = raw key shown once at registration, stored hashed. Revoke
+    via enabled=False.
+  - Identity token is ~1h TTL + REUSABLE within that window. Expiry enforced;
+    no per-request consumption.
 
 Protected endpoints use IdentityTokenAuth (HttpBearer subclass):
   Authorization: Bearer <identity_token_uuid>
+
+Vouching gate (F2/F7): /api/ is in ALWAYS_PUBLIC_PREFIXES so LoginWallMiddleware
+skips its vouching check. IdentityTokenAuth + SessionMarkerAuth enforce the same
+invariant (vouched or staff) to avoid silent bypass (ADR-008 D3).
 
 Actor-marker (ADR-017 D1): both session and Bearer paths resolve to the same
 User with identical authority. The auth callables stamp request._actor_marker
 for audit-only provenance in service-layer writes.
 
 Event/Post/Projection endpoint bodies are STUBBED here (filled by C3/C4).
+OpenAPI response schemas declared for stable contract (F4).
 """
 
 import json as _json
@@ -38,23 +50,45 @@ from syndication.services import (
 # Auth callables
 # ---------------------------------------------------------------------------
 
+def _is_vouched(user) -> bool:
+    """
+    Return True if the user passes the vouching invariant.
+
+    Mirrors LoginWallMiddleware's gate (user.status == 'vouched' or is_staff).
+    This must be re-enforced in the Ninja auth callables because /api/ is in
+    ALWAYS_PUBLIC_PREFIXES — the middleware skips its vouching check for /api/
+    paths so that API clients get JSON 401s instead of HTML 302 redirects.
+    Not enforcing it here would silently drop the invariant (ADR-008 D3).
+    """
+    return user.is_staff or getattr(user, "status", None) == "vouched"
+
+
 class IdentityTokenAuth(HttpBearer):
     """
     Ninja auth callable for Bearer identity-token auth on protected endpoints
     (ADR-016 D3 leg 2).
 
     Validates the Bearer token as an IdentityToken UUID.
-    On success: stamps request._actor_marker = ACTOR_BEARER and returns user.
-    On failure: returns None → Ninja tries next auth or returns 401.
+    Token is REUSABLE within its TTL — expiry is enforced, not single-use.
+
+    On success (valid token + vouched user): stamps request._actor_marker =
+    ACTOR_BEARER and returns user.
+    On failure (invalid/expired token OR non-vouched user): returns None →
+    Ninja tries next auth or returns 401.
+
+    Vouching is enforced here (not just in middleware) because /api/ is in
+    ALWAYS_PUBLIC_PREFIXES — see _is_vouched() (ADR-008 D3, F2/F7).
     """
 
     def authenticate(self, request, token: str):
         try:
-            _it, user = IdentityToken.consume(token)
-            request._actor_marker = ACTOR_BEARER
-            return user
+            _it, user = IdentityToken.validate(token)
         except (IdentityToken.DoesNotExist, ValueError):
             return None
+        if not _is_vouched(user):
+            return None
+        request._actor_marker = ACTOR_BEARER
+        return user
 
 
 class SessionMarkerAuth(NinjaSessionAuth):
@@ -66,12 +100,18 @@ class SessionMarkerAuth(NinjaSessionAuth):
     ACTOR_SESSION so service-layer writes can record provenance.
 
     ADR-017 D1: identical authority — same User, same permissions.
+
+    Vouching is enforced here (not just in middleware) because /api/ is in
+    ALWAYS_PUBLIC_PREFIXES — see _is_vouched() (ADR-008 D3, F2/F7).
     """
 
     def authenticate(self, request, key):
         user = super().authenticate(request, key)
-        if user:
-            request._actor_marker = ACTOR_SESSION
+        if not user:
+            return None
+        if not _is_vouched(user):
+            return None
+        request._actor_marker = ACTOR_SESSION
         return user
 
 
@@ -156,22 +196,25 @@ def agents_register(request):
     response={200: TokenResponse, 401: dict},
     summary="Exchange API key for a short-lived identity token",
     description=(
-        "Leg 2: consume the one-time Bearer API key and receive a "
-        "short-lived (~1h), single-use identity token. Pass this token as "
-        "'Authorization: Bearer <identity_token>' on protected endpoints."
+        "Leg 2: validate the long-lived Bearer API key and receive a "
+        "short-lived (~1h) identity token (reusable within its TTL). "
+        "Pass this token as 'Authorization: Bearer <identity_token>' on "
+        "protected endpoints. The API key is long-lived — reuse it for "
+        "new tokens as needed."
     ),
 )
 def agents_token(request, body: TokenRequest):
     """
     Leg 2 of the auth chain (ADR-016 D3).
 
-    Consumes the one-time API key (single-use; fails loud on re-use per
-    ADR-008 D3). Returns a short-lived identity token (~1h, single-use).
+    Validates the long-lived API key (reusable; fails loud on invalid/revoked
+    key per ADR-008 D3). Issues a fresh short-lived identity token (~1h TTL,
+    reusable within that window).
     """
     try:
         identity_token, _user = exchange_api_key_for_identity_token(body.api_key)
     except (AgentCredential.DoesNotExist, ValueError):
-        return Status(401, {"detail": "Invalid or already-consumed API key."})
+        return Status(401, {"detail": "Invalid or revoked API key."})
 
     return {
         "identity_token": str(identity_token.token),
@@ -236,12 +279,15 @@ def _stub_response_with_marker(request, detail: str) -> HttpResponse:
 @api.get(
     "/events/",
     auth=_RESOURCE_AUTH,
+    response=StubListResponse,
     summary="List events — STUBBED (C3/kb-a4u.3)",
 )
 def events_list(request):
     """Stub — body implemented by C3/kb-a4u.3.
 
     Returns HttpResponse directly so X-Actor-Marker header is preserved.
+    Ninja passes HttpResponse through unchanged; the declared response schema
+    stabilises the OpenAPI contract for downstream beads.
     """
     return _stub_response_with_marker(
         request,
@@ -252,6 +298,7 @@ def events_list(request):
 @api.get(
     "/posts/",
     auth=_RESOURCE_AUTH,
+    response=StubListResponse,
     summary="List posts — STUBBED (C3/kb-a4u.3)",
 )
 def posts_list(request):
@@ -265,6 +312,7 @@ def posts_list(request):
 @api.get(
     "/projections/",
     auth=_RESOURCE_AUTH,
+    response=StubListResponse,
     summary="List projections — STUBBED (C4/kb-a4u.4)",
 )
 def projections_list(request):

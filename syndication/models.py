@@ -346,10 +346,12 @@ class PlatformProjection(models.Model):
 # ---------------------------------------------------------------------------
 # Agent credential auth models (ADR-016 D3, kb-a4u.2)
 # ---------------------------------------------------------------------------
-# Mirrors the MagicLinkToken envelope (organizers/models.py):
-#   - token stored as a hash (raw key is returned once on register, then lost)
-#   - single-use for the initial key→identity-token exchange
-#   - expiry on the identity token (~1h, single-use)
+# Bearer key (AgentCredential) is LONG-LIVED + reusable for many exchanges.
+# "Displayed once" at registration (raw key shown once, stored hashed).
+# Revoke via `enabled=False` — no consume-on-exchange semantics.
+#
+# IdentityToken is ~1h TTL and REUSABLE within that window.
+# Enforce expiry; do NOT consume-per-request.
 # ---------------------------------------------------------------------------
 
 def _generate_raw_key():
@@ -368,8 +370,13 @@ class AgentCredential(models.Model):
 
     The raw key is returned ONCE on agents/register and never stored.
     key_hash stores SHA-256(raw_key) for subsequent lookup.
-    used_at is stamped on the first (and only) identity-token exchange,
-    making the key single-use for the initial exchange step.
+
+    The key is LONG-LIVED and REUSABLE for many identity-token exchanges.
+    "Displayed once" means the raw key is shown at registration and never
+    recoverable — not that the key is single-use for exchanges.
+
+    Revoke a credential by setting enabled=False (soft revoke) or deleting it.
+    revoked_at is set when enabled flips False for audit purposes.
 
     Credential→User binding: the full pairing flow (browser OAuth hand-off
     with ProfileClaim verification) lives in C6/kb-a4u.6. Here we bind
@@ -391,15 +398,22 @@ class AgentCredential(models.Model):
         db_index=True,
         help_text="SHA-256 of the raw Bearer API key. Raw key never stored.",
     )
+    enabled = models.BooleanField(
+        default=True,
+        help_text=(
+            "Whether this credential is still valid. Set False to revoke. "
+            "Long-lived — reusable for many token exchanges until revoked."
+        ),
+    )
     expires_at = models.DateTimeField(
         null=True,
         blank=True,
         help_text="Optional hard expiry on the long-lived key. null = no expiry at v0.",
     )
-    used_at = models.DateTimeField(
+    revoked_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Stamped on first identity-token exchange. Non-null = key consumed.",
+        help_text="Timestamp when this credential was revoked (enabled set False). Audit only.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -409,13 +423,14 @@ class AgentCredential(models.Model):
         verbose_name_plural = _("agent credentials")
 
     def __str__(self):
-        return f"AgentCredential({self.user}, used_at={self.used_at})"
+        return f"AgentCredential({self.user}, enabled={self.enabled})"
 
     @classmethod
     def issue(cls, user):
         """
         Generate a raw key, store its hash, return (credential, raw_key).
         Caller is responsible for returning raw_key to the user exactly once.
+        The key is long-lived and reusable — do NOT consume it on first exchange.
         """
         raw_key = _generate_raw_key()
         credential = cls.objects.create(
@@ -425,11 +440,16 @@ class AgentCredential(models.Model):
         return credential, raw_key
 
     @classmethod
-    def consume(cls, raw_key):
+    def validate(cls, raw_key):
         """
-        Look up the credential by raw_key hash, validate it is unused and
-        unexpired, stamp used_at, and return (credential, user).
-        Raises AgentCredential.DoesNotExist or ValueError on failure.
+        Look up the credential by raw_key hash, validate it is enabled and
+        unexpired, and return (credential, user).
+
+        Does NOT consume the key — it is long-lived and reusable.
+        Use revoke() to invalidate a credential.
+
+        Raises AgentCredential.DoesNotExist or ValueError on failure (fail loud
+        per ADR-008 D3).
         """
         key_hash = _hash_key(raw_key)
         try:
@@ -437,24 +457,25 @@ class AgentCredential(models.Model):
         except cls.DoesNotExist as exc:
             raise cls.DoesNotExist("Invalid API key.") from exc
 
-        if cred.used_at is not None:
-            raise ValueError("API key already consumed.")
+        if not cred.enabled:
+            raise ValueError("API key has been revoked.")
 
         if cred.expires_at is not None and cred.expires_at < timezone.now():
             raise ValueError("API key expired.")
 
-        cred.used_at = timezone.now()
-        cred.save(update_fields=["used_at"])
         return cred, cred.user
 
 
 class IdentityToken(models.Model):
     """
-    Short-lived (~1h), single-use identity token issued after API key exchange
+    Short-lived (~1h) identity token issued after API key exchange
     (ADR-016 D3, leg 2).
 
-    After AgentCredential.consume() succeeds, an IdentityToken is issued.
-    The token is a UUID stored plaintext (low blast-radius: 1h TTL, single-use).
+    After AgentCredential.validate() succeeds, an IdentityToken is issued.
+    The token is a UUID stored plaintext (low blast-radius: 1h TTL).
+    The token is REUSABLE within its TTL — a 1h TTL is meaningless if the
+    token dies after one request. Expiry is enforced; single-use is NOT.
+
     The protected endpoints validate this token via IdentityTokenAuth.
     """
 
@@ -469,12 +490,7 @@ class IdentityToken(models.Model):
         db_index=True,
     )
     expires_at = models.DateTimeField(
-        help_text="~1h from issuance.",
-    )
-    used_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Stamped on first use. Non-null = token consumed.",
+        help_text="~1h from issuance. Token is valid (reusable) until this timestamp.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -493,11 +509,14 @@ class IdentityToken(models.Model):
         return cls.objects.create(user=user, expires_at=expires_at)
 
     @classmethod
-    def consume(cls, raw_token: str):
+    def validate(cls, raw_token: str):
         """
-        Validate a UUID identity token: must exist, be unused, and not expired.
-        Stamps used_at and returns (identity_token, user).
-        Raises IdentityToken.DoesNotExist or ValueError on failure.
+        Validate a UUID identity token: must exist and not be expired.
+        Returns (identity_token, user) on success.
+
+        Does NOT consume the token — it is reusable within its TTL.
+        Raises IdentityToken.DoesNotExist or ValueError on failure (fail loud
+        per ADR-008 D3).
         """
         try:
             token_uuid = uuid.UUID(raw_token)
@@ -509,12 +528,7 @@ class IdentityToken(models.Model):
         except cls.DoesNotExist as exc:
             raise cls.DoesNotExist("Identity token not found.") from exc
 
-        if it.used_at is not None:
-            raise ValueError("Identity token already consumed.")
-
         if it.expires_at < timezone.now():
             raise ValueError("Identity token expired.")
 
-        it.used_at = timezone.now()
-        it.save(update_fields=["used_at"])
         return it, it.user

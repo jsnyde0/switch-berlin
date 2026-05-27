@@ -56,13 +56,16 @@ def register_agent_credential(user):
 
 def exchange_api_key_for_identity_token(raw_api_key: str):
     """
-    Consume a one-use Bearer API key and issue a short-lived identity token.
+    Validate the long-lived Bearer API key and issue a short-lived identity token.
+
+    The API key is NOT consumed — it is long-lived and reusable for many exchanges.
+    Each call issues a fresh identity token (caller should cache within its TTL).
 
     Returns (identity_token, user) on success.
     Raises AgentCredential.DoesNotExist or ValueError on failure (fail loud
     per ADR-008 D3 — no silent fallback).
     """
-    credential, user = AgentCredential.consume(raw_api_key)
+    credential, user = AgentCredential.validate(raw_api_key)
     identity_token = IdentityToken.issue(user)
     return identity_token, user
 
@@ -73,9 +76,10 @@ def exchange_api_key_for_identity_token(raw_api_key: str):
 
 def validate_identity_token(raw_token: str):
     """
-    Validate and consume an identity token.
+    Validate an identity token (must exist and not be expired).
 
+    The token is NOT consumed — it is reusable within its TTL.
     Returns (identity_token, user) on success.
     Raises IdentityToken.DoesNotExist or ValueError on failure.
     """
-    return IdentityToken.consume(raw_token)
+    return IdentityToken.validate(raw_token)
