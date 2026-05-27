@@ -29,6 +29,18 @@ class EventForm(forms.Form):
     ADR-016 D5: only title, slug, start are truly required for a minimal draft.
     All other fields are optional at save time; completeness is enforced at
     draft→ready, never here.
+
+    v0 field set (kb-a4u acceptance criterion 1):
+    title, description, start, end, venue (location FK), tags (M2M),
+    dress_code, content_warnings, age_restriction, capacity,
+    visibility, language, is_free, price_min_cents, price_max_cents,
+    currency, sliding_scale, price_description, external_url, tickets_url,
+    registration_required, registration_url, registration_email.
+
+    Note: timezone is not authored per-event at v0 (TIME_ZONE=Europe/Berlin).
+    Note: category is not a field on the Event model at v0.
+    Note: cover_image authoring requires file-upload infrastructure not yet built;
+          scoped to a separate bead (see EventImage model).
     """
 
     title = forms.CharField(
@@ -57,6 +69,50 @@ class EventForm(forms.Form):
         label=_("Description"),
         widget=forms.Textarea(attrs={"rows": 6}),
     )
+    venue = forms.IntegerField(
+        required=False,
+        label=_("Venue / Location"),
+        help_text=_("Venue ID. Leave blank if venue is not yet known."),
+        widget=forms.NumberInput(attrs={"placeholder": "Venue ID"}),
+    )
+    tags = forms.CharField(
+        required=False,
+        label=_("Tags"),
+        help_text=_("Comma-separated tag slugs, e.g. 'fetish,bdsm,nudist'"),
+        widget=forms.TextInput(attrs={"placeholder": "fetish, bdsm"}),
+    )
+
+    def clean_venue(self):
+        """
+        Resolve venue ID to a Venue instance.
+
+        ADR-008 D3: fail-loud on invalid venue ID — no silent None fallback.
+        Returns None if blank (venue is optional at draft time).
+        """
+        raw = self.cleaned_data.get("venue")
+        if raw is None:
+            return None
+        from venues.models import Venue
+        try:
+            return Venue.objects.get(pk=raw)
+        except Venue.DoesNotExist:
+            raise forms.ValidationError(
+                _("Venue with ID %(id)s does not exist.") % {"id": raw}
+            )
+
+    def clean_tags(self):
+        """
+        Parse tags from a comma-separated string to a list of Tag slugs.
+
+        ADR-008 D3: unknown slugs are silently skipped (tags are optional; no
+        hard failure on typo). Returns a list of Tag pk values.
+        """
+        from events.models import Tag
+        raw = self.cleaned_data.get("tags", "").strip()
+        if not raw:
+            return []
+        slugs = [s.strip() for s in raw.split(",") if s.strip()]
+        return list(Tag.objects.filter(slug__in=slugs).values_list("pk", flat=True))
     dress_code = forms.CharField(
         required=False,
         max_length=300,

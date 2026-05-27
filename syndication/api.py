@@ -142,6 +142,22 @@ api = NinjaAPI(
 )
 
 
+@api.exception_handler(PermissionError)
+def handle_permission_error(request, exc):
+    """
+    Map PermissionError → HTTP 403 JSON response.
+
+    service functions (update_event, create_post, …) raise PermissionError
+    when the caller fails the can_edit gate. Without this handler Ninja would
+    surface a 500. ADR-008 D3: fail loud with the correct status code.
+    """
+    return api.create_response(
+        request,
+        {"detail": str(exc) or "Permission denied."},
+        status=403,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
@@ -314,7 +330,17 @@ class EventCreateIn(Schema):
 
 
 class EventUpdateIn(Schema):
+    """
+    Partial-update schema for PATCH /events/{id}/.
+
+    All fields are optional (PATCH semantics — only non-None fields are applied).
+    Kept at parity with EventCreateIn for the full updatable set (ADR-016 D3:
+    co-equal API — an agent must be able to read back what it wrote).
+    """
     title: Optional[str] = None
+    slug: Optional[str] = None
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
     description: Optional[str] = None
     dress_code: Optional[str] = None
     content_warnings: Optional[List[str]] = None
@@ -330,12 +356,23 @@ class EventUpdateIn(Schema):
     price_description: Optional[str] = None
     external_url: Optional[str] = None
     tickets_url: Optional[str] = None
+    registration_required: Optional[bool] = None
+    registration_url: Optional[str] = None
+    registration_email: Optional[str] = None
 
 
 class EventOut(Schema):
+    """
+    Response schema for Event endpoints (ADR-016 D3: co-equal API).
+
+    Includes the full v0 readable field set so an agent can read back what
+    it wrote (start, end, slug, registration_* were previously missing).
+    """
     id: int
     title: str
     slug: str
+    start: Optional[datetime]
+    end: Optional[datetime]
     description: str
     status: str
     visibility: str
@@ -348,9 +385,13 @@ class EventOut(Schema):
     price_min_cents: Optional[int]
     price_max_cents: Optional[int]
     currency: str
+    sliding_scale: bool
     price_description: str
     external_url: str
     tickets_url: str
+    registration_required: bool
+    registration_url: str
+    registration_email: str
 
 
 # --- Post schemas ---
@@ -429,11 +470,13 @@ def events_list(request):
             "id": e.pk,
             "title": e.title,
             "slug": e.slug,
+            "start": e.start,
+            "end": e.end,
             "description": e.description,
             "status": e.status,
             "visibility": e.visibility,
             "dress_code": e.dress_code,
-            "content_warnings": e.content_warnings,
+            "content_warnings": e.content_warnings or [],
             "age_restriction": e.age_restriction,
             "capacity": e.capacity,
             "language": e.language,
@@ -441,9 +484,13 @@ def events_list(request):
             "price_min_cents": e.price_min_cents,
             "price_max_cents": e.price_max_cents,
             "currency": e.currency,
+            "sliding_scale": e.sliding_scale,
             "price_description": e.price_description,
             "external_url": e.external_url,
             "tickets_url": e.tickets_url,
+            "registration_required": e.registration_required,
+            "registration_url": e.registration_url,
+            "registration_email": e.registration_email,
         }
         for e in events
     ]
@@ -469,6 +516,8 @@ def events_create(request, body: EventCreateIn):
         "id": event.pk,
         "title": event.title,
         "slug": event.slug,
+        "start": event.start,
+        "end": event.end,
         "description": event.description,
         "status": event.status,
         "visibility": event.visibility,
@@ -481,9 +530,13 @@ def events_create(request, body: EventCreateIn):
         "price_min_cents": event.price_min_cents,
         "price_max_cents": event.price_max_cents,
         "currency": event.currency,
+        "sliding_scale": event.sliding_scale,
         "price_description": event.price_description,
         "external_url": event.external_url,
         "tickets_url": event.tickets_url,
+        "registration_required": event.registration_required,
+        "registration_url": event.registration_url,
+        "registration_email": event.registration_email,
     }
     return _actor_marker_response(request, data, status=201)
 
@@ -503,6 +556,8 @@ def events_detail(request, event_id: int):
         "id": event.pk,
         "title": event.title,
         "slug": event.slug,
+        "start": event.start,
+        "end": event.end,
         "description": event.description,
         "status": event.status,
         "visibility": event.visibility,
@@ -515,9 +570,13 @@ def events_detail(request, event_id: int):
         "price_min_cents": event.price_min_cents,
         "price_max_cents": event.price_max_cents,
         "currency": event.currency,
+        "sliding_scale": event.sliding_scale,
         "price_description": event.price_description,
         "external_url": event.external_url,
         "tickets_url": event.tickets_url,
+        "registration_required": event.registration_required,
+        "registration_url": event.registration_url,
+        "registration_email": event.registration_email,
     }
     return _actor_marker_response(request, data)
 
@@ -543,6 +602,8 @@ def events_update(request, event_id: int, body: EventUpdateIn):
         "id": event.pk,
         "title": event.title,
         "slug": event.slug,
+        "start": event.start,
+        "end": event.end,
         "description": event.description,
         "status": event.status,
         "visibility": event.visibility,
@@ -555,9 +616,13 @@ def events_update(request, event_id: int, body: EventUpdateIn):
         "price_min_cents": event.price_min_cents,
         "price_max_cents": event.price_max_cents,
         "currency": event.currency,
+        "sliding_scale": event.sliding_scale,
         "price_description": event.price_description,
         "external_url": event.external_url,
         "tickets_url": event.tickets_url,
+        "registration_required": event.registration_required,
+        "registration_url": event.registration_url,
+        "registration_email": event.registration_email,
     }
     return _actor_marker_response(request, data)
 

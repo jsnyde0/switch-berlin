@@ -18,6 +18,8 @@ ADR-008 D2: no speculative abstraction (no tab framework, no generic fragment
 dispatcher — each fragment is a named, explicit URL).
 """
 
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -105,14 +107,24 @@ def event_hub_edit(request, pk):
             update_event(user=request.user, event=event, **cd)
             return redirect("syndication:event-hub", pk=event.pk)
     else:
+        # Include ALL editable fields so edit-load round-trips stored values.
+        # ADR-008 D3: missing fields here = silent data loss on save (wipe on re-save).
         form = EventForm(initial={
             "title": event.title,
             "slug": event.slug,
             "start": event.start,
             "end": event.end,
             "description": event.description,
+            "venue": event.venue_id,
+            "tags": ", ".join(
+                event.tags.values_list("slug", flat=True)
+            ) if event.pk else "",
             "dress_code": event.dress_code,
-            "content_warnings": event.content_warnings,
+            "content_warnings": (
+                json.dumps(event.content_warnings)
+                if isinstance(event.content_warnings, list)
+                else event.content_warnings or ""
+            ),
             "age_restriction": event.age_restriction,
             "capacity": event.capacity,
             "visibility": event.visibility,
@@ -125,6 +137,9 @@ def event_hub_edit(request, pk):
             "price_description": event.price_description,
             "external_url": event.external_url,
             "tickets_url": event.tickets_url,
+            "registration_required": event.registration_required,
+            "registration_url": event.registration_url,
+            "registration_email": event.registration_email,
         })
 
     return render(request, "syndication/event_edit.html", {
@@ -219,7 +234,7 @@ def post_create(request, event_pk):
                 return render(request, "syndication/fragments/event_posts.html", {
                     "event": event,
                     "posts": posts,
-                    "can_edit": True,
+                    "can_edit": can_edit(request.user, event),
                     "post_form": PostForm(),
                 })
             return redirect("syndication:event-hub", pk=event.pk)

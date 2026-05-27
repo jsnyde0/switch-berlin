@@ -195,13 +195,15 @@ def _eager_create_promotion_projections(post):
 
 
 # Event field names accepted by create_event / update_event.
-# Subset of ADR-016 D1 fields that live on events.Event.
+# Covers the full v0 field set per kb-a4u acceptance criterion 1.
+# venue is a direct FK column; tags is M2M and handled separately.
 _EVENT_FIELDS = {
     "title",
     "slug",
     "description",
     "start",
     "end",
+    "venue",
     "dress_code",
     "content_warnings",
     "age_restriction",
@@ -231,8 +233,9 @@ def create_event(user, **kwargs):
     1. Resolve user → primary Profile (fail-loud if no profile).
     2. Create the Event with all supplied ADR-016 D1 fields. Status defaults to 'draft'
        (ADR-016 D5 — save-always; completeness gated at draft→ready, never at save).
-    3. Create an EventOrganizer through-table row (is_primary=True) linking the Profile.
-    4. Eager-create draft listing projections per enabled listing-capable connection
+    3. If tags (list of Tag PKs or instances) supplied, set M2M after create.
+    4. Create an EventOrganizer through-table row (is_primary=True) linking the Profile.
+    5. Eager-create draft listing projections per enabled listing-capable connection
        (ADR-016 D4).
 
     The slug field is required. All other fields are optional (draft allows incomplete state).
@@ -241,6 +244,9 @@ def create_event(user, **kwargs):
     from events.models import Event, EventOrganizer
 
     profile = _get_primary_profile_for_user(user)
+
+    # Extract tags before filtering (M2M — cannot pass to objects.create)
+    tags = kwargs.pop("tags", None)
 
     # Filter to only known Event fields to avoid unexpected kwargs.
     # Skip None and empty-string values for optional fields; let model defaults apply.
@@ -263,6 +269,10 @@ def create_event(user, **kwargs):
 
     event = Event.objects.create(**event_kwargs)
 
+    # Set M2M tags if supplied (list of Tag PKs or Tag instances)
+    if tags:
+        event.tags.set(tags)
+
     # Create the EventOrganizer through-table row (ADR-007 D2, ADR-017 D1)
     EventOrganizer.objects.create(event=event, profile=profile, is_primary=True)
 
@@ -277,6 +287,7 @@ def update_event(user, event, **kwargs):
     Update an existing Event, gated through the can_edit seam (ADR-017 D2).
 
     Only updates fields listed in _EVENT_FIELDS.
+    Tags (M2M) are handled separately — passed as list of Tag PKs/instances.
     Raises PermissionError if user cannot edit this event.
     ADR-016 D5: saves are always allowed (completeness enforced at draft→ready).
     """
@@ -287,6 +298,9 @@ def update_event(user, event, **kwargs):
             f"User {user} cannot edit event '{event}' (ADR-017 D1/D2)."
         )
 
+    # Extract tags before iterating (M2M — not a model field for setattr)
+    tags = kwargs.pop("tags", None)
+
     update_fields = []
     for field, value in kwargs.items():
         if field in _EVENT_FIELDS:
@@ -295,6 +309,10 @@ def update_event(user, event, **kwargs):
 
     if update_fields:
         event.save(update_fields=update_fields)
+
+    # Set M2M tags if supplied
+    if tags is not None:
+        event.tags.set(tags)
 
     return event
 
