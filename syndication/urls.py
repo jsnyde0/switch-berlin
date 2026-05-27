@@ -1,13 +1,12 @@
 """
-Syndication app URL patterns (kb-a4u.3).
+Syndication app URL patterns (kb-a4u.3 + kb-a4u.5).
 
 Routes for:
 - Event CRUD web UI (create, hub, edit)
 - HTMX fragment endpoints (event_facts, event_posts, event_syndication)
 - Post creation scoped to Event
 - PlatformConnection management
-
-C5 (kb-a4u.5) will extend this file with projection review routes.
+- Projection lifecycle action endpoints (approve, publish, mark-published, override)
 """
 
 from django.urls import path
@@ -50,4 +49,33 @@ urlpatterns = [
     path("connections/", views.connections_list, name="connections-list"),
     path("connections/new/", views.connection_create, name="connection-create"),
     path("connections/<int:pk>/toggle/", views.connection_toggle, name="connection-toggle"),
+
+    # --- Projection lifecycle actions (kb-a4u.5) ---
+    # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).
+    # Co-equal seam: each view delegates to the matching service function in services.py.
+    path(
+        "projections/<int:pk>/approve/",
+        views.projection_approve,
+        name="projection-approve",
+    ),
+    path(
+        "projections/<int:pk>/publish/",
+        views.projection_publish,
+        name="projection-publish",
+    ),
+    path(
+        "projections/<int:pk>/mark-published/",
+        views.projection_mark_published,
+        name="projection-mark-published",
+    ),
+    path(
+        "projections/<int:pk>/override/",
+        views.projection_override,
+        name="projection-override",
+    ),
+    path(
+        "events/<int:event_pk>/projections/publish-all-ready/",
+        views.projection_batch_publish,
+        name="projection-batch-publish",
+    ),
 ]

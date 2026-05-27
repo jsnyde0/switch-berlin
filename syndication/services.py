@@ -385,3 +385,217 @@ def update_post(user, post, **kwargs):
         post.save(update_fields=update_fields)
 
     return post
+
+
+# ---------------------------------------------------------------------------
+# Projection lifecycle actions (kb-a4u.5, ADR-016 D5)
+#
+# Co-equal seam (ADR-016 D6): all lifecycle actions are service functions
+# called by BOTH the Ninja API handlers and the HTMX view actions.
+# No duplicate persistence logic in views or API handlers.
+#
+# Status writes go EXCLUSIVELY through transition_status in engine.py.
+# Do NOT write projection.status = ... directly anywhere.
+# ---------------------------------------------------------------------------
+
+
+def _resolve_projection_event(projection):
+    """
+    Return the Event for a projection regardless of kind.
+
+    listing → source_event
+    promotion → source_post.event
+
+    ADR-008 D3: fail loud if neither is set.
+    """
+    from syndication.models import PlatformProjection
+
+    if projection.kind == PlatformProjection.Kind.LISTING:
+        if projection.source_event is None:
+            raise ValueError(
+                f"Listing projection {projection.pk!r} has no source_event. "
+                "(ADR-008 D3: fail loud)"
+            )
+        return projection.source_event
+    if projection.kind == PlatformProjection.Kind.PROMOTION:
+        if projection.source_post is None:
+            raise ValueError(
+                f"Promotion projection {projection.pk!r} has no source_post. "
+                "(ADR-008 D3: fail loud)"
+            )
+        return projection.source_post.event
+    raise ValueError(
+        f"Unknown projection kind {projection.kind!r} for projection {projection.pk!r}. "
+        "(ADR-008 D3: fail loud)"
+    )
+
+
+def save_projection_override(user, projection, **override_fields):
+    """
+    Persist per-field overrides on a draft projection and flip provenance to manual.
+
+    Gate: user must be able to edit the projection's event (can_edit seam).
+    Writes override_fields into projection.override_data and sets
+    provenance = manual (PlatformProjection.Provenance.MANUAL).
+
+    Only writes the supplied fields — absent keys are not touched.
+
+    ADR-008 D3: fail loud on missing source.
+    ADR-016 D2: override_data is the per-field override store; provenance tracks
+    how the effective content was last produced.
+    """
+    from syndication.authz import can_edit
+    from syndication.models import PlatformProjection
+
+    event = _resolve_projection_event(projection)
+    if not can_edit(user, event):
+        raise PermissionError(
+            f"User {user} cannot edit projection {projection.pk!r} "
+            f"(event '{event}'). (ADR-017 D2)"
+        )
+
+    # Merge supplied fields into existing override_data
+    override_data = dict(projection.override_data or {})
+    override_data.update(override_fields)
+    projection.override_data = override_data
+    projection.provenance = PlatformProjection.Provenance.MANUAL
+    projection.save(update_fields=["override_data", "provenance", "updated_at"])
+    return projection
+
+
+def approve_projection(user, projection):
+    """
+    Approve a draft projection: transition draft→ready, freeze content.
+
+    Gate: user must be able to edit the projection's event (can_edit seam,
+    ADR-017 D2). Edit authority is sufficient for approve at v0.
+
+    Delegates to transition_status (ADR-016 D5 — sole production status-writer).
+    transition_status freezes frozen_content at draft→ready.
+
+    Raises PermissionError if user lacks edit authority.
+    Raises ValueError if the transition is illegal (not in LEGAL_TRANSITIONS).
+    """
+    from syndication.authz import can_edit
+
+    event = _resolve_projection_event(projection)
+    if not can_edit(user, event):
+        raise PermissionError(
+            f"User {user} cannot approve projection {projection.pk!r} "
+            f"(event '{event}'). (ADR-017 D2)"
+        )
+
+    from syndication.engine import transition_status
+    transition_status(projection, "ready")
+    return projection
+
+
+def publish_projection(user, projection):
+    """
+    Publish a ready projection: transition ready→published.
+
+    EXPLICIT action — never auto-triggers on approve (ADR-016 D5).
+    For push-API platforms, the actual push lives in an adapter bead; this
+    service records the intent and status change. The adapter will call
+    mark_projection_published after a successful push.
+
+    Gate: user must be able to publish the projection's event (can_publish seam,
+    ADR-017 D2).
+
+    Raises PermissionError if user lacks publish authority.
+    Raises ValueError if the transition is illegal.
+    """
+    from syndication.authz import can_publish
+
+    event = _resolve_projection_event(projection)
+    if not can_publish(user, event):
+        raise PermissionError(
+            f"User {user} cannot publish projection {projection.pk!r} "
+            f"(event '{event}'). (ADR-017 D2)"
+        )
+
+    from syndication.engine import transition_status
+    transition_status(projection, "published")
+    return projection
+
+
+def mark_projection_published(user, projection):
+    """
+    Mark a projection as published (actor-attested, out-of-band posting).
+
+    Used for no-API platforms (e.g. FetLife) where the organizer copies
+    content and posts manually, then attests via this action.
+
+    This is a CO-EQUAL API verb (in syndication/api.py) — an agent calls the
+    same service function the HTMX view button calls. It is NOT a UI-only button.
+
+    Gate: user must be able to publish the projection's event (can_publish seam).
+
+    Raises PermissionError if user lacks publish authority.
+    Raises ValueError if the transition is illegal (e.g. not in ready state).
+
+    ADR-016 D5: transition goes through transition_status exclusively.
+    ADR-016 D6: co-equal seam — identical logic for API and UI paths.
+    """
+    from syndication.authz import can_publish
+
+    event = _resolve_projection_event(projection)
+    if not can_publish(user, event):
+        raise PermissionError(
+            f"User {user} cannot mark projection {projection.pk!r} as published "
+            f"(event '{event}'). (ADR-017 D2)"
+        )
+
+    from syndication.engine import transition_status
+    transition_status(projection, "published")
+    return projection
+
+
+def publish_all_ready_projections(user, event):
+    """
+    Batch-publish every ready projection for the given event.
+
+    Collects both listing projections (source_event) and promotion projections
+    (via Posts linked to the event) that are in 'ready' status, then transitions
+    each to 'published'.
+
+    Gate: user must be able to publish the event (can_publish seam, ADR-017 D2).
+    Raises PermissionError if user lacks publish authority.
+    Skips non-ready projections (they're simply not eligible).
+
+    Returns the list of projections that were published.
+
+    Co-equal seam (ADR-016 D6): called by both the HTMX view and the Ninja API verb.
+    """
+    from syndication.authz import can_publish
+    from syndication.models import PlatformProjection, Post
+    from syndication.engine import transition_status
+    from itertools import chain
+
+    if not can_publish(user, event):
+        raise PermissionError(
+            f"User {user} cannot publish projections for event '{event}'. "
+            "(ADR-017 D2)"
+        )
+
+    listing_ready = PlatformProjection.objects.filter(
+        source_event=event, status=PlatformProjection.Status.READY
+    )
+    post_ids = Post.objects.filter(event=event).values_list("pk", flat=True)
+    promotion_ready = PlatformProjection.objects.filter(
+        source_post_id__in=post_ids, status=PlatformProjection.Status.READY
+    )
+    ready_projections = list(chain(listing_ready, promotion_ready))
+
+    published = []
+    failures = []
+    for proj in ready_projections:
+        try:
+            transition_status(proj, "published")
+            published.append(proj)
+        except ValueError as exc:
+            # ADR-008 D3: fail loud — collect per-item failures, publish the rest.
+            # Caller is responsible for surfacing failures as a visible error state.
+            failures.append((proj, exc))
+
+    return published, failures

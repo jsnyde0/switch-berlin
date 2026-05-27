@@ -1,39 +1,241 @@
 {% load i18n %}
 {# event_syndication fragment — independently addressable HTMX swap target #}
-{# Syndication / projection review board (stub; C5/kb-a4u.5 expands this) #}
-{# Alpine 3.x: own x-data root required or directives go inert #}
+{# Projection review board (kb-a4u.5) #}
+{# Alpine 3.x: own x-data root required or directives go inert after HTMX swap #}
 <section id="event-syndication" x-data="{}">
   <div class="flex items-center justify-between mb-4">
     <h2 class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Syndication" %}</h2>
+    {# Batch "Publish all ready" button — only shown when can_publish and projections exist #}
+    {% if can_publish and projection_rows %}
+    <form method="post"
+          action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
+          hx-post="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
+          hx-target="#event-syndication"
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <button type="submit"
+              class="kb-mono text-[9px] uppercase tracking-widest text-accent/70 hover:text-accent px-2 py-1 border border-accent/30 rounded">
+        {% trans "Publish all ready" %}
+      </button>
+    </form>
+    {% endif %}
   </div>
 
-  {% if projections %}
-    <div class="flex flex-col gap-2">
-      {% for proj in projections %}
-      <div class="flex items-center justify-between p-3 border border-white/8 rounded">
-        <div>
+  {# Transition error state: surfaced on illegal lifecycle transition (ADR-008 D3 fail-loud) #}
+  {% if action_error %}
+  <div class="mb-3 px-3 py-2 border border-error/40 rounded bg-error/10">
+    <span class="kb-tag kb-tag-error text-[10px]">{% trans "Action failed" %}</span>
+    <span class="kb-mono text-[10px] text-error/80 ml-2">{{ action_error }}</span>
+  </div>
+  {% endif %}
+
+  {# State 1: No platform connections configured #}
+  {% if not has_connections %}
+  <div class="py-6 border border-white/8 rounded p-4">
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/50 mb-3">
+      — {% trans "Connect platforms in settings to start syndicating" %} →
+    </p>
+    {% if can_edit %}
+    <a href="{% url 'syndication:connections-list' %}"
+       class="kb-btn-secondary text-sm inline-block">
+      {% trans "Connect platforms" %}
+    </a>
+    {% endif %}
+  </div>
+
+  {# State 2: Connections exist but no promo posts yet (no projections of any kind) #}
+  {% elif no_promo_posts and not projections %}
+  <div class="py-6 border border-white/8 rounded p-4">
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/50 mb-3">
+      — {% trans "No promo posts yet" %} —
+    </p>
+    {% if can_edit %}
+    <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
+       class="kb-btn-secondary text-sm inline-block">
+      {% trans "Add promo message" %}
+    </a>
+    {% endif %}
+  </div>
+
+  {# Normal state: one row per projection #}
+  {% elif projection_rows %}
+  <div class="flex flex-col gap-2">
+    {% for row in projection_rows %}
+    {% with proj=row.projection body=row.body render_error=row.render_error %}
+    {# Each row is its own Alpine x-data root so directives survive HTMX swaps #}
+    <div class="border border-white/8 rounded p-3" x-data="{ editing: false }">
+
+      {# Row header: connection · kind · status-chip · provenance-tag #}
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="flex items-center gap-1 min-w-0">
           <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/60">
             {{ proj.connection.platform }}
           </span>
-          <span class="text-base-content/30 mx-2">·</span>
+          <span class="text-base-content/30 mx-1">·</span>
+          <span class="kb-mono text-[9px] uppercase tracking-widest text-base-content/40">
+            {{ proj.connection.destination_id }}
+          </span>
+          <span class="text-base-content/30 mx-1">·</span>
           <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/50">
             {{ proj.kind }}
           </span>
         </div>
-        <span class="kb-tag {% if proj.status == 'draft' %}kb-tag-warning{% elif proj.status == 'published' %}kb-tag-success{% elif proj.status == 'failed' %}kb-tag-error{% else %}text-base-content/40{% endif %} normal-case text-[10px]">
-          {{ proj.get_status_display }}
-        </span>
+        <div class="flex items-center gap-2 shrink-0">
+          {# Status chip #}
+          <span class="kb-tag
+            {% if proj.status == 'draft' %}kb-tag-warning
+            {% elif proj.status == 'ready' %}text-accent border border-accent/40
+            {% elif proj.status == 'published' %}kb-tag-success
+            {% elif proj.status == 'failed' %}kb-tag-error
+            {% else %}text-base-content/40
+            {% endif %}
+            normal-case text-[10px] px-2 py-0.5 rounded border">
+            {{ proj.get_status_display }}
+          </span>
+          {# Provenance tag #}
+          <span class="kb-mono text-[9px] uppercase tracking-widest
+            {% if proj.provenance == 'manual' %}text-info/70
+            {% elif proj.provenance == 'agent_supplied' %}text-secondary/60
+            {% else %}text-base-content/25
+            {% endif %}">
+            {% if proj.provenance == 'rule_template' %}template
+            {% elif proj.provenance == 'agent_supplied' %}from agent
+            {% elif proj.provenance == 'manual' %}edited
+            {% else %}{{ proj.provenance }}
+            {% endif %}
+          </span>
+        </div>
       </div>
-      {% endfor %}
+
+      {# Effective copy preview — render_error shows distinct error affordance (ADR-008 D3) #}
+      {% if render_error %}
+      <div class="mt-2 flex items-start gap-2">
+        <span class="kb-tag kb-tag-error text-[10px] shrink-0">{% trans "couldn't generate" %}</span>
+        <span class="text-[11px] text-error/70 font-mono break-words">{{ body }}</span>
+      </div>
+      {% else %}
+      <div class="mt-2 text-[11px] text-base-content/55 leading-relaxed line-clamp-2 font-mono whitespace-pre-wrap break-words">
+        {{ body }}
+      </div>
+      {% endif %}
+
+      {# Lifecycle actions — only for can_edit users #}
+      {% if can_edit %}
+      <div class="mt-3 flex items-center gap-2 flex-wrap">
+
+        {# Approve: draft → ready #}
+        {% if proj.status == 'draft' %}
+        <form method="post"
+              action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-target="#event-syndication"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <button type="submit"
+                  class="kb-btn-secondary text-[10px] px-2 py-1">
+            {% trans "Approve" %}
+          </button>
+        </form>
+        {% endif %}
+
+        {# Publish: ready → published (EXPLICIT — never auto) — gated on can_publish #}
+        {% if proj.status == 'ready' and can_publish %}
+        <form method="post"
+              action="{% url 'syndication:projection-publish' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
+              hx-target="#event-syndication"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <button type="submit"
+                  class="kb-btn-primary text-[10px] px-2 py-1">
+            {% trans "Publish" %}
+          </button>
+        </form>
+
+        {# Mark-published: for no-API platforms (out-of-band posting) — gated on can_publish #}
+        <form method="post"
+              action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+              hx-target="#event-syndication"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <button type="submit"
+                  class="kb-mono text-[9px] uppercase tracking-widest text-base-content/40 hover:text-base-content/70 px-2 py-1 border border-white/8 rounded">
+            {% trans "Mark published" %}
+          </button>
+        </form>
+        {% endif %}
+
+        {# Expand → edit (inline override, draft only) #}
+        {% if proj.status == 'draft' %}
+        <button type="button"
+                @click="editing = !editing"
+                class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 hover:text-base-content/60 px-2 py-1 border border-white/8 rounded"
+                x-text="editing ? '{% trans "Close" %}' : '{% trans "Edit" %}'">
+          {% trans "Edit" %}
+        </button>
+
+        {# Inline edit form (Alpine-toggled) — no x-data here, inherits row scope #}
+        <div x-show="editing" x-cloak class="w-full mt-2">
+          <form method="post"
+                action="{% url 'syndication:projection-override' pk=proj.pk %}"
+                hx-post="{% url 'syndication:projection-override' pk=proj.pk %}"
+                hx-target="#event-syndication"
+                hx-swap="outerHTML"
+                @htmx:after-request="editing = false">
+            {% csrf_token %}
+            <textarea name="body"
+                      class="w-full bg-base-200 border border-white/10 rounded text-[11px] font-mono text-base-content/70 p-2 min-h-[80px] resize-y"
+                      placeholder="{% trans "Override body…" %}">{{ body }}</textarea>
+            <div class="flex gap-2 mt-1">
+              <button type="submit"
+                      class="kb-btn-secondary text-[10px] px-2 py-1">
+                {% trans "Save override" %}
+              </button>
+              <button type="button"
+                      @click="editing = false"
+                      class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 hover:text-base-content/60 px-2 py-1">
+                {% trans "Cancel" %}
+              </button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
+        {# Failed: retry action — reset to draft, then re-approve #}
+        {% if proj.status == 'failed' %}
+        <form method="post"
+              action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-target="#event-syndication"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <button type="submit"
+                  class="kb-mono text-[9px] uppercase tracking-widest text-error/70 hover:text-error px-2 py-1 border border-error/30 rounded">
+            {% trans "Retry" %}
+          </button>
+        </form>
+        {% endif %}
+
+      </div>
+      {% endif %}
+
     </div>
+    {% endwith %}
+    {% endfor %}
+  </div>
+
+  {# Edge case: connections exist but no projections at all #}
   {% else %}
-    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">
-      — {% trans "No projections yet. Connect a platform to syndicate this event." %} —
-    </p>
-    {% if can_edit %}
-    <a href="{% url 'syndication:connections-list' %}" class="kb-btn-secondary text-sm mt-4 inline-block">
-      {% trans "Manage connections" %}
-    </a>
-    {% endif %}
+  <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">
+    — {% trans "No projections yet. Create an event post to start syndicating." %} —
+  </p>
+  {% if can_edit %}
+  <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
+     class="kb-btn-secondary text-sm mt-4 inline-block">
+    {% trans "Add promo message" %}
+  </a>
   {% endif %}
+  {% endif %}
+
 </section>

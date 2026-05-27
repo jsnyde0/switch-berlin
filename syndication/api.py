@@ -51,6 +51,12 @@ from syndication.services import (
     register_agent_credential,
     update_event,
     update_post,
+    approve_projection,
+    publish_projection,
+    mark_projection_published,
+    publish_all_ready_projections,
+    save_projection_override,
+    _resolve_projection_event,
 )
 
 logger = logging.getLogger(__name__)
@@ -744,4 +750,205 @@ def projections_list(request):
     return _stub_response_with_marker(
         request,
         "Projection list not yet implemented (C4/kb-a4u.4).",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Projection lifecycle action endpoints (kb-a4u.5, ADR-016 D5/D6)
+#
+# Co-equal seam: these API handlers call the SAME service functions as
+# the HTMX view actions. No duplicate logic.
+# ---------------------------------------------------------------------------
+
+
+class ProjectionActionOut(Schema):
+    """Response for projection lifecycle actions."""
+    id: int
+    status: str
+    provenance: str
+
+
+@api.post(
+    "/projections/{projection_id}/mark-published/",
+    auth=_RESOURCE_AUTH,
+    response={200: ProjectionActionOut},
+    summary="Mark projection as published (actor-attested, out-of-band posting)",
+    description=(
+        "Co-equal API verb for mark-published (ADR-016 D6). "
+        "Used for no-API platforms (e.g. FetLife) where the organizer posts "
+        "manually then attests via this action. "
+        "Calls the same mark_projection_published service function as the "
+        "HTMX view button — NOT a separate implementation."
+    ),
+)
+def api_projection_mark_published(request, projection_id: int):
+    """
+    Mark a projection as published (actor-attested).
+
+    Gate: user must have publish authority (can_publish seam, ADR-017 D2).
+    Delegates to mark_projection_published service (co-equal with UI path).
+    Returns 403 on permission error, 400 on illegal transition.
+    """
+    from django.shortcuts import get_object_or_404
+    from syndication.models import PlatformProjection
+
+    projection = get_object_or_404(PlatformProjection, pk=projection_id)
+
+    try:
+        mark_projection_published(user=request.auth, projection=projection)
+    except PermissionError as exc:
+        logger.warning("Permission denied on mark-published: %s", exc)
+        return api.create_response(request, {"detail": "Permission denied."}, status=403)
+    except ValueError as exc:
+        logger.warning("Illegal transition on mark-published: %s", exc)
+        return api.create_response(request, {"detail": str(exc)}, status=400)
+
+    projection.refresh_from_db()
+    return _actor_marker_response(
+        request,
+        {
+            "id": projection.pk,
+            "status": projection.status,
+            "provenance": projection.provenance,
+        },
+    )
+
+
+@api.post(
+    "/projections/{projection_id}/approve/",
+    auth=_RESOURCE_AUTH,
+    response={200: ProjectionActionOut},
+    summary="Approve a draft projection (draft→ready)",
+    description=(
+        "Co-equal API verb for approve (ADR-016 D6). "
+        "Transitions draft→ready and freezes content. "
+        "Calls approve_projection service (co-equal with HTMX view)."
+    ),
+)
+def api_projection_approve(request, projection_id: int):
+    """
+    Approve a draft projection: transition draft→ready, freeze content.
+    Gate: user must have edit authority (can_edit seam, ADR-017 D2).
+    """
+    from django.shortcuts import get_object_or_404
+    from syndication.models import PlatformProjection
+
+    projection = get_object_or_404(PlatformProjection, pk=projection_id)
+
+    try:
+        approve_projection(user=request.auth, projection=projection)
+    except PermissionError as exc:
+        logger.warning("Permission denied on approve: %s", exc)
+        return api.create_response(request, {"detail": "Permission denied."}, status=403)
+    except ValueError as exc:
+        logger.warning("Illegal transition on approve: %s", exc)
+        return api.create_response(request, {"detail": str(exc)}, status=400)
+
+    projection.refresh_from_db()
+    return _actor_marker_response(
+        request,
+        {
+            "id": projection.pk,
+            "status": projection.status,
+            "provenance": projection.provenance,
+        },
+    )
+
+
+@api.post(
+    "/projections/{projection_id}/publish/",
+    auth=_RESOURCE_AUTH,
+    response={200: ProjectionActionOut},
+    summary="Publish a ready projection (ready→published)",
+    description=(
+        "Co-equal API verb for publish (ADR-016 D6). "
+        "EXPLICIT action — never auto-triggers on approve (ADR-016 D5). "
+        "Calls publish_projection service (co-equal with HTMX view)."
+    ),
+)
+def api_projection_publish(request, projection_id: int):
+    """
+    Publish a ready projection: transition ready→published. EXPLICIT only.
+    Gate: user must have publish authority (can_publish seam, ADR-017 D2).
+    """
+    from django.shortcuts import get_object_or_404
+    from syndication.models import PlatformProjection
+
+    projection = get_object_or_404(PlatformProjection, pk=projection_id)
+
+    try:
+        publish_projection(user=request.auth, projection=projection)
+    except PermissionError as exc:
+        logger.warning("Permission denied on publish: %s", exc)
+        return api.create_response(request, {"detail": "Permission denied."}, status=403)
+    except ValueError as exc:
+        logger.warning("Illegal transition on publish: %s", exc)
+        return api.create_response(request, {"detail": str(exc)}, status=400)
+
+    projection.refresh_from_db()
+    return _actor_marker_response(
+        request,
+        {
+            "id": projection.pk,
+            "status": projection.status,
+            "provenance": projection.provenance,
+        },
+    )
+
+
+class BatchPublishFailureOut(Schema):
+    """Details of a single per-projection publish failure."""
+    projection_id: int
+    error: str
+
+
+class BatchPublishOut(Schema):
+    """Response for batch publish-all-ready action."""
+    published_count: int
+    published_ids: List[int]
+    failures: List[BatchPublishFailureOut] = []
+
+
+@api.post(
+    "/events/{event_id}/projections/publish-all-ready/",
+    auth=_RESOURCE_AUTH,
+    response={200: BatchPublishOut},
+    summary="Batch-publish all ready projections for an event",
+    description=(
+        "Co-equal API verb for batch publish (ADR-016 D6). "
+        "Publishes every ready projection for the event in a single call. "
+        "Skips non-ready rows. Gated by can_publish seam (ADR-017 D2). "
+        "Calls the same publish_all_ready_projections service as the HTMX view."
+    ),
+)
+def api_batch_publish_ready(request, event_id: int):
+    """
+    Batch-publish all ready projections for an event.
+    Gate: user must have publish authority (can_publish seam, ADR-017 D2).
+    Returns 403 on permission error.
+    """
+    from django.shortcuts import get_object_or_404
+    from events.models import Event
+
+    event = get_object_or_404(Event, pk=event_id)
+
+    try:
+        published, failures = publish_all_ready_projections(user=request.auth, event=event)
+    except PermissionError as exc:
+        logger.warning("Permission denied on batch publish-all-ready: %s", exc)
+        return api.create_response(request, {"detail": "Permission denied."}, status=403)
+
+    # ADR-008 D3: fail loud — surface partial failures in the API response body.
+    failure_details = [
+        {"projection_id": proj.pk, "error": str(exc)}
+        for proj, exc in failures
+    ]
+
+    return _actor_marker_response(
+        request,
+        {
+            "published_count": len(published),
+            "published_ids": [p.pk for p in published],
+            "failures": failure_details,
+        },
     )
