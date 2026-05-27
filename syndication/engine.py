@@ -2,28 +2,31 @@
 Syndication engine (kb-a4u.4).
 
 Provides three public callables:
-- generate_projection(kind, platform_id, source_event|source_post, mode, body?) → PlatformProjection
+- generate_projection(kind, connection, source_event|source_post, mode, body?)
 - render_projection(proj) → str
-- transition_status(proj, new_status) → None (saves in place, raises on illegal transition)
+- transition_status(proj, new_status) → None (saves, raises on illegal transition)
 
 ADR-016 D2: Projections are editable copies, not live views.
     rule_based: body is SNAPSHOTTED at generation time into override_data["body"].
     agent_assisted: agent-supplied body is stored in override_data["body"].
-    Either way, override_data["body"] is the stable rendered output; absent "body" key
-    means "use canonical" (not applicable post-generation since rule_based always writes
-    override_data["body"]).
+    Either way, override_data["body"] is the stable rendered output; absent
+    "body" key means "use canonical" (not applicable post-generation since
+    rule_based always writes override_data["body"]).
 
-ADR-012: unlisted Events generate NO external projections (write-side gate).
-    This is a WRITE-side gate; the read-side filter lives in events/managers.py.
+ADR-016 D4: PlatformProjection FKs to PlatformConnection — not a bare
+    platform string. The connection carries the platform identifier; callers
+    pass a PlatformConnection.
 
-ADR-008 D3: fail loud — illegal transitions raise ValueError, missing body raises ValueError.
-ADR-008 D4: retry policy seam — transport errors get ≤2 retries, data-integrity errors never
-    retry. Modelled as status machine (failed state) + policy constants exported here.
-    Actual platform push logic lives in separate adapter beads.
+ADR-008 D3: fail loud — illegal transitions raise ValueError, missing body
+    raises ValueError.
+ADR-008 D4: retry policy seam — transport errors get ≤2 retries,
+    data-integrity errors never retry. Modelled as status machine (failed
+    state) + policy constants exported here. Actual platform push logic
+    lives in separate adapter beads.
 """
 
 from syndication.cleaning import clean_for_platform
-from syndication.models import PlatformProjection, Post
+from syndication.models import PlatformConnection, PlatformProjection
 
 # ---------------------------------------------------------------------------
 # Status state-machine
@@ -102,7 +105,7 @@ def _check_visibility_gate(event) -> None:
 # Template body composition (rule_based)
 # ---------------------------------------------------------------------------
 
-def _compose_listing_body(event, platform_id: str) -> str:
+def _compose_listing_body(event, platform: str) -> str:
     """
     Deterministically compose a listing projection body from canonical Event fields.
 
@@ -119,10 +122,10 @@ def _compose_listing_body(event, platform_id: str) -> str:
     if event.tickets_url:
         parts.append(f"Tickets: {event.tickets_url}")
     raw = "\n\n".join(parts)
-    return clean_for_platform(raw, platform_id)
+    return clean_for_platform(raw, platform)
 
 
-def _compose_promotion_body(post, platform_id: str) -> str:
+def _compose_promotion_body(post, platform: str) -> str:
     """
     Deterministically compose a promotion projection body from canonical Post fields.
     """
@@ -132,7 +135,7 @@ def _compose_promotion_body(post, platform_id: str) -> str:
     if post.cta:
         parts.append(post.cta)
     raw = "\n\n".join(parts)
-    return clean_for_platform(raw, platform_id)
+    return clean_for_platform(raw, platform)
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +144,7 @@ def _compose_promotion_body(post, platform_id: str) -> str:
 
 def generate_projection(
     kind: str,
-    platform_id: str,
+    connection: PlatformConnection,
     source_event=None,
     source_post=None,
     mode: str = "rule_based",
@@ -152,7 +155,8 @@ def generate_projection(
 
     Args:
         kind: 'listing' or 'promotion'
-        platform_id: Target platform identifier.
+        connection: PlatformConnection instance. The specific destination
+                    this projection targets (ADR-016 D4).
         source_event: Event instance. Required when kind='listing';
                       also used as the visibility gate source for kind='promotion'.
         source_post: Post instance. Required when kind='promotion'.
@@ -170,7 +174,8 @@ def generate_projection(
                 generation time. This makes the projection immune to later
                 canonical mutations (override_data["body"] is stable).
 
-    ADR-012: Visibility write-gate runs before any DB write.
+    ADR-016 D4: connection is a PlatformConnection FK, not a bare platform string.
+
     ADR-008 D3: fail loud on all integrity violations.
     """
     # --- Resolve the governing Event for the visibility gate ---
@@ -189,11 +194,12 @@ def generate_projection(
     _check_visibility_gate(gate_event)
 
     # --- Compose the body ---
+    platform = connection.platform
     if mode == "rule_based":
         if kind == "listing":
-            composed_body = _compose_listing_body(gate_event, platform_id)
+            composed_body = _compose_listing_body(gate_event, platform)
         else:
-            composed_body = _compose_promotion_body(source_post, platform_id)
+            composed_body = _compose_promotion_body(source_post, platform)
     elif mode == "agent_assisted":
         if body is None:
             raise ValueError(
@@ -204,7 +210,9 @@ def generate_projection(
         # ADR-011 D1: agent layer is additive — we accept + persist, not re-process.
         composed_body = body
     else:
-        raise ValueError(f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'")
+        raise ValueError(
+            f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'"
+        )
 
     # --- Persist: snapshot body into override_data (ADR-016 D2) ---
     # override_data["body"] is the stable rendered output for this projection.
@@ -215,7 +223,7 @@ def generate_projection(
     proj = PlatformProjection.objects.create(
         kind=kind,
         status=PlatformProjection.Status.DRAFT,
-        platform_id=platform_id,
+        connection=connection,
         source_event=source_event,
         source_post=source_post,
         override_data=override_data,
@@ -246,10 +254,11 @@ def render_projection(projection: PlatformProjection) -> str:
 
     # Fallback: derive from canonical source (only reached for projections not
     # generated through generate_projection — e.g. manually created).
+    platform = projection.connection.platform
     if projection.kind == PlatformProjection.Kind.LISTING and projection.source_event:
-        return _compose_listing_body(projection.source_event, projection.platform_id)
+        return _compose_listing_body(projection.source_event, platform)
     if projection.kind == PlatformProjection.Kind.PROMOTION and projection.source_post:
-        return _compose_promotion_body(projection.source_post, projection.platform_id)
+        return _compose_promotion_body(projection.source_post, platform)
 
     raise ValueError(
         f"Cannot render projection {projection.pk!r}: "

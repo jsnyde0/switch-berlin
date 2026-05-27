@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from events.models import Event
 from organizers.models import Profile
-from syndication.models import PlatformProjection, Post
+from syndication.models import PlatformConnection, PlatformProjection, Post
 
 
 class PostModelTest(TestCase):
@@ -91,6 +91,10 @@ class PlatformProjectionKindStatusTest(TestCase):
     """PlatformProjection: enum constraints for kind and status."""
 
     def setUp(self):
+        self.profile = Profile.objects.create(
+            name="Proj Status Test Organizer",
+            slug="proj-status-test-organizer",
+        )
         self.event = Event.objects.create(
             title="Projection Test Event",
             slug="proj-test-event",
@@ -101,6 +105,26 @@ class PlatformProjectionKindStatusTest(TestCase):
             headline="Promo post",
             body="Come along.",
         )
+        self.conn_fetlife = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="fetlife",
+            destination_id="fl-user-tests",
+        )
+        self.conn_telegram = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="channel-123",
+        )
+        self.conn_switch = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="switch",
+            destination_id="own-page",
+        )
+        self.conn_tt = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="tickettailor",
+            destination_id="tt-account",
+        )
 
     def test_listing_projection_from_event(self):
         """kind=listing with source_event FK resolves correctly."""
@@ -108,7 +132,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            platform_id="fetlife",
+            connection=self.conn_fetlife,
         )
         fetched = PlatformProjection.objects.get(pk=proj.pk)
         self.assertEqual(fetched.kind, "listing")
@@ -122,7 +146,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.PROMOTION,
             status=PlatformProjection.Status.DRAFT,
             source_post=self.post,
-            platform_id="telegram-channel:123",
+            connection=self.conn_telegram,
         )
         fetched = PlatformProjection.objects.get(pk=proj.pk)
         self.assertEqual(fetched.kind, "promotion")
@@ -145,7 +169,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            platform_id="switch-berlin-own",
+            connection=self.conn_switch,
         )
         self.assertEqual(proj.override_data, {})
 
@@ -154,7 +178,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.PUBLISHED,
             source_event=self.event,
-            platform_id="fetlife",
+            connection=self.conn_fetlife,
             external_id="fl-12345",
         )
         self.assertEqual(proj.external_id, "fl-12345")
@@ -164,7 +188,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.PUBLISHED,
             source_event=self.event,
-            platform_id="fetlife",
+            connection=self.conn_fetlife,
             external_url="https://fetlife.com/events/12345",
         )
         self.assertEqual(proj.external_url, "https://fetlife.com/events/12345")
@@ -175,7 +199,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            platform_id="ticket-tailor",
+            connection=self.conn_tt,
         )
         self.assertIsNone(proj.syndicated_at)
 
@@ -184,7 +208,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            platform_id="fetlife",
+            connection=self.conn_fetlife,
         )
         self.assertIn("fetlife", str(proj))
 
@@ -193,7 +217,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            platform_id="fetlife",
+            connection=self.conn_fetlife,
         )
         self.assertIsNotNone(proj.created_at)
 
@@ -202,7 +226,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            platform_id="fetlife",
+            connection=self.conn_fetlife,
         )
         self.assertIsNotNone(proj.updated_at)
 

@@ -13,8 +13,9 @@ from django.test import TestCase
 from django.utils import timezone
 
 from events.models import Event
+from organizers.models import Profile
 from syndication.engine import generate_projection
-from syndication.models import PlatformProjection, Post
+from syndication.models import PlatformConnection, PlatformProjection, Post
 
 
 # ---------------------------------------------------------------------------
@@ -42,6 +43,20 @@ def _make_post(event, **kwargs):
     return Post.objects.create(event=event, **defaults)
 
 
+def _make_connection(platform="fetlife", destination_id="fl-user-001", **kwargs):
+    """Create a minimal PlatformConnection for test use."""
+    profile = Profile.objects.create(
+        name=f"Test Organizer ({platform})",
+        slug=f"test-organizer-{platform}-{destination_id}".replace(":", "-"),
+    )
+    return PlatformConnection.objects.create(
+        organizer=profile,
+        platform=platform,
+        destination_id=destination_id,
+        **kwargs,
+    )
+
+
 # ---------------------------------------------------------------------------
 # 1. State-machine: legal transitions succeed, illegal transitions raise
 # ---------------------------------------------------------------------------
@@ -51,11 +66,12 @@ class StateMachineTest(TestCase):
 
     def setUp(self):
         self.event = _make_event()
+        self.conn = _make_connection()
         self.proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            platform_id="fetlife",
+            connection=self.conn,
         )
 
     def test_draft_to_ready_is_legal(self):
@@ -151,9 +167,10 @@ class OverrideIndependenceTest(TestCase):
         not the mutated one — because rule_based snapshots body at generation time.
         """
         event = _make_event(title="Original Title", description="Original desc")
+        conn = _make_connection(destination_id="fl-override-test")
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="rule_based",
         )
@@ -174,9 +191,10 @@ class OverrideIndependenceTest(TestCase):
         Mutating the canonical event afterwards must not change the override.
         """
         event = _make_event(title="Party Night", description="A wild party")
+        conn = _make_connection(destination_id="fl-agent-test")
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="agent_assisted",
             body="Agent-crafted copy for Party Night",
@@ -201,9 +219,10 @@ class RuleBasedGenerationTest(TestCase):
 
     def test_rule_based_listing_includes_event_title(self):
         event = _make_event(title="Kinky Bubbles Party", description="Fun event")
+        conn = _make_connection(destination_id="fl-rule-1")
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="rule_based",
         )
@@ -214,15 +233,17 @@ class RuleBasedGenerationTest(TestCase):
     def test_rule_based_is_deterministic(self):
         """Same inputs produce same output — no randomness."""
         event = _make_event(title="Repeat Test", description="Same every time")
+        conn1 = _make_connection(destination_id="fl-det-1")
+        conn2 = _make_connection(destination_id="fl-det-2")
         proj1 = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn1,
             source_event=event,
             mode="rule_based",
         )
         proj2 = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn2,
             source_event=event,
             mode="rule_based",
         )
@@ -232,10 +253,11 @@ class RuleBasedGenerationTest(TestCase):
     def test_rule_based_requires_no_agent_body(self):
         """rule_based MUST NOT require an agent-supplied body parameter."""
         event = _make_event()
+        conn = _make_connection(destination_id="fl-no-body")
         # Should not raise even with no body kwarg
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="rule_based",
         )
@@ -244,9 +266,10 @@ class RuleBasedGenerationTest(TestCase):
     def test_rule_based_is_default_mode(self):
         """When mode is not specified, defaults to rule_based."""
         event = _make_event(title="Default Mode Event")
+        conn = _make_connection(destination_id="fl-default-mode")
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
         )
         self.assertIsNotNone(proj)
@@ -257,10 +280,11 @@ class RuleBasedGenerationTest(TestCase):
     def test_rule_based_promotion_includes_post_headline(self):
         """Promotion-kind rule_based includes Post headline."""
         event = _make_event(title="Bubble Night")
+        conn = _make_connection(platform="telegram", destination_id="channel-123")
         post = _make_post(event, headline="Save the Date: Bubble Night!")
         proj = generate_projection(
             kind="promotion",
-            platform_id="telegram-channel:123",
+            connection=conn,
             source_post=post,
             mode="rule_based",
         )
@@ -278,10 +302,11 @@ class AgentAssistedGenerationTest(TestCase):
 
     def test_agent_assisted_stores_supplied_body(self):
         event = _make_event()
+        conn = _make_connection(destination_id="fl-agent-1")
         agent_body = "The agent wrote this announcement copy."
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="agent_assisted",
             body=agent_body,
@@ -292,10 +317,11 @@ class AgentAssistedGenerationTest(TestCase):
     def test_agent_assisted_without_body_raises(self):
         """agent_assisted mode requires a body; omitting it raises ValueError."""
         event = _make_event()
+        conn = _make_connection(destination_id="fl-agent-2")
         with self.assertRaises(ValueError):
             generate_projection(
                 kind="listing",
-                platform_id="fetlife",
+                connection=conn,
                 source_event=event,
                 mode="agent_assisted",
                 # no body
@@ -304,9 +330,10 @@ class AgentAssistedGenerationTest(TestCase):
     def test_agent_assisted_body_stored_in_override_data(self):
         """Body is stored as an override, making it immune to canonical changes."""
         event = _make_event()
+        conn = _make_connection(destination_id="fl-agent-3")
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="agent_assisted",
             body="Agent content",
@@ -331,10 +358,11 @@ class UnlistedVisibilityGateTest(TestCase):
         return None or create a projection record.
         """
         event = _make_event(visibility="unlisted")
+        conn = _make_connection(destination_id="fl-unlisted-1")
         with self.assertRaises(ValueError):
             generate_projection(
                 kind="listing",
-                platform_id="fetlife",
+                connection=conn,
                 source_event=event,
                 mode="rule_based",
             )
@@ -342,11 +370,12 @@ class UnlistedVisibilityGateTest(TestCase):
     def test_unlisted_event_leaves_no_projection_record(self):
         """Even after a failed generate call, no PlatformProjection should exist."""
         event = _make_event(visibility="unlisted")
+        conn = _make_connection(destination_id="fl-unlisted-2")
         initial_count = PlatformProjection.objects.filter(source_event=event).count()
         try:
             generate_projection(
                 kind="listing",
-                platform_id="fetlife",
+                connection=conn,
                 source_event=event,
                 mode="rule_based",
             )
@@ -358,9 +387,10 @@ class UnlistedVisibilityGateTest(TestCase):
     def test_public_event_can_generate(self):
         """public visibility allows projection generation."""
         event = _make_event(visibility="public")
+        conn = _make_connection(destination_id="fl-public")
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="rule_based",
         )
@@ -369,9 +399,10 @@ class UnlistedVisibilityGateTest(TestCase):
     def test_semi_public_event_can_generate(self):
         """semi_public visibility allows projection generation (only unlisted is blocked)."""
         event = _make_event(visibility="semi_public")
+        conn = _make_connection(destination_id="fl-semi-public")
         proj = generate_projection(
             kind="listing",
-            platform_id="fetlife",
+            connection=conn,
             source_event=event,
             mode="rule_based",
         )
@@ -383,11 +414,12 @@ class UnlistedVisibilityGateTest(TestCase):
         The write-gate consults the related Event even for promotion-kind.
         """
         event = _make_event(visibility="unlisted")
+        conn = _make_connection(platform="telegram", destination_id="channel-unlisted")
         post = _make_post(event)
         with self.assertRaises(ValueError):
             generate_projection(
                 kind="promotion",
-                platform_id="telegram-channel:123",
+                connection=conn,
                 source_post=post,
                 mode="rule_based",
             )
@@ -417,10 +449,11 @@ class CleaningSeamTest(TestCase):
         """
         from unittest.mock import patch
         event = _make_event(title="Seam Test Event")
+        conn = _make_connection(destination_id="fl-seam-test")
         with patch("syndication.engine.clean_for_platform", wraps=lambda text, pid: text) as mock_clean:
             generate_projection(
                 kind="listing",
-                platform_id="fetlife",
+                connection=conn,
                 source_event=event,
                 mode="rule_based",
             )

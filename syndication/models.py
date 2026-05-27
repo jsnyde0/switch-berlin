@@ -1,21 +1,106 @@
 """
-Syndication models: Post and PlatformProjection.
+Syndication models: PlatformConnection, Post, and PlatformProjection.
 
-These are schema-only models per kb-a4u.1. No behavioral logic beyond what
-Django provides for free (enum constraints, FKs, nullability). Reservation
-columns (sequence_order, lifecycle_moment, scheduled_for) are present as
-data-shape only per ADR-003 cheap foresight and ADR-016 Consequences.
+These are schema-only models. No behavioral logic beyond what Django provides
+for free (enum constraints, FKs, nullability). Reservation columns
+(sequence_order, lifecycle_moment, scheduled_for, generated_by,
+last_generated_at) are present as data-shape only per ADR-003 cheap foresight
+and ADR-016 Consequences.
 
 ADR-016 D1: Post is a first-class entity referencing Event by FK.
-ADR-016 D2: PlatformProjection carries kind ∈ {listing, promotion} and
-            status ∈ {draft, ready, published, failed}, plus per-field
-            override storage (override_data JSONField).
+ADR-016 D2: PlatformProjection carries kind ∈ {listing, promotion},
+            status ∈ {draft, ready, published, failed}, provenance
+            ∈ {rule_template, agent_supplied, manual}, plus per-field
+            override storage (override_data JSONField), plus ADR-003
+            reservation fields generated_by and last_generated_at.
+ADR-016 D4: PlatformConnection is a specific syndication destination owned
+            by an organizer. PlatformProjection FKs to PlatformConnection,
+            not to a bare platform_id string.
+ADR-007 D2: PlatformConnection uses organizer/Profile FK (through-table
+            pattern — direct FK here as the join is 1:N, not M2N).
 ADR-008 D2: No speculative abstraction — no base classes, no adapter
             plugins; plain Django models with choices constraints.
 """
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+
+class PlatformConnection(models.Model):
+    """
+    A specific syndication destination owned by an organizer (ADR-016 D4).
+
+    This model unifies two surfaces that would otherwise drift:
+    - The organizer's "which platforms am I syndicating to" setting (enabled flag).
+    - The per-organizer adapter credential store the adapter beads consume
+      (credentials JSONField).
+
+    An organizer may hold multiple connections per platform (e.g., three
+    Telegram channels = three PlatformConnection rows). Multiple rows per
+    platform is additive — zero schema reshape.
+
+    Supported kinds for known platforms (ADR-016 D4):
+    - Switch own-event-page → listing
+    - Ticket Tailor → listing
+    - Telegram channel → promotion
+    - FetLife → both (listing + promotion)
+    """
+
+    organizer = models.ForeignKey(
+        "organizers.Profile",
+        on_delete=models.CASCADE,
+        related_name="platform_connections",
+        help_text="The organizer/Profile that owns this connection.",
+    )
+    platform = models.CharField(
+        max_length=100,
+        help_text=(
+            "Platform identifier, e.g. 'fetlife', 'tickettailor', "
+            "'switch', 'telegram'."
+        ),
+    )
+    destination_id = models.CharField(
+        max_length=300,
+        help_text=(
+            "Platform-specific destination identifier, e.g. a Telegram channel ID, "
+            "a FetLife username, a Ticket Tailor account ID, or 'own-page' for Switch."
+        ),
+    )
+    credentials = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Per-destination credentials for adapter access. "
+            "Structure is platform-specific. Empty = no stored creds (e.g. Switch own page)."
+        ),
+    )
+    enabled = models.BooleanField(
+        default=True,
+        help_text=(
+            "Whether projections should be eagerly created for this connection. "
+            "Disable to pause syndication to this destination without deleting it."
+        ),
+    )
+    kinds = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Projection kinds this connection supports: 'listing', 'promotion', or both. "
+            "e.g. ['listing'] for Switch/TT, ['promotion'] for Telegram, "
+            "['listing', 'promotion'] for FetLife."
+        ),
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["platform", "destination_id"]
+        verbose_name = _("platform connection")
+        verbose_name_plural = _("platform connections")
+
+    def __str__(self):
+        return f"{self.organizer} → {self.platform} / {self.destination_id}"
 
 
 class Post(models.Model):
@@ -108,13 +193,17 @@ class PlatformProjection(models.Model):
     (kind=promotion) per ADR-016 D2.
 
     Carries:
+    - connection FK to PlatformConnection (ADR-016 D4 — replaces the former
+      platform_id string; deleted per ADR-008 D1, no backward-compat shim)
     - kind ∈ {listing, promotion}
     - status ∈ {draft, ready, published, failed}
     - source_event FK (listing-kind only)
     - source_post FK (promotion-kind only)
     - override_data JSONField for per-field overrides
+    - provenance ∈ {rule_template, agent_supplied, manual} (ADR-016 D2 refinement)
+    - generated_by (nullable agent identity) — ADR-003 reservation field
+    - last_generated_at (nullable datetime) — ADR-003 reservation field
     - external_id, external_url, syndicated_at (populated after publication)
-    - platform_id (e.g. 'fetlife', 'tickettailor', 'switch-berlin-own', 'telegram-channel:<id>')
 
     No behavioral logic beyond Django ORM constraints.
     """
@@ -129,6 +218,20 @@ class PlatformProjection(models.Model):
         PUBLISHED = "published", _("Published")
         FAILED = "failed", _("Failed")
 
+    class Provenance(models.TextChoices):
+        RULE_TEMPLATE = "rule_template", _("Rule template")
+        AGENT_SUPPLIED = "agent_supplied", _("Agent supplied")
+        MANUAL = "manual", _("Manual")
+
+    # Connection FK (ADR-016 D4) — the specific PlatformConnection destination.
+    # platform_id CharField removed per ADR-008 D1 (pre-launch, no shim).
+    connection = models.ForeignKey(
+        PlatformConnection,
+        on_delete=models.CASCADE,
+        related_name="projections",
+        help_text="The specific PlatformConnection (destination) this projection targets.",
+    )
+
     kind = models.CharField(
         max_length=20,
         choices=Kind.choices,
@@ -137,13 +240,6 @@ class PlatformProjection(models.Model):
         max_length=20,
         choices=Status.choices,
         default=Status.DRAFT,
-    )
-    platform_id = models.CharField(
-        max_length=200,
-        help_text=(
-            "Platform identifier, e.g. 'fetlife', 'tickettailor', "
-            "'switch-berlin-own', 'telegram-channel:<channel_id>'."
-        ),
     )
 
     # Source FKs — listing-kind uses source_event; promotion-kind uses source_post.
@@ -172,6 +268,41 @@ class PlatformProjection(models.Model):
         help_text="Per-field overrides for this projection. Absent key = use canonical value.",
     )
 
+    # Provenance and attribution reservation fields (ADR-016 D2, ADR-003).
+    # provenance tracks how the current effective content was last produced.
+    # Flips to 'manual' the moment a human edits an override.
+    provenance = models.CharField(
+        max_length=20,
+        choices=Provenance.choices,
+        default=Provenance.RULE_TEMPLATE,
+        help_text=(
+            "How the current effective content was last produced. "
+            "Flips to 'manual' on human edit of an override."
+        ),
+    )
+    # RESERVED: agent identity that generated this projection (ADR-003 cheap foresight).
+    # Null for human-driven flows; the column a future ProjectionRevision table keys on.
+    generated_by = models.CharField(
+        max_length=300,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "RESERVED: agent identity ref that last generated content for this "
+            "projection. null = human-driven. Behavior: future projection-revision epic."
+        ),
+    )
+    # RESERVED: timestamp of last agent generation (ADR-003 cheap foresight).
+    last_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "RESERVED: when this projection was last generated by an agent. "
+            "null = never generated. Behavior: future projection-revision epic."
+        ),
+    )
+
     # Populated after publication
     external_id = models.CharField(
         max_length=200,
@@ -197,4 +328,4 @@ class PlatformProjection(models.Model):
         verbose_name_plural = _("platform projections")
 
     def __str__(self):
-        return f"{self.platform_id} / {self.kind} / {self.status}"
+        return f"{self.connection} / {self.kind} / {self.status}"
