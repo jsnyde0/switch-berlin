@@ -22,6 +22,7 @@ from syndication.api import api as syndication_api
 
 urlpatterns = [
     path("api/", syndication_api.urls),
+    path("syndication/", include("syndication.urls")),
     path("", include("pages.urls")),
     path("healthz", healthz, name="healthz"),
     path(settings.ADMIN_URL, admin.site.urls),

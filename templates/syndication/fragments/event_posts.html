@@ -1,0 +1,63 @@
+{% load i18n %}
+{# event_posts fragment — independently addressable HTMX swap target #}
+{# Alpine 3.x: own x-data root required or directives go inert #}
+<section id="event-posts" x-data="{ showForm: false }">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Promotional posts" %}</h2>
+    {% if can_edit %}
+    <button type="button"
+            class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40 hover:text-base-content transition-colors"
+            @click="showForm = !showForm"
+            :aria-expanded="showForm">
+      <span x-show="!showForm">+ {% trans "Add post" %}</span>
+      <span x-show="showForm" x-cloak>{% trans "Cancel" %}</span>
+    </button>
+    {% endif %}
+  </div>
+
+  {# Inline post form (collapsed by default) #}
+  {% if can_edit %}
+  <div x-show="showForm" x-cloak class="mb-6 p-4 border border-white/10 bg-white/2 rounded">
+    <form method="post"
+          action="{% url 'syndication:post-create' event_pk=event.pk %}"
+          hx-post="{% url 'syndication:post-create' event_pk=event.pk %}"
+          hx-target="#event-posts"
+          hx-swap="outerHTML"
+          @htmx:after-request="showForm = false">
+      {% csrf_token %}
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="kb-mono text-[10px] uppercase tracking-widest text-base-content/60" for="id_headline">{% trans "Headline" %}</label>
+          {{ post_form.headline }}
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="kb-mono text-[10px] uppercase tracking-widest text-base-content/60" for="id_body">{% trans "Body" %}</label>
+          {{ post_form.body }}
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="kb-btn text-sm">{% trans "Add post" %}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  {# Post list #}
+  {% if posts %}
+    <div class="flex flex-col gap-3">
+      {% for post in posts %}
+      <article class="p-4 border border-white/10 bg-white/2 rounded">
+        <p class="font-medium text-base-content/90">{{ post.headline }}</p>
+        <p class="text-sm text-base-content/60 mt-1 leading-relaxed">{{ post.body|truncatewords:30 }}</p>
+        {% if post.cta %}
+        <p class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40 mt-2">CTA: {{ post.cta }}</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">
+      — {% trans "No posts yet" %} —
+    </p>
+  {% endif %}
+</section>

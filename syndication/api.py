@@ -1,5 +1,5 @@
 """
-HTTP API skeleton for Switch syndication (kb-a4u.2).
+HTTP API for Switch syndication (kb-a4u.2 skeleton + kb-a4u.3 Event/Post CRUD).
 
 Django Ninja API per ADR-016 D6 (in-process handlers → JSON API + HTMX views
 share ONE auth + service layer).
@@ -27,11 +27,13 @@ Actor-marker (ADR-017 D1): both session and Bearer paths resolve to the same
 User with identical authority. The auth callables stamp request._actor_marker
 for audit-only provenance in service-layer writes.
 
-Event/Post/Projection endpoint bodies are STUBBED here (filled by C3/C4).
-OpenAPI response schemas declared for stable contract (F4).
+Co-equal seam (ADR-016 D3/D6): Event/Post CRUD handlers call the same
+syndication.services functions as the HTMX web views — no parallel implementations.
 """
 
 import json as _json
+from datetime import datetime
+from typing import List, Optional
 
 from django.http import HttpResponse
 from ninja import NinjaAPI, Schema, Status
@@ -42,8 +44,12 @@ from syndication.models import AgentCredential, IdentityToken
 from syndication.services import (
     ACTOR_BEARER,
     ACTOR_SESSION,
+    create_event,
+    create_post,
     exchange_api_key_for_identity_token,
     register_agent_credential,
+    update_event,
+    update_post,
 )
 
 # ---------------------------------------------------------------------------
@@ -261,12 +267,119 @@ def agents_verify(request, body: VerifyRequest):
 
 
 # ---------------------------------------------------------------------------
-# Protected resource stubs (bodies filled by C3/C4 — kb-a4u.3/.4)
+# Protected resource endpoints (kb-a4u.3 — Event + Post CRUD)
+# Co-equal seam: these handlers call the same service functions as HTMX views.
 # ---------------------------------------------------------------------------
-# These endpoints define the OpenAPI surface so downstream beads have a
-# stable route to implement against. Auth is enforced; bodies are minimal stubs.
-# The service-layer seam (syndication.services) is where persistence logic
-# will live — do not add persistence directly to handlers here.
+
+
+def _actor_marker_response(request, data: dict, status: int = 200) -> HttpResponse:
+    """
+    Build a JSON response and attach X-Actor-Marker header (audit-only).
+
+    Returns an HttpResponse directly — Ninja passes through HttpResponse objects
+    unchanged, so the header survives routing.
+    """
+    marker = getattr(request, "_actor_marker", ACTOR_SESSION)
+    body = _json.dumps(data, default=str)
+    response = HttpResponse(body, content_type="application/json", status=status)
+    response["X-Actor-Marker"] = marker
+    return response
+
+
+# --- Event schemas ---
+
+class EventCreateIn(Schema):
+    title: str
+    slug: str
+    start: datetime
+    end: Optional[datetime] = None
+    description: str = ""
+    dress_code: str = ""
+    content_warnings: List[str] = []
+    age_restriction: Optional[int] = None
+    capacity: Optional[int] = None
+    visibility: str = "public"
+    language: str = ""
+    is_free: bool = False
+    price_min_cents: Optional[int] = None
+    price_max_cents: Optional[int] = None
+    currency: str = "EUR"
+    sliding_scale: bool = False
+    price_description: str = ""
+    external_url: str = ""
+    tickets_url: str = ""
+    registration_required: bool = False
+    registration_url: str = ""
+    registration_email: str = ""
+
+
+class EventUpdateIn(Schema):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    dress_code: Optional[str] = None
+    content_warnings: Optional[List[str]] = None
+    age_restriction: Optional[int] = None
+    capacity: Optional[int] = None
+    visibility: Optional[str] = None
+    language: Optional[str] = None
+    is_free: Optional[bool] = None
+    price_min_cents: Optional[int] = None
+    price_max_cents: Optional[int] = None
+    currency: Optional[str] = None
+    sliding_scale: Optional[bool] = None
+    price_description: Optional[str] = None
+    external_url: Optional[str] = None
+    tickets_url: Optional[str] = None
+
+
+class EventOut(Schema):
+    id: int
+    title: str
+    slug: str
+    description: str
+    status: str
+    visibility: str
+    dress_code: str
+    content_warnings: List[str]
+    age_restriction: Optional[int]
+    capacity: Optional[int]
+    language: str
+    is_free: bool
+    price_min_cents: Optional[int]
+    price_max_cents: Optional[int]
+    currency: str
+    price_description: str
+    external_url: str
+    tickets_url: str
+
+
+# --- Post schemas ---
+
+class PostCreateIn(Schema):
+    headline: str
+    body: str
+    cta: str = ""
+    voice: str = ""
+    imagery: Optional[List[str]] = None
+
+
+class PostUpdateIn(Schema):
+    headline: Optional[str] = None
+    body: Optional[str] = None
+    cta: Optional[str] = None
+    voice: Optional[str] = None
+
+
+class PostOut(Schema):
+    id: int
+    event_id: int
+    headline: str
+    body: str
+    cta: str
+    voice: str
+
+
+# --- Stub schema preserved for projections list (C4) ---
 
 class StubListResponse(Schema):
     stub: bool
@@ -276,48 +389,275 @@ class StubListResponse(Schema):
 def _stub_response_with_marker(request, detail: str) -> HttpResponse:
     """
     Build a JSON stub response and attach X-Actor-Marker header (audit-only).
-
-    Returns an HttpResponse directly — Ninja passes through HttpResponse objects
-    unchanged, so the header survives routing.
     """
-    marker = getattr(request, "_actor_marker", ACTOR_SESSION)
-    body = _json.dumps({"stub": True, "detail": detail})
-    response = HttpResponse(body, content_type="application/json", status=200)
-    response["X-Actor-Marker"] = marker
-    return response
+    return _actor_marker_response(
+        request, {"stub": True, "detail": detail}, status=200
+    )
 
+
+# ---------------------------------------------------------------------------
+# Event CRUD endpoints
+# ---------------------------------------------------------------------------
 
 @api.get(
     "/events/",
     auth=_RESOURCE_AUTH,
-    response=StubListResponse,
-    summary="List events — STUBBED (C3/kb-a4u.3)",
+    response=List[EventOut],
+    summary="List events for authenticated user",
 )
 def events_list(request):
-    """Stub — body implemented by C3/kb-a4u.3.
-
-    Returns HttpResponse directly so X-Actor-Marker header is preserved.
-    Ninja passes HttpResponse through unchanged; the declared response schema
-    stabilises the OpenAPI contract for downstream beads.
     """
-    return _stub_response_with_marker(
-        request,
-        "Event list not yet implemented (C3/kb-a4u.3).",
-    )
+    List all Events where the authenticated user is an EventOrganizer claimant.
+    Returns HttpResponse directly so X-Actor-Marker header is preserved.
+    """
+    from events.models import Event, EventOrganizer
+    from organizers.models import ProfileClaim
+
+    # Get profile IDs this user has active claims on
+    profile_ids = ProfileClaim.objects.filter(
+        user=request.auth, rejected_at__isnull=True
+    ).values_list("profile_id", flat=True)
+
+    # Get event IDs where those profiles are organizers
+    event_ids = EventOrganizer.objects.filter(
+        profile_id__in=profile_ids
+    ).values_list("event_id", flat=True)
+
+    events = Event.objects.filter(pk__in=event_ids).order_by("-start")
+    data = [
+        {
+            "id": e.pk,
+            "title": e.title,
+            "slug": e.slug,
+            "description": e.description,
+            "status": e.status,
+            "visibility": e.visibility,
+            "dress_code": e.dress_code,
+            "content_warnings": e.content_warnings,
+            "age_restriction": e.age_restriction,
+            "capacity": e.capacity,
+            "language": e.language,
+            "is_free": e.is_free,
+            "price_min_cents": e.price_min_cents,
+            "price_max_cents": e.price_max_cents,
+            "currency": e.currency,
+            "price_description": e.price_description,
+            "external_url": e.external_url,
+            "tickets_url": e.tickets_url,
+        }
+        for e in events
+    ]
+    return _actor_marker_response(request, data)
+
+
+@api.post(
+    "/events/",
+    auth=_RESOURCE_AUTH,
+    response={201: EventOut},
+    summary="Create a new Event",
+)
+def events_create(request, body: EventCreateIn):
+    """
+    Create a new Event via the service layer (co-equal with web form path).
+    Auth: identity token (agent) or session (web). ADR-016 D3/D6.
+    Eager-creates draft listing projections per enabled listing-capable connection
+    (ADR-016 D4).
+    """
+    kwargs = body.dict(exclude_none=False)
+    event = create_event(user=request.auth, **kwargs)
+    data = {
+        "id": event.pk,
+        "title": event.title,
+        "slug": event.slug,
+        "description": event.description,
+        "status": event.status,
+        "visibility": event.visibility,
+        "dress_code": event.dress_code,
+        "content_warnings": event.content_warnings or [],
+        "age_restriction": event.age_restriction,
+        "capacity": event.capacity,
+        "language": event.language,
+        "is_free": event.is_free,
+        "price_min_cents": event.price_min_cents,
+        "price_max_cents": event.price_max_cents,
+        "currency": event.currency,
+        "price_description": event.price_description,
+        "external_url": event.external_url,
+        "tickets_url": event.tickets_url,
+    }
+    return _actor_marker_response(request, data, status=201)
+
+
+@api.get(
+    "/events/{event_id}/",
+    auth=_RESOURCE_AUTH,
+    response=EventOut,
+    summary="Get Event detail",
+)
+def events_detail(request, event_id: int):
+    """Get a single Event by ID."""
+    from django.shortcuts import get_object_or_404
+    from events.models import Event
+    event = get_object_or_404(Event, pk=event_id)
+    data = {
+        "id": event.pk,
+        "title": event.title,
+        "slug": event.slug,
+        "description": event.description,
+        "status": event.status,
+        "visibility": event.visibility,
+        "dress_code": event.dress_code,
+        "content_warnings": event.content_warnings or [],
+        "age_restriction": event.age_restriction,
+        "capacity": event.capacity,
+        "language": event.language,
+        "is_free": event.is_free,
+        "price_min_cents": event.price_min_cents,
+        "price_max_cents": event.price_max_cents,
+        "currency": event.currency,
+        "price_description": event.price_description,
+        "external_url": event.external_url,
+        "tickets_url": event.tickets_url,
+    }
+    return _actor_marker_response(request, data)
+
+
+@api.patch(
+    "/events/{event_id}/",
+    auth=_RESOURCE_AUTH,
+    response=EventOut,
+    summary="Update an Event (partial update)",
+)
+def events_update(request, event_id: int, body: EventUpdateIn):
+    """
+    Partially update an Event via the service layer (gated by can_edit seam).
+    Only non-None fields are applied.
+    """
+    from django.shortcuts import get_object_or_404
+    from events.models import Event
+    event = get_object_or_404(Event, pk=event_id)
+    # Only pass non-None fields so unset optional fields don't zero-out existing values
+    patch_kwargs = {k: v for k, v in body.dict().items() if v is not None}
+    event = update_event(user=request.auth, event=event, **patch_kwargs)
+    data = {
+        "id": event.pk,
+        "title": event.title,
+        "slug": event.slug,
+        "description": event.description,
+        "status": event.status,
+        "visibility": event.visibility,
+        "dress_code": event.dress_code,
+        "content_warnings": event.content_warnings or [],
+        "age_restriction": event.age_restriction,
+        "capacity": event.capacity,
+        "language": event.language,
+        "is_free": event.is_free,
+        "price_min_cents": event.price_min_cents,
+        "price_max_cents": event.price_max_cents,
+        "currency": event.currency,
+        "price_description": event.price_description,
+        "external_url": event.external_url,
+        "tickets_url": event.tickets_url,
+    }
+    return _actor_marker_response(request, data)
+
+
+# ---------------------------------------------------------------------------
+# Post CRUD endpoints (scoped to Event)
+# ---------------------------------------------------------------------------
+
+@api.get(
+    "/events/{event_id}/posts/",
+    auth=_RESOURCE_AUTH,
+    response=List[PostOut],
+    summary="List Posts for an Event",
+)
+def event_posts_list(request, event_id: int):
+    """List all Posts for a given Event."""
+    from django.shortcuts import get_object_or_404
+    from events.models import Event
+    from syndication.models import Post
+    event = get_object_or_404(Event, pk=event_id)
+    posts = Post.objects.filter(event=event).order_by("-created_at")
+    data = [
+        {
+            "id": p.pk,
+            "event_id": p.event_id,
+            "headline": p.headline,
+            "body": p.body,
+            "cta": p.cta,
+            "voice": p.voice,
+        }
+        for p in posts
+    ]
+    return _actor_marker_response(request, data)
+
+
+@api.post(
+    "/events/{event_id}/posts/",
+    auth=_RESOURCE_AUTH,
+    response={201: PostOut},
+    summary="Create a Post for an Event",
+)
+def event_posts_create(request, event_id: int, body: PostCreateIn):
+    """
+    Create a Post scoped to an Event via the service layer (co-equal with web form).
+    Gated by can_edit seam (ADR-017 D2).
+    Eager-creates draft promotion projections per enabled promotion-capable connection
+    (ADR-016 D4).
+    """
+    from django.shortcuts import get_object_or_404
+    from events.models import Event
+    event = get_object_or_404(Event, pk=event_id)
+    kwargs = body.dict(exclude_none=False)
+    post = create_post(user=request.auth, event=event, **kwargs)
+    data = {
+        "id": post.pk,
+        "event_id": post.event_id,
+        "headline": post.headline,
+        "body": post.body,
+        "cta": post.cta,
+        "voice": post.voice,
+    }
+    return _actor_marker_response(request, data, status=201)
 
 
 @api.get(
     "/posts/",
     auth=_RESOURCE_AUTH,
-    response=StubListResponse,
-    summary="List posts — STUBBED (C3/kb-a4u.3)",
+    response=List[PostOut],
+    summary="List all Posts for authenticated user's events",
 )
 def posts_list(request):
-    """Stub — body implemented by C3/kb-a4u.3."""
-    return _stub_response_with_marker(
-        request,
-        "Post list not yet implemented (C3/kb-a4u.3).",
-    )
+    """
+    List all Posts across all Events where the user is an organizer.
+    Returns HttpResponse directly so X-Actor-Marker header is preserved.
+    """
+    from events.models import Event, EventOrganizer
+    from organizers.models import ProfileClaim
+    from syndication.models import Post
+
+    profile_ids = ProfileClaim.objects.filter(
+        user=request.auth, rejected_at__isnull=True
+    ).values_list("profile_id", flat=True)
+
+    event_ids = EventOrganizer.objects.filter(
+        profile_id__in=profile_ids
+    ).values_list("event_id", flat=True)
+
+    posts = Post.objects.filter(event_id__in=event_ids).order_by("-created_at")
+    data = [
+        {
+            "id": p.pk,
+            "event_id": p.event_id,
+            "headline": p.headline,
+            "body": p.body,
+            "cta": p.cta,
+            "voice": p.voice,
+        }
+        for p in posts
+    ]
+    return _actor_marker_response(request, data)
 
 
 @api.get(

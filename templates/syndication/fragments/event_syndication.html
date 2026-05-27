@@ -1,0 +1,39 @@
+{% load i18n %}
+{# event_syndication fragment — independently addressable HTMX swap target #}
+{# Syndication / projection review board (stub; C5/kb-a4u.5 expands this) #}
+{# Alpine 3.x: own x-data root required or directives go inert #}
+<section id="event-syndication" x-data="{}">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Syndication" %}</h2>
+  </div>
+
+  {% if projections %}
+    <div class="flex flex-col gap-2">
+      {% for proj in projections %}
+      <div class="flex items-center justify-between p-3 border border-white/8 rounded">
+        <div>
+          <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/60">
+            {{ proj.connection.platform }}
+          </span>
+          <span class="text-base-content/30 mx-2">·</span>
+          <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/50">
+            {{ proj.kind }}
+          </span>
+        </div>
+        <span class="kb-tag {% if proj.status == 'draft' %}kb-tag-warning{% elif proj.status == 'published' %}kb-tag-success{% elif proj.status == 'failed' %}kb-tag-error{% else %}text-base-content/40{% endif %} normal-case text-[10px]">
+          {{ proj.get_status_display }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">
+      — {% trans "No projections yet. Connect a platform to syndicate this event." %} —
+    </p>
+    {% if can_edit %}
+    <a href="{% url 'syndication:connections-list' %}" class="kb-btn-secondary text-sm mt-4 inline-block">
+      {% trans "Manage connections" %}
+    </a>
+    {% endif %}
+  {% endif %}
+</section>

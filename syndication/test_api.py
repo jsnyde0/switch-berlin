@@ -380,22 +380,33 @@ class StubEndpointSurfaceTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    def test_stub_endpoints_return_schema_with_stub_field(self):
+    def test_event_and_post_endpoints_return_list_schema(self):
         """
-        F4: Stub endpoints return a declared Ninja response schema (stub + detail fields).
+        F4 (updated for C3/kb-a4u.3): Event and Post endpoints now return real list responses
+        (no longer stubs). Projections endpoint remains stubbed.
         The OpenAPI contract must be stable for downstream beads.
         """
         token = self._get_identity_token()
         client = Client()
-        for endpoint in ["/api/events/", "/api/posts/", "/api/projections/"]:
+
+        # Events and Posts are real list endpoints (C3/kb-a4u.3 — no longer stubs)
+        for endpoint in ["/api/events/", "/api/posts/"]:
             response = client.get(
                 endpoint,
                 HTTP_AUTHORIZATION=f"Bearer {token}",
             )
             self.assertEqual(response.status_code, 200, f"{endpoint} should return 200")
             data = json.loads(response.content)
-            self.assertIn("stub", data, f"{endpoint} response must have 'stub' field")
-            self.assertIn("detail", data, f"{endpoint} response must have 'detail' field")
+            self.assertIsInstance(data, list, f"{endpoint} should return a list")
+
+        # Projections is still stubbed (C4/kb-a4u.4)
+        proj_response = client.get(
+            "/api/projections/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(proj_response.status_code, 200)
+        proj_data = json.loads(proj_response.content)
+        self.assertIn("stub", proj_data, "/api/projections/ should still return stub schema")
 
 
 class TokenNegativeTests(TestCase):

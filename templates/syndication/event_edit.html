@@ -1,0 +1,39 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Edit" %} {{ event.title }} — Switch{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto pt-10" x-data="{ submitting: false }">
+  <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+     class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-base-content/45 hover:text-base-content transition-colors mb-6">
+    <span aria-hidden="true">←</span>
+    <span>{% trans "Back to event" %}</span>
+  </a>
+  <h1 class="kb-display text-[36px] font-light leading-tight mb-8">{% trans "Edit" %} {{ event.title }}</h1>
+
+  <form method="post" action="" @submit="submitting = true">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="mb-6 p-4 border border-red-500/50 bg-red-500/10 text-red-300 text-sm rounded">
+      {% for error in form.non_field_errors %}
+        <p>{{ error }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% include "syndication/_event_form_fields.html" with form=form %}
+
+    <div class="flex gap-3 pt-4 border-t border-white/10">
+      <button type="submit" class="kb-btn" :disabled="submitting"
+              x-text="submitting ? '{% trans "Saving..." %}' : '{% trans "Save changes" %}'">
+        {% trans "Save changes" %}
+      </button>
+      <a href="{% url 'syndication:event-hub' pk=event.pk %}" class="kb-btn-secondary">
+        {% trans "Cancel" %}
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock content %}
