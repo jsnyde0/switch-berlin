@@ -1145,6 +1145,34 @@ class PermissionErrorTo403Test(TestCase):
         )
         self.assertEqual(response.status_code, 403, response.content)
 
+    def test_403_body_is_generic_does_not_leak_user_or_event(self):
+        """
+        Fix C (security — information disclosure): the 403 response body must be
+        a constant generic string. It must NOT contain the user repr or event title
+        (which would be present if str(exc) were returned to the caller).
+
+        services.py raises: PermissionError(f"User {user} cannot edit event '{event}' …")
+        The handler must swallow str(exc) server-side (log it) and return only
+        {"detail": "Permission denied."} to the caller.
+        """
+        token = self._get_identity_token_for(self.stranger)
+        client = Client()
+        response = client.patch(
+            f"/api/events/{self.event.pk}/",
+            data=json.dumps({"title": "Hacked Title"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(response.status_code, 403, response.content)
+        body = json.loads(response.content)
+        # Body must be the constant generic string — not the exception message.
+        self.assertEqual(body["detail"], "Permission denied.")
+        # Ensure the user's string representation and event title are not leaked.
+        body_str = response.content.decode()
+        self.assertNotIn(str(self.stranger), body_str, "Response leaks user repr")
+        self.assertNotIn("Protected Event", body_str, "Response leaks event title")
+        self.assertNotIn("cannot edit", body_str, "Response leaks exception message")
+
 
 # ---------------------------------------------------------------------------
 # 13. API round-trip: start, end, slug, registration fields in EventOut
@@ -1180,15 +1208,20 @@ class EventAPIRoundTripTest(TestCase):
         return json.loads(ex.content)["identity_token"]
 
     def test_api_create_returns_start_and_end(self):
-        """POST /api/events/ response includes start and end fields (finding 6)."""
+        """POST /api/events/ response round-trips start and end values (finding 6)."""
         token = self._get_identity_token()
         client = Client()
         now = timezone.now()
+        # Use a fixed datetime string to avoid sub-millisecond drift in comparisons.
+        # Replace microseconds so isoformat is stable across serialisers.
+        fixed_now = now.replace(microsecond=0)
+        start_iso = fixed_now.isoformat()
+        end_iso = fixed_now.isoformat()
         payload = {
             "title": "Roundtrip Event",
             "slug": "roundtrip-event",
-            "start": now.isoformat(),
-            "end": now.isoformat(),
+            "start": start_iso,
+            "end": end_iso,
         }
         response = client.post(
             "/api/events/",
@@ -1201,6 +1234,23 @@ class EventAPIRoundTripTest(TestCase):
         self.assertIn("start", data, "Response missing 'start' field")
         self.assertIn("end", data, "Response missing 'end' field")
         self.assertIn("slug", data, "Response missing 'slug' field")
+        # Round-trip equality: returned values must match what was sent.
+        # A serialize-as-null bug (or lossy serialization) would fail here.
+        from django.utils.dateparse import parse_datetime
+        returned_start = parse_datetime(data["start"])
+        returned_end = parse_datetime(data["end"])
+        self.assertIsNotNone(returned_start, f"start field is not a parseable datetime: {data['start']!r}")
+        self.assertIsNotNone(returned_end, f"end field is not a parseable datetime: {data['end']!r}")
+        self.assertEqual(
+            returned_start.replace(tzinfo=None),
+            fixed_now.replace(tzinfo=None),
+            "Returned start does not match sent start value",
+        )
+        self.assertEqual(
+            returned_end.replace(tzinfo=None),
+            fixed_now.replace(tzinfo=None),
+            "Returned end does not match sent end value",
+        )
 
     def test_api_create_returns_registration_fields(self):
         """POST /api/events/ response includes registration_* fields (finding 7)."""
@@ -1304,32 +1354,41 @@ class AuthzSeamBypassTest(TestCase):
             start=timezone.now(),
         )
 
-    def test_htmx_post_create_response_does_not_hardcode_can_edit_true(self):
+    def test_htmx_post_create_response_uses_can_edit_seam(self):
         """
         The HTMX event_posts fragment returned after post_create must evaluate
         can_edit via the authz seam, not hardcode True.
 
-        We test this indirectly: a non-owner who somehow gets past the authz
-        guard (via direct template inspection) is not a concern here — what matters
-        is that the context variable 'can_edit' is set from can_edit(user, event),
-        not a literal True. We verify this by checking that the owner gets
-        can_edit=True (i.e. the seam is still called, still works).
+        Falsification strategy: we patch syndication.views.can_edit to return True
+        on the first call (the guard check at view entry) and False on the second
+        call (the context assignment in the HTMX branch). The real code passes
+        can_edit(request.user, event) as the context value, so the context will
+        reflect False. If views.py hardcoded True instead of calling can_edit,
+        the context would be True and this test fails.
         """
+        from unittest.mock import patch
+
         client = Client()
         client.force_login(self.owner)
         data = {
             "headline": "Seam Post",
             "body": "Seam body.",
         }
-        response = client.post(
-            f"/syndication/events/{self.event.pk}/posts/new/",
-            data=data,
-            HTTP_HX_REQUEST="true",
-        )
-        # Should return 200 (HTMX response) not redirect
+
+        call_results = iter([True, False])  # guard → True, context call → False
+
+        with patch("syndication.views.can_edit", side_effect=lambda u, e: next(call_results)):
+            response = client.post(
+                f"/syndication/events/{self.event.pk}/posts/new/",
+                data=data,
+                HTTP_HX_REQUEST="true",
+            )
+
         self.assertEqual(response.status_code, 200, response.content)
-        # The response must come from the fragment template
         self.assertContains(response, "Seam Post")
+        # This is the key falsifying assertion: context["can_edit"] must be the
+        # return value of the second can_edit() call (False), not a hardcoded True.
+        self.assertIs(response.context["can_edit"], False)
 
 
 # ---------------------------------------------------------------------------
@@ -1339,11 +1398,11 @@ class AuthzSeamBypassTest(TestCase):
 
 class CreateEventServiceAllFieldsTest(TestCase):
     """
-    Fixes the false docstring on test_create_event_persists_all_adr016_d1_fields
-    which claimed tags coverage it didn't have.
+    Service-layer round-trip tests for v0 fields: registration_required/url/email,
+    tags (M2M), and venue (FK).
 
-    Tests ALL v0 fields including: tags (M2M), venue (FK), registration_required,
-    registration_url, registration_email.
+    Docstring alignment: the class tests what it says — all three field groups
+    are covered here (registration, tags M2M, venue FK).
     """
 
     def setUp(self):
@@ -1370,3 +1429,42 @@ class CreateEventServiceAllFieldsTest(TestCase):
         self.assertTrue(fetched.registration_required)
         self.assertEqual(fetched.registration_url, "https://reg.example.com/")
         self.assertEqual(fetched.registration_email, "reg@example.com")
+
+    def test_create_event_persists_tags_m2m(self):
+        """tags M2M round-trips through create_event → Event.tags.set()."""
+        from events.models import Tag
+        from syndication.services import create_event
+        tag1 = Tag.objects.create(label="Kink Test Tag 1", slug="kink-test-tag-1", kind="theme")
+        tag2 = Tag.objects.create(label="Kink Test Tag 2", slug="kink-test-tag-2", kind="theme")
+        event = create_event(
+            user=self.user,
+            title="Tagged Event",
+            slug="tagged-event",
+            start=timezone.now(),
+            tags=[tag1, tag2],
+        )
+        fetched = Event.objects.get(pk=event.pk)
+        self.assertSetEqual(
+            set(fetched.tags.values_list("pk", flat=True)),
+            {tag1.pk, tag2.pk},
+            "Event.tags must contain exactly the supplied Tag PKs after create_event.",
+        )
+
+    def test_create_event_persists_venue_fk(self):
+        """venue FK round-trips through create_event → Event.venue."""
+        from venues.models import Venue
+        from syndication.services import create_event
+        venue = Venue.objects.create(name="Test Venue", slug="test-venue-roundtrip")
+        event = create_event(
+            user=self.user,
+            title="Venued Event",
+            slug="venued-event",
+            start=timezone.now(),
+            venue=venue,
+        )
+        fetched = Event.objects.get(pk=event.pk)
+        self.assertEqual(
+            fetched.venue_id,
+            venue.pk,
+            "Event.venue must be the supplied Venue after create_event.",
+        )

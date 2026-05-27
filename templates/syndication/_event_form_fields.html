@@ -122,6 +122,12 @@
   </div>
 
   <div class="flex flex-col gap-1">
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.currency.id_for_label }}">{{ form.currency.label }}</label>
+    {{ form.currency }}
+    {% if form.currency.errors %}<p class="text-red-400 text-xs mt-1">{{ form.currency.errors|join:", " }}</p>{% endif %}
+  </div>
+
+  <div class="flex flex-col gap-1">
     <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.price_description.id_for_label }}">{{ form.price_description.label }}</label>
     {{ form.price_description }}
   </div>

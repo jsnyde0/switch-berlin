@@ -32,6 +32,7 @@ syndication.services functions as the HTMX web views — no parallel implementat
 """
 
 import json as _json
+import logging
 from datetime import datetime
 from typing import List, Optional
 
@@ -51,6 +52,8 @@ from syndication.services import (
     update_event,
     update_post,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Auth callables
@@ -150,10 +153,15 @@ def handle_permission_error(request, exc):
     service functions (update_event, create_post, …) raise PermissionError
     when the caller fails the can_edit gate. Without this handler Ninja would
     surface a 500. ADR-008 D3: fail loud with the correct status code.
+
+    Security: the exception message (which contains the user repr and event title)
+    is logged server-side for operators but NEVER returned to the caller — that
+    would leak PII / internal identifiers to unauthorized parties.
     """
+    logger.warning("Permission denied: %s", exc, extra={"path": request.path})
     return api.create_response(
         request,
-        {"detail": str(exc) or "Permission denied."},
+        {"detail": "Permission denied."},
         status=403,
     )
 
