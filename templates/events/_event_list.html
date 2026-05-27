@@ -1,19 +1,154 @@
-{% load i18n %}
+{% load i18n event_tags %}
 {{ markers_geojson|json_script:"markers-data" }}
-<div x-data="{}" class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0">
+<div class="grid grid-cols-1 gap-y-0">
   {% for event in page_obj %}
-    <div data-event-slug="{{ event.organizer.slug }}/{{ event.slug }}"
-         role="button"
-         tabindex="0"
-         aria-label="{% blocktrans with title=event.title %}Preview {{ title }}{% endblocktrans %}"
-         class="group/card relative cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70 focus-visible:ring-inset"
-         :class="$store.map.selectedKey === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'kb-card-selected' : ($store.map.hoveredEventId === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'kb-card-hovered' : '')"
-         onclick="if(event.target.closest('a'))return;Alpine.store('map').selectEvent('{{ event.organizer.slug }}/{{ event.slug }}');htmx.ajax('GET','/events/{{ event.organizer.slug }}/{{ event.slug }}/drawer/',{target:'#drawer',swap:'innerHTML'})"
-         onkeydown="if((event.key==='Enter'||event.key===' ')&&!event.target.closest('a')){event.preventDefault();Alpine.store('map').selectEvent('{{ event.organizer.slug }}/{{ event.slug }}');htmx.ajax('GET','/events/{{ event.organizer.slug }}/{{ event.slug }}/drawer/',{target:'#drawer',swap:'innerHTML'})}"
-         @mouseenter="$store.map.hoverEvent('{{ event.organizer.slug }}/{{ event.slug }}')"
-         @mouseleave="$store.map.hoverEvent(null)">
-      <c-event-card :event="event" :going_venue_id_list="going_venue_id_list" />
+    {% with hue_a=event.slug|slug_hue %}
+    <div x-data="{ open: false }"
+         data-event-slug="{{ event.organizer.slug }}/{{ event.slug }}"
+         class="group/card relative"
+         :class="typeof $store !== 'undefined' && $store.map && $store.map.selectedKey === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'kb-card-selected' : (typeof $store !== 'undefined' && $store.map && $store.map.hoveredEventId === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'kb-card-hovered' : '')"
+         @mouseenter="typeof $store !== 'undefined' && $store.map && $store.map.hoverEvent('{{ event.organizer.slug }}/{{ event.slug }}')"
+         @mouseleave="typeof $store !== 'undefined' && $store.map && $store.map.hoverEvent(null)">
+
+      {# ── Card row (click = toggle expand) ─────────────────────────── #}
+      <div role="button"
+           tabindex="0"
+           :aria-expanded="open.toString()"
+           :aria-label="open ? '{% blocktrans with title=event.title %}Collapse {{ title }}{% endblocktrans %}' : '{% blocktrans with title=event.title %}Expand {{ title }}{% endblocktrans %}'"
+           class="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70 focus-visible:ring-inset"
+           @click="if($event.target.closest('a'))return; open=!open"
+           @keydown.enter.prevent="if(!$event.target.closest('a')) open=!open"
+           @keydown.space.prevent="if(!$event.target.closest('a')) open=!open">
+        <c-event-card :event="event" :going_venue_id_list="going_venue_id_list" />
+      </div>
+
+      {# ── Inline expand panel — grid-rows animation, no plugin needed ─ #}
+      <div class="kb-expand-wrap"
+           :style="open ? 'grid-template-rows:1fr' : 'grid-template-rows:0fr'"
+           aria-hidden="true"
+           x-bind:aria-hidden="(!open).toString()">
+        <div class="overflow-hidden min-h-0">
+          {# Inner content rendered from the same page_obj data — no fetch, no 404 risk #}
+          <div class="kb-expand-panel border-b border-white/10 bg-base-200/30 px-5 pb-5 pt-4"
+               x-show="open"
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 translate-y-[-4px]"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100"
+               x-transition:leave-end="opacity-0">
+
+            {# Header row: kicker + close button #}
+            <div class="flex items-center justify-between mb-4">
+              <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">
+                {% trans "Preview" %} <span class="text-base-content/20">·</span> {{ event.start|date:"D, d M" }}
+              </p>
+              <button type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center border border-white/10 text-base-content/55 transition hover:bg-base-200 hover:text-base-content hover:border-base-content/30 focus-visible:outline-none focus-visible:border-fuchsia-300"
+                      aria-label="{% trans 'Collapse preview' %}"
+                      @click.stop="open=false">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            {# Content body — indented to align with the card's body column #}
+            {# w-[110px] matches the card's date column width so text starts at the same x #}
+            <div class="flex gap-0">
+              {# Spacer matching card date column width #}
+              <div class="flex-shrink-0 w-[110px] sm:w-[128px] border-r border-white/8 flex items-start justify-center pt-1 pr-4">
+                <span class="kb-display text-[44px] leading-[0.85] font-light" style="color: hsl({{ hue_a }} 32% 82%)">{{ event.start|date:"j" }}</span>
+              </div>
+
+              {# Detail body — left-padded to mirror the card px-5 #}
+              <div class="flex-1 min-w-0 px-5">
+
+                {# Description — full, not truncated #}
+                {% if event.description %}
+                  <p class="text-[13px] leading-[1.6] text-base-content/75 mb-4">{{ event.description }}</p>
+                {% endif %}
+
+                {# Detail rows #}
+                <dl class="grid grid-cols-1 gap-2 mb-4">
+                  <div class="flex items-start gap-2.5 text-[12px] text-base-content/70">
+                    <svg class="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-base-content/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                    </svg>
+                    <dd>{{ event.start|date:"l, d M Y" }} <span class="text-base-content/35">·</span> {{ event.start|date:"H:i" }}{% if event.end %} <span class="text-base-content/25">→</span> {{ event.end|date:"H:i" }}{% endif %}</dd>
+                  </div>
+                  {% if event.venue %}
+                    <div class="flex items-start gap-2.5 text-[12px] text-base-content/70">
+                      <svg class="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-base-content/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+                      </svg>
+                      <dd>
+                        {% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}
+                          <span class="inline-flex items-center gap-2">{% trans 'Private venue' %} <span class="kb-tag kb-tag-accent">{% trans 'RSVP to reveal' %}</span></span>
+                        {% else %}
+                          {{ event.venue.name }}
+                        {% endif %}
+                      </dd>
+                    </div>
+                  {% endif %}
+                  {% if event.is_free %}
+                    <div class="flex items-start gap-2.5 text-[12px] text-emerald-300">
+                      <svg class="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-emerald-400/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 12V8H6a2 2 0 1 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+                      </svg>
+                      <dd class="font-medium">{% trans "Free entry" %}</dd>
+                    </div>
+                  {% elif event.price_min_cents %}
+                    <div class="flex items-start gap-2.5 text-[12px] text-base-content/70">
+                      <svg class="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-base-content/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 12V8H6a2 2 0 1 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/>
+                      </svg>
+                      <dd>{{ event.currency }} {{ event.price_min_cents|cents_to_display }}{% if event.price_max_cents %} – {{ event.price_max_cents|cents_to_display }}{% else %}+{% endif %}</dd>
+                    </div>
+                  {% endif %}
+                </dl>
+
+                {# Tags #}
+                {% with tags=event.tags.all %}
+                  {% if tags %}
+                    <div class="flex flex-wrap gap-1.5 mb-4">
+                      {% for tag in tags %}
+                        <span class="kb-tag">{{ tag.name }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
+
+                {# CTA row #}
+                <div class="flex items-center gap-2 pt-2 border-t border-white/5">
+                  <a href="{% url 'event-detail' org_slug=event.organizer.slug event_slug=event.slug %}"
+                     class="kb-btn text-[10px] px-4 py-2.5 flex-1 sm:flex-none"
+                     @click.stop>
+                    {% trans "View full event" %} <span aria-hidden="true">→</span>
+                  </a>
+                  {% if event.external_url %}
+                    <a href="{{ event.external_url }}"
+                       target="_blank"
+                       rel="noopener"
+                       class="inline-flex items-center justify-center gap-1.5 border border-white/15 px-3 py-2.5 text-base-content/65 transition hover:text-base-content hover:border-base-content/30 focus-visible:outline-none focus-visible:border-fuchsia-300"
+                       aria-label="{% trans 'Open organizer site in new tab' %}"
+                       @click.stop>
+                      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>
+                      </svg>
+                    </a>
+                  {% endif %}
+                </div>
+
+              </div>{# /detail body #}
+            </div>{# /flex gap-5 #}
+
+          </div>{# /kb-expand-panel #}
+        </div>{# /overflow-hidden #}
+      </div>{# /kb-expand-wrap #}
+
     </div>
+    {% endwith %}
   {% empty %}
     <div class="col-span-full flex flex-col items-start gap-4 border-t border-b border-white/10 py-20 px-2">
       <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">— {% trans "Nothing tonight" %} —</p>

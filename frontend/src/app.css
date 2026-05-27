@@ -634,6 +634,19 @@ html {
 /* Card title underline used in event_card.html. */
 .kb-card-title-rule { background: var(--kb-accent-mid); }
 
+/* ── Inline card expand panel ────────────────────────────────────── */
+/* CSS grid-rows trick: 0fr → 1fr collapses/expands without JS height
+   measurement. Alpine binds grid-template-rows inline; the transition
+   here drives the animation. No @alpinejs/collapse plugin required. */
+.kb-expand-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kb-expand-wrap { transition: none; }
+}
+
 /* Selected / hovered card states (map ↔ list sync). */
 .kb-card-selected > article.kb-card {
   background: var(--kb-accent-wash);

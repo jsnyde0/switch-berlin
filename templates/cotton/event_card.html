@@ -93,9 +93,15 @@
           </span>
         {% endif %}
       </div>
-      {# Preview affordance — appears on card hover bottom-right of the body. #}
-      <span class="pointer-events-none absolute bottom-3 right-4 kb-mono text-[9px] uppercase tracking-[0.22em] text-fuchsia-300/0 transition-all duration-200 group-hover/card:text-fuchsia-300/85">
-        {% trans "Preview" %} ↗
+      {# Expand chevron — indicates collapse state. Rotates when open. #}
+      <span class="pointer-events-none absolute bottom-3 right-4 flex items-center gap-1.5 kb-mono text-[9px] uppercase tracking-[0.22em] text-fuchsia-300/0 transition-all duration-200 group-hover/card:text-fuchsia-300/75"
+            aria-hidden="true">
+        {% trans "Details" %}
+        <svg class="h-3 w-3 transition-transform duration-300"
+             :class="open ? 'rotate-180' : ''"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
       </span>
     </div>
   </article>
