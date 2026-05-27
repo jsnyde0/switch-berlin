@@ -15,10 +15,13 @@
     <div class="relative flex w-[110px] sm:w-[128px] flex-shrink-0 flex-col items-start justify-between border-r border-white/8 px-4 py-5 group-hover/card:border-white/15">
       <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"D" }}</div>
       <div class="flex items-baseline gap-1.5 my-3">
-        <span class="kb-display text-[68px] sm:text-[80px] leading-[0.85] font-light text-base-content transition-all duration-300"
-              style="color: hsl({{ hue_a }} 32% 82%)">{{ event.start|date:"j" }}</span>
+        <span class="kb-display text-[80px] sm:text-[96px] leading-[0.82] font-light transition-all duration-300"
+              style="color: hsl({{ hue_a }} 55% 88%)">{{ event.start|date:"j" }}</span>
       </div>
-      <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"M Y" }}</div>
+      <div>
+        <div class="kb-mono text-[11px] uppercase tracking-[0.14em] font-semibold" style="color: hsl({{ hue_a }} 45% 78%)">{{ event.start|date:"M" }}</div>
+        <div class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/35 mt-0.5">{{ event.start|date:"Y" }}</div>
+      </div>
     </div>
     {# Body — right column. #}
     <div class="relative flex flex-1 flex-col gap-2 px-5 py-5 min-w-0">
@@ -26,7 +29,7 @@
       <div class="flex items-center justify-between gap-3 mb-1">
         {% if event.organizer %}
           <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
-             class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors w-fit min-w-0">
+             class="kb-mono relative z-10 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors w-fit min-w-0">
             <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
                   style="background: hsl({{ hue_a }} 40% 75%)">{{ event.organizer.name|first }}</span>
             <span class="truncate max-w-[180px]">{{ event.organizer.name }}</span>
@@ -53,6 +56,10 @@
                 aria-hidden="true"></span>
         </a>
       </h2>
+      {# Short blurb — clamped to 2 lines, truncated from description. #}
+      {% if event.description %}
+        <p class="text-[13px] leading-[1.5] text-base-content/55 line-clamp-2 pr-4 mt-1">{{ event.description|truncatewords:20 }}</p>
+      {% endif %}
       {# Lower meta — time + venue, hairline-divided. Mono throughout for index feel. #}
       <div class="mt-auto pt-3 border-t border-white/5 flex flex-wrap items-center gap-x-4 gap-y-1 kb-mono text-[10px] uppercase tracking-[0.16em] text-base-content/55">
         <span class="inline-flex items-center gap-1.5">

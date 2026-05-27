@@ -3,7 +3,7 @@ window.initMap = function (containerEl, store) {
   var skeletonEl = document.createElement('div')
   skeletonEl.setAttribute('style',
     'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
-    'pointer-events:none;background:#f3f4f6;z-index:10;'
+    'pointer-events:none;background:#0e0e10;z-index:10;'
   )
   skeletonEl.innerHTML = '<span style="color:#9ca3af;font-size:0.875rem;font-family:sans-serif;">Loading map…</span>'
   var mapParent = containerEl.parentElement || containerEl
@@ -30,7 +30,7 @@ window.initMap = function (containerEl, store) {
 
   var map = new maplibregl.Map({
     container: containerEl,
-    style: 'https://tiles.openfreemap.org/styles/liberty',
+    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
     bounds: initialBounds,
     fitBoundsOptions: { padding: 20 },
   })
