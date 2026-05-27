@@ -24,6 +24,10 @@ ALWAYS_PUBLIC_PREFIXES = (
     # their stylesheet. Without this, LoginWallMiddleware redirects /static/ to
     # the login page for anonymous users, breaking Tailwind on auth pages.
     "/static/",
+    # kb-a4u.2: The HTTP API manages its own auth (Django Ninja auth callables).
+    # LoginWallMiddleware must not intercept /api/ paths — doing so would redirect
+    # unauthenticated API requests to the HTML login page instead of returning 401.
+    "/api/",
 )
 
 # Prefix-based matching — "/" is a special case: match only the exact root path

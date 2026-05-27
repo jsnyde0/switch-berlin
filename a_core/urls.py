@@ -18,8 +18,10 @@ from accounts.views import (
 from organizers.views import organizer_profile
 from pages.views import age_check_view, robots_txt_view
 from reviews.views import organizer_opt_out_view, takedown_view
+from syndication.api import api as syndication_api
 
 urlpatterns = [
+    path("api/", syndication_api.urls),
     path("", include("pages.urls")),
     path("healthz", healthz, name="healthz"),
     path(settings.ADMIN_URL, admin.site.urls),

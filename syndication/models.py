@@ -1,5 +1,6 @@
 """
-Syndication models: PlatformConnection, Post, and PlatformProjection.
+Syndication models: PlatformConnection, Post, PlatformProjection,
+AgentCredential, and IdentityToken.
 
 These are schema-only models. No behavioral logic beyond what Django provides
 for free (enum constraints, FKs, nullability). Reservation columns
@@ -13,16 +14,27 @@ ADR-016 D2: PlatformProjection carries kind ∈ {listing, promotion},
             ∈ {rule_template, agent_supplied, manual}, plus per-field
             override storage (override_data JSONField), plus ADR-003
             reservation fields generated_by and last_generated_at.
+ADR-016 D3: v0 auth shape — long-lived Bearer API key → short-lived identity
+            token exchange. AgentCredential mirrors MagicLinkToken envelope
+            (organizers/models.py): token stored hashed, single-use flag.
 ADR-016 D4: PlatformConnection is a specific syndication destination owned
             by an organizer. PlatformProjection FKs to PlatformConnection,
             not to a bare platform_id string.
+ADR-017 D1: Agent is the user's delegate — identical authority; actor-marker
+            is audit-only provenance (no authority difference).
 ADR-007 D2: PlatformConnection uses organizer/Profile FK (through-table
             pattern — direct FK here as the join is 1:N, not M2N).
 ADR-008 D2: No speculative abstraction — no base classes, no adapter
             plugins; plain Django models with choices constraints.
 """
 
+import hashlib
+import secrets
+import uuid
+
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -329,3 +341,180 @@ class PlatformProjection(models.Model):
 
     def __str__(self):
         return f"{self.connection} / {self.kind} / {self.status}"
+
+
+# ---------------------------------------------------------------------------
+# Agent credential auth models (ADR-016 D3, kb-a4u.2)
+# ---------------------------------------------------------------------------
+# Mirrors the MagicLinkToken envelope (organizers/models.py):
+#   - token stored as a hash (raw key is returned once on register, then lost)
+#   - single-use for the initial key→identity-token exchange
+#   - expiry on the identity token (~1h, single-use)
+# ---------------------------------------------------------------------------
+
+def _generate_raw_key():
+    """Generate a URL-safe 40-byte random token (320-bit entropy)."""
+    return secrets.token_urlsafe(40)
+
+
+def _hash_key(raw_key: str) -> str:
+    """SHA-256 hash of the raw key for storage. Raw key never stored."""
+    return hashlib.sha256(raw_key.encode()).hexdigest()
+
+
+class AgentCredential(models.Model):
+    """
+    Long-lived Bearer API key for agent → Switch auth (ADR-016 D3).
+
+    The raw key is returned ONCE on agents/register and never stored.
+    key_hash stores SHA-256(raw_key) for subsequent lookup.
+    used_at is stamped on the first (and only) identity-token exchange,
+    making the key single-use for the initial exchange step.
+
+    Credential→User binding: the full pairing flow (browser OAuth hand-off
+    with ProfileClaim verification) lives in C6/kb-a4u.6. Here we bind
+    directly to the authenticated User who hits agents/register.
+
+    ADR-017 D1: Agent is the user's delegate — same authority; actor_marker
+    is audit-only (no authority difference between session and bearer).
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="agent_credentials",
+        help_text="The user whose agent holds this credential.",
+    )
+    key_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="SHA-256 of the raw Bearer API key. Raw key never stored.",
+    )
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Optional hard expiry on the long-lived key. null = no expiry at v0.",
+    )
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Stamped on first identity-token exchange. Non-null = key consumed.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("agent credential")
+        verbose_name_plural = _("agent credentials")
+
+    def __str__(self):
+        return f"AgentCredential({self.user}, used_at={self.used_at})"
+
+    @classmethod
+    def issue(cls, user):
+        """
+        Generate a raw key, store its hash, return (credential, raw_key).
+        Caller is responsible for returning raw_key to the user exactly once.
+        """
+        raw_key = _generate_raw_key()
+        credential = cls.objects.create(
+            user=user,
+            key_hash=_hash_key(raw_key),
+        )
+        return credential, raw_key
+
+    @classmethod
+    def consume(cls, raw_key):
+        """
+        Look up the credential by raw_key hash, validate it is unused and
+        unexpired, stamp used_at, and return (credential, user).
+        Raises AgentCredential.DoesNotExist or ValueError on failure.
+        """
+        key_hash = _hash_key(raw_key)
+        try:
+            cred = cls.objects.select_related("user").get(key_hash=key_hash)
+        except cls.DoesNotExist as exc:
+            raise cls.DoesNotExist("Invalid API key.") from exc
+
+        if cred.used_at is not None:
+            raise ValueError("API key already consumed.")
+
+        if cred.expires_at is not None and cred.expires_at < timezone.now():
+            raise ValueError("API key expired.")
+
+        cred.used_at = timezone.now()
+        cred.save(update_fields=["used_at"])
+        return cred, cred.user
+
+
+class IdentityToken(models.Model):
+    """
+    Short-lived (~1h), single-use identity token issued after API key exchange
+    (ADR-016 D3, leg 2).
+
+    After AgentCredential.consume() succeeds, an IdentityToken is issued.
+    The token is a UUID stored plaintext (low blast-radius: 1h TTL, single-use).
+    The protected endpoints validate this token via IdentityTokenAuth.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="identity_tokens",
+    )
+    token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+    )
+    expires_at = models.DateTimeField(
+        help_text="~1h from issuance.",
+    )
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Stamped on first use. Non-null = token consumed.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("identity token")
+        verbose_name_plural = _("identity tokens")
+
+    def __str__(self):
+        return f"IdentityToken({self.user}, expires={self.expires_at})"
+
+    @classmethod
+    def issue(cls, user, ttl_seconds=3600):
+        """Issue a fresh identity token with TTL (default 1h)."""
+        expires_at = timezone.now() + timezone.timedelta(seconds=ttl_seconds)
+        return cls.objects.create(user=user, expires_at=expires_at)
+
+    @classmethod
+    def consume(cls, raw_token: str):
+        """
+        Validate a UUID identity token: must exist, be unused, and not expired.
+        Stamps used_at and returns (identity_token, user).
+        Raises IdentityToken.DoesNotExist or ValueError on failure.
+        """
+        try:
+            token_uuid = uuid.UUID(raw_token)
+        except (ValueError, AttributeError) as exc:
+            raise ValueError("Malformed identity token.") from exc
+
+        try:
+            it = cls.objects.select_related("user").get(token=token_uuid)
+        except cls.DoesNotExist as exc:
+            raise cls.DoesNotExist("Identity token not found.") from exc
+
+        if it.used_at is not None:
+            raise ValueError("Identity token already consumed.")
+
+        if it.expires_at < timezone.now():
+            raise ValueError("Identity token expired.")
+
+        it.used_at = timezone.now()
+        it.save(update_fields=["used_at"])
+        return it, it.user
