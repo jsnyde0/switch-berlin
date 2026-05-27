@@ -36,16 +36,15 @@ def configured_env(tmp_path, monkeypatch):
 
 
 class TestConfigureCommand:
-    """switch-cli configure stores base_url + api_key without printing key."""
+    """switch-cli configure stores base_url only (no raw --api-key paste path)."""
 
     def test_configure_exits_zero(self, runner, tmp_path, monkeypatch):
-        """configure command exits with code 0."""
+        """configure --base-url exits with code 0."""
         config_path = tmp_path / "config.toml"
         monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
         result = runner.invoke(cli, [
             "configure",
             "--base-url", "http://localhost:8000",
-            "--api-key", "my-secret-key",
         ])
         assert result.exit_code == 0, result.output
 
@@ -56,22 +55,10 @@ class TestConfigureCommand:
         result = runner.invoke(cli, [
             "configure",
             "--base-url", "http://localhost:8000",
-            "--api-key", "my-secret-key",
         ])
         data = json.loads(result.output)
         assert data["configured"] is True
         assert data["base_url"] == "http://localhost:8000"
-
-    def test_configure_does_not_print_api_key(self, runner, tmp_path, monkeypatch):
-        """configure output must NOT contain the api_key value."""
-        config_path = tmp_path / "config.toml"
-        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
-        result = runner.invoke(cli, [
-            "configure",
-            "--base-url", "http://localhost:8000",
-            "--api-key", "super-secret-key-123",
-        ])
-        assert "super-secret-key-123" not in result.output
 
     def test_configure_creates_config_file(self, runner, tmp_path, monkeypatch):
         """configure creates the config file on disk."""
@@ -81,9 +68,165 @@ class TestConfigureCommand:
         runner.invoke(cli, [
             "configure",
             "--base-url", "http://localhost:8000",
-            "--api-key", "key",
         ])
         assert config_path.exists()
+
+    def test_configure_does_not_accept_api_key_option(self, runner, tmp_path, monkeypatch):
+        """
+        configure must NOT accept --api-key (raw-key paste path removed per ADR-016 D3).
+        The long-lived key is obtained only via `pair <pairing-token>`.
+        """
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        result = runner.invoke(cli, [
+            "configure",
+            "--base-url", "http://localhost:8000",
+            "--api-key", "should-be-rejected",
+        ])
+        # Click exits with code 2 for unrecognised options
+        assert result.exit_code == 2
+
+
+class TestPairCommand:
+    """switch-cli pair <pairing-token> redeems the token and stores the api_key."""
+
+    def _mock_redeem_response(self, api_key="returned-bearer-key"):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"api_key": api_key}
+        return mock_resp
+
+    def test_pair_exits_zero(self, runner, tmp_path, monkeypatch):
+        """pair command exits with code 0 on a successful redeem."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        redeem_resp = self._mock_redeem_response()
+        with patch("httpx.post", return_value=redeem_resp):
+            result = runner.invoke(cli, [
+                "pair",
+                "my-pairing-token",
+                "--base-url", "http://localhost:8000",
+            ])
+        assert result.exit_code == 0, result.output
+
+    def test_pair_posts_to_agents_redeem(self, runner, tmp_path, monkeypatch):
+        """pair POSTs to /api/agents/redeem with pairing_token in the body."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        redeem_resp = self._mock_redeem_response()
+        with patch("httpx.post", return_value=redeem_resp) as mock_post:
+            runner.invoke(cli, [
+                "pair",
+                "test-token-123",
+                "--base-url", "http://localhost:8000",
+            ])
+        call = mock_post.call_args
+        assert "/api/agents/redeem" in call[0][0]
+        assert call.kwargs.get("json", {}).get("pairing_token") == "test-token-123"
+
+    def test_pair_stores_api_key_in_config(self, runner, tmp_path, monkeypatch):
+        """pair stores the returned api_key in the config file."""
+        from switch_cli.config import load_config
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        redeem_resp = self._mock_redeem_response(api_key="stored-bearer-key")
+        with patch("httpx.post", return_value=redeem_resp):
+            runner.invoke(cli, [
+                "pair",
+                "test-token-456",
+                "--base-url", "http://localhost:8000",
+            ])
+        cfg = load_config()
+        assert cfg["api_key"] == "stored-bearer-key"
+        assert cfg["base_url"] == "http://localhost:8000"
+
+    def test_pair_does_not_print_api_key(self, runner, tmp_path, monkeypatch):
+        """pair output must NOT contain the Bearer key value."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        redeem_resp = self._mock_redeem_response(api_key="super-secret-bearer-key")
+        with patch("httpx.post", return_value=redeem_resp):
+            result = runner.invoke(cli, [
+                "pair",
+                "token-789",
+                "--base-url", "http://localhost:8000",
+            ])
+        assert "super-secret-bearer-key" not in result.output
+
+    def test_pair_does_not_print_pairing_token(self, runner, tmp_path, monkeypatch):
+        """pair output must NOT echo the pairing token back."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        redeem_resp = self._mock_redeem_response()
+        with patch("httpx.post", return_value=redeem_resp):
+            result = runner.invoke(cli, [
+                "pair",
+                "pairing-token-do-not-echo",
+                "--base-url", "http://localhost:8000",
+            ])
+        assert "pairing-token-do-not-echo" not in result.output
+
+    def test_pair_outputs_success_json(self, runner, tmp_path, monkeypatch):
+        """pair outputs JSON success metadata (not the key)."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        redeem_resp = self._mock_redeem_response()
+        with patch("httpx.post", return_value=redeem_resp):
+            result = runner.invoke(cli, [
+                "pair",
+                "tok",
+                "--base-url", "http://localhost:8000",
+            ])
+        data = json.loads(result.output)
+        assert data.get("paired") is True
+
+    def test_pair_reads_base_url_from_config(self, runner, tmp_path, monkeypatch):
+        """pair uses base_url from existing config when --base-url is not given."""
+        from switch_cli.config import save_config
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        # Write a partial config with only base_url
+        save_config(base_url="http://from-config.test", api_key="placeholder")
+        redeem_resp = self._mock_redeem_response(api_key="new-bearer-key")
+        with patch("httpx.post", return_value=redeem_resp) as mock_post:
+            result = runner.invoke(cli, [
+                "pair",
+                "tok-from-config",
+            ])
+        assert result.exit_code == 0, result.output
+        call = mock_post.call_args
+        assert "http://from-config.test" in call[0][0]
+
+    def test_pair_invalid_token_exits_nonzero(self, runner, tmp_path, monkeypatch):
+        """pair exits non-zero when the server rejects the pairing token (401)."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        error_resp = MagicMock(spec=httpx.Response)
+        error_resp.status_code = 401
+        error_resp.json.return_value = {"detail": "Invalid pairing token."}
+        error_resp.text = "Invalid pairing token."
+        with patch("httpx.post", return_value=error_resp):
+            result = runner.invoke(cli, [
+                "pair",
+                "bad-token",
+                "--base-url", "http://localhost:8000",
+            ])
+        assert result.exit_code != 0
+
+    def test_pair_no_auth_header_on_redeem_call(self, runner, tmp_path, monkeypatch):
+        """pair sends no Authorization header on the redeem call (unauthenticated)."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        redeem_resp = self._mock_redeem_response()
+        with patch("httpx.post", return_value=redeem_resp) as mock_post:
+            runner.invoke(cli, [
+                "pair",
+                "tok",
+                "--base-url", "http://localhost:8000",
+            ])
+        call = mock_post.call_args
+        headers = call.kwargs.get("headers", {}) or {}
+        assert "Authorization" not in headers
 
 
 class TestCreateEventCommand:

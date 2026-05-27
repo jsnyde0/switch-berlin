@@ -15,7 +15,7 @@ Security: the raw api_key is never logged or printed.
 
 import httpx
 
-from switch_cli.config import load_config
+from switch_cli.config import load_config, load_base_url
 
 
 class AuthError(Exception):
@@ -162,3 +162,33 @@ class SwitchClient:
             headers=self._headers(),
         )
         return self._check(response)
+
+
+def redeem_pairing_token(pairing_token: str, base_url: str = None) -> str:
+    """
+    Bootstrap step (ADR-016 D3): POST /api/agents/redeem with the pairing token.
+    Returns the long-lived Bearer api_key string.
+
+    This is NOT a SwitchClient method because it is the bootstrap step — it runs
+    BEFORE the Bearer key exists. It takes the pairing token as its sole credential
+    and sends NO Authorization header (the endpoint is unauthenticated).
+
+    Raises AuthError on 401 (invalid/unknown pairing token).
+    Raises APIError on other non-200 responses.
+
+    Security: the returned api_key is NOT printed or logged by this function.
+    """
+    if base_url is None:
+        base_url = load_base_url()
+    base_url = base_url.rstrip("/")
+    url = f"{base_url}/api/agents/redeem"
+    response = httpx.post(url, json={"pairing_token": pairing_token})
+    if response.status_code == 401:
+        raise AuthError("Invalid or unknown pairing token.")
+    if response.status_code != 200:
+        try:
+            detail = response.json().get("detail", response.text)
+        except Exception:
+            detail = response.text
+        raise APIError(response.status_code, detail)
+    return response.json()["api_key"]

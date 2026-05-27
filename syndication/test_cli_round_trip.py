@@ -1,7 +1,8 @@
 """
-Round-trip test: CLI create-event → event reachable via ORM + API GET + web hub.
+Round-trip test: CLI pairing flow → create-event → event reachable via ORM + API GET + web hub.
 
 Acceptance for kb-a4u.7:
+- switch-cli pair <pairing-token> redeems the token and stores the Bearer key.
 - switch-cli create-event ... creates an Event via the real HTTP API.
 - That same Event is verifiable via:
   (1) direct ORM query (Event.objects.get)
@@ -11,12 +12,12 @@ Acceptance for kb-a4u.7:
 The test uses Django's StaticLiveServerTestCase so the CLI subprocess (or its
 HTTP client function) hits a real HTTP server backed by the real test DB.
 
-Auth chain exercised end-to-end per ADR-016 D3:
-  1. Register AgentCredential (via DB setup — the CLI's configure step stores
-     the raw key; here we inject it programmatically to avoid a real browser flow)
-  2. CLI exchanges Bearer key for identity token (POST /api/agents/token)
-  3. CLI posts to /api/events/ with identity token
-  4. Test verifies the event in three ways (ORM, API, web)
+Auth chain exercised end-to-end per ADR-016 D3 v0 pairing mechanic:
+  1. Facilitator hits agents/register → pairing token (minted here via API directly).
+  2. CLI `pair <pairing-token>` → POSTs to /api/agents/redeem → receives + stores Bearer key.
+  3. CLI `create-event` exchanges Bearer key for identity token (POST /api/agents/token).
+  4. CLI posts to /api/events/ with identity token.
+  5. Test verifies the event in three ways (ORM, API, web).
 
 NOTE: kb-a4u.9 (co-equal handler introspection) is OUT OF SCOPE here.
 This test only proves "CLI-created event is reachable via web + API".
@@ -34,7 +35,6 @@ from django.test import LiveServerTestCase
 
 from events.models import Event
 from organizers.models import Profile, ProfileClaim
-from syndication.models import AgentCredential
 
 User = get_user_model()
 
@@ -61,6 +61,9 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
     """
     CLI create-event round-trip: event created via CLI is reachable via
     ORM, API GET, and web event-hub view.
+
+    Uses the v0 pairing mechanic (ADR-016 D3): `pair <token>` redeems the
+    one-time pairing token for the long-lived Bearer key — no raw key paste.
     """
 
     def setUp(self):
@@ -70,10 +73,6 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
             password="testpass123",
         )
         self.profile = _make_profile(self.user)
-
-        # Register an AgentCredential programmatically (simulating the
-        # agents/register step — the CLI's `configure` verb stores the key).
-        self.credential, self.raw_api_key = AgentCredential.issue(self.user)
 
     def _invoke_cli(self, *args, config_file=None):
         """
@@ -87,7 +86,6 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         if config_file:
             env_overrides["SWITCH_CLI_CONFIG"] = str(config_file)
 
-        import os
         env = os.environ.copy()
         env.update(env_overrides)
 
@@ -105,15 +103,27 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         )
         return result.returncode, result.stdout, result.stderr
 
-    def _get_identity_token(self):
+    def _mint_pairing_token(self):
         """
-        Exchange the raw API key for an identity token via the live server.
+        Mint a pairing token via the agents/register endpoint (simulates the
+        facilitator's browser action). Returns the raw pairing_token string.
+        """
+        from django.test import Client as DjangoClient
+        client = DjangoClient()
+        client.force_login(self.user)
+        response = client.post("/api/agents/register")
+        self.assertEqual(response.status_code, 200, f"register failed: {response.content}")
+        return response.json()["pairing_token"]
+
+    def _get_identity_token_from_key(self, raw_api_key: str):
+        """
+        Exchange a raw Bearer API key for an identity token via the live server.
         This exercises leg 2 of the auth chain (ADR-016 D3).
         """
         import httpx
         response = httpx.post(
             f"{self.live_server_url}/api/agents/token",
-            json={"api_key": self.raw_api_key},
+            json={"api_key": raw_api_key},
         )
         self.assertEqual(
             response.status_code, 200,
@@ -121,34 +131,52 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         )
         return response.json()["identity_token"]
 
-    def test_cli_create_event_round_trip(self):
+    def test_cli_pair_then_create_event_round_trip(self):
         """
-        Core acceptance: CLI create-event → event reachable via ORM + API + web.
-
-        Steps:
-        1. Write a temp config file with base_url + api_key.
-        2. Run: switch-cli create-event <fields>
-        3. Parse the JSON stdout for the created event ID.
-        4. Assert ORM: Event.objects.get(pk=event_id) succeeds.
-        5. Assert API GET: /api/events/{event_id}/ returns the event.
-        6. Assert web: /syndication/events/{event_id}/ returns 200 with title.
+        Core acceptance (ADR-016 D3 pairing mechanic):
+        1. Mint pairing token via agents/register (simulating facilitator browser step).
+        2. Run: switch-cli configure --base-url <url>
+        3. Run: switch-cli pair <pairing-token>  → stores Bearer key in config.
+        4. Run: switch-cli create-event <fields> → uses stored Bearer key.
+        5. Assert ORM: Event.objects.get(pk=event_id) succeeds.
+        6. Assert API GET: /api/events/{event_id}/ returns the event.
+        7. Assert web: /syndication/events/{event_id}/ returns 200 with title.
         """
         with tempfile.NamedTemporaryFile(
             suffix=".toml", mode="w", delete=False
         ) as f:
             config_path = f.name
-            # Write TOML manually (tomli_w is in switch-cli venv, not main project venv)
-            f.write(f'base_url = "{self.live_server_url}"\n')
-            f.write(f'api_key = "{self.raw_api_key}"\n')
+            # Start with an empty file — configure and pair will populate it
 
-        # Ensure temp config is removed after this test regardless of outcome
         self.addCleanup(lambda: os.unlink(config_path) if os.path.exists(config_path) else None)
 
+        # Step 1: Mint a real pairing token via the live server's API
+        pairing_token = self._mint_pairing_token()
+
+        # Step 2: configure (stores base_url only — no api_key paste)
+        rc, out, err = self._invoke_cli(
+            "configure",
+            "--base-url", self.live_server_url,
+            config_file=config_path,
+        )
+        self.assertEqual(rc, 0, f"configure failed.\nstdout: {out}\nstderr: {err}")
+
+        # Step 3: pair (redeems pairing token → stores Bearer key in config)
+        rc, out, err = self._invoke_cli(
+            "pair",
+            pairing_token,
+            config_file=config_path,
+        )
+        self.assertEqual(rc, 0, f"pair failed.\nstdout: {out}\nstderr: {err}")
+        pair_data = json.loads(out)
+        self.assertTrue(pair_data.get("paired"), f"pair did not return paired=true: {pair_data}")
+
+        # Step 4: create-event (uses the stored Bearer key)
         start_dt = "2027-06-15T19:00:00"
         event_title = "CLI Round-Trip Test Event"
         event_slug = "cli-round-trip-test"
 
-        returncode, stdout, stderr = self._invoke_cli(
+        rc, stdout, stderr = self._invoke_cli(
             "create-event",
             "--title", event_title,
             "--slug", event_slug,
@@ -158,7 +186,7 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         )
 
         self.assertEqual(
-            returncode, 0,
+            rc, 0,
             f"CLI exited non-zero.\nstdout: {stdout}\nstderr: {stderr}"
         )
 
@@ -180,8 +208,12 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         self.assertEqual(event.title, event_title)
         self.assertEqual(event.slug, event_slug)
 
-        # --- Assertion 2: API GET ---
-        identity_token = self._get_identity_token()
+        # --- Assertion 2: API GET (read back the api_key from config to get identity token) ---
+        import tomllib
+        with open(config_path, "rb") as fh:
+            stored_cfg = tomllib.load(fh)
+        identity_token = self._get_identity_token_from_key(stored_cfg["api_key"])
+
         import httpx
         api_response = httpx.get(
             f"{self.live_server_url}/api/events/{event_id}/",

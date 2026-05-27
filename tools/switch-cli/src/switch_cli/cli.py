@@ -5,12 +5,16 @@ Agent-shaped tool (ADR-011 D1 agent-extended scope): external personal agents
 and power-users drive Switch by shelling out to this CLI. All output is
 machine-parseable JSON to stdout.
 
-Auth chain (ADR-016 D3):
-1. configure  — store base_url + Bearer API key to config file
-2. All other commands — exchange stored Bearer key for identity token, then call API
+Auth chain (ADR-016 D3 v0 pairing mechanic):
+1. configure --base-url <url>  — store the non-secret API base URL.
+2. pair <pairing-token>        — redeem one-time token for the long-lived Bearer key;
+                                  stores api_key in config. The Bearer key NEVER
+                                  transits the facilitator's clipboard.
+3. All other commands          — exchange stored Bearer key for identity token, then call API.
 
 Verbs:
-- configure           Store API base URL + Bearer key (never prints the key back)
+- configure           Store API base URL (no raw key paste — key is obtained via pair)
+- pair                Redeem one-time pairing token → store Bearer key in config
 - create-event        Create a canonical Event
 - create-post         Create a Post (references an Event)
 - approve-projection  Transition a projection draft→ready
@@ -24,8 +28,8 @@ import sys
 
 import click
 
-from switch_cli.client import APIError, AuthError, SwitchClient
-from switch_cli.config import ConfigError, save_config
+from switch_cli.client import APIError, AuthError, SwitchClient, redeem_pairing_token
+from switch_cli.config import ConfigError, load_base_url, save_base_url, save_config
 
 
 def _output(data) -> None:
@@ -51,16 +55,61 @@ def cli():
 
 @cli.command("configure")
 @click.option("--base-url", required=True, help="Switch API base URL (e.g. https://switch.example.com)")
-@click.option("--api-key", required=True, help="Bearer API key from agents/register")
-def configure(base_url: str, api_key: str):
+def configure(base_url: str):
     """
-    Store API base URL + Bearer key in the config file.
+    Store the API base URL in the config file (non-secret setup step).
 
-    The key is stored but never printed back. Run agents/register via the
-    web UI or `curl` to obtain the key, then configure here once.
+    After configuring, run `switch-cli pair <pairing-token>` to obtain and
+    store the Bearer API key via the pairing-token redemption flow.
+
+    ADR-016 D3: the Bearer key is obtained by redemption, never pasted directly.
     """
+    save_base_url(base_url=base_url)
+    _output({"configured": True, "base_url": base_url.rstrip("/")})
+
+
+# ---------------------------------------------------------------------------
+# pair
+# ---------------------------------------------------------------------------
+
+
+@cli.command("pair")
+@click.argument("pairing_token")
+@click.option(
+    "--base-url",
+    default=None,
+    help="Switch API base URL (falls back to configured base_url if omitted)",
+)
+def pair(pairing_token: str, base_url: str):
+    """
+    Redeem a one-time pairing token to obtain and store the Bearer API key.
+
+    The facilitator mints a pairing token at /syndication/agents/pair/ and
+    hands it to their agent. The agent calls this verb — which POSTs to
+    /api/agents/redeem — to receive the long-lived Bearer key. The key is
+    stored in the config file and never printed.
+
+    ADR-016 D3: the Bearer key NEVER transits the facilitator's clipboard.
+    """
+    # Resolve base_url: flag > config file > error
+    if base_url is None:
+        try:
+            base_url = load_base_url()
+        except (FileNotFoundError, ConfigError) as exc:
+            _error(
+                f"No --base-url given and none in config: {exc}. "
+                "Run `switch-cli configure --base-url <url>` first."
+            )
+    try:
+        api_key = redeem_pairing_token(pairing_token=pairing_token, base_url=base_url)
+    except AuthError as exc:
+        _error(str(exc))
+    except APIError as exc:
+        _error(f"Redemption failed {exc.status_code}: {exc.detail}")
+    # Store base_url + api_key atomically
     save_config(base_url=base_url, api_key=api_key)
-    _output({"configured": True, "base_url": base_url})
+    # Print only success metadata — never the key or the pairing token
+    _output({"paired": True, "base_url": base_url.rstrip("/")})
 
 
 # ---------------------------------------------------------------------------
