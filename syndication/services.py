@@ -291,6 +291,7 @@ _EVENT_FIELDS = {
     "registration_url",
     "registration_email",
     "status",
+    "category",
 }
 
 
@@ -384,6 +385,46 @@ def update_event(user, event, **kwargs):
         event.tags.set(tags)
 
     return event
+
+
+# ---------------------------------------------------------------------------
+# Cover image authoring (kb-a4u.19, ADR-016 D1)
+# ---------------------------------------------------------------------------
+
+
+def set_event_cover(user, event, uploaded_file):
+    """
+    Set the cover image for an Event (creates or replaces the single is_cover=True row).
+
+    can_edit-gated (ADR-017 D2): raises PermissionError if user cannot edit the event.
+    Single-cover invariant: replaces any prior cover so there is never more than one
+    is_cover=True EventImage for the event.
+    Validation: calls full_clean() on the EventImage so validators (validate_image_size,
+    FileExtensionValidator) run — fails loud on oversize / wrong extension (ADR-008 D3).
+    """
+    from syndication.authz import can_edit
+    from events.models import EventImage
+
+    if not can_edit(user, event):
+        raise PermissionError(
+            f"User {user} cannot set cover image for event '{event}' (ADR-017 D2)."
+        )
+
+    from django.db import transaction
+
+    # Build new EventImage (do not save yet — full_clean first)
+    img = EventImage(event=event, image=uploaded_file, is_cover=True, order=0)
+    img.full_clean()  # Runs validate_image_size + FileExtensionValidator; raises ValidationError on failure
+
+    # Wrap delete + save atomically so a save failure rolls back the delete
+    # (prevents the event being left with zero cover rows if img.save() fails).
+    # full_clean() is intentionally BEFORE the atomic block — validation should
+    # fail before we touch existing rows.
+    with transaction.atomic():
+        # Replace any prior cover(s) to maintain single-cover invariant
+        EventImage.objects.filter(event=event, is_cover=True).delete()
+        img.save()
+    return img
 
 
 # ---------------------------------------------------------------------------

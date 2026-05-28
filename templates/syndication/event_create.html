@@ -11,7 +11,7 @@
   </a>
   <h1 class="kb-display text-[40px] font-light leading-tight mb-8">{% trans "New Event" %}</h1>
 
-  <form method="post" action="" @submit="submitting = true">
+  <form method="post" action="" enctype="multipart/form-data" @submit="submitting = true">
     {% csrf_token %}
 
     {% if form.non_field_errors %}

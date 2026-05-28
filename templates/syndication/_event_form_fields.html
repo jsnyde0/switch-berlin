@@ -40,6 +40,24 @@
   </div>
 </fieldset>
 
+{# Category + Cover image #}
+<fieldset class="mb-8 flex flex-col gap-4">
+  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Category & Cover" %}</legend>
+
+  <div class="flex flex-col gap-1">
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+    {{ form.category }}
+    {% if form.category.errors %}<p class="text-red-400 text-xs mt-1">{{ form.category.errors|join:", " }}</p>{% endif %}
+  </div>
+
+  <div class="flex flex-col gap-1">
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.cover_image.id_for_label }}">{{ form.cover_image.label }}</label>
+    <span class="text-base-content/40 text-xs">{{ form.cover_image.help_text }}</span>
+    {{ form.cover_image }}
+    {% if form.cover_image.errors %}<p class="text-red-400 text-xs mt-1">{{ form.cover_image.errors|join:", " }}</p>{% endif %}
+  </div>
+</fieldset>
+
 {# Location + Tags #}
 <fieldset class="mb-8 flex flex-col gap-4">
   <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Location & Tags" %}</legend>

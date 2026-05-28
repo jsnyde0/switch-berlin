@@ -21,6 +21,7 @@ dispatcher — each fragment is a named, explicit URL).
 import json
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -32,6 +33,7 @@ from syndication.services import (
     create_event,
     create_post,
     update_event,
+    set_event_cover,
     _get_primary_profile_for_user,
     approve_projection,
     publish_projection,
@@ -55,14 +57,21 @@ def event_create(request):
     POST: call create_event service (co-equal with API), redirect to hub on success.
     """
     if request.method == "POST":
-        form = EventForm(request.POST)
+        form = EventForm(request.POST, request.FILES)
         if form.is_valid():
             cd = form.cleaned_data
+            cover_file = cd.pop("cover_image", None)
             try:
                 event = create_event(user=request.user, **cd)
             except ValueError as exc:
                 form.add_error(None, str(exc))
             else:
+                if cover_file:
+                    try:
+                        set_event_cover(request.user, event, cover_file)
+                    except ValidationError as exc:
+                        form.add_error("cover_image", "; ".join(exc.messages))
+                        return render(request, "syndication/event_create.html", {"form": form})
                 return redirect("syndication:event-hub", pk=event.pk)
     else:
         form = EventForm()
@@ -103,14 +112,24 @@ def event_hub_edit(request, pk):
         return render(request, "syndication/403.html", {"event": event}, status=403)
 
     if request.method == "POST":
-        form = EventForm(request.POST, initial={
+        form = EventForm(request.POST, request.FILES, initial={
             "title": event.title,
             "slug": event.slug,
             "start": event.start,
         })
         if form.is_valid():
             cd = form.cleaned_data
+            cover_file = cd.pop("cover_image", None)
             update_event(user=request.user, event=event, **cd)
+            if cover_file:
+                try:
+                    set_event_cover(request.user, event, cover_file)
+                except ValidationError as exc:
+                    form.add_error("cover_image", "; ".join(exc.messages))
+                    return render(request, "syndication/event_edit.html", {
+                        "form": form,
+                        "event": event,
+                    })
             return redirect("syndication:event-hub", pk=event.pk)
     else:
         # Include ALL editable fields so edit-load round-trips stored values.
@@ -146,6 +165,7 @@ def event_hub_edit(request, pk):
             "registration_required": event.registration_required,
             "registration_url": event.registration_url,
             "registration_email": event.registration_email,
+            "category": event.category,
         })
 
     return render(request, "syndication/event_edit.html", {

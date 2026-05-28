@@ -233,6 +233,24 @@ class Event(models.Model):
 
     # --- Syndication extensions (kb-a4u.1, ADR-016 D1) ---
 
+    # Event category (ADR-016 D1; v0 vocabulary — single CharField, no FK taxonomy).
+    # blank=True per ADR-016 D5: save-always, completeness enforced at draft→ready.
+    CATEGORY_CHOICES = [
+        ("play_party", "Play Party"),
+        ("workshop", "Workshop"),
+        ("munch", "Munch"),
+        ("performance", "Performance"),
+        ("social", "Social"),
+        ("festival", "Festival"),
+        ("other", "Other"),
+    ]
+    category = models.CharField(
+        max_length=50,
+        choices=CATEGORY_CHOICES,
+        blank=True,
+        help_text="Event category (v0 vocabulary).",
+    )
+
     # Content policy fields (listing-platform structured data)
     dress_code = models.CharField(
         max_length=300,

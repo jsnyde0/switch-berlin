@@ -37,7 +37,8 @@ from datetime import datetime
 from typing import List, Optional
 
 from django.http import HttpResponse
-from ninja import NinjaAPI, Schema, Status
+from ninja import File, NinjaAPI, Schema, Status
+from ninja.files import UploadedFile
 from ninja.security import HttpBearer
 from ninja.security import SessionAuth as NinjaSessionAuth
 
@@ -50,6 +51,7 @@ from syndication.services import (
     exchange_api_key_for_identity_token,
     redeem_pairing_token,
     register_agent_credential,
+    set_event_cover,
     update_event,
     update_post,
     approve_projection,
@@ -170,6 +172,29 @@ def handle_permission_error(request, exc):
         request,
         {"detail": "Permission denied."},
         status=403,
+    )
+
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+
+@api.exception_handler(DjangoValidationError)
+def handle_django_validation_error(request, exc):
+    """
+    Map Django's ValidationError → HTTP 422 JSON response.
+
+    Used by the cover upload endpoint (set_event_cover calls full_clean() which
+    raises django.core.exceptions.ValidationError on invalid image size or extension).
+    ADR-008 D3: fail loud with the correct status code.
+
+    Registered on DjangoValidationError specifically (not Exception) so Ninja's
+    default Exception handler remains intact for genuinely unexpected exceptions.
+    """
+    logger.info("Validation error on upload: %s", exc)
+    return api.create_response(
+        request,
+        {"detail": exc.messages if hasattr(exc, "messages") else str(exc)},
+        status=422,
     )
 
 
@@ -406,6 +431,7 @@ class EventCreateIn(Schema):
     registration_required: bool = False
     registration_url: str = ""
     registration_email: str = ""
+    category: str = ""
 
 
 class EventUpdateIn(Schema):
@@ -438,6 +464,7 @@ class EventUpdateIn(Schema):
     registration_required: Optional[bool] = None
     registration_url: Optional[str] = None
     registration_email: Optional[str] = None
+    category: Optional[str] = None
 
 
 class EventOut(Schema):
@@ -471,6 +498,7 @@ class EventOut(Schema):
     registration_required: bool
     registration_url: str
     registration_email: str
+    category: str
 
 
 # --- Post schemas ---
@@ -570,6 +598,7 @@ def events_list(request):
             "registration_required": e.registration_required,
             "registration_url": e.registration_url,
             "registration_email": e.registration_email,
+            "category": e.category,
         }
         for e in events
     ]
@@ -616,6 +645,7 @@ def events_create(request, body: EventCreateIn):
         "registration_required": event.registration_required,
         "registration_url": event.registration_url,
         "registration_email": event.registration_email,
+        "category": event.category,
     }
     return _actor_marker_response(request, data, status=201)
 
@@ -661,6 +691,7 @@ def events_detail(request, event_id: int):
         "registration_required": event.registration_required,
         "registration_url": event.registration_url,
         "registration_email": event.registration_email,
+        "category": event.category,
     }
     return _actor_marker_response(request, data)
 
@@ -707,8 +738,44 @@ def events_update(request, event_id: int, body: EventUpdateIn):
         "registration_required": event.registration_required,
         "registration_url": event.registration_url,
         "registration_email": event.registration_email,
+        "category": event.category,
     }
     return _actor_marker_response(request, data)
+
+
+# ---------------------------------------------------------------------------
+# Cover image upload endpoint (kb-a4u.19, ADR-016 D1)
+# ---------------------------------------------------------------------------
+
+
+class CoverUploadOut(Schema):
+    id: int
+    event_id: int
+    is_cover: bool
+
+
+@api.post(
+    "/events/{event_id}/cover",
+    auth=_RESOURCE_AUTH,
+    response={200: CoverUploadOut},
+    summary="Upload cover image for an Event",
+)
+def events_cover_upload(request, event_id: int, file: UploadedFile = File(...)):
+    """
+    Upload (or replace) the cover image for an Event.
+
+    Accepts multipart/form-data with a single 'file' field.
+    can_edit-gated (ADR-017 D2) — PermissionError → existing @api.exception_handler → 403.
+    Validation: validate_image_size + FileExtensionValidator run via full_clean();
+    ValidationError is mapped to 422 by the existing Django-Ninja exception handler.
+    OUT OF SCOPE at v0: projection/adapter rendering of the cover image.
+    """
+    from django.shortcuts import get_object_or_404
+    from events.models import Event
+
+    event = get_object_or_404(Event, pk=event_id)
+    img = set_event_cover(request.auth, event, file)
+    return Status(200, {"id": img.pk, "event_id": event.pk, "is_cover": img.is_cover})
 
 
 # ---------------------------------------------------------------------------

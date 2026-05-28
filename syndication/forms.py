@@ -38,9 +38,6 @@ class EventForm(forms.Form):
     registration_required, registration_url, registration_email.
 
     Note: timezone is not authored per-event at v0 (TIME_ZONE=Europe/Berlin).
-    Note: category is not a field on the Event model at v0.
-    Note: cover_image authoring requires file-upload infrastructure not yet built;
-          scoped to a separate bead (see EventImage model).
     """
 
     title = forms.CharField(
@@ -211,6 +208,29 @@ class EventForm(forms.Form):
         required=False,
         label=_("Registration email"),
         help_text=_("Email address for registrations instead of a ticket link."),
+    )
+
+    # --- D1 fields completed in kb-a4u.19 ---
+
+    CATEGORY_CHOICES = [
+        ("", _("— not specified —")),
+        ("play_party", _("Play Party")),
+        ("workshop", _("Workshop")),
+        ("munch", _("Munch")),
+        ("performance", _("Performance")),
+        ("social", _("Social")),
+        ("festival", _("Festival")),
+        ("other", _("Other")),
+    ]
+    category = forms.ChoiceField(
+        choices=CATEGORY_CHOICES,
+        required=False,
+        label=_("Category"),
+    )
+    cover_image = forms.ImageField(
+        required=False,
+        label=_("Cover image"),
+        help_text=_("JPG, PNG, or WebP. Max 5 MiB."),
     )
 
     def clean_content_warnings(self):
