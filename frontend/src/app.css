@@ -667,3 +667,11 @@ html {
 }
 
 } /* end @layer components */
+
+/* Open card: drop the article's bottom border so the expansion region reads as a
+   continuation of the same surface. UNLAYERED on purpose — must beat the
+   border-white/15 utility (in Tailwind's `utilities` layer), which would win over
+   any @layer components rule regardless of selector specificity. */
+.kb-card-open > [role="button"] article.kb-card {
+  border-bottom-color: transparent;
+}
