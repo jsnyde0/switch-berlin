@@ -10,6 +10,13 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Alpine.js x-cloak: hide elements until Alpine initialises so they don't
+   flash visible before the x-show/x-if bindings are evaluated. Alpine
+   removes this attribute once it has hydrated the element. */
+[x-cloak] {
+  display: none !important;
+}
+
 /* Shared styles for both the Django-rendered pages and the React island. */
 @source "../../templates/**/*.html";
 @source "../../**/templates/**/*.html";

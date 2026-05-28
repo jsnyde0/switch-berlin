@@ -159,6 +159,8 @@ def event_list(request):
         filter_params["organizer"] = organizer_param
     if price_param:
         filter_params["price"] = price_param
+    if filter_param:
+        filter_params["filter"] = filter_param
     filter_query_string = urllib.parse.urlencode(filter_params)
     # Pagination links must preserve the active sort; chip links must not,
     # so they can switch sort without duplicating the param.
@@ -220,28 +222,6 @@ def event_list(request):
     # Convert to list for template use (Django templates can't use 'in' with frozenset)
     going_venue_id_list = list(going_venue_ids)
 
-    # "From organizers you follow" section — authenticated users only, capped at 5
-    if request.user.is_authenticated:
-        followed_org_ids = Follow.objects.filter(user=request.user).values_list(
-            "profile_id", flat=True
-        )
-        following_events = (
-            Event.objects.filter(
-                event_organizer_set__profile_id__in=followed_org_ids,
-                event_organizer_set__is_primary=True,
-                status="published",
-                hidden=False,
-                start__gte=now,
-                event_organizer_set__profile__status="approved",
-                event_organizer_set__profile__hidden=False,
-            )
-            .prefetch_related("event_organizer_set__profile")
-            .order_by("start")
-            .distinct()[:5]
-        )
-    else:
-        following_events = []
-
     context = {
         "page_obj": page_obj,
         "all_tags": all_tags,
@@ -259,7 +239,6 @@ def event_list(request):
         "EVENT_RATING_THRESHOLD": get_numeric(
             "threshold.event_ratings_display", default=3
         ),
-        "following_events": following_events,
         "filter_param": filter_param,
         "sort": sort,
         "trending_enabled": trending_enabled,
