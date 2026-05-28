@@ -127,10 +127,30 @@ def _compose_listing_body(event, platform: str) -> str:
     """
     Deterministically compose a listing projection body from canonical Event fields.
 
+    Includes: title, start datetime, end datetime (if present), venue name (if present),
+    description, dress_code, age_restriction, tickets_url.
+
+    The date/location fields were a carried-forward gap — now included so all
+    listing adapters (Switch own-page, FetLife, etc.) get complete listings.
+
     The composed text passes through clean_for_platform (identity at v0).
     ADR-008 D2: no platform-specific branching here; cleaning seam handles that.
+    ADR-008 D3: fail loud — if required fields are absent the caller should
+    surface an error, not zero-fill.
     """
     parts = [event.title]
+
+    # Date/time block (carried-forward gap fix — benefits all listing adapters)
+    if event.start:
+        if event.end:
+            parts.append(f"Date: {event.start.strftime('%Y-%m-%d %H:%M')} – {event.end.strftime('%Y-%m-%d %H:%M')}")
+        else:
+            parts.append(f"Date: {event.start.strftime('%Y-%m-%d %H:%M')}")
+
+    # Location block (venue FK, optional)
+    if event.venue:
+        parts.append(f"Location: {event.venue.name}")
+
     if event.description:
         parts.append(event.description)
     if event.dress_code:
@@ -312,6 +332,10 @@ def _materialize_listing_fields(projection: PlatformProjection) -> dict:
     else:
         body = _compose_listing_body(event, platform)
 
+    # Structured venue key — so a publish carrier can read location without
+    # parsing the body string.  None when the event has no venue FK.
+    venue_name = event.venue.name if event.venue else None
+
     return {
         "body": body,
         "title": override.get("title", event.title),
@@ -323,6 +347,7 @@ def _materialize_listing_fields(projection: PlatformProjection) -> dict:
         "capacity": override.get("capacity", event.capacity),
         "content_warnings": override.get("content_warnings", event.content_warnings),
         "tickets_url": override.get("tickets_url", event.tickets_url),
+        "venue": override.get("venue", venue_name),
     }
 
 

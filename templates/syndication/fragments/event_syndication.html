@@ -152,6 +152,23 @@
           </button>
         </form>
 
+        {# Copy-to-clipboard affordance: for manual-assisted platforms (e.g. FetLife)
+           where the actor copies the body and posts out-of-band.
+           Alpine/JS @click writes body to clipboard (browser-only).
+           data-copy-body carries the copyable content (pytest-verifiable).
+           x-data on the button scope keeps state local to this affordance. #}
+        {% if proj.connection.platform == 'fetlife' %}
+        <div x-data="{ copied: false }" class="flex items-center">
+          <pre id="copy-body-{{ proj.pk }}" class="sr-only" data-copy-body="{{ proj.pk }}">{% if body %}{{ body }}{% endif %}</pre>
+          <button type="button"
+                  @click="navigator.clipboard.writeText(document.getElementById('copy-body-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
+                  class="kb-mono text-[9px] uppercase tracking-widest text-accent/60 hover:text-accent px-2 py-1 border border-accent/20 rounded"
+                  x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy to clipboard" %}'">
+            {% trans "Copy to clipboard" %}
+          </button>
+        </div>
+        {% endif %}
+
         {# Mark-published: for no-API platforms (out-of-band posting) — gated on can_publish #}
         <form method="post"
               action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
