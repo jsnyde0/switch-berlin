@@ -224,24 +224,84 @@
             are moved here. map.js/bridge.js/store.js are untouched (chunk 3).
           {% endcomment %}
           {% if MAP_ENABLED %}
-            <div class="pt-4" x-data="{ mapOpen: true }">
-              <button type="button"
-                      class="w-full flex items-center justify-between mb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70"
-                      @click="mapOpen = !mapOpen"
-                      :aria-expanded="mapOpen.toString()"
-                      aria-controls="sidebar-map-panel">
-                <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Area" %}</p>
-                <svg class="h-3.5 w-3.5 text-base-content/40 transition-transform"
-                     :class="mapOpen ? '' : '-rotate-90'"
-                     viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                     aria-hidden="true">
-                  <path d="m6 9 6 6 6-6"/>
-                </svg>
-              </button>
-              <div id="sidebar-map-panel" x-show="mapOpen">
+            <div class="pt-4" x-data="{ mapOpen: true, mapFullscreen: false }">
+              {# ── Area widget header ─────────────────────────────────── #}
+              <div class="w-full flex items-center justify-between mb-3">
+                <button type="button"
+                        class="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70"
+                        @click="mapOpen = !mapOpen"
+                        :aria-expanded="mapOpen.toString()"
+                        aria-controls="sidebar-map-panel">
+                  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Area" %}</p>
+                  <svg class="h-3.5 w-3.5 text-base-content/40 transition-transform"
+                       :class="mapOpen ? '' : '-rotate-90'"
+                       viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                       aria-hidden="true">
+                    <path d="m6 9 6 6 6-6"/>
+                  </svg>
+                </button>
+                {# Right side: clear-area + fullscreen controls #}
+                <div class="flex items-center gap-2">
+                  {% if bounds_param %}
+                    {# Clear area — full navigation; preserves all other filters, strips only bounds #}
+                    <a href="?{{ filter_query_string }}"
+                       class="kb-mono inline-flex items-center gap-1 border border-fuchsia-300/50 bg-fuchsia-300/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-fuchsia-300 hover:bg-fuchsia-300/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70">
+                      ✕ {% trans "Clear area" %}
+                    </a>
+                  {% endif %}
+                  {# Fullscreen escape ⤢ #}
+                  <button type="button"
+                          class="kb-mono flex items-center justify-center border border-white/15 bg-transparent p-1 text-base-content/40 hover:text-base-content hover:border-base-content/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70"
+                          @click="mapFullscreen = true; $nextTick(function(){ var inst = (typeof Alpine !== 'undefined' && Alpine.store('map') && Alpine.store('map')._mapInstance); if(inst && inst.resize) inst.resize(); })"
+                          x-show="mapOpen"
+                          title="{% trans 'Expand map' %}"
+                          aria-label="{% trans 'Open map fullscreen' %}">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {# ── Sidebar map (doubles as fullscreen when mapFullscreen=true) ─ #}
+              {% comment %}
+                When mapFullscreen is true we push the container to fixed/inset-0
+                so the map canvas fills the viewport. The map div is hx-preserve="true"
+                so it never leaves the DOM — we only resize the wrapper.
+                After the style toggle, call store._mapInstance.resize() so
+                MapLibre repaints at the new canvas size.
+              {% endcomment %}
+              <div id="sidebar-map-panel" x-show="mapOpen || mapFullscreen"
+                   :style="mapFullscreen ? 'position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;background:#0e0e10' : ''">
+
+                {# Fullscreen header bar — only visible in fullscreen mode #}
+                <div x-show="mapFullscreen"
+                     x-cloak
+                     class="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+                  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Area · Fullscreen" %}</p>
+                  <div class="flex items-center gap-3">
+                    {% if bounds_param %}
+                      <a href="?{{ filter_query_string }}"
+                         class="kb-mono inline-flex items-center gap-1 border border-fuchsia-300/50 bg-fuchsia-300/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-fuchsia-300 hover:bg-fuchsia-300/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70">
+                        ✕ {% trans "Clear area" %}
+                      </a>
+                    {% endif %}
+                    <button type="button"
+                            class="kb-mono flex items-center gap-1.5 border border-white/15 px-2.5 py-1 text-[9px] uppercase tracking-[0.16em] text-base-content/60 hover:text-base-content hover:border-base-content/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/70"
+                            @click="mapFullscreen = false; $nextTick(function(){ var inst = (typeof Alpine !== 'undefined' && Alpine.store('map') && Alpine.store('map')._mapInstance); if(inst && inst.resize) inst.resize(); })"
+                            aria-label="{% trans 'Close fullscreen map' %}">
+                      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                      </svg>
+                      {% trans "Close" %}
+                    </button>
+                  </div>
+                </div>
+
+                {# Map canvas wrapper — flex-1 in fullscreen so it fills remaining height #}
                 <div class="relative overflow-hidden ring-1 ring-white/10"
-                     style="height: 300px; width: 100%">
+                     :style="mapFullscreen ? 'flex:1;width:100%;' : 'height:300px;width:100%'">
                   <div id="map" hx-preserve="true" style="height: 100%; width: 100%;"></div>
                   {# Compact legend #}
                   <details class="absolute left-2 bottom-2 z-10 max-w-[200px] border border-white/15 bg-base-100/90 backdrop-blur-md group/legend">
@@ -269,13 +329,10 @@
                       </div>
                     </div>
                   </details>
-                  {# Drawer: NOT touched (chunk 3 kb-wdh0.2) #}
-                  <div id="drawer"
-                       class="pointer-events-none absolute inset-y-3 right-3 z-20 w-[min(360px,calc(100%-1.5rem))] empty:hidden [&:not(:empty)]:pointer-events-auto">
-                  </div>
                 </div>
-                <p class="kb-mono mt-1.5 text-[9px] uppercase tracking-[0.18em] text-base-content/25">{% trans "Berlin · DE" %}</p>
+                <p x-show="!mapFullscreen" class="kb-mono mt-1.5 text-[9px] uppercase tracking-[0.18em] text-base-content/25">{% trans "Berlin · DE" %}</p>
               </div>
+
             </div>
           {% endif %}
 

@@ -654,12 +654,7 @@ html {
   .kb-expand-wrap { transition: none; }
 }
 
-/* Selected / hovered card states (map ↔ list sync). */
-.kb-card-selected > article.kb-card {
-  background: var(--kb-accent-wash);
-  border-top-color:    var(--kb-accent-mid);
-  border-bottom-color: var(--kb-accent-mid);
-}
+/* Hovered card state (map ↔ list hover sync). */
 .kb-card-hovered > article.kb-card {
   background: rgb(255 255 255 / 0.025);
   border-top-color:    var(--kb-accent-hair);
@@ -674,4 +669,11 @@ html {
    any @layer components rule regardless of selector specificity. */
 .kb-card-open > [role="button"] article.kb-card {
   border-bottom-color: transparent;
+}
+
+/* Map container shows a dark backdrop while tiles load, so the loading state
+   reads as part of the dark-matter basemap rather than the page behind it.
+   (Replaces the old "Loading map…" skeleton overlay.) */
+#map {
+  background: #0e0e10;
 }

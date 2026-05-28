@@ -135,32 +135,11 @@ class EventListMarkersTest(TestCase):
             # Properties must carry blur_radius_m for the obfuscation circle
             self.assertEqual(f["properties"].get("blur_radius_m"), 1000)
 
-    def test_drawer_returns_partial(self):
+    def test_drawer_route_gone(self):
+        """event-drawer route must be deleted (ADR-008 D1 — no compat shim)."""
         event = self.events[0]
         response = self.client.get(
             f"/events/{event.organizer.slug}/{event.slug}/drawer/"
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b"<html", response.content.lower())
-        self.assertIn(event.title.encode(), response.content)
-
-    def test_drawer_404_for_unknown_event(self):
-        response = self.client.get("/events/unknown-org/unknown-event/drawer/")
-        self.assertEqual(response.status_code, 404)
-
-    def test_drawer_404_for_unpublished_event(self):
-        """Drawer must not expose draft or cancelled events (security fix)."""
-        now = timezone.now()
-        draft_event = Event.objects.create(
-            title="Draft Event",
-            slug="draft-event",
-            organizer=self.organizer,
-            venue=self.venue_public,
-            start=now + timezone.timedelta(days=1),
-            status="draft",
-        )
-        response = self.client.get(
-            f"/events/{draft_event.organizer.slug}/{draft_event.slug}/drawer/"
         )
         self.assertEqual(response.status_code, 404)
 
@@ -232,3 +211,41 @@ class EventListMarkersTest(TestCase):
         geojson = json.loads(match.group(1))
         # All 3 events should be present (malformed bounds means no filtering)
         self.assertEqual(len(geojson["features"]), 3)
+
+    def test_bounds_filter_restricts_main_list_qs(self):
+        """?bounds= must restrict the paginated list (page_obj), not only markers.
+
+        When bounds exclude all venues the page_obj must be empty.
+        """
+        # Tight bounds far from Berlin — no events should appear in the list
+        response = self.client.get(
+            "/events/",
+            {"bounds": "51.00,12.00,51.50,12.50"},
+        )
+        self.assertEqual(response.status_code, 200)
+        page_obj = response.context["page_obj"]
+        self.assertEqual(
+            len(page_obj.object_list),
+            0,
+            "bounds= must filter the paginated list, not only markers",
+        )
+
+    def test_bounds_filter_restricts_main_list_qs_in_bounds(self):
+        """?bounds= within Berlin must include the 2 public events in page_obj."""
+        response = self.client.get(
+            "/events/",
+            {"bounds": "52.50,13.38,52.55,13.45"},
+        )
+        self.assertEqual(response.status_code, 200)
+        page_obj = response.context["page_obj"]
+        slugs = [e.slug for e in page_obj.object_list]
+        self.assertIn(self.events[0].slug, slugs)
+        self.assertIn(self.events[1].slug, slugs)
+
+    def test_bounds_malformed_does_not_filter_main_list(self):
+        """Malformed bounds must not filter the main list — all events returned."""
+        response = self.client.get("/events/", {"bounds": "not,a,valid,bounds"})
+        self.assertEqual(response.status_code, 200)
+        page_obj = response.context["page_obj"]
+        # 3 events were created in setUp
+        self.assertEqual(len(page_obj.object_list), 3)

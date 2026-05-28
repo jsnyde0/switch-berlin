@@ -6,7 +6,7 @@
     <div x-data="{ open: false }"
          data-event-slug="{{ event.organizer.slug }}/{{ event.slug }}"
          class="group/card relative"
-         :class="(open ? 'kb-card-open ' : '') + (typeof $store !== 'undefined' && $store.map && $store.map.selectedKey === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'kb-card-selected' : (typeof $store !== 'undefined' && $store.map && $store.map.hoveredEventId === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'kb-card-hovered' : ''))"
+         :class="(open ? 'kb-card-open ' : '') + (typeof $store !== 'undefined' && $store.map && $store.map.hoveredEventId === '{{ event.organizer.slug }}/{{ event.slug }}' ? 'kb-card-hovered' : '')"
          @mouseenter="typeof $store !== 'undefined' && $store.map && $store.map.hoverEvent('{{ event.organizer.slug }}/{{ event.slug }}')"
          @mouseleave="typeof $store !== 'undefined' && $store.map && $store.map.hoverEvent(null)">
 

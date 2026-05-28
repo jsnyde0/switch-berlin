@@ -132,6 +132,24 @@ def event_list(request):
         # Anonymous user with ?filter=following → return empty queryset
         qs = qs.none()
 
+    # Bounds filter — applies to BOTH the main list qs and markers_qs.
+    # Must come before pagination so the paginator sees the filtered count.
+    # Malformed bounds ignored silently (user-input, not data-integrity — ADR-008 D3).
+    bounds_param = request.GET.get("bounds", "")
+    if bounds_param:
+        parts = bounds_param.split(",")
+        if len(parts) == 4:
+            try:
+                lat_min, lng_min, lat_max, lng_max = [float(p) for p in parts]
+                qs = qs.filter(
+                    venue__latitude__gte=lat_min,
+                    venue__latitude__lte=lat_max,
+                    venue__longitude__gte=lng_min,
+                    venue__longitude__lte=lng_max,
+                )
+            except ValueError:
+                pass  # malformed bounds — ignore silently
+
     # Pagination — invalid page falls back to page 1
     try:
         page_num = int(request.GET.get("page", 1))
@@ -161,31 +179,20 @@ def event_list(request):
         filter_params["price"] = price_param
     if filter_param:
         filter_params["filter"] = filter_param
+    # filter_query_string excludes bounds — used by clear-area link to preserve
+    # all other active filters while dropping only the area/bounds filter.
     filter_query_string = urllib.parse.urlencode(filter_params)
-    # Pagination links must preserve the active sort; chip links must not,
-    # so they can switch sort without duplicating the param.
+    # Pagination links must preserve the active sort AND the active bounds so
+    # navigating to page 2 keeps the area filter intact.
     pagination_params = dict(filter_params)
     if sort and sort != "date":
         pagination_params["sort"] = sort
+    if bounds_param:
+        pagination_params["bounds"] = bounds_param
     pagination_query_string = urllib.parse.urlencode(pagination_params)
 
-    # Markers queryset — non-paginated, same filters as qs, plus optional bounds filter
+    # Markers queryset — non-paginated, uses the already-bounds-filtered qs
     markers_qs = qs
-
-    bounds_param = request.GET.get("bounds", "")
-    if bounds_param:
-        parts = bounds_param.split(",")
-        if len(parts) == 4:
-            try:
-                lat_min, lng_min, lat_max, lng_max = [float(p) for p in parts]
-                markers_qs = markers_qs.filter(
-                    venue__latitude__gte=lat_min,
-                    venue__latitude__lte=lat_max,
-                    venue__longitude__gte=lng_min,
-                    venue__longitude__lte=lng_max,
-                )
-            except ValueError:
-                pass  # malformed bounds — ignore silently
 
     # Pre-compute venue PKs where requesting user has Attendance(status='going')
     if request.user.is_authenticated:
@@ -250,46 +257,6 @@ def event_list(request):
         response["Server-Timing"] = f'partial;desc="event-list";dur={elapsed_ms:.1f}'
         return response
     return render(request, "events/list.html", context)
-
-
-def event_drawer(request, org_slug, event_slug):
-    event = get_object_or_404(
-        Event.objects.visible_to(request.user)
-        .filter(hidden=False, status="published")
-        .select_related("venue")
-        .prefetch_related("event_organizer_set__profile")
-        .filter(
-            event_organizer_set__profile__slug=org_slug,
-            event_organizer_set__is_primary=True,
-        )
-        .distinct(),
-        slug=event_slug,
-    )
-    if request.user.is_authenticated:
-        try:
-            attendance = Attendance.objects.get(user=request.user, event=event)
-        except Attendance.DoesNotExist:
-            attendance = None
-        user_going = attendance is not None and attendance.status == "going"
-        user_has_went_attendance = Attendance.objects.filter(
-            user=request.user, event=event, status="went"
-        ).exists()
-    else:
-        attendance = None
-        user_going = False
-        user_has_went_attendance = False
-    event_past = event.start < timezone.now()
-    return render(
-        request,
-        "events/_event_drawer.html",
-        {
-            "event": event,
-            "attendance": attendance,
-            "user_going": user_going,
-            "event_past": event_past,
-            "user_has_went_attendance": user_has_went_attendance,
-        },
-    )
 
 
 def event_detail(request, org_slug, event_slug):

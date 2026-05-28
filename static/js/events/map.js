@@ -1,14 +1,9 @@
 window.initMap = function (containerEl, store) {
-  // kb-xia: tile-loading skeleton — injected as sibling, removed on map load
-  var skeletonEl = document.createElement('div')
-  skeletonEl.setAttribute('style',
-    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
-    'pointer-events:none;background:#0e0e10;z-index:10;'
-  )
-  skeletonEl.innerHTML = '<span style="color:#9ca3af;font-size:0.875rem;font-family:sans-serif;">Loading map…</span>'
-  var mapParent = containerEl.parentElement || containerEl
-  mapParent.style.position = mapParent.style.position || 'relative'
-  mapParent.appendChild(skeletonEl)
+  // While tiles load, the container shows its own dark background (set in CSS
+  // on #map) — on the dark-matter basemap this is seamless, so no loading
+  // overlay is needed. A prior skeleton overlay could linger over an
+  // already-rendered map if its removal event raced; dropping it removes that
+  // failure mode entirely.
 
   // Read initial markers from DOM data island
   var markersDataEl = document.getElementById('markers-data')
@@ -35,9 +30,30 @@ window.initMap = function (containerEl, store) {
     fitBoundsOptions: { padding: 20 },
   })
 
-  // Track current hover / selection state for paint expressions
+  // Track current hover state for paint expressions
   var _hoveredKey = null
-  var _selectedKey = ''
+
+  // Debounce timer for moveend → filter
+  var _moveendTimer = null
+  var _DEBOUNCE_MS = 400
+
+  // Helper: build the current URL with updated bounds param
+  function _urlWithBounds(bounds) {
+    var url = new URL(window.location.href)
+    if (bounds) {
+      url.searchParams.set('bounds', [bounds.lat_min, bounds.lng_min, bounds.lat_max, bounds.lng_max].join(','))
+    } else {
+      url.searchParams.delete('bounds')
+    }
+    return url.toString()
+  }
+
+  // Helper: push bounds to URL + update store + reload #event-list via htmx
+  function _applyBoundsFilter(bounds) {
+    store.setBounds(bounds)
+    var href = _urlWithBounds(bounds)
+    htmx.ajax('GET', href, { target: '#event-list', swap: 'innerHTML' })
+  }
 
   function buildMarkerRadiusExpression(hoveredKey) {
     if (!hoveredKey) return 8
@@ -49,23 +65,7 @@ window.initMap = function (containerEl, store) {
     ]
   }
 
-  function buildMarkerColorExpression(selectedKey) {
-    if (!selectedKey) return '#a855f7'
-    return [
-      'case',
-      ['==', ['concat', ['get', 'org_slug'], '/', ['get', 'event_slug']], selectedKey],
-      '#f59e0b',
-      '#a855f7',
-    ]
-  }
-
-  // Active popup reference so we can close on next cluster click
-  var _clusterPopup = null
-
   map.on('load', function () {
-    // kb-xia: remove skeleton once tiles are ready
-    if (skeletonEl.parentElement) skeletonEl.remove()
-
     map.addSource('events', {
       type: 'geojson',
       data: markersGeoJSON,
@@ -153,33 +153,54 @@ window.initMap = function (containerEl, store) {
     })
   })
 
-  map.on('moveend', function () {
-    var b = map.getBounds()
-    store.setBounds({
-      lat_min: b.getSouth(),
-      lng_min: b.getWest(),
-      lat_max: b.getNorth(),
-      lng_max: b.getEast(),
-    })
+  // ── moveend: user-initiated pan/zoom → debounced area filter ─────────────
+  // Guard: e.originalEvent is truthy only for user gestures.
+  // Programmatic easeTo / fitBounds calls have no originalEvent, so they
+  // won't trigger the filter loop.
+  map.on('moveend', function (e) {
+    if (!e.originalEvent) return  // programmatic camera move — skip
+
+    clearTimeout(_moveendTimer)
+    _moveendTimer = setTimeout(function () {
+      var b = map.getBounds()
+      var bounds = {
+        lat_min: b.getSouth(),
+        lng_min: b.getWest(),
+        lat_max: b.getNorth(),
+        lng_max: b.getEast(),
+      }
+      _applyBoundsFilter(bounds)
+    }, _DEBOUNCE_MS)
   })
 
+  // ── Single marker click → filter list to vicinity ────────────────────────
+  // NO list autoscroll, NO auto-expand of cards (per D3).
+  // Reload is EXPLICIT (one per click), not via moveend.
   map.on('click', 'event-markers', function (e) {
-    var feature = e.features[0]
+    var feature = e.features && e.features[0]
     if (!feature) return
-    var orgSlug = feature.properties.org_slug
-    var eventSlug = feature.properties.event_slug
-    var compositeKey = orgSlug + '/' + eventSlug
-    store.selectEvent(compositeKey)
-    htmx.ajax('GET', '/events/' + orgSlug + '/' + eventSlug + '/drawer/', {
-      target: '#drawer',
-      swap: 'innerHTML',
-    })
+
+    var lngLat = e.lngLat
+    // Neighborhood zoom — show ~1km radius
+    var NEIGHBORHOOD_ZOOM = 15
+
+    map.easeTo({ center: lngLat, zoom: NEIGHBORHOOD_ZOOM })
+
+    // Compute explicit bounds at neighborhood zoom (roughly ±0.005° lat/lng ≈ 500m)
+    var DELTA = 0.008
+    var bounds = {
+      lat_min: lngLat.lat - DELTA,
+      lng_min: lngLat.lng - DELTA,
+      lat_max: lngLat.lat + DELTA,
+      lng_max: lngLat.lng + DELTA,
+    }
+    _applyBoundsFilter(bounds)
   })
 
-  // kb-k7a: cluster click — popup for co-located events, zoom for spread clusters.
-  // kb-6ow: maplibre-gl 5.x dropped the callback signature on getClusterLeaves /
-  // getClusterExpansionZoom — they only return Promises now. Trailing callbacks
-  // are silently ignored, so the previous version silently no-opped on prod.
+  // ── Cluster click → easeTo/zoom-expand + filter ──────────────────────────
+  // Replace old popup. One explicit reload per click (not via moveend).
+  // kb-6ow: maplibre-gl 5.x returns Promises from getClusterLeaves /
+  // getClusterExpansionZoom — await/then only, no callbacks.
   map.on('click', 'event-clusters', function (e) {
     var feature = e.features && e.features[0]
     if (!feature) return
@@ -187,8 +208,6 @@ window.initMap = function (containerEl, store) {
     var clusterId = feature.properties.cluster_id
     var pointCount = feature.properties.point_count
     var clusterCoord = e.lngLat
-
-    if (_clusterPopup) { _clusterPopup.remove(); _clusterPopup = null }
 
     var eventsSource = map.getSource('events')
     if (!eventsSource) return
@@ -207,43 +226,36 @@ window.initMap = function (containerEl, store) {
       })
 
       if (allSameCoord) {
-        var listItems = leaves.map(function (leaf) {
-          var p = leaf.properties
-          var href = '/events/' + p.org_slug + '/' + p.event_slug + '/'
-          var title = p.title || (p.org_slug + '/' + p.event_slug)
-          return (
-            '<li>' +
-            '<a href="' + href + '" ' +
-            'class="block py-1 text-indigo-600 hover:text-indigo-800 hover:underline text-sm" ' +
-            'onclick="event.preventDefault();Alpine.store(\'map\').selectEvent(\'' + p.org_slug + '/' + p.event_slug + '\');' +
-            'htmx.ajax(\'GET\',\'' + href + 'drawer/\',{target:\'#drawer\',swap:\'innerHTML\'});">' +
-            _escapeHtml(title) +
-            '</a>' +
-            '</li>'
-          )
-        }).join('')
-
-        var popupHtml =
-          '<div style="max-height:240px;overflow-y:auto;min-width:180px;">' +
-          '<p class="text-xs font-semibold text-base-content/60 mb-1">' + leaves.length + ' events at this venue</p>' +
-          '<ul class="list-none m-0 p-0">' + listItems + '</ul>' +
-          '</div>'
-
-        _clusterPopup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
-          .setLngLat(clusterCoord)
-          .setHTML(popupHtml)
-          .addTo(map)
+        // Co-located cluster: zoom in to neighborhood around the shared point
+        // and filter to that tight vicinity. No popup.
+        map.easeTo({ center: clusterCoord, zoom: 15 })
+        var DELTA = 0.008
+        var bounds = {
+          lat_min: clusterCoord.lat - DELTA,
+          lng_min: clusterCoord.lng - DELTA,
+          lat_max: clusterCoord.lat + DELTA,
+          lng_max: clusterCoord.lng + DELTA,
+        }
+        _applyBoundsFilter(bounds)
       } else {
+        // Spread cluster: zoom to expansion zoom, then filter to the expanded viewport.
         eventsSource.getClusterExpansionZoom(clusterId).then(function (zoom) {
           map.easeTo({ center: clusterCoord, zoom: zoom + 1 })
+          // Compute bounds around the cluster's center at expansion zoom.
+          // We fire immediately (don't rely on moveend — programmatic camera).
+          // Use a moderate bounding box; user can pan/zoom to refine.
+          var zoomDelta = Math.pow(2, 15 - (zoom + 1)) * 0.008
+          var delta = Math.max(zoomDelta, 0.004)
+          var bounds = {
+            lat_min: clusterCoord.lat - delta,
+            lng_min: clusterCoord.lng - delta,
+            lat_max: clusterCoord.lat + delta,
+            lng_max: clusterCoord.lng + delta,
+          }
+          _applyBoundsFilter(bounds)
         }).catch(function () { /* ignore — cluster may have changed */ })
       }
     }).catch(function () { /* ignore — cluster may have changed */ })
-  })
-
-  window.addEventListener('events:selection-changed', function (e) {
-    _selectedKey = e.detail.selectedKey || ''
-    map.setPaintProperty('event-markers', 'circle-color', buildMarkerColorExpression(_selectedKey))
   })
 
   // kb-0da: react to hover-changed from the list (source='list'), update map paint
@@ -261,18 +273,11 @@ window.initMap = function (containerEl, store) {
     var newGeoJSON = JSON.parse(el.textContent)
     var src = map.getSource('events')
     if (src) src.setData(newGeoJSON)
+    // setData does NOT move the camera — no moveend triggered — no reload loop
   })
 
   return {
     destroy: function () { map.remove() },
+    resize: function () { map.resize() },
   }
-}
-
-// kb-k7a: minimal HTML escaping for popup content
-function _escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
