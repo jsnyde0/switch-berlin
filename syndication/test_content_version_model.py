@@ -90,10 +90,13 @@ class ContentVersionModelExistsTest(TestCase):
         self.assertEqual(cv.headline, "Join us!")
 
     def test_content_version_headline_optional(self):
-        """ContentVersion.headline must be optional (blank/null)."""
+        """
+        ContentVersion.headline must be optional (nullable).
+        kb-wz8m.2: null means 'derive from canonical' (null-means-derive semantics).
+        """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
-        self.assertEqual(cv.headline, "")
+        self.assertIsNone(cv.headline)
 
     def test_content_version_has_body_field(self):
         """ContentVersion carries body text field."""
@@ -102,10 +105,13 @@ class ContentVersionModelExistsTest(TestCase):
         self.assertEqual(cv.body, "Come party.")
 
     def test_content_version_body_optional(self):
-        """ContentVersion.body must be optional."""
+        """
+        ContentVersion.body must be optional (nullable).
+        kb-wz8m.2: null means 'derive from canonical' (null-means-derive semantics).
+        """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
-        self.assertEqual(cv.body, "")
+        self.assertIsNone(cv.body)
 
     def test_content_version_has_imagery_field(self):
         """ContentVersion carries imagery (JSON, nullable)."""
@@ -126,10 +132,13 @@ class ContentVersionModelExistsTest(TestCase):
         self.assertEqual(cv.cta, "https://example.com")
 
     def test_content_version_cta_optional(self):
-        """ContentVersion.cta must be optional."""
+        """
+        ContentVersion.cta must be optional (nullable).
+        kb-wz8m.2: null means 'derive from canonical'.
+        """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
-        self.assertEqual(cv.cta, "")
+        self.assertIsNone(cv.cta)
 
     def test_content_version_has_voice_field(self):
         """ContentVersion carries voice/tone field."""
@@ -138,10 +147,13 @@ class ContentVersionModelExistsTest(TestCase):
         self.assertEqual(cv.voice, "playful")
 
     def test_content_version_voice_optional(self):
-        """ContentVersion.voice must be optional."""
+        """
+        ContentVersion.voice must be optional (nullable).
+        kb-wz8m.2: null means 'derive from canonical'.
+        """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
-        self.assertEqual(cv.voice, "")
+        self.assertIsNone(cv.voice)
 
 
 class ContentVersionProvenanceFieldsTest(TestCase):
@@ -293,10 +305,10 @@ class PlatformProjectionContentVersionFKTest(TestCase):
         )
         self.assertEqual(pp.content_version, cv)
 
-    def test_platform_projection_override_data_still_exists(self):
+    def test_platform_projection_override_data_removed(self):
         """
-        Additive step: override_data must still be present on PlatformProjection.
-        Nothing removed in this bead — cutover is the next bead (kb-wz8m.2).
+        kb-wz8m.2 cutover: override_data must NOT be present on PlatformProjection.
+        Content fields now live on ContentVersion (ADR-016 D2, ADR-008 D1).
         """
         event = _make_event()
         profile = _make_profile()
@@ -305,9 +317,11 @@ class PlatformProjectionContentVersionFKTest(TestCase):
             connection=conn,
             kind=PlatformProjection.Kind.LISTING,
             source_event=event,
-            override_data={"headline": "Custom"},
         )
-        self.assertEqual(pp.override_data, {"headline": "Custom"})
+        self.assertFalse(
+            hasattr(pp, "override_data"),
+            "PlatformProjection must NOT have override_data after kb-wz8m.2 cutover",
+        )
 
     def test_multiple_projections_can_share_one_content_version(self):
         """

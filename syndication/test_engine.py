@@ -1,12 +1,13 @@
 """
-TDD tests for the syndication engine (kb-a4u.4).
+TDD tests for the syndication engine (kb-a4u.4, kb-wz8m.2 content-version cutover).
 
 Five harness checks per acceptance contract:
 1. State-machine: legal transitions succeed, illegal ones raise.
 2a. Override-independence: overridden field stable when canonical mutates post-generation.
 2b. Live-tracking: non-overridden canonical field tracks canonical automatically.
-3. mode=rule_based template generation sets provenance=rule_template.
-4. mode=agent_assisted accepts and stores agent body, provenance=agent_supplied.
+3. mode=rule_based template generation sets ContentVersion.provenance=rule_template.
+4. mode=agent_assisted accepts and stores agent body on ContentVersion.body,
+   ContentVersion.provenance=agent_supplied.
 5. Eager creation is visibility-tier-AGNOSTIC — unlisted/semi_public/public Events
    each produce the SAME draft set; no tier gating.
 """
@@ -338,8 +339,9 @@ class RuleBasedGenerationTest(TestCase):
 
     def test_rule_based_sets_provenance_rule_template(self):
         """
-        Harness item (3): mode=rule_based generation sets provenance=rule_template.
+        Harness item (3): mode=rule_based generation sets ContentVersion.provenance=rule_template.
         ADR-008 D3: fail loud — no silent data-integrity fallback.
+        provenance now lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
         """
         event = _make_event(title="Provenance Test Event")
         conn = _make_connection(destination_id="fl-prov-rule")
@@ -349,10 +351,11 @@ class RuleBasedGenerationTest(TestCase):
             source_event=event,
             mode="rule_based",
         )
+        self.assertIsNotNone(proj.content_version)
         self.assertEqual(
-            proj.provenance,
+            proj.content_version.provenance,
             "rule_template",
-            "rule_based generation must set provenance=rule_template",
+            "rule_based generation must set ContentVersion.provenance=rule_template",
         )
 
 
@@ -390,8 +393,12 @@ class AgentAssistedGenerationTest(TestCase):
                 # no body
             )
 
-    def test_agent_assisted_body_stored_in_override_data(self):
-        """Body is stored as an override, making it immune to canonical changes."""
+    def test_agent_assisted_body_stored_in_content_version(self):
+        """
+        Body is stored in ContentVersion.body (not override_data which is removed).
+        The agent-supplied body on the ContentVersion makes it immune to canonical changes.
+        kb-wz8m.2: override_data removed from PlatformProjection; ContentVersion is the store.
+        """
         event = _make_event()
         conn = _make_connection(destination_id="fl-agent-3")
         proj = generate_projection(
@@ -401,14 +408,14 @@ class AgentAssistedGenerationTest(TestCase):
             mode="agent_assisted",
             body="Agent content",
         )
-        self.assertIn("body", proj.override_data)
-        self.assertEqual(proj.override_data["body"], "Agent content")
+        self.assertIsNotNone(proj.content_version)
+        self.assertEqual(proj.content_version.body, "Agent content")
 
     def test_agent_assisted_sets_provenance_agent_supplied(self):
         """
-        Harness item (4): mode=agent_assisted generation sets provenance=agent_supplied.
-        ADR-008 D3: fail loud — no silent data-integrity fallback; the model default
-        is rule_template, so without an explicit set, this would be wrong.
+        Harness item (4): mode=agent_assisted generation sets ContentVersion.provenance=agent_supplied.
+        ADR-008 D3: fail loud — no silent data-integrity fallback.
+        provenance now lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
         """
         event = _make_event()
         conn = _make_connection(destination_id="fl-agent-prov")
@@ -419,10 +426,11 @@ class AgentAssistedGenerationTest(TestCase):
             mode="agent_assisted",
             body="Agent-authored copy for provenance test.",
         )
+        self.assertIsNotNone(proj.content_version)
         self.assertEqual(
-            proj.provenance,
+            proj.content_version.provenance,
             "agent_supplied",
-            "agent_assisted generation must set provenance=agent_supplied",
+            "agent_assisted generation must set ContentVersion.provenance=agent_supplied",
         )
 
 
@@ -540,19 +548,26 @@ class CleaningSeamTest(TestCase):
         result = clean_for_platform(text, "fetlife")
         self.assertEqual(result, text)
 
-    def test_clean_for_platform_called_during_generation(self):
+    def test_clean_for_platform_called_during_render(self):
         """
-        Verify the seam is wired: monkeypatch clean_for_platform,
-        generate a projection, assert the patched version was called.
+        Verify the seam is wired: monkeypatch clean_for_platform, render a draft
+        projection, assert the patched version was called.
+
+        kb-wz8m.2 change: generate_projection (rule_based) no longer calls
+        clean_for_platform at generation time — the cleaning seam fires at render
+        time (when body is composed from the live canonical) and at freeze time
+        (draft→ready materialization). Test covers the render path.
         """
         from unittest.mock import patch
         event = _make_event(title="Seam Test Event")
         conn = _make_connection(destination_id="fl-seam-test")
+        proj = generate_projection(
+            kind="listing",
+            connection=conn,
+            source_event=event,
+            mode="rule_based",
+        )
+        from syndication.engine import render_projection
         with patch("syndication.engine.clean_for_platform", wraps=lambda text, platform: text) as mock_clean:
-            generate_projection(
-                kind="listing",
-                connection=conn,
-                source_event=event,
-                mode="rule_based",
-            )
-            self.assertTrue(mock_clean.called, "clean_for_platform was not called during generation")
+            render_projection(proj)
+            self.assertTrue(mock_clean.called, "clean_for_platform was not called during render")

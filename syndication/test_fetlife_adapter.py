@@ -81,12 +81,22 @@ def _make_event(slug="fl-test-event", **kwargs):
 
 
 def _make_listing_projection(connection, event, status="draft"):
+    """
+    Create a listing projection with a canonical ContentVersion.
+    kb-wz8m.2: provenance is on ContentVersion, not PlatformProjection.
+    """
+    from syndication.models import ContentVersion
+    cv, _ = ContentVersion.objects.get_or_create(
+        event=event,
+        name="canonical",
+        defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+    )
     return PlatformProjection.objects.create(
         kind=PlatformProjection.Kind.LISTING,
         status=status,
         connection=connection,
         source_event=event,
-        provenance=PlatformProjection.Provenance.RULE_TEMPLATE,
+        content_version=cv,
     )
 
 

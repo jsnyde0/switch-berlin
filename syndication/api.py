@@ -950,7 +950,7 @@ def api_projection_mark_published(request, projection_id: int):
         {
             "id": projection.pk,
             "status": projection.status,
-            "provenance": projection.provenance,
+            "provenance": projection.content_version.provenance if projection.content_version else "rule_template",
         },
     )
 
@@ -991,7 +991,7 @@ def api_projection_approve(request, projection_id: int):
         {
             "id": projection.pk,
             "status": projection.status,
-            "provenance": projection.provenance,
+            "provenance": projection.content_version.provenance if projection.content_version else "rule_template",
         },
     )
 
@@ -1032,7 +1032,7 @@ def api_projection_publish(request, projection_id: int):
         {
             "id": projection.pk,
             "status": projection.status,
-            "provenance": projection.provenance,
+            "provenance": projection.content_version.provenance if projection.content_version else "rule_template",
         },
     )
 

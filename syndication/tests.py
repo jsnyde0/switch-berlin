@@ -163,15 +163,27 @@ class PlatformProjectionKindStatusTest(TestCase):
         allowed_statuses = {c[0] for c in PlatformProjection.Status.choices}
         self.assertEqual(allowed_statuses, {"draft", "ready", "published", "failed"})
 
-    def test_projection_has_override_data(self):
-        """override_data is a JSONField for per-field overrides (ADR-016 D2)."""
+    def test_projection_has_content_version_fk(self):
+        """
+        content_version FK exists on PlatformProjection (ADR-016 D2, kb-wz8m.2).
+        override_data removed in kb-wz8m.2 — content now lives on ContentVersion.
+        """
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn_switch,
         )
-        self.assertEqual(proj.override_data, {})
+        # content_version attribute must exist (can be null for manually created rows)
+        self.assertTrue(
+            hasattr(proj, "content_version"),
+            "PlatformProjection must have content_version attribute",
+        )
+        # override_data must NOT exist (removed in kb-wz8m.2)
+        self.assertFalse(
+            hasattr(proj, "override_data"),
+            "PlatformProjection must NOT have override_data after kb-wz8m.2 cutover",
+        )
 
     def test_projection_has_external_id(self):
         proj = PlatformProjection.objects.create(

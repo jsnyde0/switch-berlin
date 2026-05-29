@@ -48,8 +48,8 @@ def publish_switch_own_page(projection: PlatformProjection) -> None:
     - Sets status=failed via the state machine (ready → failed).
     - Raises ValueError (ADR-008 D3 — fail loud, never silently succeed).
 
-    Note: override_data is intentionally a no-op for own-page listing — the
-    listing IS the live canonical detail page (/events/<org_slug>/<event_slug>/),
+    Note: ContentVersion editorial overrides are a no-op for own-page listing —
+    the listing IS the live canonical detail page (/events/<org_slug>/<event_slug>/),
     so there is no body to override. This is correct, not an oversight.
 
     Args:

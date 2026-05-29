@@ -1,16 +1,17 @@
 """
-TDD tests for the syndication schema refactor (kb-a4u.18).
+TDD tests for the syndication schema refactor (kb-a4u.18, updated kb-wz8m.2).
 
 Tests assert:
 - PlatformConnection model exists with the required fields
 - PlatformProjection.connection FK resolves to a PlatformConnection (not a string)
 - platform_id field is removed from PlatformProjection
-- PlatformProjection carries provenance enum (rule_template/agent_supplied/manual)
-- PlatformProjection carries generated_by (nullable) and last_generated_at (nullable)
-- override_data is retained unchanged
+- override_data, provenance, generated_by, last_generated_at are removed from
+  PlatformProjection (kb-wz8m.2 cutover — these now live on ContentVersion)
+- ContentVersion carries provenance, generated_by, last_generated_at
 
 Schema/migration layer only — no behavioral logic.
-ADR-016 D2 (provenance + attribution fields) and D4 (PlatformConnection FK).
+ADR-016 D2 (provenance + attribution on ContentVersion) and D4 (PlatformConnection FK).
+ADR-008 D1: no back-compat shims — obsolete fields removed, no deprecation paths.
 """
 
 from django.test import TestCase
@@ -156,149 +157,135 @@ class PlatformProjectionConnectionFKTest(TestCase):
         self.assertFalse(hasattr(proj, "platform_id"))
 
 
-class PlatformProjectionProvenanceFieldsTest(TestCase):
-    """PlatformProjection provenance enum and attribution reservation fields."""
+class PlatformProjectionRemovedFieldsTest(TestCase):
+    """
+    kb-wz8m.2 cutover: override_data, provenance, generated_by, last_generated_at
+    are removed from PlatformProjection. These fields now live on ContentVersion.
+    ADR-008 D1: no back-compat shims — removed outright, no deprecation paths.
+    """
 
     def setUp(self):
         self.profile = Profile.objects.create(
-            name="Provenance Organizer",
-            slug="provenance-organizer",
+            name="Removed Fields Organizer",
+            slug="removed-fields-organizer",
         )
         self.conn = PlatformConnection.objects.create(
             organizer=self.profile,
             platform="telegram",
-            destination_id="channel-prov",
+            destination_id="channel-removed",
             enabled=True,
         )
         self.event = Event.objects.create(
-            title="Provenance Test Event",
-            slug="provenance-test-event",
+            title="Removed Fields Test Event",
+            slug="removed-fields-test-event",
             start=timezone.now(),
         )
 
-    def test_projection_provenance_defaults_to_rule_template(self):
-        """provenance defaults to 'rule_template' for a freshly created projection."""
+    def test_projection_has_no_override_data_field(self):
+        """override_data is removed from PlatformProjection (kb-wz8m.2)."""
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
         )
-        fetched = PlatformProjection.objects.get(pk=proj.pk)
-        self.assertEqual(fetched.provenance, "rule_template")
-
-    def test_projection_provenance_choices_are_constrained(self):
-        """provenance enum exposes only rule_template, agent_supplied, and manual."""
-        allowed = {c[0] for c in PlatformProjection.Provenance.choices}
-        self.assertEqual(allowed, {"rule_template", "agent_supplied", "manual"})
-
-    def test_projection_provenance_can_be_set_to_agent_supplied(self):
-        """provenance can be set to agent_supplied."""
-        proj = PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.LISTING,
-            status=PlatformProjection.Status.DRAFT,
-            source_event=self.event,
-            connection=self.conn,
-            provenance=PlatformProjection.Provenance.AGENT_SUPPLIED,
+        self.assertFalse(
+            hasattr(proj, "override_data"),
+            "PlatformProjection must NOT have override_data after kb-wz8m.2 cutover",
         )
-        self.assertEqual(proj.provenance, "agent_supplied")
 
-    def test_projection_provenance_can_be_set_to_manual(self):
-        """provenance can be set to manual (flipped on human edit)."""
-        proj = PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.LISTING,
-            status=PlatformProjection.Status.DRAFT,
-            source_event=self.event,
-            connection=self.conn,
-            provenance=PlatformProjection.Provenance.MANUAL,
-        )
-        self.assertEqual(proj.provenance, "manual")
-
-    def test_projection_generated_by_is_nullable(self):
-        """generated_by is nullable; null for human-driven flows."""
+    def test_projection_has_no_provenance_field(self):
+        """provenance is removed from PlatformProjection (lives on ContentVersion now)."""
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
         )
-        fetched = PlatformProjection.objects.get(pk=proj.pk)
-        self.assertIsNone(fetched.generated_by)
-
-    def test_projection_generated_by_can_be_set(self):
-        """generated_by can store an agent identity string."""
-        proj = PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.LISTING,
-            status=PlatformProjection.Status.DRAFT,
-            source_event=self.event,
-            connection=self.conn,
-            generated_by="claude-agent-v1",
+        self.assertFalse(
+            hasattr(proj, "provenance"),
+            "PlatformProjection must NOT have provenance after kb-wz8m.2 cutover",
         )
-        fetched = PlatformProjection.objects.get(pk=proj.pk)
-        self.assertEqual(fetched.generated_by, "claude-agent-v1")
 
-    def test_projection_last_generated_at_is_nullable(self):
-        """last_generated_at is nullable; null for human-driven flows."""
+    def test_projection_has_no_generated_by_field(self):
+        """generated_by is removed from PlatformProjection (lives on ContentVersion now)."""
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
         )
-        fetched = PlatformProjection.objects.get(pk=proj.pk)
-        self.assertIsNone(fetched.last_generated_at)
+        self.assertFalse(
+            hasattr(proj, "generated_by"),
+            "PlatformProjection must NOT have generated_by after kb-wz8m.2 cutover",
+        )
 
-    def test_projection_last_generated_at_can_be_set(self):
-        """last_generated_at can be set to a datetime."""
-        now = timezone.now()
+    def test_projection_has_no_last_generated_at_field(self):
+        """last_generated_at is removed from PlatformProjection (lives on ContentVersion now)."""
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
-            last_generated_at=now,
         )
-        fetched = PlatformProjection.objects.get(pk=proj.pk)
-        self.assertIsNotNone(fetched.last_generated_at)
+        self.assertFalse(
+            hasattr(proj, "last_generated_at"),
+            "PlatformProjection must NOT have last_generated_at after kb-wz8m.2 cutover",
+        )
 
 
-class PlatformProjectionRetainsOverrideDataTest(TestCase):
-    """override_data JSONField is retained unchanged after the schema refactor."""
+class ContentVersionCarriesProvenanceFieldsTest(TestCase):
+    """
+    ContentVersion carries the provenance + attribution fields that were
+    removed from PlatformProjection (ADR-016 D2 revised 2026-05-29).
+    """
 
     def setUp(self):
         self.profile = Profile.objects.create(
-            name="Override Organizer",
-            slug="override-organizer",
-        )
-        self.conn = PlatformConnection.objects.create(
-            organizer=self.profile,
-            platform="switch",
-            destination_id="switch-own-page",
+            name="CV Provenance Organizer",
+            slug="cv-provenance-organizer",
         )
         self.event = Event.objects.create(
-            title="Override Test Event",
-            slug="override-test-event",
+            title="CV Provenance Test Event",
+            slug="cv-provenance-test-event",
             start=timezone.now(),
         )
 
-    def test_projection_override_data_defaults_to_empty_dict(self):
-        """override_data defaults to {} and is retained after the FK refront."""
-        proj = PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.LISTING,
-            status=PlatformProjection.Status.DRAFT,
-            source_event=self.event,
-            connection=self.conn,
-        )
-        self.assertEqual(proj.override_data, {})
+    def test_content_version_provenance_defaults_to_rule_template(self):
+        """ContentVersion.provenance defaults to rule_template."""
+        from syndication.models import ContentVersion
+        cv = ContentVersion.objects.create(event=self.event, name="v1")
+        self.assertEqual(cv.provenance, "rule_template")
 
-    def test_projection_override_data_stores_overrides(self):
-        """override_data stores per-field override dict."""
-        proj = PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.LISTING,
-            status=PlatformProjection.Status.DRAFT,
-            source_event=self.event,
-            connection=self.conn,
-            override_data={"title": "Custom Title for Platform"},
+    def test_content_version_provenance_choices_are_constrained(self):
+        """ContentVersion provenance enum exposes rule_template, agent_supplied, manual."""
+        from syndication.models import ContentVersion
+        allowed = {c[0] for c in ContentVersion.Provenance.choices}
+        self.assertEqual(allowed, {"rule_template", "agent_supplied", "manual"})
+
+    def test_content_version_generated_by_is_nullable(self):
+        """ContentVersion.generated_by is nullable."""
+        from syndication.models import ContentVersion
+        cv = ContentVersion.objects.create(event=self.event, name="v1")
+        self.assertIsNone(cv.generated_by)
+
+    def test_content_version_generated_by_can_be_set(self):
+        """ContentVersion.generated_by can store an agent identity string."""
+        from syndication.models import ContentVersion
+        cv = ContentVersion.objects.create(
+            event=self.event, name="v1", generated_by="claude-agent-v1"
         )
-        fetched = PlatformProjection.objects.get(pk=proj.pk)
-        self.assertEqual(fetched.override_data, {"title": "Custom Title for Platform"})
+        self.assertEqual(cv.generated_by, "claude-agent-v1")
+
+    def test_content_version_last_generated_at_is_nullable(self):
+        """ContentVersion.last_generated_at is nullable."""
+        from syndication.models import ContentVersion
+        cv = ContentVersion.objects.create(event=self.event, name="v1")
+        self.assertIsNone(cv.last_generated_at)
+
+    def test_content_version_last_generated_at_can_be_set(self):
+        """ContentVersion.last_generated_at can be set to a datetime."""
+        from syndication.models import ContentVersion
+        now = timezone.now()
+        cv = ContentVersion.objects.create(event=self.event, name="v1", last_generated_at=now)
+        self.assertIsNotNone(cv.last_generated_at)

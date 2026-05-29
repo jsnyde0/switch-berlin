@@ -1,31 +1,33 @@
 """
-Syndication engine (kb-a4u.4).
+Syndication engine (kb-a4u.4, kb-wz8m.2 content-version cutover).
 
 Provides three public callables:
 - generate_projection(kind, connection, source_event|source_post, mode, body?)
 - render_projection(proj) → str
 - transition_status(proj, new_status) → None (saves, raises on illegal transition)
 
-ADR-016 D2 (kb-a4u.20 hybrid content model):
-    Draft projections TRACK the live canonical — override_data layered on top,
-    absent key means use live canonical. Stability is achieved at draft→ready.
+ADR-016 D2 (kb-wz8m.2 content-version model):
+    Draft projections TRACK the live canonical — ContentVersion fields layered on
+    top; a NULL field on ContentVersion means "derive from live canonical at render
+    time". Stability is achieved at draft→ready.
 
     At draft→ready, the FULL effective structured content is materialized into
-    frozen_content: all content-relevant canonical fields with override_data
-    applied. For kind=listing this includes body, title, start, end, dress_code,
-    age_restriction, capacity, content_warnings, tickets_url, and description;
-    for kind=promotion this includes body, headline, post_body, cta, and imagery.
+    frozen_content: all content-relevant canonical fields with ContentVersion
+    explicit fields applied. For kind=listing this includes body, title, start,
+    end, dress_code, age_restriction, capacity, content_warnings, tickets_url,
+    and description; for kind=promotion this includes body, headline, post_body,
+    cta, and imagery.
 
     From ready onward (ready, published, failed), render_projection returns
     frozen_content["body"]; other consumers (e.g. publish carriers) may read
     any field from frozen_content without touching the live canonical.
 
-    rule_based draft: does NOT write override_data["body"] — draft derives from
-    live canonical. At draft→ready, _materialize_*_fields() captures the full
+    rule_based draft: ContentVersion body is NULL — draft derives from live
+    canonical. At draft→ready, _materialize_*_fields() captures the full
     effective content including a freshly composed body.
 
-    agent_assisted draft: WRITES override_data["body"] as an explicit per-field
-    override. At draft→ready, the override is included in the freeze snapshot.
+    agent_assisted draft: ContentVersion body is set to the agent-supplied copy.
+    At draft→ready, the explicit body is included in the freeze snapshot.
 
 ADR-016 D4: PlatformProjection FKs to PlatformConnection — not a bare
     platform string. The connection carries the platform identifier; callers
@@ -46,7 +48,7 @@ ADR-008 D4: retry policy seam — transport errors get ≤2 retries,
 """
 
 from syndication.cleaning import clean_for_platform
-from syndication.models import PlatformConnection, PlatformProjection
+from syndication.models import ContentVersion, PlatformConnection, PlatformProjection
 
 # ---------------------------------------------------------------------------
 # Status state-machine
@@ -90,12 +92,10 @@ def transition_status(projection: PlatformProjection, new_status: str) -> None:
     projection.status = new_status
 
     if from_status == "draft" and new_status == "ready":
-        # ADR-016 D2 (kb-a4u.20 hybrid model): freeze the FULL effective structured
-        # content at draft→ready. Materialize all content-relevant canonical fields
-        # + override_data into frozen_content so from-ready reads never touch the
-        # live canonical. Includes body, title, start, end, and all other fields
-        # so a publish carrier (FetLife/TT adapter) can fill structured fields
-        # from the snapshot without touching the live canonical.
+        # ADR-016 D2 (kb-wz8m.2 content-version model): freeze the FULL effective
+        # structured content at draft→ready. Materialize all content-relevant
+        # canonical fields + ContentVersion explicit fields into frozen_content so
+        # from-ready reads never touch the live canonical.
         # ADR-008 D3: fail loud if the effective content cannot be derived.
         projection.frozen_content = _materialize_effective_fields(projection)
         projection.save(update_fields=["status", "frozen_content", "updated_at"])
@@ -206,10 +206,11 @@ def generate_projection(
     Raises:
         ValueError: if mode=agent_assisted without body, or unknown mode/kind.
 
-    ADR-016 D2 (hybrid content model): Draft projections track the live canonical.
-                rule_based: override_data["body"] is NOT written at generation —
-                draft renders from live canonical fields; freeze happens at draft→ready.
-                agent_assisted: override_data["body"] IS written (explicit override);
+    ADR-016 D2 (kb-wz8m.2 content-version model): Draft projections track the
+                live canonical via ContentVersion.
+                rule_based: ContentVersion body is NULL — draft renders from
+                live canonical fields; freeze happens at draft→ready.
+                agent_assisted: ContentVersion body IS set (explicit override);
                 the agent-supplied body persists through draft and is included in
                 the frozen snapshot at draft→ready.
 
@@ -233,59 +234,46 @@ def generate_projection(
     # Event.visibility is a read-side concern (switch.berlin visible_to) only.
     # Eager creation is uniform across all visibility tiers.
 
-    # --- Compose the body ---
-    platform = connection.platform
+    # --- Resolve or create a ContentVersion for this event ---
+    # get-or-create the canonical version for the event so generate_projection
+    # can be called standalone (without having gone through create_event).
+    cv, _ = ContentVersion.objects.get_or_create(
+        event=canonical_event,
+        name="canonical",
+        defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+    )
+
+    # --- Set provenance and optional body on the ContentVersion ---
     if mode == "rule_based":
-        if kind == "listing":
-            composed_body = _compose_listing_body(canonical_event, platform)
-        else:
-            composed_body = _compose_promotion_body(source_post, platform)
-        provenance = PlatformProjection.Provenance.RULE_TEMPLATE
+        provenance = ContentVersion.Provenance.RULE_TEMPLATE
+        # NULL body = derive from live canonical at render time (track-live).
+        # Do NOT set cv.body — leave it null.
     elif mode == "agent_assisted":
         if body is None:
             raise ValueError(
                 "mode='agent_assisted' requires a body argument. "
                 "The external agent must supply the finished copy."
             )
-        # Agent-supplied body is accepted as-is; the agent does the voice work.
-        # ADR-011 D1: agent layer is additive — we accept + persist, not re-process.
-        composed_body = body
-        provenance = PlatformProjection.Provenance.AGENT_SUPPLIED
+        provenance = ContentVersion.Provenance.AGENT_SUPPLIED
+        # Set explicit body on the ContentVersion (divergence from canonical).
+        cv.body = body
     else:
         raise ValueError(
             f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'"
         )
 
-    # --- Persist: override_data and override_data only for explicit overrides ---
-    # ADR-016 D2 (kb-a4u.20 hybrid model): Draft projections track the live
-    # canonical. Stability is achieved by freezing at draft→ready, NOT by
-    # snapshotting into override_data["body"] at generation time.
-    #
-    # rule_based: do NOT write override_data["body"] — the draft will derive
-    # the body from the live canonical fields. At draft→ready, _render_draft_body
-    # composes from the live canonical at that instant and freezes into
-    # frozen_content. This is what makes canonical edits visible in draft but
-    # not after ready.
-    #
-    # agent_assisted: WRITE override_data["body"] — the agent-supplied body is
-    # an explicit per-field override that must persist in draft (and will be
-    # included in the frozen snapshot at draft→ready).
-    #
-    # ADR-008 D3: provenance is always set explicitly — no silent model-default.
-    if mode == "rule_based":
-        override_data = {}
-    else:
-        # agent_assisted: store the agent-supplied body as an explicit override
-        override_data = {"body": composed_body}
+    # Update provenance on the ContentVersion.
+    cv.provenance = provenance
+    cv.save(update_fields=["provenance", "body", "updated_at"])
 
+    # --- Persist the projection ---
     proj = PlatformProjection.objects.create(
         kind=kind,
         status=PlatformProjection.Status.DRAFT,
         connection=connection,
         source_event=source_event,
         source_post=source_post,
-        override_data=override_data,
-        provenance=provenance,
+        content_version=cv,
     )
     return proj
 
@@ -305,14 +293,16 @@ def _materialize_listing_fields(projection: PlatformProjection) -> dict:
     """
     Materialize the full effective structured content for a kind=listing projection.
 
-    Returns a dict of all content-relevant Event fields with override_data applied.
+    Returns a dict of all content-relevant Event fields with ContentVersion
+    explicit fields applied (null field = use canonical).
+
     This is the canonical "effective content" at a point in time — the frozen
     snapshot stored in frozen_content captures exactly this dict so that a publish
     carrier (e.g. FetLife/TT adapter agent) can fill structured date/location fields
     from the snapshot without touching the live canonical.
 
-    override_data keys shadow the corresponding canonical field. Unknown override_data
-    keys are passed through as-is (forward-compatible for future per-field overrides).
+    ContentVersion null field = canonical value (null-means-derive semantics).
+    ContentVersion explicit value = override.
 
     ADR-008 D3: fail loud if source_event is missing.
     """
@@ -324,11 +314,11 @@ def _materialize_listing_fields(projection: PlatformProjection) -> dict:
         )
 
     platform = projection.connection.platform
-    override = projection.override_data or {}
+    cv = projection.content_version
 
-    # Compose body from live canonical + override, then apply override if present
-    if "body" in override:
-        body = override["body"]
+    # Body: ContentVersion.body if explicit, else compose from live canonical.
+    if cv is not None and cv.body is not None:
+        body = cv.body
     else:
         body = _compose_listing_body(event, platform)
 
@@ -338,16 +328,16 @@ def _materialize_listing_fields(projection: PlatformProjection) -> dict:
 
     return {
         "body": body,
-        "title": override.get("title", event.title),
-        "description": override.get("description", event.description),
-        "start": override.get("start", _isoformat_or_none(event.start)),
-        "end": override.get("end", _isoformat_or_none(event.end)),
-        "dress_code": override.get("dress_code", event.dress_code),
-        "age_restriction": override.get("age_restriction", event.age_restriction),
-        "capacity": override.get("capacity", event.capacity),
-        "content_warnings": override.get("content_warnings", event.content_warnings),
-        "tickets_url": override.get("tickets_url", event.tickets_url),
-        "venue": override.get("venue", venue_name),
+        "title": event.title,
+        "description": event.description,
+        "start": _isoformat_or_none(event.start),
+        "end": _isoformat_or_none(event.end),
+        "dress_code": event.dress_code,
+        "age_restriction": event.age_restriction,
+        "capacity": event.capacity,
+        "content_warnings": event.content_warnings,
+        "tickets_url": event.tickets_url,
+        "venue": venue_name,
     }
 
 
@@ -355,7 +345,8 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
     """
     Materialize the full effective structured content for a kind=promotion projection.
 
-    Returns a dict of all content-relevant Post fields with override_data applied.
+    Returns a dict of all content-relevant Post fields with ContentVersion
+    explicit fields applied (null field = use canonical).
     Analogous to _materialize_listing_fields for kind=promotion.
 
     ADR-008 D3: fail loud if source_post is missing.
@@ -368,20 +359,26 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
         )
 
     platform = projection.connection.platform
-    override = projection.override_data or {}
+    cv = projection.content_version
 
-    if "body" in override:
-        body = override["body"]
+    if cv is not None and cv.body is not None:
+        body = cv.body
     else:
         body = _compose_promotion_body(post, platform)
 
+    # For structured fields: ContentVersion explicit value overrides canonical.
+    headline = (cv.headline if cv is not None and cv.headline is not None else post.headline)
+    cta = (cv.cta if cv is not None and cv.cta is not None else post.cta)
+    imagery = (cv.imagery if cv is not None and cv.imagery is not None else post.imagery)
+    voice = (cv.voice if cv is not None and cv.voice is not None else post.voice)
+
     return {
         "body": body,
-        "headline": override.get("headline", post.headline),
-        "post_body": override.get("post_body", post.body),
-        "cta": override.get("cta", post.cta),
-        "imagery": override.get("imagery", post.imagery),
-        "voice": override.get("voice", post.voice),
+        "headline": headline,
+        "post_body": post.body,
+        "cta": cta,
+        "imagery": imagery,
+        "voice": voice,
     }
 
 
@@ -410,20 +407,20 @@ def _render_draft_body(projection: PlatformProjection) -> str:
     """
     Derive the effective body for a DRAFT projection.
 
-    Draft projections track the live canonical: if override_data contains
-    'body', that per-field override is the effective body. Otherwise, compose
-    from the live canonical source (listing from source_event fields, promotion
-    from source_post fields).
-
-    Used both by render_projection (when status==draft) and by
-    transition_status (to materialize the freeze snapshot at draft→ready).
+    Draft projections track the live canonical:
+    - If ContentVersion.body is set (non-null), that explicit value is the body.
+    - Otherwise, compose from the live canonical source (listing from source_event
+      fields, promotion from source_post fields).
 
     ADR-008 D3: fail loud if no body can be derived.
     """
-    if "body" in projection.override_data:
-        return projection.override_data["body"]
+    cv = projection.content_version
 
-    # No override → derive from live canonical source fields.
+    # Explicit body on ContentVersion takes precedence.
+    if cv is not None and cv.body is not None:
+        return cv.body
+
+    # NULL body on ContentVersion → derive from live canonical source fields.
     platform = projection.connection.platform
     if projection.kind == PlatformProjection.Kind.LISTING and projection.source_event:
         return _compose_listing_body(projection.source_event, platform)
@@ -432,7 +429,7 @@ def _render_draft_body(projection: PlatformProjection) -> str:
 
     raise ValueError(
         f"Cannot render projection {projection.pk!r}: "
-        "no body override and no source to derive from. "
+        "no explicit body on ContentVersion and no source to derive from. "
         "(ADR-008 D3: fail loud — no silent zero-fill)"
     )
 
@@ -441,9 +438,9 @@ def render_projection(projection: PlatformProjection) -> str:
     """
     Render the projection's output body.
 
-    ADR-016 D2 (kb-a4u.20 hybrid content model):
+    ADR-016 D2 (kb-wz8m.2 content-version model):
     - status=draft: track live canonical — return _render_draft_body()
-      (override_data["body"] if present, else compose from live canonical fields).
+      (ContentVersion.body if explicit, else compose from live canonical fields).
     - status=ready/published/failed: return frozen_content["body"] (the snapshot
       materialized at draft→ready). Fail loud if frozen_content is absent —
       that is a data-integrity bug, not a fallback opportunity (ADR-008 D3).

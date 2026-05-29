@@ -188,16 +188,46 @@ def _get_primary_profile_for_user(user):
     return claim.profile
 
 
-def _eager_create_listing_projections(event):
+def _ensure_canonical_content_version(event):
+    """
+    Ensure a canonical ContentVersion exists for event and return it.
+
+    Creates it with all editorial fields NULL (track-live semantics) if absent.
+    This is idempotent: if a canonical version already exists, it is returned as-is.
+
+    ADR-016 D2 (kb-wz8m.2): A1 canonical version is seeded EMPTY.
+    NULL editorial fields = derive from live canonical Event at render time.
+    """
+    from syndication.models import ContentVersion
+
+    cv, _ = ContentVersion.objects.get_or_create(
+        event=event,
+        name="canonical",
+        defaults={
+            "provenance": ContentVersion.Provenance.RULE_TEMPLATE,
+            # All editorial fields intentionally omitted → DB default None
+            # (null-means-derive semantics per ADR-016 D2 revised 2026-05-29).
+        },
+    )
+    return cv
+
+
+def _eager_create_listing_projections(event, canonical_cv=None):
     """
     ADR-016 D4: For each enabled PlatformConnection that supports 'listing'
     owned by the event's organizer profiles, create a draft PlatformProjection.
 
     Called after an Event is saved. Visibility tier is irrelevant (ADR-016
     carried-forward, revised 2026-05-26 — no visibility write-gate).
+
+    All created projections FK to the canonical ContentVersion (A1 seed,
+    kb-wz8m.2). canonical_cv is passed in to avoid redundant DB round-trips.
     """
     from events.models import EventOrganizer
     from syndication.models import PlatformConnection, PlatformProjection
+
+    if canonical_cv is None:
+        canonical_cv = _ensure_canonical_content_version(event)
 
     # Get all organizer Profile IDs for this event
     organizer_profile_ids = EventOrganizer.objects.filter(
@@ -222,19 +252,25 @@ def _eager_create_listing_projections(event):
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=event,
-            provenance=PlatformProjection.Provenance.RULE_TEMPLATE,
+            content_version=canonical_cv,
         )
 
 
-def _eager_create_promotion_projections(post):
+def _eager_create_promotion_projections(post, canonical_cv=None):
     """
     ADR-016 D4: For each enabled PlatformConnection that supports 'promotion'
     owned by the post's event's organizer profiles, create a draft PlatformProjection.
 
     Called after a Post is saved.
+
+    All created projections FK to the canonical ContentVersion (A1 seed,
+    kb-wz8m.2). canonical_cv is passed in to avoid redundant DB round-trips.
     """
     from events.models import EventOrganizer
     from syndication.models import PlatformConnection, PlatformProjection
+
+    if canonical_cv is None:
+        canonical_cv = _ensure_canonical_content_version(post.event)
 
     # Get all organizer Profile IDs for this post's event
     organizer_profile_ids = EventOrganizer.objects.filter(
@@ -259,7 +295,7 @@ def _eager_create_promotion_projections(post):
             kind=PlatformProjection.Kind.PROMOTION,
             status=PlatformProjection.Status.DRAFT,
             source_post=post,
-            provenance=PlatformProjection.Provenance.RULE_TEMPLATE,
+            content_version=canonical_cv,
         )
 
 
@@ -346,8 +382,12 @@ def create_event(user, **kwargs):
     # Create the EventOrganizer through-table row (ADR-007 D2, ADR-017 D1)
     EventOrganizer.objects.create(event=event, profile=profile, is_primary=True)
 
+    # A1 seed (kb-wz8m.2): create the canonical ContentVersion FIRST so that
+    # eager projections can FK to it in the same call.
+    canonical_cv = _ensure_canonical_content_version(event)
+
     # Eager-create draft listing projections (ADR-016 D4)
-    _eager_create_listing_projections(event)
+    _eager_create_listing_projections(event, canonical_cv=canonical_cv)
 
     return event
 
@@ -466,8 +506,12 @@ def create_post(user, event, **kwargs):
     post_kwargs = {k: v for k, v in kwargs.items() if k in _POST_FIELDS}
     post = Post.objects.create(event=event, **post_kwargs)
 
+    # A1 seed (kb-wz8m.2): ensure the canonical ContentVersion exists for the
+    # event so eager promotion projections can FK to it.
+    canonical_cv = _ensure_canonical_content_version(event)
+
     # Eager-create draft promotion projections (ADR-016 D4)
-    _eager_create_promotion_projections(post)
+    _eager_create_promotion_projections(post, canonical_cv=canonical_cv)
 
     return post
 
@@ -545,17 +589,22 @@ def save_projection_override(user, projection, **override_fields):
     Persist per-field overrides on a draft projection and flip provenance to manual.
 
     Gate: user must be able to edit the projection's event (can_edit seam).
-    Writes override_fields into projection.override_data and sets
-    provenance = manual (PlatformProjection.Provenance.MANUAL).
+    Writes override_fields into the projection's ContentVersion and sets
+    ContentVersion.provenance = manual.
 
-    Only writes the supplied fields — absent keys are not touched.
+    Only writes the supplied fields — absent keys are not touched (null-means-derive
+    semantics preserved for unset ContentVersion fields per ADR-016 D2 kb-wz8m.2).
+
+    NOTE: This function is slated for removal/replacement in kb-wz8m.3. It is
+    kept functional here to avoid breaking test_projection_board.py (which tests
+    the override-edit service + view path). kb-wz8m.3 owns the final disposition.
 
     ADR-008 D3: fail loud on missing source.
-    ADR-016 D2: override_data is the per-field override store; provenance tracks
-    how the effective content was last produced.
+    ADR-016 D2: ContentVersion is the per-field override store; provenance on
+    ContentVersion tracks how the content was last produced.
     """
     from syndication.authz import can_edit
-    from syndication.models import PlatformProjection
+    from syndication.models import ContentVersion
 
     event = _resolve_projection_event(projection)
     if not can_edit(user, event):
@@ -564,12 +613,28 @@ def save_projection_override(user, projection, **override_fields):
             f"(event '{event}'). (ADR-017 D2)"
         )
 
-    # Merge supplied fields into existing override_data
-    override_data = dict(projection.override_data or {})
-    override_data.update(override_fields)
-    projection.override_data = override_data
-    projection.provenance = PlatformProjection.Provenance.MANUAL
-    projection.save(update_fields=["override_data", "provenance", "updated_at"])
+    cv = projection.content_version
+    if cv is None:
+        raise ValueError(
+            f"Projection {projection.pk!r} has no content_version. "
+            "Cannot save override without a ContentVersion. (ADR-008 D3: fail loud)"
+        )
+
+    # Apply only the supplied fields to the ContentVersion.
+    # Unrecognised fields are silently skipped (forward-compatible).
+    _CV_OVERRIDE_FIELDS = {"headline", "body", "imagery", "cta", "voice"}
+    update_fields = []
+    for field, value in override_fields.items():
+        if field in _CV_OVERRIDE_FIELDS:
+            setattr(cv, field, value)
+            update_fields.append(field)
+
+    if update_fields:
+        cv.provenance = ContentVersion.Provenance.MANUAL
+        update_fields.append("provenance")
+        update_fields.append("updated_at")
+        cv.save(update_fields=update_fields)
+
     return projection
 
 

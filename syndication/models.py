@@ -10,15 +10,14 @@ and ADR-016 Consequences.
 
 ADR-016 D1: Post is a first-class entity referencing Event by FK.
 ADR-016 D2: PlatformProjection carries kind ∈ {listing, promotion},
-            status ∈ {draft, ready, published, failed}, provenance
-            ∈ {rule_template, agent_supplied, manual}, plus per-field
-            override storage (override_data JSONField), plus ADR-003
-            reservation fields generated_by and last_generated_at.
-            ContentVersion (added kb-wz8m.1): per-Event named editorial copy
-            variant carrying editorial content fields and content-authorship
-            signals (provenance, generated_by, last_generated_at). Projection
-            gains a nullable content_version FK — additive only; override_data
-            stays as the live render path until kb-wz8m.2 cutover.
+            status ∈ {draft, ready, published, failed}, a content_version FK
+            to ContentVersion (editorial content + authorship signals live
+            there; provenance, generated_by, last_generated_at removed from
+            projection in kb-wz8m.2), and a frozen_content snapshot for
+            ready/published/failed status.
+            ContentVersion (added kb-wz8m.1, live-render path kb-wz8m.2):
+            per-Event named editorial copy variant. NULL field = derive from
+            live canonical Event/Post. Explicit value = override.
 ADR-016 D3: v0 auth shape — long-lived Bearer API key → short-lived identity
             token exchange. AgentCredential mirrors MagicLinkToken envelope
             (organizers/models.py): hashed-storage + displayed-once. Single-use
@@ -220,9 +219,10 @@ class ContentVersion(models.Model):
     — editing the version propagates to all consumers). Divergence is opt-in via
     snapshot ops (customize / copy-from / copy-to), each minting a new row.
 
-    This is an additive-only bead (kb-wz8m.1): PlatformProjection.override_data
-    stays as the live render path; nothing reads content_version yet. The cutover
-    (seeding, freeze, engine rewrite, dropping override_data) is kb-wz8m.2.
+    kb-wz8m.2 cutover: override_data is dropped; content_version is the live
+    render path. NULL editorial field = derive from live canonical Event/Post
+    at render time (null-means-derive semantics). A1 canonical version is seeded
+    EMPTY (all fields NULL = track-live). Editing a field is divergence.
 
     ADR-008 D2: no speculative abstraction — plain Django model, no base class.
     ADR-003: data-shape reservation; behavioral use ships in kb-wz8m.2+.
@@ -247,31 +247,58 @@ class ContentVersion(models.Model):
         ),
     )
 
-    # Editorial content fields (ADR-016 D2)
+    # Editorial content fields (ADR-016 D2, kb-wz8m.2).
+    # NULL means "derive from the live canonical Event/Post at render time"
+    # (mirrors the role key-absence played in the old override_data dict).
+    # An explicit non-null value is an override that shadows the canonical field.
+    # Seeded as NULL/None for the A1 canonical version (track-live semantics).
     headline = models.CharField(
         max_length=300,
+        null=True,
         blank=True,
-        help_text="Headline / hook for this version.",
+        default=None,
+        help_text=(
+            "Headline / hook for this version. "
+            "NULL = derive from canonical Event/Post at render time."
+        ),
     )
     body = models.TextField(
+        null=True,
         blank=True,
-        help_text="Body text for this version.",
+        default=None,
+        help_text=(
+            "Body text for this version. "
+            "NULL = compose body from live canonical Event/Post fields at render time."
+        ),
     )
     imagery = models.JSONField(
         null=True,
         blank=True,
         default=None,
-        help_text="List of image references/URLs for this version.",
+        help_text=(
+            "List of image references/URLs for this version. "
+            "NULL = derive from canonical."
+        ),
     )
     cta = models.CharField(
         max_length=500,
+        null=True,
         blank=True,
-        help_text="Call-to-action text or URL.",
+        default=None,
+        help_text=(
+            "Call-to-action text or URL. "
+            "NULL = derive from canonical."
+        ),
     )
     voice = models.CharField(
         max_length=100,
+        null=True,
         blank=True,
-        help_text="Voice/tone for this version (e.g. 'playful', 'formal').",
+        default=None,
+        help_text=(
+            "Voice/tone for this version (e.g. 'playful', 'formal'). "
+            "NULL = derive from canonical."
+        ),
     )
 
     # Content-authorship signals (ADR-016 D2, revised 2026-05-29).
@@ -337,12 +364,10 @@ class PlatformProjection(models.Model):
     - status ∈ {draft, ready, published, failed}
     - source_event FK (listing-kind only)
     - source_post FK (promotion-kind only)
-    - override_data JSONField for per-field overrides (stays as live render path
-      until kb-wz8m.2 cutover — do not remove in this bead)
-    - content_version FK (nullable — additive step kb-wz8m.1; nothing reads it yet)
-    - provenance ∈ {rule_template, agent_supplied, manual} (ADR-016 D2 refinement)
-    - generated_by (nullable agent identity) — ADR-003 reservation field
-    - last_generated_at (nullable datetime) — ADR-003 reservation field
+    - content_version FK (non-null after kb-wz8m.2 migration backfill) —
+      editorial content + authorship signals live here (ADR-016 D2 revised
+      2026-05-29). override_data and projection-level provenance/generated_by/
+      last_generated_at removed in kb-wz8m.2 (ADR-008 D1, no back-compat shim).
     - external_id, external_url, syndicated_at (populated after publication)
 
     No behavioral logic beyond Django ORM constraints.
@@ -357,11 +382,6 @@ class PlatformProjection(models.Model):
         READY = "ready", _("Ready")
         PUBLISHED = "published", _("Published")
         FAILED = "failed", _("Failed")
-
-    class Provenance(models.TextChoices):
-        RULE_TEMPLATE = "rule_template", _("Rule template")
-        AGENT_SUPPLIED = "agent_supplied", _("Agent supplied")
-        MANUAL = "manual", _("Manual")
 
     # Connection FK (ADR-016 D4) — the specific PlatformConnection destination.
     # platform_id CharField removed per ADR-008 D1 (pre-launch, no shim).
@@ -400,18 +420,10 @@ class PlatformProjection(models.Model):
         related_name="projections",
     )
 
-    # Per-field overrides (ADR-016 D2): every field of the source can be
-    # independently overridden on the projection; absent override = use canonical.
-    # Stays as the live render path until kb-wz8m.2 cutover — do not remove here.
-    override_data = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Per-field overrides for this projection. Absent key = use canonical value.",
-    )
-
-    # ContentVersion FK (ADR-016 D2, revised 2026-05-29, additive step kb-wz8m.1).
-    # Nullable: nothing reads or writes this field until kb-wz8m.2 cutover.
+    # ContentVersion FK (ADR-016 D2, revised 2026-05-29, kb-wz8m.2 cutover).
+    # Nullable at DB level for migration purposes (backfilled non-null after seed).
     # Many projections may point at one ContentVersion (single-row sharing).
+    # Editorial content + authorship signals live on ContentVersion, not here.
     content_version = models.ForeignKey(
         ContentVersion,
         on_delete=models.SET_NULL,
@@ -419,15 +431,16 @@ class PlatformProjection(models.Model):
         blank=True,
         related_name="projections",
         help_text=(
-            "RESERVED: ContentVersion this projection draws editorial content from. "
-            "Null until kb-wz8m.2 cutover. Behavior: kb-wz8m.2."
+            "ContentVersion this projection draws editorial content from. "
+            "Non-null after kb-wz8m.2 migration backfill. "
+            "NULL field on ContentVersion = derive from live canonical at render time."
         ),
     )
 
     # Frozen content snapshot (ADR-016 D2, kb-a4u.20 hybrid content model).
-    # Null while status=draft (projection tracks live canonical + override_data).
+    # Null while status=draft (projection tracks live canonical via content_version).
     # Materialized at draft→ready transition: stores the full effective content
-    # (canonical fields + overrides at that instant) as a stable artifact.
+    # (version explicit fields + live canonical fallbacks at that instant).
     # From ready onward (ready, published, failed), render_projection returns
     # this snapshot — NOT the live canonical. ADR-008 D3: fail loud if a
     # non-draft projection has no frozen_content (missing = bug, not fallback).
@@ -439,45 +452,6 @@ class PlatformProjection(models.Model):
             "Effective content frozen at draft→ready transition. "
             "Null while status=draft. "
             "From ready onward, render_projection returns this snapshot."
-        ),
-    )
-
-    # Provenance and attribution reservation fields (ADR-016 D2, ADR-003).
-    # NOTE: These three fields (provenance, generated_by, last_generated_at) are
-    # slated for removal in kb-wz8m.2 — they now live on ContentVersion per
-    # ADR-016 D2 revised 2026-05-29. Do NOT treat them as live; kept here only
-    # to avoid a breaking schema change before the kb-wz8m.2 cutover.
-    # provenance tracks how the current effective content was last produced.
-    # Flips to 'manual' the moment a human edits an override.
-    provenance = models.CharField(
-        max_length=20,
-        choices=Provenance.choices,
-        default=Provenance.RULE_TEMPLATE,
-        help_text=(
-            "How the current effective content was last produced. "
-            "Flips to 'manual' on human edit of an override."
-        ),
-    )
-    # RESERVED: agent identity that generated this projection (ADR-003 cheap foresight).
-    # Null for human-driven flows; the column a future ProjectionRevision table keys on.
-    generated_by = models.CharField(
-        max_length=300,
-        null=True,
-        blank=True,
-        default=None,
-        help_text=(
-            "RESERVED: agent identity ref that last generated content for this "
-            "projection. null = human-driven. Behavior: future projection-revision epic."
-        ),
-    )
-    # RESERVED: timestamp of last agent generation (ADR-003 cheap foresight).
-    last_generated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        default=None,
-        help_text=(
-            "RESERVED: when this projection was last generated by an agent. "
-            "null = never generated. Behavior: future projection-revision epic."
         ),
     )
 

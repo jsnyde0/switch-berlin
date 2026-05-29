@@ -82,23 +82,50 @@ def _make_connection(profile, platform="fetlife", destination_id="fl-user", kind
     )
 
 
+def _make_content_version(event, name="canonical", provenance="rule_template"):
+    """
+    Create or get a ContentVersion for an event.
+    provenance is stored on ContentVersion now (kb-wz8m.2).
+    """
+    from syndication.models import ContentVersion
+    cv, _ = ContentVersion.objects.get_or_create(
+        event=event,
+        name=name,
+        defaults={"provenance": provenance},
+    )
+    if cv.provenance != provenance:
+        cv.provenance = provenance
+        cv.save(update_fields=["provenance"])
+    return cv
+
+
 def _make_listing_projection(connection, event, status="draft", provenance="rule_template"):
+    """
+    Create a listing projection with an associated canonical ContentVersion.
+    provenance lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
+    """
+    cv = _make_content_version(event, provenance=provenance)
     return PlatformProjection.objects.create(
         kind=PlatformProjection.Kind.LISTING,
         status=status,
         connection=connection,
         source_event=event,
-        provenance=provenance,
+        content_version=cv,
     )
 
 
 def _make_promotion_projection(connection, post, status="draft", provenance="rule_template"):
+    """
+    Create a promotion projection with an associated canonical ContentVersion.
+    provenance lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
+    """
+    cv = _make_content_version(post.event, provenance=provenance)
     return PlatformProjection.objects.create(
         kind=PlatformProjection.Kind.PROMOTION,
         status=status,
         connection=connection,
         source_post=post,
-        provenance=provenance,
+        content_version=cv,
     )
 
 
@@ -173,7 +200,10 @@ class BoardFragmentRenderTest(TestCase):
         self.assertEqual(proj_in_ctx.status, "draft")
 
     def test_fragment_projection_carries_provenance(self):
-        """Each projection in context has the correct provenance value."""
+        """
+        Each projection's ContentVersion in context has the correct provenance value.
+        kb-wz8m.2: provenance lives on ContentVersion, not on PlatformProjection.
+        """
         proj = _make_listing_projection(
             self.conn, self.event, provenance="agent_supplied"
         )
@@ -184,7 +214,8 @@ class BoardFragmentRenderTest(TestCase):
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
         proj_in_ctx = next(p for p in projections if p.pk == proj.pk)
-        self.assertEqual(proj_in_ctx.provenance, "agent_supplied")
+        self.assertIsNotNone(proj_in_ctx.content_version)
+        self.assertEqual(proj_in_ctx.content_version.provenance, "agent_supplied")
 
     def test_fragment_projection_carries_connection_info(self):
         """Each projection carries connection (platform, destination_id)."""
@@ -226,10 +257,13 @@ class BoardFragmentRenderTest(TestCase):
 
 class OverrideEditServiceTest(TestCase):
     """
-    save_projection_override service: persists override_data fields AND
-    flips provenance to manual (PlatformProjection.Provenance.MANUAL).
+    save_projection_override service: persists content fields on ContentVersion AND
+    flips ContentVersion.provenance to manual.
 
-    ADR-008 D3: no silent zero-fill — raise if projection not found.
+    kb-wz8m.2: override_data removed; body stored on ContentVersion.body.
+    provenance lives on ContentVersion, not PlatformProjection.
+
+    ADR-008 D3: no silent zero-fill — raise if no content_version on projection.
     """
 
     def setUp(self):
@@ -239,45 +273,49 @@ class OverrideEditServiceTest(TestCase):
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_connection(self.profile, destination_id="fl-edit")
 
-    def test_save_override_persists_body_to_override_data(self):
+    def test_save_override_persists_body_to_content_version(self):
         """
         Calling save_projection_override with body="edited copy" stores
-        override_data["body"] = "edited copy" on the projection.
+        ContentVersion.body = "edited copy" on the projection's content version.
+
+        kb-wz8m.2: override_data removed; body is on ContentVersion.
         """
         from syndication.services import save_projection_override
 
         proj = _make_listing_projection(self.conn, self.event)
         save_projection_override(user=self.user, projection=proj, body="edited copy")
-        proj.refresh_from_db()
-        self.assertEqual(proj.override_data.get("body"), "edited copy")
+        proj.content_version.refresh_from_db()
+        self.assertEqual(proj.content_version.body, "edited copy")
 
-    def test_save_override_flips_provenance_to_manual(self):
+    def test_save_override_flips_content_version_provenance_to_manual(self):
         """
-        After save_projection_override, provenance must be 'manual'
+        After save_projection_override, ContentVersion.provenance must be 'manual'
         regardless of its prior value (rule_template or agent_supplied).
+
+        kb-wz8m.2: provenance lives on ContentVersion, not PlatformProjection.
         """
         from syndication.services import save_projection_override
 
         proj = _make_listing_projection(self.conn, self.event, provenance="rule_template")
         save_projection_override(user=self.user, projection=proj, body="human edit")
-        proj.refresh_from_db()
+        proj.content_version.refresh_from_db()
         self.assertEqual(
-            proj.provenance,
+            proj.content_version.provenance,
             "manual",
-            "save_projection_override must flip provenance to 'manual'",
+            "save_projection_override must flip ContentVersion.provenance to 'manual'",
         )
 
     def test_save_override_from_agent_supplied_also_flips_to_manual(self):
         """
-        Editing an agent_supplied projection also flips to manual.
+        Editing an agent_supplied projection also flips ContentVersion.provenance to manual.
         Human edit always wins provenance.
         """
         from syndication.services import save_projection_override
 
         proj = _make_listing_projection(self.conn, self.event, provenance="agent_supplied")
         save_projection_override(user=self.user, projection=proj, body="overriding agent")
-        proj.refresh_from_db()
-        self.assertEqual(proj.provenance, "manual")
+        proj.content_version.refresh_from_db()
+        self.assertEqual(proj.content_version.provenance, "manual")
 
     def test_save_override_gated_by_can_edit(self):
         """
@@ -311,7 +349,8 @@ class OverrideEditViewTest(TestCase):
 
     def test_override_edit_view_persists_body(self):
         """
-        POST to the override-edit view stores override_data["body"] on the projection.
+        POST to the override-edit view stores ContentVersion.body on the projection.
+        kb-wz8m.2: override_data removed; body is on ContentVersion.
         """
         proj = _make_listing_projection(self.conn, self.event)
         response = self.client.post(
@@ -320,12 +359,13 @@ class OverrideEditViewTest(TestCase):
             HTTP_HX_REQUEST="true",
         )
         self.assertIn(response.status_code, [200, 302])
-        proj.refresh_from_db()
-        self.assertEqual(proj.override_data.get("body"), "view-driven edit")
+        proj.content_version.refresh_from_db()
+        self.assertEqual(proj.content_version.body, "view-driven edit")
 
     def test_override_edit_view_flips_provenance(self):
         """
-        POST to override-edit view also flips provenance to manual.
+        POST to override-edit view also flips ContentVersion.provenance to manual.
+        kb-wz8m.2: provenance lives on ContentVersion, not PlatformProjection.
         """
         proj = _make_listing_projection(self.conn, self.event, provenance="rule_template")
         self.client.post(
@@ -333,8 +373,8 @@ class OverrideEditViewTest(TestCase):
             data={"body": "manual override"},
             HTTP_HX_REQUEST="true",
         )
-        proj.refresh_from_db()
-        self.assertEqual(proj.provenance, "manual")
+        proj.content_version.refresh_from_db()
+        self.assertEqual(proj.content_version.provenance, "manual")
 
 
 # ---------------------------------------------------------------------------

@@ -164,27 +164,36 @@ class HybridContentModelStabilityTest(TestCase):
 
 class DraftManualProjectionLiveFallbackTest(TestCase):
     """
-    Manually-created projections (no override_data["body"]) in draft status
-    must also derive from live canonical — the live-fallback removal means the
-    draft path handles this, not a special-case hidden fallback.
+    Manually-created projections with a null-body ContentVersion in draft status
+    must derive from live canonical — the null-means-derive semantics apply.
+
+    kb-wz8m.2: override_data is removed; ContentVersion.body=None means
+    'derive from live canonical Event at render time'.
     """
 
     def test_manual_draft_projection_derives_from_live_canonical(self):
         """
-        A manually-created projection (provenance=manual, no override_data["body"])
-        in draft status returns content derived from the live canonical event fields.
+        A manually-created projection with a ContentVersion (body=None) in draft
+        status returns content derived from the live canonical event fields.
         """
+        from syndication.models import ContentVersion
+
         event = _make_event(title="Live Title for Manual", slug="hybrid-manual-draft-1")
         conn = _make_connection(destination_id="fl-hybrid-manual-draft-1")
 
-        # Manually create — no body in override_data
+        # Create a ContentVersion with null body = derive from canonical
+        cv = ContentVersion.objects.create(
+            event=event,
+            name="canonical",
+            provenance=ContentVersion.Provenance.MANUAL,
+        )
+
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             connection=conn,
             source_event=event,
-            override_data={},  # no "body" key
-            provenance=PlatformProjection.Provenance.MANUAL,
+            content_version=cv,
         )
 
         body = render_projection(proj)
@@ -192,18 +201,22 @@ class DraftManualProjectionLiveFallbackTest(TestCase):
 
     def test_manual_draft_projection_tracks_live_canonical_after_edit(self):
         """
-        Manually-created draft projection tracks live canonical after a canonical edit.
+        Draft projection with null ContentVersion.body tracks live canonical
+        after a canonical edit.
         """
+        from syndication.models import ContentVersion
+
         event = _make_event(title="Manual Original", slug="hybrid-manual-track-1")
         conn = _make_connection(destination_id="fl-hybrid-manual-track-1")
+
+        cv = ContentVersion.objects.create(event=event, name="canonical")
 
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             connection=conn,
             source_event=event,
-            override_data={},
-            provenance=PlatformProjection.Provenance.MANUAL,
+            content_version=cv,
         )
 
         # Edit canonical
@@ -293,9 +306,16 @@ class FrozenContentFailLoudTest(TestCase):
         """
         A ready projection without frozen_content must raise ValueError.
         No silent fallback to live canonical for non-draft projections.
+
+        kb-wz8m.2: override_data is removed; test creates a ready projection
+        directly without going through the normal draft→ready transition.
         """
+        from syndication.models import ContentVersion
+
         event = _make_event(title="No Freeze Fail Loud", slug="hybrid-no-freeze-1")
         conn = _make_connection(destination_id="fl-hybrid-no-freeze-1")
+
+        cv = ContentVersion.objects.create(event=event, name="canonical")
 
         # Manually create a ready projection with no frozen_content (simulates
         # legacy/buggy data — this state should never happen post-implementation)
@@ -304,7 +324,7 @@ class FrozenContentFailLoudTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=conn,
             source_event=event,
-            override_data={"body": "some body"},
+            content_version=cv,
             frozen_content=None,  # deliberately missing
         )
 
@@ -542,15 +562,19 @@ class AgentAssistedFreezeTest(TestCase):
     """
     Fix 4: Advance an agent_assisted projection to ready and assert:
     - the agent-supplied body is correctly frozen into frozen_content["body"]
-    - render_projection returns the frozen body (not the draft override path)
+    - render_projection returns the frozen body (not the draft ContentVersion path)
     - canonical mutations after freezing are still not visible
+
+    kb-wz8m.2: override_data removed; body stored on ContentVersion.
     """
 
     def test_agent_assisted_body_frozen_at_ready(self):
         """
         An agent_assisted projection that reaches ready must have the agent-supplied
-        body in frozen_content["body"]. The override_data["body"] path is the DRAFT
+        body in frozen_content["body"]. The ContentVersion.body path is the DRAFT
         path; frozen_content["body"] is the READY path.
+
+        kb-wz8m.2: override_data removed; body is on ContentVersion now.
         """
         event = _make_event(title="Agent Freeze Event", slug="agent-freeze-1")
         conn = _make_connection(destination_id="fl-agent-freeze-1")
@@ -564,8 +588,9 @@ class AgentAssistedFreezeTest(TestCase):
             body=agent_body,
         )
         self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
-        # override_data["body"] set in draft
-        self.assertEqual(proj.override_data["body"], agent_body)
+        # ContentVersion.body set in draft (not override_data — that's gone)
+        self.assertIsNotNone(proj.content_version)
+        self.assertEqual(proj.content_version.body, agent_body)
         # No freeze yet
         self.assertIsNone(proj.frozen_content)
 
