@@ -257,9 +257,8 @@ class BoardFragmentRenderTest(TestCase):
 # The equivalent behaviour (persisting body + flipping provenance to manual) is
 # now covered by test_version_ops.EditVersionTest.
 #
-# OverrideEditViewTest: the projection_override view is stubbed (501) in
-# kb-wz8m.3 awaiting its kb-wz8m.5 replacement. View tests are covered in
-# test_version_ops.py once kb-wz8m.5 ships the new board edit view.
+# projection_override stub view removed in kb-wz8m.5 (ADR-008 D1: delete on sight).
+# The version-ops panel IS the replacement.
 # ---------------------------------------------------------------------------
 
 
@@ -336,40 +335,6 @@ class OverrideEditServiceTest(TestCase):
         proj = _make_listing_projection(self.conn, self.event)
         with self.assertRaises(PermissionError):
             edit_version(user=other_user, version=proj.content_version, body="not allowed")
-
-
-class OverrideEditViewTest(TestCase):
-    """
-    The projection_override view is stubbed (501) in kb-wz8m.3 awaiting its
-    kb-wz8m.5 replacement. These tests verify the stub returns 501 as expected
-    (ADR-008 D3: fail loud rather than silently routing to wrong service).
-    """
-
-    def setUp(self):
-        self.user = _make_vouched_user(
-            username="editview_user", email="editview@test.com", password="pw"
-        )
-        self.profile = _make_profile(name="EditView Org", slug="editview-org", user=self.user)
-        self.event = _make_event(slug="editview-event")
-        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
-        self.conn = _make_connection(self.profile, destination_id="fl-editview")
-        self.client = Client()
-        self.client.force_login(self.user)
-
-    def test_override_edit_view_returns_501_stub(self):
-        """
-        POST to the projection_override view returns 501 Not Implemented.
-        save_projection_override was removed in kb-wz8m.3; the replacement view
-        will ship in kb-wz8m.5.
-        """
-        proj = _make_listing_projection(self.conn, self.event)
-        response = self.client.post(
-            f"/syndication/projections/{proj.pk}/override/",
-            data={"body": "view-driven edit"},
-            HTTP_HX_REQUEST="true",
-        )
-        self.assertEqual(response.status_code, 501,
-            "projection_override view must return 501 (stub) until kb-wz8m.5 ships")
 
 
 # ---------------------------------------------------------------------------
@@ -1690,10 +1655,15 @@ class LiveOnChannelsCueTest(TestCase):
 
     def test_customize_updates_consumers_map_grouping(self):
         """
-        F7 data→template wiring assertion:
-        After POSTing to the customize endpoint for proj1, the re-rendered fragment
-        shows proj1's version in a SEPARATE group from proj2 (no longer grouped
-        with the canonical version).
+        F5/F7 rendered-HTML assertion:
+        BEFORE customize: both projections share a version → the live-on cue for
+        conn1's card must name BOTH 'fetlife' and 'switch' as sharing channels.
+        AFTER customize on proj1: proj1 has its own version → the live-on cue
+        for conn1's card must NO LONGER name conn2's platform ('switch'), because
+        they are now on separate versions.
+
+        This is a real render assertion: it would FAIL if the template's
+        consumers_map iteration broke, returning wrong grouping or empty cue.
         """
         proj1 = _make_listing_projection(self.conn1, self.event)
         proj2 = _make_listing_projection(self.conn2, self.event)
@@ -1701,7 +1671,32 @@ class LiveOnChannelsCueTest(TestCase):
         # Verify both share the same canonical version before customize
         self.assertEqual(proj1.content_version_id, proj2.content_version_id)
 
-        # POST to customize endpoint for proj1
+        # --- BEFORE customize: load the fragment, check live-on cue names both channels ---
+        before_response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(before_response.status_code, 200)
+        before_content = before_response.content.decode()
+        # Both platforms must appear in the shared live-on cue
+        self.assertIn(
+            "fetlife",
+            before_content,
+            "BEFORE customize: live-on cue must name 'fetlife' (sharing same version)",
+        )
+        self.assertIn(
+            "switch",
+            before_content,
+            "BEFORE customize: live-on cue must name 'switch' (sharing same version)",
+        )
+        # Must use channel names, not a bare count
+        import re
+        bare_count_pattern = r"live on \d+ channels?"
+        self.assertIsNone(
+            re.search(bare_count_pattern, before_content.lower()),
+            "Live-on cue must name channels, not use a bare 'live on N channels' count",
+        )
+
+        # --- POST to customize endpoint for proj1 ---
         response = self.client.post(
             f"/syndication/projections/{proj1.pk}/customize/",
             HTTP_HX_REQUEST="true",
@@ -1719,9 +1714,8 @@ class LiveOnChannelsCueTest(TestCase):
             "After customize, proj1 must have its own version separate from proj2",
         )
 
-        # The re-rendered fragment consumers_map must reflect the new grouping
+        # --- Context-level assertion: consumers_map reflects new grouping ---
         consumers_map = response.context["consumers_map"]
-        # proj1's new version must only contain proj1
         proj1_version = proj1.content_version
         proj2_version = proj2.content_version
         self.assertNotEqual(proj1_version.pk, proj2_version.pk)
@@ -1733,6 +1727,39 @@ class LiveOnChannelsCueTest(TestCase):
         proj2_consumers = {p.pk for p in consumers_map.get(proj2_version, [])}
         self.assertIn(proj2.pk, proj2_consumers)
         self.assertNotIn(proj1.pk, proj2_consumers)
+
+        # --- AFTER customize: rendered HTML must NOT show 'switch' in the
+        #     live-on cue for proj1's card (they are no longer on the same version).
+        #     proj1 is now solo → live-on cue must not appear for proj1's card
+        #     (or if it does, it must NOT name the other platform). ---
+        after_content = response.content.decode()
+        # proj2's card (switch) may still show 'switch' as its platform label —
+        # what we assert is that the shared live-on cue no longer groups proj1
+        # with proj2. We check this via the context-level assertion above AND by
+        # confirming the rendered fragment does NOT contain both names in a cue
+        # that would imply they are still grouped.
+        # The simplest verifiable claim: the response.context consumers_map
+        # already asserts the correct grouping; additionally verify the rendered
+        # HTML mentions the live-on construct at most once per channel (not twice
+        # with both channel names together in one cue).
+        # A cue with BOTH 'fetlife' AND 'switch' together in a single span would
+        # only appear if they are still grouped — after customize they must not be.
+        # We scan the rendered HTML for the live-on span containing both names
+        # side-by-side (which the template builds in a single span).
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(after_content, "html.parser")
+        live_on_spans = soup.find_all(
+            lambda tag: tag.name == "span"
+            and "live on" in (tag.get_text() or "").lower()
+        )
+        # None of the live-on spans should contain BOTH 'fetlife' AND 'switch'
+        for span in live_on_spans:
+            text = span.get_text().lower()
+            self.assertFalse(
+                "fetlife" in text and "switch" in text,
+                f"After customize, no single live-on cue should name both 'fetlife' AND "
+                f"'switch' — they are on separate versions now. Found: {text!r}",
+            )
 
 
 class VersionOpEndpointTest(TestCase):
@@ -2041,4 +2068,283 @@ class ReviewAllStubTest(TestCase):
             response.status_code,
             [404, 500],
             f"review-all stub must not 404/500 (got {response.status_code})",
+        )
+
+
+# ---------------------------------------------------------------------------
+# F1: duplicate and copy_from version affordances (kb-wz8m.5)
+# ---------------------------------------------------------------------------
+
+
+class VersionDuplicateEndpointTest(TestCase):
+    """
+    F1: The 'version-duplicate' endpoint must exist, create a new independent
+    ContentVersion, and enforce the can_edit authz gate (non-claimant → 403).
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="dup_user", email="dup@test.com", password="pw")
+        self.profile = _make_profile(name="Dup Org", slug="dup-org", user=self.user)
+        self.event = _make_event(slug="dup-event", title="Dup Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-dup")
+        self.stranger = _make_vouched_user(username="dup_stranger", email="dup_stranger@test.com", password="pw")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_duplicate_endpoint_returns_refreshed_fragment(self):
+        """POST version-duplicate returns the refreshed syndication fragment."""
+        proj = _make_listing_projection(self.conn, self.event)
+        response = self.client.post(
+            f"/syndication/versions/{proj.content_version_id}/duplicate/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("projections", response.context)
+
+    def test_duplicate_endpoint_creates_new_version(self):
+        """POST version-duplicate creates a new ContentVersion (new independent row)."""
+        from syndication.models import ContentVersion
+        proj = _make_listing_projection(self.conn, self.event)
+        initial_count = ContentVersion.objects.filter(event=self.event).count()
+
+        self.client.post(
+            f"/syndication/versions/{proj.content_version_id}/duplicate/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        final_count = ContentVersion.objects.filter(event=self.event).count()
+        self.assertEqual(
+            final_count,
+            initial_count + 1,
+            "version-duplicate must create a new ContentVersion row",
+        )
+
+    def test_duplicate_endpoint_authz_non_claimant_gets_403(self):
+        """Non-claimant POSTing to version-duplicate gets 403."""
+        proj = _make_listing_projection(self.conn, self.event)
+        stranger_client = Client()
+        stranger_client.force_login(self.stranger)
+        response = stranger_client.post(
+            f"/syndication/versions/{proj.content_version_id}/duplicate/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(
+            response.status_code,
+            403,
+            "Non-claimant must get 403 on version-duplicate endpoint",
+        )
+
+
+class VersionCopyFromEndpointTest(TestCase):
+    """
+    F1: The 'version-copy-from' endpoint must exist, repoint the target
+    projection at a NEW independent copy of the source version, and enforce
+    the can_edit authz gate (non-claimant → 403).
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="copyfrom_user", email="copyfrom@test.com", password="pw")
+        self.profile = _make_profile(name="CopyFrom Org", slug="copyfrom-org", user=self.user)
+        self.event = _make_event(slug="copyfrom-event", title="CopyFrom Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-copyfrom")
+        self.conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-copyfrom-2")
+        self.stranger = _make_vouched_user(username="copyfrom_stranger", email="copyfrom_stranger@test.com", password="pw")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_copy_from_endpoint_returns_refreshed_fragment(self):
+        """POST version-copy-from returns the refreshed syndication fragment."""
+        proj_src = _make_listing_projection(self.conn, self.event)
+        proj_tgt = _make_listing_projection(self.conn2, self.event)
+
+        response = self.client.post(
+            f"/syndication/projections/{proj_tgt.pk}/copy-from/",
+            data={"source_version_pk": str(proj_src.content_version_id)},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("projections", response.context)
+
+    def test_copy_from_endpoint_repoints_projection_at_new_version(self):
+        """POST version-copy-from repoints the target projection at a new independent version."""
+        proj_src = _make_listing_projection(self.conn, self.event)
+        proj_tgt = _make_listing_projection(self.conn2, self.event)
+        old_tgt_cv_pk = proj_tgt.content_version_id
+        src_cv_pk = proj_src.content_version_id
+
+        self.client.post(
+            f"/syndication/projections/{proj_tgt.pk}/copy-from/",
+            data={"source_version_pk": str(src_cv_pk)},
+            HTTP_HX_REQUEST="true",
+        )
+        proj_tgt.refresh_from_db()
+
+        self.assertNotEqual(
+            proj_tgt.content_version_id,
+            old_tgt_cv_pk,
+            "copy-from must repoint projection at a new version (not the old one)",
+        )
+        self.assertNotEqual(
+            proj_tgt.content_version_id,
+            src_cv_pk,
+            "copy-from must create a NEW independent row, not point at source version",
+        )
+
+    def test_copy_from_endpoint_authz_non_claimant_gets_403(self):
+        """Non-claimant POSTing to version-copy-from gets 403."""
+        proj_src = _make_listing_projection(self.conn, self.event)
+        proj_tgt = _make_listing_projection(self.conn2, self.event)
+        stranger_client = Client()
+        stranger_client.force_login(self.stranger)
+        response = stranger_client.post(
+            f"/syndication/projections/{proj_tgt.pk}/copy-from/",
+            data={"source_version_pk": str(proj_src.content_version_id)},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(
+            response.status_code,
+            403,
+            "Non-claimant must get 403 on version-copy-from endpoint",
+        )
+
+
+# ---------------------------------------------------------------------------
+# F3: "Publish all ready" control hidden when no ready projections
+# ---------------------------------------------------------------------------
+
+
+class PublishAllReadyVisibilityTest(TestCase):
+    """
+    F3: The "Publish all ready" control must be absent from rendered HTML when
+    no projections are in 'ready' status, and present when at least one is.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="pubvis_user", email="pubvis@test.com", password="pw")
+        self.profile = _make_profile(name="PubVis Org", slug="pubvis-org", user=self.user)
+        self.event = _make_event(slug="pubvis-event", title="PubVis Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-pubvis")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_publish_all_absent_when_no_ready_projections(self):
+        """
+        "Publish all ready" control must NOT be rendered when all projections are
+        in draft status (no ready projections).
+        """
+        _make_listing_projection(self.conn, self.event, status="draft")
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn(
+            "Publish all ready",
+            content,
+            "Publish all ready must be absent when no projections are ready",
+        )
+
+    def test_publish_all_present_when_one_ready_projection(self):
+        """
+        "Publish all ready" control must be rendered when at least one projection
+        is in ready status.
+        """
+        from syndication.services import approve_projection
+        proj = _make_listing_projection(self.conn, self.event)
+        approve_projection(user=self.user, projection=proj)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "Publish all ready",
+            content,
+            "Publish all ready must be present when at least one projection is ready",
+        )
+
+    def test_fragment_context_has_ready_projections_boolean(self):
+        """Fragment context must include 'has_ready_projections' boolean."""
+        from syndication.services import approve_projection
+        proj = _make_listing_projection(self.conn, self.event)
+        approve_projection(user=self.user, projection=proj)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "has_ready_projections",
+            response.context,
+            "Fragment context must include has_ready_projections",
+        )
+        self.assertTrue(response.context["has_ready_projections"])
+
+
+# ---------------------------------------------------------------------------
+# F4: Live-on cue shows channel names, not just a count
+# ---------------------------------------------------------------------------
+
+
+class LiveOnChannelNamesTest(TestCase):
+    """
+    F4: The live-on propagation cue must render channel names (e.g. 'fetlife',
+    'switch'), not just a bare count like 'live on 2 channels'.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="livenames_user", email="livenames@test.com", password="pw")
+        self.profile = _make_profile(name="LiveNames Org", slug="livenames-org", user=self.user)
+        self.event = _make_event(slug="livenames-event", title="LiveNames Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn1 = _make_connection(self.profile, platform="fetlife", destination_id="fl-livenames-1")
+        self.conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-livenames-2")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_live_on_cue_contains_channel_names_not_just_count(self):
+        """
+        When two projections share the same ContentVersion, the live-on cue must
+        name the sharing channels (e.g. 'fetlife', 'switch'), not just say
+        'live on N channels'.
+        """
+        proj1 = _make_listing_projection(self.conn1, self.event)
+        proj2 = _make_listing_projection(self.conn2, self.event)
+
+        # Both must share the same content version for the cue to show
+        self.assertEqual(
+            proj1.content_version_id,
+            proj2.content_version_id,
+            "Both projections must share the same version for the live-on cue to appear",
+        )
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode().lower()
+
+        # Must contain channel names in the live-on cue
+        self.assertIn(
+            "fetlife",
+            content,
+            "Live-on cue must name the sharing channels (fetlife expected)",
+        )
+        self.assertIn(
+            "switch",
+            content,
+            "Live-on cue must name the sharing channels (switch expected)",
+        )
+
+        # Must NOT use a bare count pattern like "live on 2 channels"
+        import re
+        bare_count_pattern = r"live on \d+ channels?"
+        self.assertIsNone(
+            re.search(bare_count_pattern, content),
+            "Live-on cue must not use a bare count ('live on N channels'); use channel names",
         )

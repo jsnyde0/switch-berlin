@@ -42,6 +42,8 @@ from syndication.services import (
     _resolve_projection_event,
     customize,
     copy_to,
+    copy_from,
+    duplicate,
     reset_to_canonical,
     edit_version,
     content_version_consumers_map,
@@ -306,6 +308,12 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     # Build the per-version consumers map for the "live on <channels>" cue (kb-wz8m.5).
     consumers_map = content_version_consumers_map(event)
 
+    # has_ready_projections: true iff ≥1 projection is in 'ready' status (F3).
+    # Guards the "Publish all ready" button — no-op when none are ready (ADR-008 D3).
+    has_ready_projections = any(
+        row["projection"].status == "ready" for row in projection_rows
+    )
+
     return render(request, "syndication/fragments/event_syndication.html", {
         "event": event,
         "projections": projections,
@@ -317,6 +325,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         "can_publish": user_can_publish,
         "action_error": action_error,
         "consumers_map": consumers_map,
+        "has_ready_projections": has_ready_projections,
     })
 
 
@@ -567,26 +576,6 @@ def projection_mark_published(request, pk):
     return redirect("syndication:event-hub", pk=event.pk)
 
 
-@login_required
-def projection_override(request, pk):
-    """
-    [STUB — awaiting kb-wz8m.5 replacement]
-
-    save_projection_override was removed in kb-wz8m.3 (it was the override-era
-    function). The correct replacement for this view — edit_version or another
-    version op — is owned by kb-wz8m.5 (board UI redesign).
-
-    Returns 501 Not Implemented to fail loud (ADR-008 D3) rather than silently
-    routing to the wrong service function. kb-wz8m.5 must replace this stub
-    with the correct edit_version-gated view.
-    """
-    from django.http import HttpResponse
-    return HttpResponse(
-        "projection_override: awaiting kb-wz8m.5 replacement (save_projection_override removed in kb-wz8m.3).",
-        status=501,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Version-op views (kb-wz8m.5, ADR-016 D3/D5)
 #
@@ -730,6 +719,79 @@ def version_edit(request, pk):
 
     try:
         edit_version(user=request.user, version=version, **fields)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
+        if request.headers.get("HX-Request"):
+            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    if request.headers.get("HX-Request"):
+        return _syndication_fragment_response(request, event)
+    return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def version_duplicate(request, pk):
+    """
+    Duplicate: create a new independent ContentVersion copied from the given
+    version (same event, copied editorial fields, fresh row).
+
+    POST only. Calls duplicate(user, version) service.
+    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    ADR-008 D3: PermissionError → 403; ValueError → fail loud.
+    """
+    from syndication.models import ContentVersion
+
+    version = get_object_or_404(ContentVersion, pk=pk)
+    event = version.event
+
+    if request.method != "POST":
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    try:
+        duplicate(user=request.user, version=version)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
+        if request.headers.get("HX-Request"):
+            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    if request.headers.get("HX-Request"):
+        return _syndication_fragment_response(request, event)
+    return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def version_copy_from(request, pk):
+    """
+    Copy-from: repoint the target projection at a NEW independent copy taken
+    from source_version (mint a new row from source, FK the projection to it).
+
+    POST only. Calls copy_from(user, projection, source_version) service.
+    POST body: source_version_pk — the ContentVersion to copy from.
+    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    ADR-008 D3: PermissionError → 403; ValueError → fail loud.
+    """
+    from syndication.models import ContentVersion
+
+    projection = get_object_or_404(PlatformProjection, pk=pk)
+    event = _resolve_projection_event(projection)
+
+    if request.method != "POST":
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    source_version_pk = request.POST.get("source_version_pk", "").strip()
+    if not source_version_pk:
+        if request.headers.get("HX-Request"):
+            return _syndication_fragment_response(request, event)
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    source_version = get_object_or_404(ContentVersion, pk=source_version_pk)
+
+    try:
+        copy_from(user=request.user, projection=projection, source_version=source_version)
     except PermissionError:
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:

@@ -72,11 +72,6 @@ urlpatterns = [
         name="projection-mark-published",
     ),
     path(
-        "projections/<int:pk>/override/",
-        views.projection_override,
-        name="projection-override",
-    ),
-    path(
         "events/<int:event_pk>/projections/publish-all-ready/",
         views.projection_batch_publish,
         name="projection-batch-publish",
@@ -103,6 +98,16 @@ urlpatterns = [
         "versions/<int:pk>/edit/",
         views.version_edit,
         name="version-edit",
+    ),
+    path(
+        "versions/<int:pk>/duplicate/",
+        views.version_duplicate,
+        name="version-duplicate",
+    ),
+    path(
+        "projections/<int:pk>/copy-from/",
+        views.version_copy_from,
+        name="version-copy-from",
     ),
 
     # --- Review-all stub (forward-reference for kb-wz8m.6) ---

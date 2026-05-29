@@ -720,6 +720,18 @@ def copy_from(user, projection, source_version):
             f"(event '{event}'). (ADR-017 D2)"
         )
 
+    # Guard: source_version must belong to the same event as the projection.
+    # Cross-event copy is a data-integrity violation — fail loud before any DB
+    # mutation (ADR-008 D3).
+    if source_version.event != event:
+        raise ValueError(
+            f"copy_from: source_version {source_version.pk!r} belongs to event "
+            f"{source_version.event_id!r} but target projection {projection.pk!r} "
+            f"belongs to event {event.pk!r}. "
+            "Source version must belong to the same event as the target projection. "
+            "(ADR-008 D3: fail loud — cross-event data-integrity violation)"
+        )
+
     new_cv = ContentVersion(
         event=source_version.event,
         name=_unique_copy_name(source_version.name),

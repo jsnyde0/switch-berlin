@@ -526,6 +526,34 @@ class CopyFromTest(TestCase):
         with self.assertRaises(PermissionError):
             copy_from(other_user, target_proj, source_cv)
 
+    def test_copy_from_cross_event_source_raises(self):
+        """
+        copy_from raises ValueError if source_version belongs to a DIFFERENT
+        event than the target projection's event (ADR-008 D3: fail loud on
+        cross-event data-integrity violation).
+
+        The projection's content_version must be unchanged — no DB mutation
+        must have occurred before the raise.
+        """
+        from syndication.services import copy_from
+
+        # Foreign event + source version from that foreign event
+        other_profile = _make_profile(name="Other Org CF", slug="other-org-cf")
+        other_event = _make_event(slug="cpfrom-other-event-cf")
+        EventOrganizer.objects.create(event=other_event, profile=other_profile, is_primary=True)
+        foreign_source_cv = _make_canonical_cv(other_event)
+
+        # Target projection belongs to self.event (different from other_event)
+        target_proj = _make_projection(self.conn_a, self.event)
+        original_cv_pk = target_proj.content_version_id
+
+        with self.assertRaises(ValueError):
+            copy_from(self.user, target_proj, foreign_source_cv)
+
+        # No repointing — projection must still point at its original version
+        target_proj.refresh_from_db()
+        self.assertEqual(target_proj.content_version_id, original_cv_pk)
+
 
 # ---------------------------------------------------------------------------
 # copy_to(source_version, target_projections)
