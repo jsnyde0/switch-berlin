@@ -669,6 +669,61 @@ class CopyToTest(TestCase):
         self.assertEqual(cv_count_after, cv_count_before)
         self.assertEqual(new_versions, [])
 
+    def test_copy_to_cross_event_target_raises_before_repointing(self):
+        """
+        copy_to raises ValueError if any target projection belongs to a DIFFERENT
+        event than source_version (ADR-008 D3: fail loud on data-integrity violation).
+
+        No repointing must have occurred for ANY target — all-or-nothing.
+        """
+        from syndication.services import copy_to
+
+        # Foreign event + projection
+        other_profile = _make_profile(name="Other Org F4", slug="other-org-f4")
+        other_event = _make_event(slug="cpto-other-event-f4")
+        EventOrganizer.objects.create(event=other_event, profile=other_profile, is_primary=True)
+        other_conn = _make_connection(other_profile, platform="fetlife", destination_id="fl-f4-other")
+        other_cv = _make_canonical_cv(other_event)
+        foreign_proj = _make_projection(other_conn, other_event, cv=other_cv)
+        original_foreign_cv_pk = foreign_proj.content_version_id
+
+        source_cv = _make_canonical_cv(self.event)
+
+        with self.assertRaises(ValueError):
+            copy_to(self.user, source_cv, [foreign_proj])
+
+        # No repointing — foreign_proj must still point at its original version
+        foreign_proj.refresh_from_db()
+        self.assertEqual(foreign_proj.content_version_id, original_foreign_cv_pk)
+
+    def test_copy_to_each_projection_gets_truly_independent_row(self):
+        """
+        After copy_to to two targets, editing one target's version must NOT
+        affect the other target's render (true independence, not just distinct FKs).
+        """
+        from syndication.engine import render_projection
+        from syndication.services import copy_to, edit_version
+
+        source_cv = ContentVersion.objects.create(
+            event=self.event,
+            name="source-true-independence",
+            body="Shared source body",
+            provenance=ContentVersion.Provenance.MANUAL,
+        )
+        proj_b = _make_projection(self.conn_b, self.event)
+        proj_c = _make_projection(self.conn_c, self.event)
+
+        copy_to(self.user, source_cv, [proj_b, proj_c])
+        proj_b.refresh_from_db()
+        proj_c.refresh_from_db()
+
+        # Edit proj_b's new version — proj_c's render must be unaffected
+        cv_b = proj_b.content_version
+        edit_version(self.user, cv_b, body="PROJ_B ONLY — must not appear in C")
+
+        render_c = render_projection(proj_c)
+        self.assertNotIn("PROJ_B ONLY — must not appear in C", render_c)
+
 
 # ---------------------------------------------------------------------------
 # reset_to_canonical(projection)
@@ -747,6 +802,54 @@ class ResetToCanonicalTest(TestCase):
         self.assertEqual(proj.content_version_id, canonical_cv.pk)
         self.assertEqual(cv_count_after, cv_count_before)
 
+    def test_reset_creates_no_new_row_on_normally_seeded_event(self):
+        """
+        reset_to_canonical is a pure FK assignment — it NEVER creates a new row.
+        The count of ContentVersions must be the same before and after.
+
+        This locks the contract: reset is NOT get_or_create; it is fetch-or-raise.
+        """
+        from syndication.services import reset_to_canonical, customize
+
+        canonical_cv = _make_canonical_cv(self.event)
+        proj = _make_projection(self.conn, self.event, cv=canonical_cv)
+        customize(self.user, proj)  # diverge so reset is non-trivial
+
+        cv_count_before = ContentVersion.objects.count()
+        reset_to_canonical(self.user, proj)
+        cv_count_after = ContentVersion.objects.count()
+
+        self.assertEqual(cv_count_after, cv_count_before)
+
+    def test_reset_raises_if_no_canonical_exists(self):
+        """
+        reset_to_canonical raises ValueError (fail loud, ADR-008 D3) when the
+        event has no canonical ContentVersion.
+
+        A missing canonical is a violated A1 invariant — a data bug, never a
+        normal condition. The correct response is fail loud, NOT silent creation.
+        """
+        from syndication.services import reset_to_canonical
+
+        # Event with self.profile as organizer (so can_edit passes) but no
+        # canonical CV — bypasses normal seeding to simulate data bug.
+        bare_event = _make_event(slug="reset-bare-event-f5")
+        EventOrganizer.objects.create(event=bare_event, profile=self.profile, is_primary=True)
+        other_conn = _make_connection(
+            self.profile, platform="telegram", destination_id="tg-reset-bare-f5", kinds=["listing"]
+        )
+        # Create a non-canonical version so we have something to point the projection at
+        non_canonical_cv = ContentVersion.objects.create(
+            event=bare_event,
+            name="not-canonical",
+            provenance=ContentVersion.Provenance.MANUAL,
+        )
+        bare_proj = _make_projection(other_conn, bare_event, cv=non_canonical_cv)
+
+        # No canonical row exists for bare_event — must raise, not create
+        with self.assertRaises(ValueError):
+            reset_to_canonical(self.user, bare_proj)
+
 
 # ---------------------------------------------------------------------------
 # edit_version(version, **fields)
@@ -755,12 +858,16 @@ class ResetToCanonicalTest(TestCase):
 
 class EditVersionTest(TestCase):
     """
-    edit_version(version, **fields) mutates a pre-publish version's editorial
-    fields and sets provenance=manual on human edit.
+    edit_version(version, **fields) mutates a version's editorial fields and
+    sets provenance=manual on human edit.
 
-    Propagates to ALL projections sharing the row.
-    Guard: cannot edit a version whose projections are all non-draft
-    (published/ready/failed freeze must hold — ADR-008 D3).
+    Propagates to ALL draft projections sharing the row.
+    Frozen projections (ready/published/failed) are fully isolated — they
+    return frozen_content["body"] and are unaffected by version edits (A2
+    freeze per engine.py render_projection).
+    Guard: cannot edit a version when ALL consumer projections are frozen
+    (every consumer is non-draft: ready/published/failed).  At least one
+    draft consumer makes edit always permitted.
     """
 
     def setUp(self):
@@ -832,7 +939,7 @@ class EditVersionTest(TestCase):
     def test_edit_version_raises_if_all_consumers_are_published(self):
         """
         edit_version raises ValueError if ALL consumer projections are published
-        (ADR-008 D3: fail loud — cannot mutate frozen content).
+        (ADR-008 D3: fail loud — every consumer is frozen, no live readers).
         """
         from syndication.services import edit_version, approve_projection
 
@@ -850,8 +957,8 @@ class EditVersionTest(TestCase):
 
     def test_edit_version_raises_if_all_consumers_are_ready(self):
         """
-        edit_version raises ValueError if ALL consumers are ready
-        (ready projections have frozen content — editing would make frozen stale).
+        edit_version raises ValueError if ALL consumers are ready.
+        Every consumer has frozen_content; no draft consumer reads the live row.
         """
         from syndication.services import edit_version, approve_projection
 
@@ -862,6 +969,46 @@ class EditVersionTest(TestCase):
 
         with self.assertRaises(ValueError):
             edit_version(self.user, cv, body="Cannot edit when frozen")
+
+    def test_edit_version_allowed_when_mixed_draft_and_published(self):
+        """
+        edit_version succeeds when the version is shared by both a draft and a
+        published projection (the MIXED case).
+
+        - The DRAFT projection re-renders live and sees the updated body.
+        - The PUBLISHED projection returns frozen_content["body"] and is UNCHANGED.
+
+        This is the key isolation invariant: A2 freeze means non-draft projections
+        never read the live ContentVersion, so editing it cannot corrupt them.
+        """
+        from syndication.engine import render_projection, transition_status
+        from syndication.services import edit_version, approve_projection
+
+        cv = _make_canonical_cv(self.event)
+        proj_draft = _make_projection(self.conn_a, self.event, cv=cv)
+        proj_published = _make_projection(self.conn_b, self.event, cv=cv)
+
+        # Capture the frozen render BEFORE the edit (the "original" published body)
+        approve_projection(user=self.user, projection=proj_published)
+        proj_published.refresh_from_db()
+        transition_status(proj_published, "published")
+        proj_published.refresh_from_db()
+        frozen_body_before_edit = render_projection(proj_published)
+
+        # Mixed state: proj_draft is draft, proj_published is published
+        # edit_version must SUCCEED (at least one draft consumer)
+        edit_version(self.user, cv, body="UPDATED AFTER FREEZE")
+        cv.refresh_from_db()
+
+        # Draft projection re-renders live — sees the updated body
+        draft_render = render_projection(proj_draft)
+        self.assertIn("UPDATED AFTER FREEZE", draft_render)
+
+        # Published projection returns its frozen snapshot — UNCHANGED
+        proj_published.refresh_from_db()
+        published_render = render_projection(proj_published)
+        self.assertEqual(published_render, frozen_body_before_edit)
+        self.assertNotIn("UPDATED AFTER FREEZE", published_render)
 
     def test_edit_version_allowed_when_all_consumers_are_draft(self):
         """edit_version succeeds when all consumers are draft."""

@@ -741,13 +741,27 @@ def copy_to(user, source_version, target_projections):
 
     Gate: user must be able to edit the source_version's event (can_edit seam).
     All target projections must belong to the same event as source_version
-    (enforced implicitly via the can_edit gate on the shared event).
+    (ADR-008 D3: fail loud on cross-event data-integrity violation).
 
     Returns the list of new ContentVersions (in target order).
     """
     from syndication.models import ContentVersion
 
     _gate_can_edit_for_cv(user, source_version)
+
+    # Guard: all targets must belong to the same event as source_version.
+    # Cross-event repointing is a data-integrity violation — fail loud before
+    # any DB mutation (ADR-008 D3).
+    for proj in target_projections:
+        proj_event = _resolve_projection_event(proj)
+        if proj_event != source_version.event:
+            raise ValueError(
+                f"copy_to: target projection {proj.pk!r} belongs to event "
+                f"{proj_event.pk!r} but source_version {source_version.pk!r} "
+                f"belongs to event {source_version.event_id!r}. "
+                "All targets must belong to the same event as source_version. "
+                "(ADR-008 D3: fail loud — cross-event data-integrity violation)"
+            )
 
     new_versions = []
     for proj in target_projections:
@@ -784,15 +798,19 @@ def customize(user, projection):
 def reset_to_canonical(user, projection):
     """
     Repoint the projection's FK back at the Event's canonical ContentVersion
-    (pure FK reassignment, NO new row; re-enters single-row sharing).
+    (pure FK assignment, NO new row; re-enters single-row sharing).
 
     Gate: user must be able to edit the projection's event (can_edit seam).
 
-    Uses _ensure_canonical_content_version to locate the canonical row reliably.
+    Fetch-or-raise: a missing canonical is a violated A1 invariant (every
+    event is seeded with exactly one canonical version at create).  This is
+    a data bug — fail loud (ADR-008 D3), do NOT silently create a new row.
+
     If a customized version row is left with zero consumers after reset, it is
     left in place (GC is out of scope per kb-wz8m.3 acceptance).
     """
     from syndication.authz import can_edit
+    from syndication.models import ContentVersion
 
     event = _resolve_projection_event(projection)
     if not can_edit(user, event):
@@ -801,7 +819,16 @@ def reset_to_canonical(user, projection):
             f"(event '{event}'). (ADR-017 D2)"
         )
 
-    canonical_cv = _ensure_canonical_content_version(event)
+    try:
+        canonical_cv = ContentVersion.objects.get(event=event, name="canonical")
+    except ContentVersion.DoesNotExist:
+        raise ValueError(
+            f"reset_to_canonical: event {event.pk!r} has no canonical "
+            "ContentVersion. A1 invariant violated — every event must be "
+            "seeded with a canonical version at creation. "
+            "(ADR-008 D3: fail loud — missing canonical is a data bug)"
+        )
+
     projection.content_version = canonical_cv
     projection.save(update_fields=["content_version", "updated_at"])
 
@@ -818,8 +845,12 @@ def edit_version(user, version, **fields):
 
     Guard (ADR-008 D3 fail loud): raises ValueError if ANY consumer projection
     is in a non-draft status (ready, published, or failed have frozen content
-    — mutating the version would make the freeze stale / contradict the frozen
-    snapshot). Editing a version shared by ANY frozen projection is blocked.
+    — render_projection returns frozen_content["body"] for them, so they are
+    fully isolated from version edits by design (A2 freeze)).
+
+    Guard: blocked ONLY when ALL consumer projections are non-draft (every
+    consumer is frozen; no live reader exists). A mixed state (at least one
+    draft consumer) is always permitted — frozen consumers are unaffected.
 
     Only known editorial fields (_CV_EDITORIAL_FIELDS) are applied; unknown
     kwargs are silently ignored (forward-compatible).
@@ -830,18 +861,23 @@ def edit_version(user, version, **fields):
 
     _gate_can_edit_for_cv(user, version)
 
-    # Guard: check for any non-draft consumers (ADR-008 D3).
-    non_draft_consumers = version.projections.exclude(
-        status=PlatformProjection.Status.DRAFT
-    )
-    if non_draft_consumers.exists():
-        non_draft_pks = list(non_draft_consumers.values_list("pk", flat=True))
-        raise ValueError(
-            f"Cannot edit ContentVersion {version.pk!r}: "
-            f"consumer projections {non_draft_pks!r} are not in draft status. "
-            "Editing would contradict their frozen content. "
-            "(ADR-008 D3: fail loud — no silent mutation of frozen content)"
-        )
+    # Guard: blocked only when EVERY consumer is non-draft (ADR-008 D3).
+    # Frozen consumers are isolated (render returns frozen_content["body"]);
+    # at least one draft consumer means the live row is still being read.
+    all_consumers = list(version.projections.all())
+    if all_consumers:
+        draft_consumers = [
+            p for p in all_consumers
+            if p.status == PlatformProjection.Status.DRAFT
+        ]
+        if not draft_consumers:
+            non_draft_pks = [p.pk for p in all_consumers]
+            raise ValueError(
+                f"Cannot edit ContentVersion {version.pk!r}: "
+                f"ALL consumer projections {non_draft_pks!r} are non-draft "
+                "(ready/published/failed). Every consumer has frozen content. "
+                "(ADR-008 D3: fail loud — no live readers of this version)"
+            )
 
     update_fields = []
     for field, value in fields.items():
