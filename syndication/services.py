@@ -21,6 +21,7 @@ kb-a4u.3 additions:
 
 from django.http import HttpRequest
 
+from syndication.adapters import publish_switch_own_page, publish_telegram_promotion
 from syndication.models import AgentCredential, AgentPairingToken, IdentityToken
 
 # ---------------------------------------------------------------------------
@@ -922,18 +923,27 @@ def approve_projection(user, projection):
 
 def publish_projection(user, projection):
     """
-    Publish a ready projection: transition ready→published.
+    Publish a ready projection by routing to the correct platform adapter.
 
     EXPLICIT action — never auto-triggers on approve (ADR-016 D5).
-    For push-API platforms, the actual push lives in an adapter bead; this
-    service records the intent and status change. The adapter will call
-    mark_projection_published after a successful push.
+
+    Platform dispatch (ADR-008 D2: thin dict map, NOT a base-class/plugin
+    registry — simplest thing that works, one clear path):
+    - "switch"   → publish_switch_own_page(projection)  — real URL resolution,
+                   auto-confirms (ready→published inside the adapter).
+    - "telegram" → publish_telegram_promotion(projection) — real Bot API send,
+                   auto-confirms + stamps message_id (adapter owns transition).
+    - "fetlife"  (and any no-API platform) → mark_projection_published path —
+                   actor-attested, out-of-band. The adapter performs the
+                   ready→published transition internally; do NOT call
+                   transition_status here (double-transition is a bug).
+    - unknown    → ValueError (ADR-008 D3: fail loud, no silent fallback).
 
     Gate: user must be able to publish the projection's event (can_publish seam,
     ADR-017 D2).
 
     Raises PermissionError if user lacks publish authority.
-    Raises ValueError if the transition is illegal.
+    Raises ValueError for unknown platform or illegal transition.
     """
     from syndication.authz import can_publish
 
@@ -944,8 +954,47 @@ def publish_projection(user, projection):
             f"(event '{event}'). (ADR-017 D2)"
         )
 
-    from syndication.engine import transition_status
-    transition_status(projection, "published")
+    # Precondition: projection must be in ready status before dispatch.
+    # Fail loud here (ADR-008 D3) — do NOT delegate a non-ready projection to
+    # an adapter (the adapter would also raise, but we gate early so the
+    # error message is clear and no adapter side-effect occurs).
+    from syndication.models import PlatformProjection as _PP
+    if projection.status != _PP.Status.READY:
+        raise ValueError(
+            f"publish_projection requires status=ready; "
+            f"got status={projection.status!r} for projection {projection.pk!r}. "
+            "Advance the projection to ready before publishing. "
+            "(ADR-008 D3 — fail loud)"
+        )
+
+    # Thin platform→callable map (ADR-008 D2).
+    # Push-API platforms: adapter owns the ready→published transition + stamps.
+    # No-API platforms (fetlife): attestation path — transition_status called
+    # directly here (same as mark_projection_published), re-using the already-
+    # gated auth from above. Do NOT double-call transition_status for push
+    # platforms — the adapters own that transition.
+    platform = projection.connection.platform
+
+    # --- Push-API platforms ---
+    if platform == "switch":
+        publish_switch_own_page(projection)
+    elif platform == "telegram":
+        publish_telegram_promotion(projection)
+    # --- No-API / manual-assisted platforms (attestation path) ---
+    elif platform == "fetlife":
+        # Route to the attestation path: engine transition directly.
+        # Same as what mark_projection_published does, but we skip the outer
+        # can_publish re-check (already gated above).
+        from syndication.engine import transition_status
+        transition_status(projection, "published")
+    # --- Unknown platform: fail loud (ADR-008 D3) ---
+    else:
+        raise ValueError(
+            f"publish_projection: unknown platform {platform!r} for projection "
+            f"{projection.pk!r}. Add a dispatch entry for this platform. "
+            "(ADR-008 D3 — fail loud, no silent fallback)"
+        )
+
     return projection
 
 
@@ -986,20 +1035,21 @@ def publish_all_ready_projections(user, event):
     Batch-publish every ready projection for the given event.
 
     Collects both listing projections (source_event) and promotion projections
-    (via Posts linked to the event) that are in 'ready' status, then transitions
-    each to 'published'.
+    (via Posts linked to the event) that are in 'ready' status, then routes
+    each through publish_projection (which dispatches to the correct platform
+    adapter or attestation path).
 
     Gate: user must be able to publish the event (can_publish seam, ADR-017 D2).
     Raises PermissionError if user lacks publish authority.
     Skips non-ready projections (they're simply not eligible).
 
-    Returns the list of projections that were published.
+    Returns (published, failures) where failures is a list of (proj, exc) tuples.
+    Per-item adapter failures are collected (publish the rest) — ADR-008 D3.
 
     Co-equal seam (ADR-016 D6): called by both the HTMX view and the Ninja API verb.
     """
     from syndication.authz import can_publish
     from syndication.models import PlatformProjection, Post
-    from syndication.engine import transition_status
     from itertools import chain
 
     if not can_publish(user, event):
@@ -1021,9 +1071,9 @@ def publish_all_ready_projections(user, event):
     failures = []
     for proj in ready_projections:
         try:
-            transition_status(proj, "published")
+            publish_projection(user, proj)
             published.append(proj)
-        except ValueError as exc:
+        except (ValueError, Exception) as exc:
             # ADR-008 D3: fail loud — collect per-item failures, publish the rest.
             # Caller is responsible for surfacing failures as a visible error state.
             failures.append((proj, exc))
