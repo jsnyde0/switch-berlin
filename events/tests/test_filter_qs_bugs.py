@@ -165,10 +165,11 @@ class ClearAreaQueryStringTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # Find the clear-area link — it appears as 'Clear area' anchor text
-        # The href must include price but not bounds
+        # Find the clear-area link — it appears as '✕ Clear area' inside an <a> tag.
+        # Use a tight pattern scoped to the same <a> element to avoid matching
+        # sort-tab hrefs that appear earlier in the document and also include bounds.
         match = re.search(
-            r'href="\?([^"]*)"[^>]*>[\s\S]*?Clear area',
+            r'<a\s[^>]*href="\?([^"]*)"[^>]*>[^<]*Clear area',
             content,
         )
         self.assertIsNotNone(match, "Clear-area link not found in rendered HTML")
@@ -204,4 +205,201 @@ class SelectedKeyRemovedFromTemplateTest(TestCase):
             "kb-card-selected",
             content,
             "_event_list.html must not reference kb-card-selected",
+        )
+
+
+class BoundsPreservedOnFilterFormTest(TestCase):
+    """Bug 2a — filter-form submit with ?bounds= active must keep bounds in filtered qs.
+
+    The #filter-form must carry a hidden `bounds` input so submitting any sidebar
+    control (tag, price, date, Following) does not silently drop the active area.
+    Verified via the view's queryset: only events inside the bounds survive.
+    """
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username="bounds_form_staff",
+            email="bounds_form_staff@example.com",
+            password="testpass123",
+            is_staff=True,
+        )
+        self.client.force_login(self.staff_user)
+        self.organizer = Profile.objects.create(
+            name="BoundsForm Org",
+            slug="bounds-form-org",
+            status="approved",
+        )
+        # Venue INSIDE the Berlin bounds
+        self.venue_inside = Venue.objects.create(
+            name="Inside Venue",
+            slug="inside-venue",
+            latitude=Decimal("52.52"),
+            longitude=Decimal("13.40"),
+            privacy_mode="public",
+        )
+        # Venue OUTSIDE the Berlin bounds
+        self.venue_outside = Venue.objects.create(
+            name="Outside Venue",
+            slug="outside-venue",
+            latitude=Decimal("48.00"),  # Munich-ish
+            longitude=Decimal("11.00"),
+            privacy_mode="public",
+        )
+        self.tag = Tag.objects.create(slug="bf-tag", label="BF Tag", kind="theme")
+        now = timezone.now()
+        self.event_inside = Event.objects.create(
+            title="Inside Event",
+            slug="inside-event",
+            organizer=self.organizer,
+            venue=self.venue_inside,
+            start=now + timezone.timedelta(days=1),
+            status="published",
+            is_free=True,
+        )
+        self.event_inside.tags.add(self.tag)
+        self.event_outside = Event.objects.create(
+            title="Outside Event",
+            slug="outside-event",
+            organizer=self.organizer,
+            venue=self.venue_outside,
+            start=now + timezone.timedelta(days=2),
+            status="published",
+            is_free=True,
+        )
+        self.event_outside.tags.add(self.tag)
+
+    def test_bounds_plus_tags_filters_to_inside_events_only(self):
+        """GET /events/?bounds=...&tags=... returns only events inside the bounds."""
+        response = self.client.get(
+            "/events/",
+            {"bounds": BOUNDS_BERLIN, "tags": "bf-tag"},
+        )
+        self.assertEqual(response.status_code, 200)
+        page_obj = response.context["page_obj"]
+        event_slugs = [e.slug for e in page_obj]
+        self.assertIn(
+            "inside-event",
+            event_slugs,
+            "Event inside bounds must appear when both bounds and tag filter are active",
+        )
+        self.assertNotIn(
+            "outside-event",
+            event_slugs,
+            "Event outside bounds must be excluded when bounds filter is active",
+        )
+
+    def test_bounds_input_present_in_filter_form_html(self):
+        """Rendered list.html must contain a hidden bounds input inside #filter-form."""
+        response = self.client.get(
+            "/events/",
+            {"bounds": BOUNDS_BERLIN, "price": "free"},
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # The hidden input must appear somewhere in the filter-form region.
+        # A simple substring check is sufficient; it must carry the correct value.
+        self.assertIn(
+            f'name="bounds"',
+            content,
+            "Hidden bounds input must be present in rendered list.html when bounds is active",
+        )
+        self.assertIn(
+            BOUNDS_BERLIN,
+            content,
+            "Bounds value must appear in rendered HTML so the form can round-trip it",
+        )
+
+
+class SortTabBoundsPreservationTest(TestCase):
+    """Bug 2b — sort-tab hrefs must include ?bounds= when an area is active.
+
+    INVARIANT: the clear-area link (filter_query_string) must NOT contain bounds.
+    Only sort-tab hrefs change; the clear-area href is untouched.
+    """
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username="sort_tab_staff",
+            email="sort_tab_staff@example.com",
+            password="testpass123",
+            is_staff=True,
+        )
+        self.client.force_login(self.staff_user)
+        self.organizer = Profile.objects.create(
+            name="SortTab Org",
+            slug="sort-tab-org",
+            status="approved",
+        )
+        self.venue = Venue.objects.create(
+            name="ST Venue",
+            slug="st-venue",
+            latitude=Decimal("52.52"),
+            longitude=Decimal("13.40"),
+            privacy_mode="public",
+        )
+        now = timezone.now()
+        Event.objects.create(
+            title="ST Event",
+            slug="st-event",
+            organizer=self.organizer,
+            venue=self.venue,
+            start=now + timezone.timedelta(days=1),
+            status="published",
+            is_free=True,
+        )
+
+    def test_sort_tab_hrefs_contain_bounds_when_active(self):
+        """Rendered sort-tab hrefs must include bounds= when ?bounds= is in the request."""
+        response = self.client.get(
+            "/events/",
+            {"bounds": BOUNDS_BERLIN, "price": "free"},
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Find all tab hrefs — they are rendered as href="?..." links in the sort group.
+        # All tab hrefs that include sort or are the default-sort tab must carry bounds.
+        sort_tab_hrefs = re.findall(r'href="\?([^"]*)"[^>]*role="tab"', content)
+        # Tabs use <c-kb.tab> which renders an <a role="tab">; look for those.
+        # Fall back to looking for any ?-prefixed href near the sort group.
+        # The template renders tabs as <a ... href="?..."> so we scan for those.
+        if not sort_tab_hrefs:
+            # Alternative: scan for href patterns that match sort-tab hrefs
+            sort_tab_hrefs = re.findall(
+                r'<a[^>]+href="\?([^"]*)"[^>]*>[\s\S]{0,40}(?:Latest|Trending|Lowest|Most reviewed)',
+                content,
+            )
+        self.assertTrue(
+            len(sort_tab_hrefs) > 0,
+            "Expected sort-tab anchor hrefs in rendered HTML",
+        )
+        for href_qs in sort_tab_hrefs:
+            self.assertIn(
+                "bounds=",
+                href_qs,
+                f"Sort-tab href must include bounds= when area is active; got: ?{href_qs}",
+            )
+
+    def test_clear_area_href_does_not_contain_bounds(self):
+        """Clear-area link href must NOT contain bounds= (invariant preserved)."""
+        response = self.client.get(
+            "/events/",
+            {"bounds": BOUNDS_BERLIN, "price": "free"},
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Find the clear-area anchor: look for 'Clear area' text inside an <a> tag.
+        # The text appears as '✕ Clear area' so search for 'Clear area' in the
+        # anchor-text region and grab the preceding href on the same tag.
+        # Pattern: <a ...href="?..."...>... Clear area ...</a>
+        # Use a tight pattern: the href and the tag close together (same <a> tag).
+        match = re.search(
+            r'<a\s[^>]*href="\?([^"]*)"[^>]*>[^<]*Clear area',
+            content,
+        )
+        self.assertIsNotNone(match, "Clear-area link not found in rendered HTML")
+        href_qs = match.group(1)
+        self.assertNotIn(
+            "bounds",
+            href_qs,
+            f"Clear-area href must NOT include bounds=; got: ?{href_qs}",
         )

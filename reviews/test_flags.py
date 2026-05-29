@@ -506,21 +506,6 @@ def test_visible_organizer_profile_returns_200(client, organizer):
     assert resp.status_code == 200
 
 
-@pytest.mark.django_db
-def test_event_drawer_excludes_hidden_event(client, published_event):
-    """event_drawer returns 404 for hidden event."""
-    published_event.hidden = True
-    published_event.save()
-    url = reverse(
-        "event-drawer",
-        kwargs={
-            "org_slug": published_event.organizer.slug,
-            "event_slug": published_event.slug,
-        },
-    )
-    resp = client.get(url)
-    assert resp.status_code == 404
-
 
 @pytest.mark.django_db
 def test_organizer_profile_upcoming_events_excludes_hidden(client, organizer):

@@ -359,18 +359,6 @@ def test_private_venue_name_hidden_in_detail(
     assert b"Private venue" in response.content
 
 
-@pytest.mark.django_db
-def test_private_venue_name_hidden_in_drawer(
-    client, approved_user, event_with_private_venue
-):
-    """Event drawer shows 'Private venue' for users without going Attendance."""
-    client.force_login(approved_user)
-    org_slug = event_with_private_venue.organizer.slug
-    event_slug = event_with_private_venue.slug
-    response = client.get(f"/events/{org_slug}/{event_slug}/drawer/")
-    assert response.status_code == 200
-    assert b"Private venue" in response.content
-
 
 @pytest.mark.django_db
 def test_private_venue_name_shown_in_detail_for_going_user(
@@ -386,22 +374,6 @@ def test_private_venue_name_shown_in_detail_for_going_user(
     assert b"Secret Place" in response.content
     assert b"Private venue" not in response.content
 
-
-@pytest.mark.django_db
-def test_private_venue_name_shown_in_drawer_for_going_user(
-    client, approved_user, event_with_private_venue
-):
-    """Event drawer shows actual venue name for users WITH going Attendance."""
-    Attendance.objects.create(
-        user=approved_user, event=event_with_private_venue, status="going"
-    )
-    client.force_login(approved_user)
-    org_slug = event_with_private_venue.organizer.slug
-    event_slug = event_with_private_venue.slug
-    response = client.get(f"/events/{org_slug}/{event_slug}/drawer/")
-    assert response.status_code == 200
-    assert b"Secret Place" in response.content
-    assert b"Private venue" not in response.content
 
 
 # ---------------------------------------------------------------------------

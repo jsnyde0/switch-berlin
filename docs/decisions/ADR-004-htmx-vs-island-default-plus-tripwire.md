@@ -87,11 +87,11 @@ If after Phase 0.4 the tripwires feel either over-engineered (no tripwire ever c
 The HTMX path is built so that replacing the map container with a React island later is a **local refactor**, not a rewrite:
 
 - The map lives in a single `<div id="map" hx-preserve="true">` with no HTMX children.
-- All cross-panel state flows through one `Alpine.store('map', …)` — selection, hovered event, filter bounds, zoom.
-- All cross-component communication uses **custom DOM events on `window`** (`events:selection-changed`, `events:filter-changed`, `events:bounds-changed`) — not direct function calls, not shared closures.
+- All cross-panel state flows through one `Alpine.store('map', …)` — hovered event, filter bounds, zoom.
+- All cross-component communication uses **custom DOM events on `window`** (`events:filter-changed`, `events:bounds-changed`, `events:hover-changed`) — not direct function calls, not shared closures.
 - The map module exposes `init(container, store) → { destroy() }` and reads/writes the store only through published events.
 
-To swap in a React island post-hoc: mount the island at the same `#map` element, subscribe it to the same window events, dispatch the same events back. The filter chips, list, and drawer require zero changes.
+To swap in a React island post-hoc: mount the island at the same `#map` element, subscribe it to the same window events, dispatch the same events back. The filter chips and list require zero changes.
 
 **Rationale:**
 

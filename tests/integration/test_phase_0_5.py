@@ -698,15 +698,6 @@ def test_legal_pages_reachable_in_rollback(client, feature_flag_public_read_off)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.django_db
-def test_slug_drawer_url_works(client, published_event, feature_flag_public_read_on):
-    """GET /events/<org_slug>/<event_slug>/drawer/ with slug-based URL -> 200."""
-    client.cookies["age_gate"] = "ok"
-    response = client.get(
-        f"/events/{published_event.organizer.slug}/{published_event.slug}/drawer/"
-    )
-    assert response.status_code == 200
-
 
 @pytest.mark.django_db
 def test_pk_drawer_url_gone(client, published_event, feature_flag_public_read_on):

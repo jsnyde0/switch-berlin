@@ -98,13 +98,13 @@
             <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-3">{% trans "Sort" %}</p>
             {% with sort_active=sort|default:"date" %}
               <div role="tablist" class="flex flex-col gap-1.5">
-                <c-kb.tab href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}" :active="sort_active == 'date'" label="{% trans 'Latest' %}" />
+                <c-kb.tab href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'date'" label="{% trans 'Latest' %}" />
                 {% if trending_enabled %}
-                  <c-kb.tab href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}" :active="sort_active == 'trending'" label="{% trans 'Trending' %}" />
+                  <c-kb.tab href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'trending'" label="{% trans 'Trending' %}" />
                 {% endif %}
                 {% if EVENT_REVIEWS_DISPLAYED %}
-                  <c-kb.tab href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}" :active="sort_active == 'lowest_rated'" label="{% trans 'Lowest rated' %}" />
-                  <c-kb.tab href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}" :active="sort_active == 'most_reviewed'" label="{% trans 'Most reviewed' %}" />
+                  <c-kb.tab href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'lowest_rated'" label="{% trans 'Lowest rated' %}" />
+                  <c-kb.tab href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'most_reviewed'" label="{% trans 'Most reviewed' %}" />
                 {% endif %}
               </div>
             {% endwith %}
@@ -119,6 +119,9 @@
 
             {# Preserve sort across filter submissions #}
             {% if sort and sort != "date" %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+            {# Preserve active map area across filter submissions — without this, any #}
+            {# sidebar control submit drops ?bounds= silently (Bug 2a). #}
+            {% if bounds_param %}<input type="hidden" name="bounds" value="{{ bounds_param }}">{% endif %}
 
             {# ── Following toggle (D5, auth only) ─────────────── #}
             {% if user.is_authenticated %}
