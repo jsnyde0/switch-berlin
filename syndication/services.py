@@ -584,24 +584,130 @@ def _resolve_projection_event(projection):
     )
 
 
-def save_projection_override(user, projection, **override_fields):
+# ---------------------------------------------------------------------------
+# ContentVersion snapshot-semantic operations (kb-wz8m.3, ADR-016 D2, ADR-017 D2)
+#
+# All version ops are can_edit-gated through the existing auth seam (ADR-017 D2).
+# Non-claimant → PermissionError.
+#
+# Co-equal-ready: no HTTP endpoints here (deferred per ADR-008 D2; kb-f6yp).
+# These service functions are callable identically by HTMX views (kb-wz8m.5)
+# and any future Ninja handler (ADR-016 D3).
+#
+# Deferred (ADR-008 D2, no first caller): cross-row Link, derived_from lineage,
+# per-Profile preset.
+# ---------------------------------------------------------------------------
+
+# Editorial fields on ContentVersion that version ops may copy/mutate.
+_CV_EDITORIAL_FIELDS = frozenset({"headline", "body", "imagery", "cta", "voice"})
+
+
+def _copy_cv_fields(source_cv, target_cv):
     """
-    Persist per-field overrides on a draft projection and flip provenance to manual.
+    Copy editorial fields from source_cv to target_cv (in-memory, does not save).
+    Helper shared by duplicate, copy_from, copy_to.
+    """
+    for field in _CV_EDITORIAL_FIELDS:
+        setattr(target_cv, field, getattr(source_cv, field))
+
+
+def _gate_can_edit_for_cv(user, content_version):
+    """
+    Resolve the event from a ContentVersion and gate on can_edit.
+
+    Raises PermissionError if user cannot edit the ContentVersion's event.
+    ContentVersion.event is the binding event; we resolve through that.
+    """
+    from syndication.authz import can_edit
+    event = content_version.event
+    if not can_edit(user, event):
+        raise PermissionError(
+            f"User {user} cannot edit ContentVersion {content_version.pk!r} "
+            f"(event '{event}'). (ADR-017 D2)"
+        )
+
+
+def consumers(version):
+    """
+    Return the queryset of PlatformProjections whose content_version FK points
+    at this ContentVersion.
+
+    This is the per-version "live on" data — how many projections share this row.
+
+    No auth gate: consumers is a read-only query callable by any service layer
+    code (e.g. the board rendering in kb-wz8m.5).
+    """
+    return version.projections.all()
+
+
+def content_version_consumers_map(event):
+    """
+    Return the per-event aggregate the board reads for the "live on <channels>" cue.
+
+    Shape: {ContentVersion: [PlatformProjection, ...]}
+
+    Maps each ContentVersion for the given event to the list of PlatformProjections
+    currently pointing at it. Versions with zero consumers are included (they still
+    belong to the event). Versions from other events are excluded.
+
+    kb-wz8m.5 (UI) consumes this for the board's per-version channel summary.
+    """
+    from syndication.models import ContentVersion, PlatformProjection
+
+    versions = ContentVersion.objects.filter(event=event).prefetch_related("projections")
+    result = {}
+    for cv in versions:
+        result[cv] = list(cv.projections.all())
+    return result
+
+
+def _unique_copy_name(source_name):
+    """
+    Generate a unique name for a new ContentVersion copied from source_name.
+
+    The (event, name) pair is UNIQUE-constrained; callers creating multiple
+    copies of the same source in one operation would collide on a plain
+    "copy-of-<name>" slug. A short UUID suffix guarantees uniqueness.
+    """
+    import uuid as _uuid
+    suffix = _uuid.uuid4().hex[:8]
+    return f"copy-of-{source_name}-{suffix}"
+
+
+def duplicate(user, version):
+    """
+    Create and return a NEW independent ContentVersion seeded (copied) from an
+    existing one (same Event, copied editorial fields, fresh row).
+
+    Gate: user must be able to edit the version's event (can_edit seam).
+
+    The new version is not attached to any projection — callers (copy_from,
+    copy_to, customize) wire up the FK after calling this.
+    """
+    from syndication.models import ContentVersion
+
+    _gate_can_edit_for_cv(user, version)
+
+    new_cv = ContentVersion(
+        event=version.event,
+        name=_unique_copy_name(version.name),
+        provenance=version.provenance,
+    )
+    _copy_cv_fields(version, new_cv)
+    new_cv.save()
+    return new_cv
+
+
+def copy_from(user, projection, source_version):
+    """
+    Repoint the projection at a NEW independent copy taken from source_version
+    (mint a new row from source, FK the projection to it).
 
     Gate: user must be able to edit the projection's event (can_edit seam).
-    Writes override_fields into the projection's ContentVersion and sets
-    ContentVersion.provenance = manual.
+    The original ContentVersion the projection was pointing at is left as-is
+    (GC is out of scope).
 
-    Only writes the supplied fields — absent keys are not touched (null-means-derive
-    semantics preserved for unset ContentVersion fields per ADR-016 D2 kb-wz8m.2).
-
-    NOTE: This function is slated for removal/replacement in kb-wz8m.3. It is
-    kept functional here to avoid breaking test_projection_board.py (which tests
-    the override-edit service + view path). kb-wz8m.3 owns the final disposition.
-
-    ADR-008 D3: fail loud on missing source.
-    ADR-016 D2: ContentVersion is the per-field override store; provenance on
-    ContentVersion tracks how the content was last produced.
+    Returns the new ContentVersion.
     """
     from syndication.authz import can_edit
     from syndication.models import ContentVersion
@@ -613,29 +719,142 @@ def save_projection_override(user, projection, **override_fields):
             f"(event '{event}'). (ADR-017 D2)"
         )
 
-    cv = projection.content_version
-    if cv is None:
-        raise ValueError(
-            f"Projection {projection.pk!r} has no content_version. "
-            "Cannot save override without a ContentVersion. (ADR-008 D3: fail loud)"
+    new_cv = ContentVersion(
+        event=source_version.event,
+        name=_unique_copy_name(source_version.name),
+        provenance=source_version.provenance,
+    )
+    _copy_cv_fields(source_version, new_cv)
+    new_cv.save()
+
+    projection.content_version = new_cv
+    projection.save(update_fields=["content_version", "updated_at"])
+    return new_cv
+
+
+def copy_to(user, source_version, target_projections):
+    """
+    For each target projection, mint an INDEPENDENT new ContentVersion copied
+    from source_version and repoint that projection's FK at its own copy.
+
+    N targets → N independent rows (so each target can diverge independently).
+
+    Gate: user must be able to edit the source_version's event (can_edit seam).
+    All target projections must belong to the same event as source_version
+    (enforced implicitly via the can_edit gate on the shared event).
+
+    Returns the list of new ContentVersions (in target order).
+    """
+    from syndication.models import ContentVersion
+
+    _gate_can_edit_for_cv(user, source_version)
+
+    new_versions = []
+    for proj in target_projections:
+        new_cv = ContentVersion(
+            event=source_version.event,
+            name=_unique_copy_name(source_version.name),
+            provenance=source_version.provenance,
+        )
+        _copy_cv_fields(source_version, new_cv)
+        new_cv.save()
+        proj.content_version = new_cv
+        proj.save(update_fields=["content_version", "updated_at"])
+        new_versions.append(new_cv)
+
+    return new_versions
+
+
+def customize(user, projection):
+    """
+    Duplicate the projection's CURRENT version into the projection's OWN new row
+    and repoint the FK at it (opt-in divergence).
+
+    Gate: user must be able to edit the projection's event (can_edit seam).
+
+    Returns the new ContentVersion (the customized row).
+
+    Semantics: after customize, editing the new row is isolated — it does not
+    affect sibling projections that still share the original (canonical) version.
+    This is the core single-row-sharing divergence primitive.
+    """
+    return copy_from(user, projection, projection.content_version)
+
+
+def reset_to_canonical(user, projection):
+    """
+    Repoint the projection's FK back at the Event's canonical ContentVersion
+    (pure FK reassignment, NO new row; re-enters single-row sharing).
+
+    Gate: user must be able to edit the projection's event (can_edit seam).
+
+    Uses _ensure_canonical_content_version to locate the canonical row reliably.
+    If a customized version row is left with zero consumers after reset, it is
+    left in place (GC is out of scope per kb-wz8m.3 acceptance).
+    """
+    from syndication.authz import can_edit
+
+    event = _resolve_projection_event(projection)
+    if not can_edit(user, event):
+        raise PermissionError(
+            f"User {user} cannot reset projection {projection.pk!r} "
+            f"(event '{event}'). (ADR-017 D2)"
         )
 
-    # Apply only the supplied fields to the ContentVersion.
-    # Unrecognised fields are silently skipped (forward-compatible).
-    _CV_OVERRIDE_FIELDS = {"headline", "body", "imagery", "cta", "voice"}
+    canonical_cv = _ensure_canonical_content_version(event)
+    projection.content_version = canonical_cv
+    projection.save(update_fields=["content_version", "updated_at"])
+
+
+def edit_version(user, version, **fields):
+    """
+    Mutate a pre-publish version's editorial fields; set provenance=manual on
+    human edit.
+
+    Gate: user must be able to edit the version's event (can_edit seam).
+
+    Propagates to ALL projections sharing the row (single-row shared-edit —
+    that IS the v0 default).
+
+    Guard (ADR-008 D3 fail loud): raises ValueError if ANY consumer projection
+    is in a non-draft status (ready, published, or failed have frozen content
+    — mutating the version would make the freeze stale / contradict the frozen
+    snapshot). Editing a version shared by ANY frozen projection is blocked.
+
+    Only known editorial fields (_CV_EDITORIAL_FIELDS) are applied; unknown
+    kwargs are silently ignored (forward-compatible).
+
+    Returns the updated ContentVersion.
+    """
+    from syndication.models import ContentVersion, PlatformProjection
+
+    _gate_can_edit_for_cv(user, version)
+
+    # Guard: check for any non-draft consumers (ADR-008 D3).
+    non_draft_consumers = version.projections.exclude(
+        status=PlatformProjection.Status.DRAFT
+    )
+    if non_draft_consumers.exists():
+        non_draft_pks = list(non_draft_consumers.values_list("pk", flat=True))
+        raise ValueError(
+            f"Cannot edit ContentVersion {version.pk!r}: "
+            f"consumer projections {non_draft_pks!r} are not in draft status. "
+            "Editing would contradict their frozen content. "
+            "(ADR-008 D3: fail loud — no silent mutation of frozen content)"
+        )
+
     update_fields = []
-    for field, value in override_fields.items():
-        if field in _CV_OVERRIDE_FIELDS:
-            setattr(cv, field, value)
+    for field, value in fields.items():
+        if field in _CV_EDITORIAL_FIELDS:
+            setattr(version, field, value)
             update_fields.append(field)
 
     if update_fields:
-        cv.provenance = ContentVersion.Provenance.MANUAL
-        update_fields.append("provenance")
-        update_fields.append("updated_at")
-        cv.save(update_fields=update_fields)
+        version.provenance = ContentVersion.Provenance.MANUAL
+        update_fields.extend(["provenance", "updated_at"])
+        version.save(update_fields=update_fields)
 
-    return projection
+    return version
 
 
 def approve_projection(user, projection):

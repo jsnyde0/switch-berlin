@@ -251,19 +251,26 @@ class BoardFragmentRenderTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# A2. Override-edit: persists to override_data AND flips provenance to manual
+# A2. Override-edit: replaced by edit_version in kb-wz8m.3
+#
+# save_projection_override was removed in kb-wz8m.3 and replaced by edit_version.
+# The equivalent behaviour (persisting body + flipping provenance to manual) is
+# now covered by test_version_ops.EditVersionTest.
+#
+# OverrideEditViewTest: the projection_override view is stubbed (501) in
+# kb-wz8m.3 awaiting its kb-wz8m.5 replacement. View tests are covered in
+# test_version_ops.py once kb-wz8m.5 ships the new board edit view.
 # ---------------------------------------------------------------------------
 
 
 class OverrideEditServiceTest(TestCase):
     """
-    save_projection_override service: persists content fields on ContentVersion AND
+    edit_version service: persists content fields on ContentVersion AND
     flips ContentVersion.provenance to manual.
 
+    kb-wz8m.3: save_projection_override removed; replaced by edit_version.
     kb-wz8m.2: override_data removed; body stored on ContentVersion.body.
     provenance lives on ContentVersion, not PlatformProjection.
-
-    ADR-008 D3: no silent zero-fill — raise if no content_version on projection.
     """
 
     def setUp(self):
@@ -273,67 +280,69 @@ class OverrideEditServiceTest(TestCase):
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_connection(self.profile, destination_id="fl-edit")
 
-    def test_save_override_persists_body_to_content_version(self):
+    def test_edit_version_persists_body_to_content_version(self):
         """
-        Calling save_projection_override with body="edited copy" stores
-        ContentVersion.body = "edited copy" on the projection's content version.
+        Calling edit_version with body="edited copy" stores
+        ContentVersion.body = "edited copy" on the version.
 
-        kb-wz8m.2: override_data removed; body is on ContentVersion.
+        kb-wz8m.3: edit_version replaces save_projection_override.
         """
-        from syndication.services import save_projection_override
+        from syndication.services import edit_version
 
         proj = _make_listing_projection(self.conn, self.event)
-        save_projection_override(user=self.user, projection=proj, body="edited copy")
+        edit_version(user=self.user, version=proj.content_version, body="edited copy")
         proj.content_version.refresh_from_db()
         self.assertEqual(proj.content_version.body, "edited copy")
 
-    def test_save_override_flips_content_version_provenance_to_manual(self):
+    def test_edit_version_flips_content_version_provenance_to_manual(self):
         """
-        After save_projection_override, ContentVersion.provenance must be 'manual'
+        After edit_version, ContentVersion.provenance must be 'manual'
         regardless of its prior value (rule_template or agent_supplied).
 
         kb-wz8m.2: provenance lives on ContentVersion, not PlatformProjection.
         """
-        from syndication.services import save_projection_override
+        from syndication.services import edit_version
 
         proj = _make_listing_projection(self.conn, self.event, provenance="rule_template")
-        save_projection_override(user=self.user, projection=proj, body="human edit")
+        edit_version(user=self.user, version=proj.content_version, body="human edit")
         proj.content_version.refresh_from_db()
         self.assertEqual(
             proj.content_version.provenance,
             "manual",
-            "save_projection_override must flip ContentVersion.provenance to 'manual'",
+            "edit_version must flip ContentVersion.provenance to 'manual'",
         )
 
-    def test_save_override_from_agent_supplied_also_flips_to_manual(self):
+    def test_edit_version_from_agent_supplied_also_flips_to_manual(self):
         """
-        Editing an agent_supplied projection also flips ContentVersion.provenance to manual.
+        Editing an agent_supplied ContentVersion also flips provenance to manual.
         Human edit always wins provenance.
         """
-        from syndication.services import save_projection_override
+        from syndication.services import edit_version
 
         proj = _make_listing_projection(self.conn, self.event, provenance="agent_supplied")
-        save_projection_override(user=self.user, projection=proj, body="overriding agent")
+        edit_version(user=self.user, version=proj.content_version, body="overriding agent")
         proj.content_version.refresh_from_db()
         self.assertEqual(proj.content_version.provenance, "manual")
 
-    def test_save_override_gated_by_can_edit(self):
+    def test_edit_version_gated_by_can_edit(self):
         """
-        save_projection_override raises PermissionError if user cannot edit the event.
+        edit_version raises PermissionError if user cannot edit the event.
         """
-        from syndication.services import save_projection_override
+        from syndication.services import edit_version
 
         other_user = _make_vouched_user(
             username="stranger", email="stranger@test.com", password="pw"
         )
         proj = _make_listing_projection(self.conn, self.event)
         with self.assertRaises(PermissionError):
-            save_projection_override(user=other_user, projection=proj, body="not allowed")
+            edit_version(user=other_user, version=proj.content_version, body="not allowed")
 
 
 class OverrideEditViewTest(TestCase):
     """
-    HTMX view for override-edit POSTs through to save_projection_override service.
+    The projection_override view is stubbed (501) in kb-wz8m.3 awaiting its
+    kb-wz8m.5 replacement. These tests verify the stub returns 501 as expected
+    (ADR-008 D3: fail loud rather than silently routing to wrong service).
     """
 
     def setUp(self):
@@ -347,10 +356,11 @@ class OverrideEditViewTest(TestCase):
         self.client = Client()
         self.client.force_login(self.user)
 
-    def test_override_edit_view_persists_body(self):
+    def test_override_edit_view_returns_501_stub(self):
         """
-        POST to the override-edit view stores ContentVersion.body on the projection.
-        kb-wz8m.2: override_data removed; body is on ContentVersion.
+        POST to the projection_override view returns 501 Not Implemented.
+        save_projection_override was removed in kb-wz8m.3; the replacement view
+        will ship in kb-wz8m.5.
         """
         proj = _make_listing_projection(self.conn, self.event)
         response = self.client.post(
@@ -358,23 +368,8 @@ class OverrideEditViewTest(TestCase):
             data={"body": "view-driven edit"},
             HTTP_HX_REQUEST="true",
         )
-        self.assertIn(response.status_code, [200, 302])
-        proj.content_version.refresh_from_db()
-        self.assertEqual(proj.content_version.body, "view-driven edit")
-
-    def test_override_edit_view_flips_provenance(self):
-        """
-        POST to override-edit view also flips ContentVersion.provenance to manual.
-        kb-wz8m.2: provenance lives on ContentVersion, not PlatformProjection.
-        """
-        proj = _make_listing_projection(self.conn, self.event, provenance="rule_template")
-        self.client.post(
-            f"/syndication/projections/{proj.pk}/override/",
-            data={"body": "manual override"},
-            HTTP_HX_REQUEST="true",
-        )
-        proj.content_version.refresh_from_db()
-        self.assertEqual(proj.content_version.provenance, "manual")
+        self.assertEqual(response.status_code, 501,
+            "projection_override view must return 501 (stub) until kb-wz8m.5 ships")
 
 
 # ---------------------------------------------------------------------------
@@ -867,12 +862,15 @@ class MarkPublishedAPIVerbStructureTest(TestCase):
             "publish_projection must be in syndication.services",
         )
 
-    def test_save_projection_override_importable_from_services(self):
-        """save_projection_override must exist in syndication.services."""
+    def test_edit_version_importable_from_services(self):
+        """
+        edit_version must exist in syndication.services.
+        kb-wz8m.3: save_projection_override removed; edit_version is the replacement.
+        """
         from syndication import services
         self.assertTrue(
-            hasattr(services, "save_projection_override"),
-            "save_projection_override must be in syndication.services",
+            hasattr(services, "edit_version"),
+            "edit_version must be in syndication.services (replaces save_projection_override, kb-wz8m.3)",
         )
 
 

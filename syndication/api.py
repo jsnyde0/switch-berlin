@@ -58,7 +58,6 @@ from syndication.services import (
     publish_projection,
     mark_projection_published,
     publish_all_ready_projections,
-    save_projection_override,
     _resolve_projection_event,
 )
 

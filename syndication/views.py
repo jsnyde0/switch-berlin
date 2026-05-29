@@ -39,7 +39,6 @@ from syndication.services import (
     publish_projection,
     mark_projection_published,
     publish_all_ready_projections,
-    save_projection_override,
     _resolve_projection_event,
 )
 
@@ -562,29 +561,21 @@ def projection_mark_published(request, pk):
 @login_required
 def projection_override(request, pk):
     """
-    Save per-field overrides on a projection (inline edit).
-    POST only. Calls save_projection_override service.
-    Accepts: body (str), and any other override fields.
-    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    [STUB — awaiting kb-wz8m.5 replacement]
+
+    save_projection_override was removed in kb-wz8m.3 (it was the override-era
+    function). The correct replacement for this view — edit_version or another
+    version op — is owned by kb-wz8m.5 (board UI redesign).
+
+    Returns 501 Not Implemented to fail loud (ADR-008 D3) rather than silently
+    routing to the wrong service function. kb-wz8m.5 must replace this stub
+    with the correct edit_version-gated view.
     """
-    proj = get_object_or_404(PlatformProjection, pk=pk)
-    event = _resolve_projection_event(proj)
-    if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
-
-    # Collect override fields from POST data
-    override_fields = {}
-    if "body" in request.POST:
-        override_fields["body"] = request.POST["body"]
-
-    try:
-        save_projection_override(user=request.user, projection=proj, **override_fields)
-    except PermissionError:
-        return render(request, "syndication/403.html", {}, status=403)
-
-    if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+    from django.http import HttpResponse
+    return HttpResponse(
+        "projection_override: awaiting kb-wz8m.5 replacement (save_projection_override removed in kb-wz8m.3).",
+        status=501,
+    )
 
 
 @login_required
