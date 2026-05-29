@@ -288,6 +288,42 @@ class PostForm(forms.Form):
     )
 
 
+class ContentVersionForm(forms.Form):
+    """
+    Minimal form for ContentVersion authoring (kb-wz8m.1 additive step).
+
+    Only the core fields — name is required; editorial fields are optional
+    (ADR-016 D5 save-always; completeness gated at draft→ready, never here).
+    """
+
+    name = forms.CharField(
+        max_length=200,
+        label=_("Version name"),
+        help_text=_("e.g. 'canonical', 'hipsy-censored', 'campaign-v1'"),
+    )
+    headline = forms.CharField(
+        required=False,
+        max_length=300,
+        label=_("Headline"),
+    )
+    body = forms.CharField(
+        required=False,
+        label=_("Body"),
+        widget=forms.Textarea(attrs={"rows": 6}),
+    )
+    cta = forms.CharField(
+        required=False,
+        max_length=500,
+        label=_("Call to action"),
+    )
+    voice = forms.CharField(
+        required=False,
+        max_length=100,
+        label=_("Voice / tone"),
+        help_text=_("e.g. 'playful', 'formal'"),
+    )
+
+
 class PlatformConnectionForm(forms.Form):
     """
     Form for creating or editing a PlatformConnection.
