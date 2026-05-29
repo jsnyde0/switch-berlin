@@ -30,12 +30,12 @@
 
   <div class="kb-rule mb-8"></div>
 
-  {#
+  {% comment %}
     Three independently-addressable HTMX-swappable fragments (ADR-016 bead design).
     Each is named by domain concept, not layout position.
     ADR-008 D2: no tab framework speculation — plain stacked sections.
     Each fragment has its own x-data root on first load (Alpine 3.x requirement).
-  #}
+  {% endcomment %}
 
   {# event_facts fragment #}
   <section id="event-facts"
