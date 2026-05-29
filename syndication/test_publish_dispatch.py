@@ -226,35 +226,106 @@ class PublishProjectionSwitchDispatchTest(TestCase):
             "the adapter owns the transition. (Double-transition bug prevention.)",
         )
 
-    def test_publish_projection_switch_projection_has_correct_content_version(self):
+    def test_publish_projection_switch_routing_swap_detection(self):
         """
-        The adapter receives a projection whose content_version is the one
-        assigned at projection creation. This ensures the adapter will post
-        the projection's assigned-version content (not some other version).
+        Routing-swap test: two ready projections on the same event with DISTINCT
+        content (proj_1 customized to "CUSTOM-FOR-1", proj_2 on canonical/different
+        body). Publishing proj_1 must deliver proj_1's body; publishing proj_2
+        must deliver proj_2's body. A swap (publish proj_1 but deliver proj_2's
+        content) FAILS this test.
+
+        Sequence:
+          1. Create proj_1 and proj_2 in DRAFT on the same event.
+          2. customize(proj_1) → gives it its own ContentVersion row.
+          3. edit_version(proj_1.cv, body="CUSTOM-FOR-1") → distinguish it.
+          4. Advance both to READY → frozen_content is materialized at freeze.
+          5. Spy: publish proj_1, assert body == "CUSTOM-FOR-1".
+          6. Spy: publish proj_2, assert body != "CUSTOM-FOR-1".
         """
-        from syndication.services import publish_projection
+        from syndication.services import customize, edit_version, publish_projection
+        from syndication.engine import transition_status, render_projection
+        from syndication.models import ContentVersion
 
-        proj = _make_listing_projection(self.conn, self.event)
-        expected_cv = proj.content_version
+        # proj_1: will be customized
+        proj_1 = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            connection=self.conn,
+            source_event=self.event,
+            content_version=_make_content_version(self.event),
+        )
 
-        received_projections = []
+        # proj_2: second connection to have a second destination (same platform)
+        conn_2 = _make_connection(
+            self.profile, platform="switch", destination_id="own-page-2"
+        )
+        proj_2 = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            connection=conn_2,
+            source_event=self.event,
+            content_version=_make_content_version(self.event),
+        )
 
-        def capture_projection(p):
-            received_projections.append(p)
+        # Customize proj_1: give it its own cv with a distinct body
+        custom_cv = customize(self.user, proj_1)
+        proj_1.refresh_from_db()
+        edit_version(self.user, custom_cv, body="CUSTOM-FOR-1")
 
-        with patch(
-            "syndication.services.publish_switch_own_page",
-            side_effect=capture_projection,
-        ):
-            publish_projection(self.user, proj)
+        # proj_2 gets a distinct body on its version too (so the test isn't trivial)
+        edit_version(self.user, proj_2.content_version, body="CONTENT-FOR-2")
 
-        self.assertEqual(len(received_projections), 1)
-        received = received_projections[0]
+        # Advance both to ready → freezes content into frozen_content
+        transition_status(proj_1, "ready")
+        transition_status(proj_2, "ready")
+        proj_1.refresh_from_db()
+        proj_2.refresh_from_db()
+
+        self.assertEqual(proj_1.frozen_content["body"], "CUSTOM-FOR-1",
+                         "Precondition: proj_1 must have its custom body frozen")
+        self.assertEqual(proj_2.frozen_content["body"], "CONTENT-FOR-2",
+                         "Precondition: proj_2 must have its distinct body frozen")
+
+        # Publish proj_1: adapter must receive proj_1 with "CUSTOM-FOR-1" body
+        received_1 = []
+
+        def capture_1(p):
+            received_1.append(p)
+
+        with patch("syndication.services.publish_switch_own_page", side_effect=capture_1):
+            publish_projection(self.user, proj_1)
+
+        self.assertEqual(len(received_1), 1)
+        self.assertEqual(received_1[0].pk, proj_1.pk,
+                         "Adapter must receive proj_1 (not proj_2 — routing swap)")
         self.assertEqual(
-            received.content_version_id,
-            expected_cv.pk,
-            "Adapter must receive the projection with its assigned content_version "
-            "(per-channel content routing — a customized projection posts ITS content)",
+            render_projection(received_1[0]),
+            "CUSTOM-FOR-1",
+            "Adapter must receive proj_1's custom body, not proj_2's/canonical content "
+            "(routing-swap catch: if publish routed the wrong projection, this fails)",
+        )
+        self.assertNotEqual(
+            render_projection(received_1[0]),
+            "CONTENT-FOR-2",
+            "Adapter must NOT receive proj_2's body (routing-swap catch)",
+        )
+
+        # Publish proj_2: adapter must receive proj_2 with "CONTENT-FOR-2" body
+        received_2 = []
+
+        def capture_2(p):
+            received_2.append(p)
+
+        with patch("syndication.services.publish_switch_own_page", side_effect=capture_2):
+            publish_projection(self.user, proj_2)
+
+        self.assertEqual(len(received_2), 1)
+        self.assertEqual(received_2[0].pk, proj_2.pk,
+                         "Adapter must receive proj_2 (routing-swap catch)")
+        self.assertEqual(
+            render_projection(received_2[0]),
+            "CONTENT-FOR-2",
+            "Adapter must receive proj_2's body, not proj_1's custom content",
         )
 
 
@@ -346,30 +417,114 @@ class PublishProjectionTelegramDispatchTest(TestCase):
             "the adapter owns the transition.",
         )
 
-    def test_publish_projection_telegram_projection_has_correct_content_version(self):
+    def test_publish_projection_telegram_routing_swap_detection(self):
         """
-        The adapter receives a projection whose content_version is the assigned one.
-        A customized projection (custom content_version) must post ITS content,
-        not canonical's — this test catches routing swaps.
+        Routing-swap test: two ready telegram projections on the same event with
+        DISTINCT content. Publishing proj_1 must deliver proj_1's body; publishing
+        proj_2 must deliver proj_2's body. A swap FAILS this test.
+
+        Uses customize + edit_version (kb-wz8m.3 ops) to diverge proj_1.
         """
-        from syndication.services import publish_projection
+        from syndication.services import customize, edit_version, publish_projection
+        from syndication.engine import transition_status, render_projection
+        from syndication.models import Post, ContentVersion
 
-        proj = _make_promotion_projection(self.conn, self.event)
-        expected_cv_id = proj.content_version_id
+        # Set up proj_1 on self.conn (promotion)
+        cv_1 = ContentVersion.objects.create(
+            event=self.event,
+            name="promo-canonical-1",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        post_1 = Post.objects.create(
+            event=self.event, headline="Post 1", body="orig-body-1"
+        )
+        proj_1 = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            connection=self.conn,
+            source_post=post_1,
+            content_version=cv_1,
+        )
 
-        received = []
+        # Set up proj_2 on a second telegram connection
+        conn_2 = _make_connection(
+            self.profile, platform="telegram", destination_id="@channel-2"
+        )
+        cv_2 = ContentVersion.objects.create(
+            event=self.event,
+            name="promo-canonical-2",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        post_2 = Post.objects.create(
+            event=self.event, headline="Post 2", body="orig-body-2"
+        )
+        proj_2 = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            connection=conn_2,
+            source_post=post_2,
+            content_version=cv_2,
+        )
 
-        def capture(p):
-            received.append(p)
+        # Customize proj_1: give it its own cv with distinct body "CUSTOM-FOR-1"
+        custom_cv = customize(self.user, proj_1)
+        proj_1.refresh_from_db()
+        edit_version(self.user, custom_cv, body="CUSTOM-FOR-1")
 
-        with patch("syndication.services.publish_telegram_promotion", side_effect=capture):
-            publish_projection(self.user, proj)
+        # Give proj_2 a distinct body too
+        edit_version(self.user, proj_2.content_version, body="CONTENT-FOR-2")
 
-        self.assertEqual(len(received), 1)
+        # Advance both to ready → freezes content
+        transition_status(proj_1, "ready")
+        transition_status(proj_2, "ready")
+        proj_1.refresh_from_db()
+        proj_2.refresh_from_db()
+
+        self.assertEqual(proj_1.frozen_content["body"], "CUSTOM-FOR-1",
+                         "Precondition: proj_1 must have custom body frozen")
+        self.assertEqual(proj_2.frozen_content["body"], "CONTENT-FOR-2",
+                         "Precondition: proj_2 must have distinct body frozen")
+
+        # Publish proj_1: adapter must receive proj_1 with "CUSTOM-FOR-1"
+        received_1 = []
+
+        def capture_1(p):
+            received_1.append(p)
+
+        with patch("syndication.services.publish_telegram_promotion", side_effect=capture_1):
+            publish_projection(self.user, proj_1)
+
+        self.assertEqual(len(received_1), 1)
+        self.assertEqual(received_1[0].pk, proj_1.pk,
+                         "Adapter must receive proj_1 (routing-swap catch)")
         self.assertEqual(
-            received[0].content_version_id,
-            expected_cv_id,
-            "Adapter must receive projection with its assigned content_version",
+            render_projection(received_1[0]),
+            "CUSTOM-FOR-1",
+            "Adapter must receive proj_1's customized body, not proj_2's/canonical "
+            "(routing-swap catch: if publish routed wrong projection, this fails)",
+        )
+        self.assertNotEqual(
+            render_projection(received_1[0]),
+            "CONTENT-FOR-2",
+            "Adapter must NOT receive proj_2's body (routing-swap catch)",
+        )
+
+        # Publish proj_2: adapter must receive proj_2 with "CONTENT-FOR-2"
+        received_2 = []
+
+        def capture_2(p):
+            received_2.append(p)
+
+        with patch("syndication.services.publish_telegram_promotion", side_effect=capture_2):
+            publish_projection(self.user, proj_2)
+
+        self.assertEqual(len(received_2), 1)
+        self.assertEqual(received_2[0].pk, proj_2.pk,
+                         "Adapter must receive proj_2 (routing-swap catch)")
+        self.assertEqual(
+            render_projection(received_2[0]),
+            "CONTENT-FOR-2",
+            "Adapter must receive proj_2's distinct body, not proj_1's custom content",
         )
 
 
@@ -648,3 +803,27 @@ class PublishAllReadyProjectionsDispatchTest(TestCase):
 
         mock_switch.assert_not_called()
         self.assertEqual(published, [])
+
+    def test_publish_all_ready_does_not_swallow_permission_error(self):
+        """
+        ADR-008 D3: publish_all_ready_projections must collect per-item
+        ValueError (adapter data/transport failures) but must NOT swallow
+        PermissionError or other unexpected errors — those must propagate
+        (fail loud).
+
+        This test asserts that a PermissionError raised inside publish_projection
+        is NOT silently collected into failures but instead propagates to the caller.
+        """
+        from syndication.services import publish_all_ready_projections
+
+        _make_listing_projection(self.switch_conn, self.event)
+
+        def adapter_raises_permission_error(proj):
+            raise PermissionError("Auth token revoked — fail loud")
+
+        with patch(
+            "syndication.services.publish_switch_own_page",
+            side_effect=adapter_raises_permission_error,
+        ):
+            with self.assertRaises(PermissionError):
+                publish_all_ready_projections(self.user, self.event)

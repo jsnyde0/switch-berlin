@@ -934,9 +934,12 @@ def publish_projection(user, projection):
     - "telegram" → publish_telegram_promotion(projection) — real Bot API send,
                    auto-confirms + stamps message_id (adapter owns transition).
     - "fetlife"  (and any no-API platform) → mark_projection_published path —
-                   actor-attested, out-of-band. The adapter performs the
-                   ready→published transition internally; do NOT call
-                   transition_status here (double-transition is a bug).
+                   actor-attested, out-of-band. FetLife has NO send adapter,
+                   so publish_projection calls transition_status directly as
+                   the attestation that the organizer posted manually.
+                   Push platforms (switch/telegram) delegate the transition to
+                   their adapter — publish_projection does NOT call
+                   transition_status for those (double-transition is a bug).
     - unknown    → ValueError (ADR-008 D3: fail loud, no silent fallback).
 
     Gate: user must be able to publish the projection's event (can_publish seam,
@@ -1073,9 +1076,11 @@ def publish_all_ready_projections(user, event):
         try:
             publish_projection(user, proj)
             published.append(proj)
-        except (ValueError, Exception) as exc:
-            # ADR-008 D3: fail loud — collect per-item failures, publish the rest.
+        except ValueError as exc:
+            # ADR-008 D3: collect per-item ValueError (adapter data/transport
+            # failure) so one channel failing doesn't abort the batch.
             # Caller is responsible for surfacing failures as a visible error state.
+            # PermissionError and unexpected exceptions propagate (fail loud).
             failures.append((proj, exc))
 
     return published, failures
