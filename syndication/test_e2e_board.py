@@ -737,3 +737,350 @@ class E2EBoardFlowTest(TestCase):
             PlatformProjection.Status.PUBLISHED,
             "proj_2 must be PUBLISHED after publish_all_ready_projections fan-out.",
         )
+
+
+# ---------------------------------------------------------------------------
+# Gap 2 (kb-wz8m.10): publish_all_ready with mixed lifecycle + distinct versions,
+# per-version routing via real adapter boundary
+# ---------------------------------------------------------------------------
+
+
+class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
+    """
+    Integration test (kb-wz8m.10 Gap 2):
+
+    publish_all_ready_projections with FOUR projections in distinct lifecycle
+    states simultaneously on the same event:
+      - 1 draft
+      - 1 already published
+      - 1 failed
+      - 2 READY — each on its OWN distinct ContentVersion with a DISTINCT body
+
+    The 2 ready projections use Telegram connections so the real
+    publish_telegram_promotion adapter runs — only httpx.post is mocked at
+    the transport boundary (same pattern as E2EBoardFlowTest step 3).
+
+    Assertions:
+    A) Only the 2 ready projections were published (draft/published/failed
+       are untouched — their status and frozen_content unchanged).
+    B) Each newly-published ready projection routed its OWN assigned version's
+       content (per-version routing correctness).
+    C) publish_all_ready_projections returned 2 published and 0 failures.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(
+            username="mlr_user",
+            email="mlr@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile(
+            name="MLR Organizer",
+            slug="mlr-organizer",
+            user=self.user,
+        )
+
+        # Two Telegram promotion connections — real adapter path.
+        self.conn_tg_ready_1 = _make_connection(
+            self.profile,
+            platform="telegram",
+            destination_id="@mlr-channel-1",
+            kinds=["promotion"],
+            credentials={"bot_token": "fake-bot-token-mlr1"},
+        )
+        self.conn_tg_ready_2 = _make_connection(
+            self.profile,
+            platform="telegram",
+            destination_id="@mlr-channel-2",
+            kinds=["promotion"],
+            credentials={"bot_token": "fake-bot-token-mlr2"},
+        )
+
+        # FetLife listing connection — used for draft, published, and failed projections
+        # (attestation path; no httpx call needed).
+        self.conn_fetlife = _make_connection(
+            self.profile,
+            platform="fetlife",
+            destination_id="fl-mlr-001",
+            kinds=["listing"],
+        )
+
+    def test_publish_all_ready_mixed_lifecycle_per_version_routing(self):
+        """
+        Mixed lifecycle + per-version routing:
+
+        Setup:
+          - proj_draft: fetlife listing, DRAFT, stays untouched.
+          - proj_published: fetlife listing, PUBLISHED (pre-transition), stays untouched.
+          - proj_failed: fetlife listing, FAILED (forced), stays untouched.
+          - proj_ready_1: telegram promotion, READY on cv_1 (body="READY-BODY-1").
+          - proj_ready_2: telegram promotion, READY on cv_2 (body="READY-BODY-2").
+
+        publish_all_ready_projections must:
+        A) Only publish proj_ready_1 and proj_ready_2.
+        B) Route proj_ready_1's call with payload text == "READY-BODY-1"
+           and proj_ready_2's call with payload text == "READY-BODY-2"
+           (per-version content routing — a routing swap FAILS this assertion).
+        C) Return ([proj_ready_1, proj_ready_2], []) — no failures.
+        D) proj_draft, proj_published, proj_failed: status and frozen_content unchanged.
+        """
+        from syndication.services import (
+            create_event,
+            create_post,
+            customize,
+            edit_version,
+            approve_projection,
+            publish_all_ready_projections,
+        )
+        from syndication.engine import transition_status, render_projection
+
+        # --- Create the event and post ---
+        event = create_event(
+            user=self.user,
+            title="MLR Test Event",
+            slug="mlr-test-event",
+            start=timezone.now(),
+        )
+        # Remove any auto-created projections from create_event
+        # (fetlife connection may have created listing projections — we'll manage explicitly)
+        PlatformProjection.objects.filter(source_event=event).delete()
+
+        post = create_post(
+            user=self.user,
+            event=event,
+            headline="MLR Post",
+            body="mlr canonical body",
+        )
+        # Remove any auto-created projections from create_post too
+        PlatformProjection.objects.filter(source_post=post).delete()
+
+        # --- canonical CV for the event ---
+        canonical_cv = ContentVersion.objects.get(event=event, name="canonical")
+
+        # --- proj_draft: fetlife listing, DRAFT ---
+        proj_draft = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            connection=self.conn_fetlife,
+            source_event=event,
+            content_version=canonical_cv,
+        )
+
+        # --- proj_published: fetlife listing, manually advance to PUBLISHED ---
+        # We need a separate fetlife connection for a second projection
+        conn_fl_2 = _make_connection(
+            self.profile,
+            platform="fetlife",
+            destination_id="fl-mlr-002",
+            kinds=["listing"],
+        )
+        proj_published_pre = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            connection=conn_fl_2,
+            source_event=event,
+            content_version=canonical_cv,
+        )
+        # Advance to ready then published (real lifecycle)
+        transition_status(proj_published_pre, "ready")
+        transition_status(proj_published_pre, "published")
+        proj_published_pre.refresh_from_db()
+        self.assertEqual(
+            proj_published_pre.status,
+            PlatformProjection.Status.PUBLISHED,
+            "Precondition: proj_published must be PUBLISHED",
+        )
+        frozen_published_before = proj_published_pre.frozen_content.copy()
+
+        # --- proj_failed: fetlife listing, forced to FAILED ---
+        conn_fl_3 = _make_connection(
+            self.profile,
+            platform="fetlife",
+            destination_id="fl-mlr-003",
+            kinds=["listing"],
+        )
+        proj_failed = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            connection=conn_fl_3,
+            source_event=event,
+            content_version=canonical_cv,
+        )
+        # Advance through ready then force to failed (legal transition path)
+        transition_status(proj_failed, "ready")
+        transition_status(proj_failed, "failed")
+        proj_failed.refresh_from_db()
+        self.assertEqual(
+            proj_failed.status,
+            PlatformProjection.Status.FAILED,
+            "Precondition: proj_failed must be FAILED",
+        )
+        frozen_failed_before = proj_failed.frozen_content.copy() if proj_failed.frozen_content else None
+
+        # --- proj_ready_1: telegram promotion, READY on cv_1, body="READY-BODY-1" ---
+        cv_1 = ContentVersion.objects.create(
+            event=event,
+            name="mlr-promo-cv-1",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        cv_1.body = "READY-BODY-1"
+        cv_1.save(update_fields=["body", "updated_at"])
+        proj_ready_1 = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            connection=self.conn_tg_ready_1,
+            source_post=post,
+            content_version=cv_1,
+        )
+        transition_status(proj_ready_1, "ready")
+        proj_ready_1.refresh_from_db()
+        self.assertEqual(
+            proj_ready_1.status,
+            PlatformProjection.Status.READY,
+            "Precondition: proj_ready_1 must be READY",
+        )
+        self.assertEqual(
+            proj_ready_1.frozen_content["body"],
+            "READY-BODY-1",
+            "Precondition: proj_ready_1 must have 'READY-BODY-1' frozen",
+        )
+
+        # --- proj_ready_2: telegram promotion, READY on cv_2, body="READY-BODY-2" ---
+        cv_2 = ContentVersion.objects.create(
+            event=event,
+            name="mlr-promo-cv-2",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        cv_2.body = "READY-BODY-2"
+        cv_2.save(update_fields=["body", "updated_at"])
+        proj_ready_2 = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            connection=self.conn_tg_ready_2,
+            source_post=post,
+            content_version=cv_2,
+        )
+        transition_status(proj_ready_2, "ready")
+        proj_ready_2.refresh_from_db()
+        self.assertEqual(
+            proj_ready_2.status,
+            PlatformProjection.Status.READY,
+            "Precondition: proj_ready_2 must be READY",
+        )
+        self.assertEqual(
+            proj_ready_2.frozen_content["body"],
+            "READY-BODY-2",
+            "Precondition: proj_ready_2 must have 'READY-BODY-2' frozen",
+        )
+
+        # Capture the payload text per call so we can verify per-projection routing.
+        captured_payloads = []
+
+        def fake_ok_response():
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.json.return_value = {"ok": True, "result": {"message_id": 999}}
+            return resp
+
+        def capture_post(url, **kwargs):
+            captured_payloads.append(kwargs.get("json", {}))
+            return fake_ok_response()
+
+        # --- Run publish_all_ready_projections with real adapters, httpx.post mocked ---
+        with patch("syndication.adapters.httpx.post", side_effect=capture_post):
+            published_batch, failures = publish_all_ready_projections(self.user, event)
+
+        # --- Assertion C: 2 published, 0 failures ---
+        self.assertEqual(
+            failures,
+            [],
+            f"Expected no failures, got: {failures}",
+        )
+        self.assertEqual(
+            len(published_batch),
+            2,
+            "publish_all_ready_projections must publish exactly the 2 ready projections",
+        )
+
+        published_pks = {p.pk for p in published_batch}
+        self.assertIn(proj_ready_1.pk, published_pks, "proj_ready_1 must be in published batch")
+        self.assertIn(proj_ready_2.pk, published_pks, "proj_ready_2 must be in published batch")
+
+        # --- Assertion A: draft/published/failed projections untouched ---
+        proj_draft.refresh_from_db()
+        self.assertEqual(
+            proj_draft.status,
+            PlatformProjection.Status.DRAFT,
+            "proj_draft must remain DRAFT after publish_all_ready_projections",
+        )
+        self.assertIsNone(
+            proj_draft.frozen_content,
+            "proj_draft frozen_content must still be None (untouched)",
+        )
+
+        proj_published_pre.refresh_from_db()
+        self.assertEqual(
+            proj_published_pre.status,
+            PlatformProjection.Status.PUBLISHED,
+            "proj_published must remain PUBLISHED (not re-published)",
+        )
+        self.assertEqual(
+            proj_published_pre.frozen_content,
+            frozen_published_before,
+            "proj_published frozen_content must be unchanged",
+        )
+
+        proj_failed.refresh_from_db()
+        self.assertEqual(
+            proj_failed.status,
+            PlatformProjection.Status.FAILED,
+            "proj_failed must remain FAILED (not re-attempted)",
+        )
+
+        # --- Assertion B: per-version routing (the key assertion) ---
+        # httpx.post must have been called exactly twice (once per ready Telegram projection).
+        self.assertEqual(
+            len(captured_payloads),
+            2,
+            "httpx.post must be called exactly twice — once per ready Telegram projection",
+        )
+
+        # The two captured payload texts must be exactly the two expected bodies
+        # (one "READY-BODY-1" and one "READY-BODY-2") regardless of call order.
+        captured_texts = {p["text"] for p in captured_payloads}
+        self.assertIn(
+            "READY-BODY-1",
+            captured_texts,
+            "Per-version routing: 'READY-BODY-1' must appear in the Telegram payloads",
+        )
+        self.assertIn(
+            "READY-BODY-2",
+            captured_texts,
+            "Per-version routing: 'READY-BODY-2' must appear in the Telegram payloads",
+        )
+
+        # Stronger routing assertion: verify each ready projection was individually
+        # published with its OWN body (not a swap or wrong version).
+        proj_ready_1.refresh_from_db()
+        self.assertEqual(
+            proj_ready_1.status,
+            PlatformProjection.Status.PUBLISHED,
+            "proj_ready_1 must be PUBLISHED after publish_all_ready_projections",
+        )
+        self.assertEqual(
+            proj_ready_1.frozen_content["body"],
+            "READY-BODY-1",
+            "proj_ready_1.frozen_content must be its own 'READY-BODY-1' (not swapped)",
+        )
+
+        proj_ready_2.refresh_from_db()
+        self.assertEqual(
+            proj_ready_2.status,
+            PlatformProjection.Status.PUBLISHED,
+            "proj_ready_2 must be PUBLISHED after publish_all_ready_projections",
+        )
+        self.assertEqual(
+            proj_ready_2.frozen_content["body"],
+            "READY-BODY-2",
+            "proj_ready_2.frozen_content must be its own 'READY-BODY-2' (not swapped)",
+        )

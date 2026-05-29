@@ -880,6 +880,144 @@ class ResetToCanonicalTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# customize → reset_to_canonical round-trip reflected in consumers_map (kb-wz8m.10)
+# ---------------------------------------------------------------------------
+
+
+class CustomizeResetConsumersMapRoundTripTest(TestCase):
+    """
+    Gap 1 integration test (kb-wz8m.10):
+
+    customize → reset_to_canonical round-trip reflected in consumers_map.
+
+    Verifies that:
+    1. Two projections on the shared canonical are BOTH listed under canonical
+       in content_version_consumers_map.
+    2. After customize(proj_a), consumers_map shows canonical → [proj_b only]
+       and a new version → [proj_a].  proj_a LEFT the shared set.
+    3. After reset_to_canonical(proj_a), proj_a REJOINS: consumers_map again
+       groups BOTH projections under the canonical version, and
+       consumers(canonical_cv) includes the reset projection.
+
+    This is the "live-on cue correctness after reset" clause.
+    """
+
+    def setUp(self):
+        self.user = _make_user(username="crmap_user", email="crmap@test.com", password="pw")
+        self.profile = _make_profile(name="CRMap Org", slug="crmap-org", user=self.user)
+        self.event = _make_event(slug="crmap-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn_a = _make_connection(self.profile, platform="fetlife", destination_id="fl-crmap-a")
+        self.conn_b = _make_connection(
+            self.profile, platform="switch", destination_id="sw-crmap-b", kinds=["listing"]
+        )
+
+    def test_customize_reset_round_trip_reflected_in_consumers_map(self):
+        """
+        After customize(proj_a): proj_a leaves the shared set; consumers_map shows
+        canonical → [proj_b] and new_cv → [proj_a].
+
+        After reset_to_canonical(proj_a): proj_a rejoins; consumers_map again shows
+        canonical → [proj_a, proj_b] (both), and consumers(canonical_cv) includes
+        proj_a.
+        """
+        from syndication.services import (
+            consumers,
+            content_version_consumers_map,
+            customize,
+            reset_to_canonical,
+        )
+
+        canonical_cv = _make_canonical_cv(self.event)
+        proj_a = _make_projection(self.conn_a, self.event, cv=canonical_cv)
+        proj_b = _make_projection(self.conn_b, self.event, cv=canonical_cv)
+
+        # --- Step 1: both projections start on canonical ---
+        cv_map = content_version_consumers_map(self.event)
+        self.assertIn(canonical_cv, cv_map, "canonical_cv must appear in map initially")
+        initial_consumer_pks = {p.pk for p in cv_map[canonical_cv]}
+        self.assertIn(proj_a.pk, initial_consumer_pks, "proj_a must be in canonical consumers initially")
+        self.assertIn(proj_b.pk, initial_consumer_pks, "proj_b must be in canonical consumers initially")
+        self.assertEqual(len(initial_consumer_pks), 2, "Exactly 2 projections under canonical initially")
+
+        # --- Step 2: customize proj_a --- mints its own row, leaves canonical set ---
+        new_cv = customize(self.user, proj_a)
+        proj_a.refresh_from_db()
+
+        cv_map_after_customize = content_version_consumers_map(self.event)
+
+        # canonical_cv must now show ONLY proj_b
+        self.assertIn(canonical_cv, cv_map_after_customize)
+        canonical_consumers_after = {p.pk for p in cv_map_after_customize[canonical_cv]}
+        self.assertNotIn(
+            proj_a.pk,
+            canonical_consumers_after,
+            "proj_a must have LEFT the canonical consumers set after customize",
+        )
+        self.assertIn(
+            proj_b.pk,
+            canonical_consumers_after,
+            "proj_b must still be under canonical after customize(proj_a)",
+        )
+        self.assertEqual(len(canonical_consumers_after), 1, "Only proj_b remains under canonical")
+
+        # new_cv must show proj_a (the customized projection)
+        self.assertIn(new_cv, cv_map_after_customize, "new_cv must appear in map after customize")
+        customized_consumers = {p.pk for p in cv_map_after_customize[new_cv]}
+        self.assertIn(
+            proj_a.pk,
+            customized_consumers,
+            "proj_a must appear under new_cv (its own customized version) after customize",
+        )
+        self.assertEqual(len(customized_consumers), 1, "Only proj_a under new_cv after customize")
+
+        # --- Step 3: reset proj_a back to canonical --- it REJOINS canonical set ---
+        reset_to_canonical(self.user, proj_a)
+        proj_a.refresh_from_db()
+
+        cv_map_after_reset = content_version_consumers_map(self.event)
+
+        # canonical_cv must now show BOTH proj_a and proj_b again
+        self.assertIn(canonical_cv, cv_map_after_reset)
+        canonical_consumers_after_reset = {p.pk for p in cv_map_after_reset[canonical_cv]}
+        self.assertIn(
+            proj_a.pk,
+            canonical_consumers_after_reset,
+            "proj_a must REJOIN the canonical consumers set after reset_to_canonical",
+        )
+        self.assertIn(
+            proj_b.pk,
+            canonical_consumers_after_reset,
+            "proj_b must still be under canonical after reset",
+        )
+        self.assertEqual(
+            len(canonical_consumers_after_reset),
+            2,
+            "Both proj_a and proj_b must be under canonical after reset (full rejoin)",
+        )
+
+        # consumers(canonical_cv) must also include the reset projection
+        canonical_consumer_qs = set(consumers(canonical_cv).values_list("pk", flat=True))
+        self.assertIn(
+            proj_a.pk,
+            canonical_consumer_qs,
+            "consumers(canonical_cv) must include proj_a after reset_to_canonical",
+        )
+        self.assertIn(
+            proj_b.pk,
+            canonical_consumer_qs,
+            "consumers(canonical_cv) must include proj_b after reset",
+        )
+
+        # Verify proj_a FK is back on canonical
+        self.assertEqual(
+            proj_a.content_version_id,
+            canonical_cv.pk,
+            "proj_a.content_version must point at canonical_cv after reset",
+        )
+
+
+# ---------------------------------------------------------------------------
 # edit_version(version, **fields)
 # ---------------------------------------------------------------------------
 
