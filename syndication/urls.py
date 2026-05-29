@@ -110,12 +110,12 @@ urlpatterns = [
         name="version-copy-from",
     ),
 
-    # --- Review-all stub (forward-reference for kb-wz8m.6) ---
-    # kb-wz8m.6 fills the real Review-all surface. Stub kept here to satisfy
-    # the board's toggle/button href without 404.
+    # --- Review-all surface (kb-wz8m.6) ---
+    # Side-by-side cross-channel review. Route name + event_pk signature
+    # referenced from the board template (event_syndication.html).
     path(
         "events/<int:event_pk>/review-all/",
-        views.review_all_stub,
+        views.review_all,
         name="review-all",
     ),
 ]

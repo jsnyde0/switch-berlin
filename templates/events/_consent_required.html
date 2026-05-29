@@ -1,7 +1,9 @@
 {% load i18n %}
-{# HTMX-compatible partial returned when Art. 9 consent is missing.
-   Bilingual prompt explicitly names "sexual orientation" per GDPR Art. 9
-   plain-language requirement (ADR-006 D1 FIRM). #}
+{% comment %}
+  HTMX-compatible partial returned when Art. 9 consent is missing.
+  Bilingual prompt explicitly names "sexual orientation" per GDPR Art. 9
+  plain-language requirement (ADR-006 D1 FIRM).
+{% endcomment %}
 <div id="consent-modal"
      class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/90 backdrop-blur-md px-4"
      role="dialog"

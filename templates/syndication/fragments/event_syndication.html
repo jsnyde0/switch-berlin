@@ -192,44 +192,8 @@
 
       {# ── Card body: content preview ── #}
       <div class="cursor-pointer" @click="selectProjection({{ proj.pk }})">
-
-        {# ── Content preview — platform-appropriate styling ── #}
-        {% if render_error %}
-        <div class="flex items-start gap-2 p-4">
-          <span class="kb-tag kb-tag-error text-[9px] shrink-0 mt-0.5">{% trans "render error" %}</span>
-          <span class="text-[11px] text-error/65 font-mono break-words leading-relaxed">{{ body }}</span>
-        </div>
-
-        {% elif proj.connection.platform == 'telegram' %}
-        {# Telegram: chat-app aesthetic — message bubble in teal-dark bg #}
-        <div class="px-4 pt-3 pb-4">
-          <div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-xs" style="background: rgb(33 150 243 / 0.18); border: 1px solid rgb(33 150 243 / 0.22);">
-            <p class="text-[12px] leading-relaxed line-clamp-5 whitespace-pre-wrap break-words" style="color: rgb(210 228 248);">{{ body }}</p>
-            {# Telegram timestamp mock #}
-            <p class="kb-mono text-[8px] text-right mt-1.5" style="color: rgb(120 160 200 / 0.6);">{% now "H:i" %} ✓</p>
-          </div>
-        </div>
-
-        {% elif proj.connection.platform == 'fetlife' %}
-        {# FetLife: gothic dark platform — warm-purple body text, dense type #}
-        <div class="px-4 pt-3 pb-4">
-          <p class="text-[12px] leading-relaxed line-clamp-4 whitespace-pre-wrap break-words" style="color: rgb(210 165 230 / 0.72);">{{ body }}</p>
-        </div>
-
-        {% elif proj.connection.platform == 'switch' %}
-        {# Switch: native listing — editorial serif treatment, fuchsia accent mark #}
-        <div class="px-4 pt-3 pb-4">
-          {# Fuchsia hairline accent signals native platform #}
-          <div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5);"></div>
-          <p class="leading-relaxed line-clamp-3 whitespace-pre-wrap break-words kb-display" style="color: rgb(230 225 240 / 0.70); font-size: 13px; font-variation-settings: 'opsz' 48, 'SOFT' 50;">{{ body }}</p>
-        </div>
-
-        {% else %}
-        <div class="px-4 pt-3 pb-4">
-          <p class="text-[12px] text-base-content/55 leading-relaxed line-clamp-3 font-mono whitespace-pre-wrap break-words">{{ body }}</p>
-        </div>
-        {% endif %}
-
+        {# Platform-reskinned preview — shared partial (ADR-008 D2: two callers = extract) #}
+        {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error %}
       </div>
 
       {# ── Per-channel lifecycle actions ── #}

@@ -805,19 +805,72 @@ def version_copy_from(request, pk):
 
 
 @login_required
-def review_all_stub(request, event_pk):
+def review_all(request, event_pk):
     """
-    [STUB — forward-reference for kb-wz8m.6]
+    Review-all side-by-side surface (kb-wz8m.6).
 
-    This route is referenced from the syndication board as a forward-reference.
-    kb-wz8m.6 will fill the real Review-all surface.
+    Read-only cross-channel review: every channel's rendered assigned-version
+    preview laid out simultaneously in a responsive side-by-side grid.
 
-    Returns a minimal placeholder so the URL resolves without 404/500.
+    Primary use case: ToS-divergence check — confirm that divergent variants
+    (e.g. censored vs uncensored body for different platforms) are EACH correct
+    before publish. Also includes the per-channel publish controls (reuse from
+    board — no new publish path).
+
+    Authorization: same can_edit / can_publish gating as the board (ADR-017 D2).
+    Non-claimants are shown a 403.
+
+    Context-building mirrors fragment_event_syndication to guarantee identical
+    rendering (ADR-008 D2: one clear path for projection row construction).
+
+    ADR-004: on-stack (HTMX + Alpine + Tailwind, no React).
+    ADR-008 D3: render errors surface as visible error panels, not blank cells.
     """
+    from itertools import chain
+    import logging as _logging
+    from syndication.engine import render_projection
+
+    _logger = _logging.getLogger(__name__)
+
     event = get_object_or_404(Event, pk=event_pk)
-    return render(request, "syndication/review_all_stub.html", {
+
+    # Authorization: must be a co-claimant (same gate as the board)
+    if not can_edit(request.user, event):
+        return render(request, "syndication/403.html", {"event": event}, status=403)
+
+    user_can_edit = True  # already confirmed above
+    user_can_publish = can_publish(request.user, event)
+
+    # Collect projections — same logic as fragment_event_syndication
+    listing_projections = PlatformProjection.objects.filter(
+        source_event=event
+    ).select_related("connection", "content_version")
+
+    post_ids = Post.objects.filter(event=event).values_list("pk", flat=True)
+    promotion_projections = PlatformProjection.objects.filter(
+        source_post_id__in=post_ids
+    ).select_related("connection", "source_post", "content_version")
+
+    projections = list(chain(listing_projections, promotion_projections))
+    projections.sort(key=lambda p: (p.connection.platform, p.kind))
+
+    # Build projection_rows — same fail-loud pattern as fragment_event_syndication
+    projection_rows = []
+    for proj in projections:
+        render_error = False
+        try:
+            body = render_projection(proj)
+        except ValueError as exc:
+            render_error = True
+            body = str(exc)
+            _logger.warning("render_projection failed for projection %r: %s", proj.pk, exc)
+        projection_rows.append({"projection": proj, "body": body, "render_error": render_error})
+
+    return render(request, "syndication/review_all.html", {
         "event": event,
-        "stub_notice": "Review-all board (kb-wz8m.6) — not yet implemented.",
+        "projection_rows": projection_rows,
+        "can_edit": user_can_edit,
+        "can_publish": user_can_publish,
     })
 
 

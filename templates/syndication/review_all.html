@@ -1,0 +1,206 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+
+{% comment %}
+  review_all.html — Review-all side-by-side surface (kb-wz8m.6).
+
+  Shows every channel's rendered assigned-version preview at once in a
+  responsive side-by-side grid. Each panel is reskinned to its platform
+  (same chrome as the board cards) using the shared _channel_preview partial.
+
+  Context expected:
+    event           — Event instance
+    projection_rows — list of dicts: {projection, body, render_error}
+    can_edit        — bool
+    can_publish     — bool
+
+  ADR-004: on-stack (HTMX + Alpine + Tailwind + django-cotton, no React).
+  ADR-008 D3: render errors surface as visible error panels via _channel_preview.
+  ADR-008 D2: platform preview markup lives in _channel_preview.html (two callers).
+{% endcomment %}
+
+{% block title %}{{ event.title }} — {% trans "Review all channels" %}{% endblock %}
+
+{% block content %}
+<div class="w-full pt-6">
+
+  {# ── Page header ── #}
+  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-1.5">
+        <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+           class="hover:text-base-content/65 transition-colors">
+          {{ event.title }}
+        </a>
+        <span class="mx-2 text-base-content/15">·</span>
+        {% trans "Review all channels" %}
+      </p>
+      <h1 class="kb-display text-[32px] font-light leading-tight">
+        {% trans "Side-by-side review" %}
+      </h1>
+    </div>
+
+    {# Back-to-board link #}
+    <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+       class="kb-mono text-[9px] uppercase tracking-widest text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 rounded-sm transition-colors self-start mt-1">
+      {% trans "Back to board" %}
+    </a>
+  </div>
+
+  <div class="kb-rule mb-6"></div>
+
+  {# ── No projections state ── #}
+  {% if not projection_rows %}
+  <div class="py-10">
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-3">
+      {% trans "No projections yet" %}
+    </p>
+    <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+       class="kb-btn-secondary text-sm inline-block">
+      {% trans "Back to board" %}
+    </a>
+  </div>
+
+  {% else %}
+
+  {# ── Side-by-side grid ── #}
+  {# Responsive: 1 col on mobile, 2 on md, 3 on lg — scannable simultaneously #}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+
+    {% for row in projection_rows %}
+    {% with proj=row.projection body=row.body render_error=row.render_error %}
+
+    {# Platform-tinted card panel — mirrors board card chrome #}
+    <article
+      class="rounded-sm border overflow-hidden
+        {% if proj.connection.platform == 'telegram' %}border-sky-900/40
+        {% elif proj.connection.platform == 'fetlife' %}border-purple-900/40
+        {% elif proj.connection.platform == 'switch' %}border-fuchsia-900/25
+        {% else %}border-white/8
+        {% endif %}"
+      style="
+        {% if proj.connection.platform == 'telegram' %}background: rgb(24 28 36);
+        {% elif proj.connection.platform == 'fetlife' %}background: rgb(28 18 30);
+        {% elif proj.connection.platform == 'switch' %}background: rgb(22 20 28);
+        {% else %}background: rgb(26 26 32);
+        {% endif %}">
+
+      {# ── Card header strip ── #}
+      <div class="px-4 pt-3 pb-2.5 border-b"
+        style="
+        {% if proj.connection.platform == 'telegram' %}border-bottom-color: rgba(3, 105, 161, 0.3); background: rgba(3, 105, 161, 0.04);
+        {% elif proj.connection.platform == 'fetlife' %}border-bottom-color: rgba(107, 33, 168, 0.35); background: rgba(107, 33, 168, 0.06);
+        {% elif proj.connection.platform == 'switch' %}border-bottom-color: rgba(192, 38, 211, 0.2); background: rgba(192, 38, 211, 0.04);
+        {% else %}border-bottom-color: rgba(255, 255, 255, 0.06);
+        {% endif %}">
+
+        <div class="flex items-center justify-between gap-3">
+          {# Left: platform identity chain #}
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="kb-mono text-[10px] uppercase tracking-[0.22em] font-semibold
+              {% if proj.connection.platform == 'telegram' %}text-sky-400
+              {% elif proj.connection.platform == 'fetlife' %}text-pink-400
+              {% elif proj.connection.platform == 'switch' %}text-fuchsia-300
+              {% else %}text-base-content/60
+              {% endif %}">
+              {{ proj.connection.platform }}
+            </span>
+            <span class="text-base-content/15 text-[8px] select-none">·</span>
+            <span class="kb-mono text-[9px] text-base-content/35 truncate max-w-[120px]">
+              {{ proj.connection.destination_id }}
+            </span>
+            <span class="text-base-content/15 text-[8px] select-none">·</span>
+            <span class="kb-mono text-[9px] uppercase tracking-[0.16em]
+              {% if proj.kind == 'promotion' %}text-base-content/40
+              {% else %}text-base-content/28
+              {% endif %}">
+              {{ proj.kind }}
+            </span>
+          </div>
+
+          {# Right: provenance chip + status pill #}
+          <div class="flex items-center gap-2.5 shrink-0">
+            {% if proj.content_version.provenance != 'rule_template' %}
+            <span class="kb-mono text-[8px] uppercase tracking-widest
+              {% if proj.content_version.provenance == 'manual' %}text-sky-400/55
+              {% elif proj.content_version.provenance == 'agent_supplied' %}text-violet-400/55
+              {% else %}text-base-content/20
+              {% endif %}">
+              {% if proj.content_version.provenance == 'agent_supplied' %}agent
+              {% elif proj.content_version.provenance == 'manual' %}edited
+              {% else %}{{ proj.content_version.provenance }}
+              {% endif %}
+            </span>
+            {% endif %}
+            <span class="kb-mono text-[9px] uppercase tracking-[0.16em] px-2 py-0.5 rounded-sm border font-medium
+              {% if proj.status == 'draft' %}text-amber-300/90 border-amber-300/25 bg-amber-300/6
+              {% elif proj.status == 'ready' %}text-fuchsia-300 border-fuchsia-300/35 bg-fuchsia-300/8
+              {% elif proj.status == 'published' %}text-emerald-400 border-emerald-400/30 bg-emerald-400/8
+              {% elif proj.status == 'failed' %}text-rose-400 border-rose-400/35 bg-rose-400/8
+              {% else %}text-base-content/40 border-white/10
+              {% endif %}">
+              {{ proj.get_status_display }}
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      {# ── Content preview — shared partial, full_content=True lifts line-clamp ── #}
+      {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+
+      {# ── Per-channel publish controls (reuse from board, read-only gate) ── #}
+      {% if can_edit %}
+      <div class="px-4 pb-3.5 pt-2.5 flex items-center gap-2 flex-wrap border-t border-white/6">
+
+        {# Approve: draft → ready #}
+        {% if proj.status == 'draft' %}
+        <form method="post"
+              action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-target="body"
+              hx-swap="none">
+          {% csrf_token %}
+          <button type="submit"
+                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-white/25 hover:border-white/50 text-base-content/65 hover:text-base-content rounded-sm transition-colors font-medium min-h-[44px]">
+            {% trans "Approve" %}
+          </button>
+        </form>
+        {% endif %}
+
+        {# Publish: ready → published — gated on can_publish #}
+        {% if proj.status == 'ready' and can_publish %}
+        <form method="post"
+              action="{% url 'syndication:projection-publish' pk=proj.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-fuchsia-300/45 hover:border-fuchsia-300/75 text-fuchsia-300/85 hover:text-fuchsia-300 rounded-sm transition-colors font-semibold min-h-[44px]">
+            {% trans "Publish" %}
+          </button>
+        </form>
+        {% endif %}
+
+        {# Failed: retry #}
+        {% if proj.status == 'failed' %}
+        <form method="post"
+              action="{% url 'syndication:projection-approve' pk=proj.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-rose-400/30 hover:border-rose-400/60 text-rose-400/70 hover:text-rose-400 rounded-sm transition-colors min-h-[44px]">
+            {% trans "Retry" %}
+          </button>
+        </form>
+        {% endif %}
+
+      </div>
+      {% endif %}
+
+    </article>
+    {% endwith %}
+    {% endfor %}
+
+  </div>
+  {% endif %}
+
+</div>
+{% endblock content %}
