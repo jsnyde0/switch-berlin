@@ -1,24 +1,39 @@
 {% load i18n %}
-{# event_syndication fragment — independently addressable HTMX swap target #}
-{# Projection review board (kb-a4u.5) #}
-{# Alpine 3.x: own x-data root required or directives go inert after HTMX swap #}
-<section id="event-syndication" x-data="{}">
-  <div class="flex items-center justify-between mb-4">
+{# event_syndication fragment — composer + channel-rail board (kb-wz8m.5) #}
+{# Always-visible per-channel cards + version affordances #}
+{# Alpine 3.x: own x-data root required on each HTMX swap target #}
+<section id="event-syndication"
+  x-data="{
+    selectedProjectionPk: null,
+    selectProjection(pk) { this.selectedProjectionPk = (this.selectedProjectionPk === pk) ? null : pk; },
+    isSelected(pk) { return this.selectedProjectionPk === pk; }
+  }">
+
+  {# Board header: title + publish-all + review-all toggle #}
+  <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
     <h2 class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Syndication" %}</h2>
-    {# Batch "Publish all ready" button — only shown when can_publish and projections exist #}
-    {% if can_publish and projection_rows %}
-    <form method="post"
-          action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
-          hx-post="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
-          hx-target="#event-syndication"
-          hx-swap="outerHTML">
-      {% csrf_token %}
-      <button type="submit"
-              class="kb-mono text-[9px] uppercase tracking-widest text-accent/70 hover:text-accent px-2 py-1 border border-accent/30 rounded">
-        {% trans "Publish all ready" %}
-      </button>
-    </form>
-    {% endif %}
+    <div class="flex items-center gap-2">
+      {# Review-all toggle — forward-reference for kb-wz8m.6 #}
+      {# TODO(kb-wz8m.6): replace href with real review-all board URL #}
+      <a href="{% url 'syndication:review-all' event_pk=event.pk %}"
+         class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 hover:text-base-content/60 px-2 py-1 border border-white/8 rounded">
+        {% trans "Review all" %}
+      </a>
+      {# Batch "Publish all ready" button — only shown when can_publish and projections exist #}
+      {% if can_publish and projection_rows %}
+      <form method="post"
+            action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
+            hx-post="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
+            hx-target="#event-syndication"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        <button type="submit"
+                class="kb-mono text-[9px] uppercase tracking-widest text-accent/70 hover:text-accent px-2 py-1 border border-accent/30 rounded">
+          {% trans "Publish all ready" %}
+        </button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 
   {# Transition error state: surfaced on illegal lifecycle transition (ADR-008 D3 fail-loud) #}
@@ -57,17 +72,23 @@
     {% endif %}
   </div>
 
-  {# Normal state: one row per projection #}
+  {# Normal state: channel-rail — one card per projection #}
   {% elif projection_rows %}
   <div class="flex flex-col gap-2">
     {% for row in projection_rows %}
     {% with proj=row.projection body=row.body render_error=row.render_error %}
-    {# Each row is its own Alpine x-data root so directives survive HTMX swaps #}
-    <div class="border border-white/8 rounded p-3" x-data="{ editing: false }">
 
-      {# Row header: connection · kind · status-chip · provenance-tag #}
+    {# Determine how many channels share this projection's version (live-on cue) #}
+    {# consumers_map is {ContentVersion: [PlatformProjection, ...]} #}
+    {# Each row is its own Alpine x-data root so directives survive HTMX swaps #}
+    <div class="border border-white/8 rounded p-3 transition-colors"
+         :class="isSelected({{ proj.pk }}) ? 'border-accent/30 bg-accent/5' : ''"
+         x-data="{ editing: false, showVersionOps: false }">
+
+      {# Card header: connection · kind · status pill · live-on cue · provenance #}
       <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="flex items-center gap-1 min-w-0">
+        <div class="flex items-center gap-1 min-w-0 cursor-pointer"
+             @click="selectProjection({{ proj.pk }})">
           <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/60">
             {{ proj.connection.platform }}
           </span>
@@ -79,9 +100,20 @@
           <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/50">
             {{ proj.kind }}
           </span>
+          {# Live-on cue: show other channels sharing this version #}
+          {% if consumers_map %}
+            {% for cv, consumers in consumers_map.items %}
+              {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
+              <span class="text-base-content/30 mx-1">·</span>
+              <span class="kb-mono text-[9px] text-info/60" title="{% trans 'This version is shared with other channels' %}">
+                {% blocktrans with count=consumers|length %}live on {{ count }} ch{% endblocktrans %}
+              </span>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          {# Status chip #}
+          {# Status pill #}
           <span class="kb-tag
             {% if proj.status == 'draft' %}kb-tag-warning
             {% elif proj.status == 'ready' %}text-accent border border-accent/40
@@ -107,19 +139,19 @@
         </div>
       </div>
 
-      {# Effective copy preview — render_error shows distinct error affordance (ADR-008 D3) #}
+      {# Version preview (effective copy) — render_error shows distinct error affordance (ADR-008 D3) #}
       {% if render_error %}
       <div class="mt-2 flex items-start gap-2">
         <span class="kb-tag kb-tag-error text-[10px] shrink-0">{% trans "couldn't generate" %}</span>
         <span class="text-[11px] text-error/70 font-mono break-words">{{ body }}</span>
       </div>
       {% else %}
-      <div class="mt-2 text-[11px] text-base-content/55 leading-relaxed line-clamp-2 font-mono whitespace-pre-wrap break-words">
+      <div class="mt-2 text-[11px] text-base-content/55 leading-relaxed line-clamp-3 font-mono whitespace-pre-wrap break-words">
         {{ body }}
       </div>
       {% endif %}
 
-      {# Lifecycle actions — only for can_edit users #}
+      {# Per-channel lifecycle actions — only for can_edit users #}
       {% if can_edit %}
       <div class="mt-3 flex items-center gap-2 flex-wrap">
 
@@ -138,7 +170,7 @@
         </form>
         {% endif %}
 
-        {# Publish: ready → published (EXPLICIT — never auto) — gated on can_publish #}
+        {# Per-channel Publish: ready → published (EXPLICIT — never auto) — gated on can_publish #}
         {% if proj.status == 'ready' and can_publish %}
         <form method="post"
               action="{% url 'syndication:projection-publish' pk=proj.pk %}"
@@ -152,11 +184,7 @@
           </button>
         </form>
 
-        {# Copy-to-clipboard affordance: for manual-assisted platforms (e.g. FetLife)
-           where the actor copies the body and posts out-of-band.
-           Alpine/JS @click writes body to clipboard (browser-only).
-           data-copy-body carries the copyable content (pytest-verifiable).
-           x-data on the button scope keeps state local to this affordance. #}
+        {# Copy-to-clipboard for manual-assisted platforms (e.g. FetLife) #}
         {% if proj.connection.platform == 'fetlife' %}
         <div x-data="{ copied: false }" class="flex items-center">
           <pre id="copy-body-{{ proj.pk }}" class="sr-only" data-copy-body="{{ proj.pk }}">{% if body %}{{ body }}{% endif %}</pre>
@@ -169,7 +197,7 @@
         </div>
         {% endif %}
 
-        {# Mark-published: for no-API platforms (out-of-band posting) — gated on can_publish #}
+        {# Mark-published: for no-API platforms (out-of-band posting) #}
         <form method="post"
               action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
               hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
@@ -183,43 +211,7 @@
         </form>
         {% endif %}
 
-        {# Expand → edit (inline override, draft only) #}
-        {% if proj.status == 'draft' %}
-        <button type="button"
-                @click="editing = !editing"
-                class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 hover:text-base-content/60 px-2 py-1 border border-white/8 rounded"
-                x-text="editing ? '{% trans "Close" %}' : '{% trans "Edit" %}'">
-          {% trans "Edit" %}
-        </button>
-
-        {# Inline edit form (Alpine-toggled) — no x-data here, inherits row scope #}
-        <div x-show="editing" x-cloak class="w-full mt-2">
-          <form method="post"
-                action="{% url 'syndication:projection-override' pk=proj.pk %}"
-                hx-post="{% url 'syndication:projection-override' pk=proj.pk %}"
-                hx-target="#event-syndication"
-                hx-swap="outerHTML"
-                @htmx:after-request="editing = false">
-            {% csrf_token %}
-            <textarea name="body"
-                      class="w-full bg-base-200 border border-white/10 rounded text-[11px] font-mono text-base-content/70 p-2 min-h-[80px] resize-y"
-                      placeholder="{% trans "Override body…" %}">{{ body }}</textarea>
-            <div class="flex gap-2 mt-1">
-              <button type="submit"
-                      class="kb-btn-secondary text-[10px] px-2 py-1">
-                {% trans "Save override" %}
-              </button>
-              <button type="button"
-                      @click="editing = false"
-                      class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 hover:text-base-content/60 px-2 py-1">
-                {% trans "Cancel" %}
-              </button>
-            </div>
-          </form>
-        </div>
-        {% endif %}
-
-        {# Failed: retry action — reset to draft, then re-approve #}
+        {# Failed: retry — reset to draft via re-approve #}
         {% if proj.status == 'failed' %}
         <form method="post"
               action="{% url 'syndication:projection-approve' pk=proj.pk %}"
@@ -232,6 +224,75 @@
             {% trans "Retry" %}
           </button>
         </form>
+        {% endif %}
+
+        {# Version-ops toggle (only for draft projections — ready/published have frozen content) #}
+        {% if proj.status == 'draft' %}
+        <button type="button"
+                @click="showVersionOps = !showVersionOps"
+                class="kb-mono text-[9px] uppercase tracking-widest text-base-content/25 hover:text-base-content/50 px-2 py-1 border border-white/8 rounded"
+                x-text="showVersionOps ? '{% trans "Less" %}' : '{% trans "Edit / version ops" %}'">
+          {% trans "Edit / version ops" %}
+        </button>
+
+        {# Version-ops panel (Alpine-toggled) #}
+        <div x-show="showVersionOps" x-cloak class="w-full mt-2 border border-white/8 rounded p-3 bg-base-200/40">
+          <p class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 mb-2">{% trans "Version ops" %}</p>
+          <div class="flex flex-wrap gap-2 mb-3">
+
+            {# Customize: mint own version row for this channel #}
+            <form method="post"
+                  action="{% url 'syndication:projection-customize' pk=proj.pk %}"
+                  hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
+                  hx-target="#event-syndication"
+                  hx-swap="outerHTML">
+              {% csrf_token %}
+              <button type="submit"
+                      class="kb-mono text-[9px] uppercase tracking-widest text-base-content/40 hover:text-base-content/70 px-2 py-1 border border-white/8 rounded">
+                {% trans "Customize (own version)" %}
+              </button>
+            </form>
+
+            {# Reset to canonical #}
+            <form method="post"
+                  action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                  hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                  hx-target="#event-syndication"
+                  hx-swap="outerHTML">
+              {% csrf_token %}
+              <button type="submit"
+                      class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 hover:text-base-content/60 px-2 py-1 border border-white/8 rounded">
+                {% trans "Reset to canonical" %}
+              </button>
+            </form>
+
+          </div>
+
+          {# Inline edit form for the assigned ContentVersion body #}
+          <form method="post"
+                action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
+                hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
+                hx-target="#event-syndication"
+                hx-swap="outerHTML"
+                @htmx:after-request="showVersionOps = false">
+            {% csrf_token %}
+            <textarea name="body"
+                      class="w-full bg-base-200 border border-white/10 rounded text-[11px] font-mono text-base-content/70 p-2 min-h-[80px] resize-y"
+                      placeholder="{% trans "Edit body…" %}">{{ body }}</textarea>
+            <div class="flex gap-2 mt-1">
+              <button type="submit"
+                      class="kb-btn-secondary text-[10px] px-2 py-1">
+                {% trans "Save" %}
+              </button>
+              <button type="button"
+                      @click="showVersionOps = false"
+                      class="kb-mono text-[9px] uppercase tracking-widest text-base-content/30 hover:text-base-content/60 px-2 py-1">
+                {% trans "Cancel" %}
+              </button>
+            </div>
+          </form>
+
+        </div>
         {% endif %}
 
       </div>

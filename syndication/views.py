@@ -40,6 +40,11 @@ from syndication.services import (
     mark_projection_published,
     publish_all_ready_projections,
     _resolve_projection_event,
+    customize,
+    copy_to,
+    reset_to_canonical,
+    edit_version,
+    content_version_consumers_map,
 )
 
 
@@ -298,6 +303,9 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     has_posts = Post.objects.filter(event=event).exists()
     no_promo_posts = has_promotion_connections and not has_posts
 
+    # Build the per-version consumers map for the "live on <channels>" cue (kb-wz8m.5).
+    consumers_map = content_version_consumers_map(event)
+
     return render(request, "syndication/fragments/event_syndication.html", {
         "event": event,
         "projections": projections,
@@ -308,6 +316,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         "can_edit": user_can_edit,
         "can_publish": user_can_publish,
         "action_error": action_error,
+        "consumers_map": consumers_map,
     })
 
 
@@ -576,6 +585,178 @@ def projection_override(request, pk):
         "projection_override: awaiting kb-wz8m.5 replacement (save_projection_override removed in kb-wz8m.3).",
         status=501,
     )
+
+
+# ---------------------------------------------------------------------------
+# Version-op views (kb-wz8m.5, ADR-016 D3/D5)
+#
+# Each view: resolve objects, gate on login + ownership (via can_edit in
+# the service layer), call the matching services.py function, return the
+# refreshed syndication fragment on HX-Request.
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def projection_customize(request, pk):
+    """
+    Customize: duplicate the projection's current version into its own row,
+    repoint the FK at it (opt-in per-channel divergence).
+
+    POST only. Calls customize(user, projection) service.
+    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    ADR-008 D3: PermissionError → 403; ValueError → fail-loud error state.
+    """
+    proj = get_object_or_404(PlatformProjection, pk=pk)
+    event = _resolve_projection_event(proj)
+    if request.method != "POST":
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    try:
+        customize(user=request.user, projection=proj)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
+        if request.headers.get("HX-Request"):
+            return _projection_transition_error_response(request, exc, event)
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    if request.headers.get("HX-Request"):
+        return _syndication_fragment_response(request, event)
+    return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def projection_reset_to_canonical(request, pk):
+    """
+    Reset-to-canonical: repoint the projection's FK back at the event's
+    canonical ContentVersion (re-enters single-row sharing).
+
+    POST only. Calls reset_to_canonical(user, projection) service.
+    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    ADR-008 D3: PermissionError → 403; ValueError (missing canonical) → fail loud.
+    """
+    proj = get_object_or_404(PlatformProjection, pk=pk)
+    event = _resolve_projection_event(proj)
+    if request.method != "POST":
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    try:
+        reset_to_canonical(user=request.user, projection=proj)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
+        if request.headers.get("HX-Request"):
+            return _projection_transition_error_response(request, exc, event)
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    if request.headers.get("HX-Request"):
+        return _syndication_fragment_response(request, event)
+    return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def version_copy_to(request, pk):
+    """
+    Copy-to: for each target projection (from POST body), mint an independent
+    new ContentVersion copied from source_version and repoint that projection's FK.
+
+    POST only. Calls copy_to(user, source_version, target_projections) service.
+    POST body: target_projection_pks — comma-separated or multi-value projection PKs.
+    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    ADR-008 D3: PermissionError → 403; ValueError (cross-event, etc.) → fail loud.
+    """
+    from syndication.models import ContentVersion
+
+    source_version = get_object_or_404(ContentVersion, pk=pk)
+    event = source_version.event
+
+    if request.method != "POST":
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    # Parse target_projection_pks: supports comma-separated string or multi-value
+    raw_pks = request.POST.getlist("target_projection_pks")
+    if not raw_pks:
+        raw_pks = request.POST.get("target_projection_pks", "").split(",")
+    target_pks = [p.strip() for p in raw_pks if p.strip()]
+
+    if not target_pks:
+        if request.headers.get("HX-Request"):
+            return _syndication_fragment_response(request, event)
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    target_projections = list(
+        PlatformProjection.objects.filter(pk__in=target_pks)
+    )
+
+    try:
+        copy_to(user=request.user, source_version=source_version, target_projections=target_projections)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
+        if request.headers.get("HX-Request"):
+            # Return error state with event context
+            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    if request.headers.get("HX-Request"):
+        return _syndication_fragment_response(request, event)
+    return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def version_edit(request, pk):
+    """
+    Edit-version: mutate a pre-publish version's editorial fields (body, headline, etc.)
+    and flip provenance to 'manual'.
+
+    POST only. Calls edit_version(user, version, **fields) service.
+    POST body: body (and optionally headline, imagery, cta, voice).
+    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    ADR-008 D3: PermissionError → 403; ValueError (frozen consumers) → fail loud.
+    """
+    from syndication.models import ContentVersion
+
+    version = get_object_or_404(ContentVersion, pk=pk)
+    event = version.event
+
+    if request.method != "POST":
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    # Collect editorial fields from POST (only known fields; services.py filters unknowns)
+    fields = {}
+    for field_name in ("body", "headline", "imagery", "cta", "voice"):
+        if field_name in request.POST:
+            fields[field_name] = request.POST[field_name]
+
+    try:
+        edit_version(user=request.user, version=version, **fields)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
+        if request.headers.get("HX-Request"):
+            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    if request.headers.get("HX-Request"):
+        return _syndication_fragment_response(request, event)
+    return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def review_all_stub(request, event_pk):
+    """
+    [STUB — forward-reference for kb-wz8m.6]
+
+    This route is referenced from the syndication board as a forward-reference.
+    kb-wz8m.6 will fill the real Review-all surface.
+
+    Returns a minimal placeholder so the URL resolves without 404/500.
+    """
+    event = get_object_or_404(Event, pk=event_pk)
+    return render(request, "syndication/review_all_stub.html", {
+        "event": event,
+        "stub_notice": "Review-all board (kb-wz8m.6) — not yet implemented.",
+    })
 
 
 @login_required

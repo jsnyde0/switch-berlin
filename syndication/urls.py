@@ -81,4 +81,36 @@ urlpatterns = [
         views.projection_batch_publish,
         name="projection-batch-publish",
     ),
+
+    # --- Version-op endpoints (kb-wz8m.5) ---
+    # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).
+    path(
+        "projections/<int:pk>/customize/",
+        views.projection_customize,
+        name="projection-customize",
+    ),
+    path(
+        "projections/<int:pk>/reset-to-canonical/",
+        views.projection_reset_to_canonical,
+        name="projection-reset-to-canonical",
+    ),
+    path(
+        "versions/<int:pk>/copy-to/",
+        views.version_copy_to,
+        name="version-copy-to",
+    ),
+    path(
+        "versions/<int:pk>/edit/",
+        views.version_edit,
+        name="version-edit",
+    ),
+
+    # --- Review-all stub (forward-reference for kb-wz8m.6) ---
+    # kb-wz8m.6 fills the real Review-all surface. Stub kept here to satisfy
+    # the board's toggle/button href without 404.
+    path(
+        "events/<int:event_pk>/review-all/",
+        views.review_all_stub,
+        name="review-all",
+    ),
 ]

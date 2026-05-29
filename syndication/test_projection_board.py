@@ -1545,3 +1545,500 @@ class BatchPublishPartialFailureTest(TestCase):
             content,
             "Response must contain visible error state when batch publish has failures",
         )
+
+
+# ---------------------------------------------------------------------------
+# kb-wz8m.5: Composer + channel-rail board tests
+# ---------------------------------------------------------------------------
+
+
+class ComposerRailBoardRenderTest(TestCase):
+    """
+    F1/F2: The event_syndication fragment renders one card per projection with:
+    - Assigned-version preview (rendered body)
+    - Status pill
+    - Per-channel publish control
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="rail_user", email="rail@test.com", password="pw")
+        self.profile = _make_profile(name="Rail Org", slug="rail-org", user=self.user)
+        self.event = _make_event(slug="rail-event", title="Rail Test Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-rail")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_fragment_renders_one_card_per_projection(self):
+        """
+        One card per projection: listing + promotion both appear.
+        """
+        proj1 = _make_listing_projection(self.conn, self.event)
+        post = _make_post(self.event)
+        proj2 = _make_promotion_projection(self.conn, post)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        projections = list(response.context["projections"])
+        self.assertEqual(len(projections), 2)
+        pks = {p.pk for p in projections}
+        self.assertIn(proj1.pk, pks)
+        self.assertIn(proj2.pk, pks)
+
+    def test_fragment_renders_status_pill(self):
+        """
+        Each card must render a status pill (status chip in HTML).
+        """
+        _make_listing_projection(self.conn, self.event, status="draft")
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Status chip must be rendered — look for the status display value
+        self.assertIn("draft", content.lower(), "Status pill must render the projection status")
+
+    def test_fragment_renders_version_preview(self):
+        """
+        Each card must render the assigned-version preview (rendered body).
+        """
+        _make_listing_projection(self.conn, self.event)
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Rendered body must contain event title (real content)
+        self.assertIn("Rail Test Event", content, "Version preview must contain event content")
+
+    def test_fragment_renders_per_channel_publish_control(self):
+        """
+        Each ready card must render a per-channel Publish button.
+        """
+        from syndication.services import approve_projection
+        proj = _make_listing_projection(self.conn, self.event)
+        approve_projection(user=self.user, projection=proj)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Publish button must point to the projection-publish URL
+        self.assertIn(
+            f"/syndication/projections/{proj.pk}/publish/",
+            content,
+            "Per-channel publish button must point to projection-publish URL",
+        )
+
+
+class LiveOnChannelsCueTest(TestCase):
+    """
+    F7: The fragment context includes content_version_consumers_map data.
+    - The 'live on <channels>' set rendered matches the data.
+    - After a customize on one projection, the re-rendered fragment shows
+      the updated grouping (customized channel no longer grouped with canonical).
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="liveon_user", email="liveon@test.com", password="pw")
+        self.profile = _make_profile(name="LiveOn Org", slug="liveon-org", user=self.user)
+        self.event = _make_event(slug="liveon-event", title="Live On Test")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn1 = _make_connection(self.profile, platform="fetlife", destination_id="fl-liveon-1")
+        self.conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-liveon-2")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_fragment_context_includes_consumers_map(self):
+        """
+        Fragment context must include 'consumers_map' keyed by ContentVersion.
+        """
+        _make_listing_projection(self.conn1, self.event)
+        _make_listing_projection(self.conn2, self.event)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "consumers_map",
+            response.context,
+            "Fragment context must include consumers_map for live-on cue",
+        )
+
+    def test_consumers_map_groups_projections_by_version(self):
+        """
+        When two projections share the canonical version, consumers_map must
+        map that version to both projections.
+        """
+        proj1 = _make_listing_projection(self.conn1, self.event)
+        proj2 = _make_listing_projection(self.conn2, self.event)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        consumers_map = response.context["consumers_map"]
+        # Both projections share the canonical version
+        canonical_version = proj1.content_version
+        self.assertIn(canonical_version, consumers_map)
+        consumer_pks = {p.pk for p in consumers_map[canonical_version]}
+        self.assertIn(proj1.pk, consumer_pks)
+        self.assertIn(proj2.pk, consumer_pks)
+
+    def test_customize_updates_consumers_map_grouping(self):
+        """
+        F7 data→template wiring assertion:
+        After POSTing to the customize endpoint for proj1, the re-rendered fragment
+        shows proj1's version in a SEPARATE group from proj2 (no longer grouped
+        with the canonical version).
+        """
+        proj1 = _make_listing_projection(self.conn1, self.event)
+        proj2 = _make_listing_projection(self.conn2, self.event)
+
+        # Verify both share the same canonical version before customize
+        self.assertEqual(proj1.content_version_id, proj2.content_version_id)
+
+        # POST to customize endpoint for proj1
+        response = self.client.post(
+            f"/syndication/projections/{proj1.pk}/customize/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # Re-fetch projections from DB
+        proj1.refresh_from_db()
+        proj2.refresh_from_db()
+
+        # proj1 now has a different version from proj2
+        self.assertNotEqual(
+            proj1.content_version_id,
+            proj2.content_version_id,
+            "After customize, proj1 must have its own version separate from proj2",
+        )
+
+        # The re-rendered fragment consumers_map must reflect the new grouping
+        consumers_map = response.context["consumers_map"]
+        # proj1's new version must only contain proj1
+        proj1_version = proj1.content_version
+        proj2_version = proj2.content_version
+        self.assertNotEqual(proj1_version.pk, proj2_version.pk)
+
+        proj1_consumers = {p.pk for p in consumers_map.get(proj1_version, [])}
+        self.assertIn(proj1.pk, proj1_consumers)
+        self.assertNotIn(proj2.pk, proj1_consumers)
+
+        proj2_consumers = {p.pk for p in consumers_map.get(proj2_version, [])}
+        self.assertIn(proj2.pk, proj2_consumers)
+        self.assertNotIn(proj1.pk, proj2_consumers)
+
+
+class VersionOpEndpointTest(TestCase):
+    """
+    Each version-op endpoint (customize / copy_to / reset / edit_version) must:
+    - Return the refreshed syndication fragment (200 with context) on HX-Request
+    - Effect the service call (model state changes)
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="vop_user", email="vop@test.com", password="pw")
+        self.profile = _make_profile(name="VersionOp Org", slug="versionop-org", user=self.user)
+        self.event = _make_event(slug="vop-event", title="Version Op Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-vop")
+        self.conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-vop-2")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_customize_endpoint_returns_refreshed_fragment(self):
+        """POST customize returns the refreshed syndication fragment."""
+        proj = _make_listing_projection(self.conn, self.event)
+        response = self.client.post(
+            f"/syndication/projections/{proj.pk}/customize/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        # Must return the syndication fragment context
+        self.assertIn("projections", response.context)
+
+    def test_customize_endpoint_creates_new_version(self):
+        """POST customize creates a new ContentVersion for the projection."""
+        proj = _make_listing_projection(self.conn, self.event)
+        old_cv_pk = proj.content_version_id
+
+        self.client.post(
+            f"/syndication/projections/{proj.pk}/customize/",
+            HTTP_HX_REQUEST="true",
+        )
+        proj.refresh_from_db()
+        self.assertNotEqual(
+            proj.content_version_id,
+            old_cv_pk,
+            "customize must assign a new ContentVersion to the projection",
+        )
+
+    def test_reset_to_canonical_endpoint_returns_refreshed_fragment(self):
+        """POST reset-to-canonical returns the refreshed syndication fragment."""
+        from syndication.services import customize as svc_customize
+        proj = _make_listing_projection(self.conn, self.event)
+        # First customize so we can reset
+        svc_customize(user=self.user, projection=proj)
+        proj.refresh_from_db()
+
+        response = self.client.post(
+            f"/syndication/projections/{proj.pk}/reset-to-canonical/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("projections", response.context)
+
+    def test_reset_to_canonical_endpoint_repoints_to_canonical(self):
+        """POST reset-to-canonical repoints the projection at the canonical version."""
+        from syndication.models import ContentVersion
+        from syndication.services import customize as svc_customize
+
+        canonical_cv = _make_content_version(self.event, name="canonical")
+        proj = _make_listing_projection(self.conn, self.event)
+        svc_customize(user=self.user, projection=proj)
+        proj.refresh_from_db()
+        self.assertNotEqual(proj.content_version_id, canonical_cv.pk)
+
+        self.client.post(
+            f"/syndication/projections/{proj.pk}/reset-to-canonical/",
+            HTTP_HX_REQUEST="true",
+        )
+        proj.refresh_from_db()
+        self.assertEqual(
+            proj.content_version_id,
+            canonical_cv.pk,
+            "reset-to-canonical must repoint projection at the canonical version",
+        )
+
+    def test_copy_to_endpoint_returns_refreshed_fragment(self):
+        """POST copy-to-projections returns the refreshed syndication fragment."""
+        proj_src = _make_listing_projection(self.conn, self.event)
+        proj_tgt = _make_listing_projection(self.conn2, self.event)
+
+        response = self.client.post(
+            f"/syndication/versions/{proj_src.content_version_id}/copy-to/",
+            data={"target_projection_pks": str(proj_tgt.pk)},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("projections", response.context)
+
+    def test_copy_to_endpoint_creates_independent_versions(self):
+        """POST copy-to creates a new independent ContentVersion for each target."""
+        proj_src = _make_listing_projection(self.conn, self.event)
+        proj_tgt = _make_listing_projection(self.conn2, self.event)
+        src_cv_pk = proj_src.content_version_id
+        tgt_old_cv_pk = proj_tgt.content_version_id
+
+        self.client.post(
+            f"/syndication/versions/{proj_src.content_version_id}/copy-to/",
+            data={"target_projection_pks": str(proj_tgt.pk)},
+            HTTP_HX_REQUEST="true",
+        )
+        proj_tgt.refresh_from_db()
+        self.assertNotEqual(
+            proj_tgt.content_version_id,
+            src_cv_pk,
+            "copy_to must create new version row, not point at source version",
+        )
+
+    def test_edit_version_endpoint_returns_refreshed_fragment(self):
+        """POST edit-version returns the refreshed syndication fragment."""
+        proj = _make_listing_projection(self.conn, self.event)
+        response = self.client.post(
+            f"/syndication/versions/{proj.content_version_id}/edit/",
+            data={"body": "Edited body text"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("projections", response.context)
+
+    def test_edit_version_endpoint_persists_body(self):
+        """POST edit-version persists body to ContentVersion."""
+        proj = _make_listing_projection(self.conn, self.event)
+        cv_pk = proj.content_version_id
+
+        self.client.post(
+            f"/syndication/versions/{proj.content_version_id}/edit/",
+            data={"body": "New body from view"},
+            HTTP_HX_REQUEST="true",
+        )
+
+        from syndication.models import ContentVersion
+        cv = ContentVersion.objects.get(pk=cv_pk)
+        self.assertEqual(cv.body, "New body from view")
+
+    def test_edit_version_endpoint_flips_provenance_to_manual(self):
+        """POST edit-version flips ContentVersion.provenance to 'manual'."""
+        proj = _make_listing_projection(self.conn, self.event, provenance="rule_template")
+        cv_pk = proj.content_version_id
+
+        self.client.post(
+            f"/syndication/versions/{proj.content_version_id}/edit/",
+            data={"body": "human edit"},
+            HTTP_HX_REQUEST="true",
+        )
+
+        from syndication.models import ContentVersion
+        cv = ContentVersion.objects.get(pk=cv_pk)
+        self.assertEqual(cv.provenance, "manual")
+
+
+class NoBoardLLMGenerateAffordanceTest(TestCase):
+    """
+    D-B: No 'generate with AI' / LLM affordance must appear anywhere on the board.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="nogen_user", email="nogen@test.com", password="pw")
+        self.profile = _make_profile(name="NoGen Org", slug="nogen-org", user=self.user)
+        self.event = _make_event(slug="nogen-event", title="NoGen Test")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-nogen")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_no_generate_llm_button_on_board(self):
+        """
+        The board fragment must NOT contain any 'generate' / LLM affordance text.
+        D-B: No platform-owned-LLM generate affordance anywhere.
+        """
+        _make_listing_projection(self.conn, self.event)
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode().lower()
+        # Must NOT contain LLM/AI generate affordances
+        for banned_phrase in ["generate with ai", "ai generate", "generate content", "ask ai"]:
+            self.assertNotIn(
+                banned_phrase,
+                content,
+                f"Board must not contain LLM affordance: '{banned_phrase}' (D-B)",
+            )
+
+
+class BoardAuthzTest(TestCase):
+    """
+    Authorization tests:
+    - Co-claimant can load the board (200)
+    - Non-claimant gets 403
+    """
+
+    def setUp(self):
+        self.owner = _make_vouched_user(username="authz_owner", email="authz_owner@test.com", password="pw")
+        self.profile = _make_profile(name="Authz Org", slug="authz-org", user=self.owner)
+        self.event = _make_event(slug="authz-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-authz")
+
+        # Co-claimant: second user claiming the same profile
+        self.co_claimant = _make_vouched_user(username="authz_co", email="authz_co@test.com", password="pw")
+        from organizers.models import ProfileClaim
+        ProfileClaim.objects.create(
+            profile=self.profile,
+            user=self.co_claimant,
+            verified_method="auto_self",
+        )
+
+        # Non-claimant: user with no profile claim on this event
+        self.stranger = _make_vouched_user(username="authz_stranger", email="authz_stranger@test.com", password="pw")
+
+    def test_owner_can_load_board(self):
+        """Owner (primary claimant) can load the syndication board."""
+        client = Client()
+        client.force_login(self.owner)
+        response = client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_co_claimant_can_load_board(self):
+        """Co-claimant (second profile claimant) can load the syndication board."""
+        client = Client()
+        client.force_login(self.co_claimant)
+        response = client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_non_claimant_cannot_call_version_ops(self):
+        """Non-claimant POSTing to version-op endpoints gets 403."""
+        proj = _make_listing_projection(self.conn, self.event)
+        stranger_client = Client()
+        stranger_client.force_login(self.stranger)
+
+        response = stranger_client.post(
+            f"/syndication/projections/{proj.pk}/customize/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(
+            response.status_code,
+            403,
+            "Non-claimant must get 403 on version-op endpoints",
+        )
+
+    def test_non_claimant_cannot_edit_version(self):
+        """Non-claimant POSTing to edit-version endpoint gets 403."""
+        proj = _make_listing_projection(self.conn, self.event)
+        stranger_client = Client()
+        stranger_client.force_login(self.stranger)
+
+        response = stranger_client.post(
+            f"/syndication/versions/{proj.content_version_id}/edit/",
+            data={"body": "unauthorized edit"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(
+            response.status_code,
+            403,
+            "Non-claimant must get 403 on edit-version endpoint",
+        )
+
+
+class ReviewAllStubTest(TestCase):
+    """
+    The board must include a review-all toggle/button that points to the
+    review-all URL (stub for kb-wz8m.6).
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="reviewall_user", email="reviewall@test.com", password="pw")
+        self.profile = _make_profile(name="ReviewAll Org", slug="reviewall-org", user=self.user)
+        self.event = _make_event(slug="reviewall-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, destination_id="fl-reviewall")
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_review_all_url_resolves(self):
+        """
+        The 'syndication:review-all' named URL must resolve (stub exists).
+        kb-wz8m.6 will fill the real view; here we just assert the route exists.
+        """
+        from django.urls import reverse, NoReverseMatch
+        try:
+            url = reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
+            self.assertIsNotNone(url)
+        except NoReverseMatch:
+            self.fail(
+                "The 'syndication:review-all' URL must be registered (stub for kb-wz8m.6). "
+                "Add a minimal placeholder view in urls.py."
+            )
+
+    def test_review_all_stub_returns_acceptable_response(self):
+        """The review-all stub URL must return a response (not 404/500)."""
+        from django.urls import reverse
+        url = reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
+        response = self.client.get(url)
+        self.assertNotIn(
+            response.status_code,
+            [404, 500],
+            f"review-all stub must not 404/500 (got {response.status_code})",
+        )

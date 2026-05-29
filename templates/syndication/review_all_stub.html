@@ -1,0 +1,30 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+
+{% block title %}{{ event.title }} — Review All (coming soon){% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto pt-10">
+  <div class="mb-8">
+    <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-2">
+      {% trans "Review All" %}
+      <span class="mx-2 text-base-content/15">·</span>
+      <span class="text-yellow-400/80">{% trans "coming soon" %}</span>
+    </p>
+    <h1 class="kb-display text-[40px] font-light leading-tight">{{ event.title }}</h1>
+  </div>
+
+  <div class="kb-rule mb-8"></div>
+
+  {# TODO (kb-wz8m.6): implement the Review-all board surface here. #}
+  <div class="py-8 border border-white/8 rounded p-4">
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/50 mb-3">
+      — {% trans "Review-all board is not yet implemented (kb-wz8m.6)." %} —
+    </p>
+    <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+       class="kb-btn-secondary text-sm inline-block">
+      {% trans "Back to event hub" %}
+    </a>
+  </div>
+</div>
+{% endblock content %}
