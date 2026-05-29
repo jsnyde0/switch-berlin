@@ -217,6 +217,35 @@ class ContentVersionProvenanceFieldsTest(TestCase):
         self.assertIsNone(cv.last_generated_at)
 
 
+class ContentVersionUniquenessTest(TestCase):
+    """
+    ContentVersion (event, name) pair must be unique within an event.
+
+    Same name on DIFFERENT events is allowed (uniqueness is scoped per-event).
+    Duplicate (event, name) must raise IntegrityError (ADR-016 D2 revised
+    2026-05-29; kb-wz8m.2 seeds exactly one 'canonical' version per event and
+    must not create duplicates).
+    """
+
+    def test_duplicate_name_on_same_event_raises_integrity_error(self):
+        """Two ContentVersions with the same name on the same event must fail."""
+        from django.db import IntegrityError
+
+        event = _make_event(slug="unique-test-event")
+        ContentVersion.objects.create(event=event, name="canonical")
+        with self.assertRaises(IntegrityError):
+            ContentVersion.objects.create(event=event, name="canonical")
+
+    def test_same_name_on_different_events_is_allowed(self):
+        """The uniqueness constraint is scoped per-event; cross-event reuse is fine."""
+        event_a = _make_event(slug="event-a-uniq")
+        event_b = _make_event(slug="event-b-uniq")
+        cv_a = ContentVersion.objects.create(event=event_a, name="canonical")
+        cv_b = ContentVersion.objects.create(event=event_b, name="canonical")
+        self.assertEqual(cv_a.name, cv_b.name)
+        self.assertNotEqual(cv_a.event_id, cv_b.event_id)
+
+
 class ContentVersionStrTest(TestCase):
     """ContentVersion.__str__ should be human-readable."""
 

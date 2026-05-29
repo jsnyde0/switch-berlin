@@ -314,6 +314,12 @@ class ContentVersion(models.Model):
         ordering = ["-created_at"]
         verbose_name = _("content version")
         verbose_name_plural = _("content versions")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["event", "name"],
+                name="syndication_contentversion_event_name_uniq",
+            )
+        ]
 
     def __str__(self):
         return f"{self.name} (event={self.event_id})"
@@ -437,6 +443,10 @@ class PlatformProjection(models.Model):
     )
 
     # Provenance and attribution reservation fields (ADR-016 D2, ADR-003).
+    # NOTE: These three fields (provenance, generated_by, last_generated_at) are
+    # slated for removal in kb-wz8m.2 — they now live on ContentVersion per
+    # ADR-016 D2 revised 2026-05-29. Do NOT treat them as live; kept here only
+    # to avoid a breaking schema change before the kb-wz8m.2 cutover.
     # provenance tracks how the current effective content was last produced.
     # Flips to 'manual' the moment a human edits an override.
     provenance = models.CharField(

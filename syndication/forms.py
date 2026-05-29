@@ -311,6 +311,12 @@ class ContentVersionForm(forms.Form):
         label=_("Body"),
         widget=forms.Textarea(attrs={"rows": 6}),
     )
+    imagery = forms.CharField(
+        required=False,
+        label=_("Imagery"),
+        help_text=_("JSON array of image references/URLs, e.g. [\"img1.jpg\"]"),
+        widget=forms.TextInput(attrs={"placeholder": '["img1.jpg"]'}),
+    )
     cta = forms.CharField(
         required=False,
         max_length=500,
