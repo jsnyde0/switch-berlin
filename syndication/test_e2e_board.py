@@ -3,17 +3,38 @@ End-to-end integration test: start-shared → customize → publish (kb-wz8m.8).
 
 Harness target Signal for the kb-wz8m parent epic.
 
-Walks the REAL v0 path with an adapter spy. Unit tests pass even when the
-wiring is broken; this test walks the actual cross-component path (kb-jgda
+Walks the REAL v0 path using the live service layer. Unit tests pass even when
+the wiring is broken; this test walks the actual cross-component path (kb-jgda
 lesson).
 
 Data path only — no UI/template rendering. The "live on" visual render is
 kb-wz8m.5's browser loop, explicitly out of scope here.
 
 canonical_refs: ADR-008 D3/D4, ADR-016 D5.
+
+Design notes on the routing-swap assertion (steps 3 + combined):
+  The test customises proj_1 to body="CUSTOM-BODY-PROJ1" while proj_2 is left
+  on the canonical version. Both projections FK to telegram connections. When
+  publish_projection(proj_1) is called, the REAL publish_telegram_promotion
+  adapter runs — only httpx.post is mocked at the transport boundary, returning
+  a fake {"ok": true, "result": {"message_id": 123}} response.
+
+  The routing assertion (3a) inspects the actual call to httpx.post:
+    call_args.kwargs["json"]["text"] == "CUSTOM-BODY-PROJ1"
+
+  A deliberate routing swap — where publish_projection passes proj_2 (or the
+  canonical version's content) to the adapter while the caller meant proj_1 —
+  would result in the Telegram payload containing proj_2's body (the composed
+  canonical body, NOT "CUSTOM-BODY-PROJ1"). The assertion FAILS, catching the
+  swap.
+
+  The transition assertion (3b) checks that proj_1.status == PUBLISHED and
+  proj_1.frozen_content is populated. This passes ONLY if the real adapter ran
+  and called transition_status — a spy-based test that never fires the real
+  adapter would leave proj_1 in READY, failing 3b.
 """
 
-from unittest.mock import patch, call
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -52,14 +73,27 @@ def _make_profile(name, slug, user=None):
     return profile
 
 
-def _make_connection(profile, platform, destination_id, kinds, enabled=True):
+def _make_connection(profile, platform, destination_id, kinds, enabled=True, credentials=None):
     return PlatformConnection.objects.create(
         organizer=profile,
         platform=platform,
         destination_id=destination_id,
         kinds=kinds,
         enabled=enabled,
+        credentials=credentials or {},
     )
+
+
+# ---------------------------------------------------------------------------
+# Fake httpx response helper (reused across tests)
+# ---------------------------------------------------------------------------
+
+def _fake_ok_response():
+    """Return a fake httpx.Response-like mock for Telegram Bot API success."""
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.json.return_value = {"ok": True, "result": {"message_id": 123}}
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -76,19 +110,33 @@ class E2EBoardFlowTest(TestCase):
       - create_event eager-creates projections pointing at the canonical CV.
       - consumers()/content_version_consumers_map() correctly report consumers.
       - customize() + edit_version() diverges one projection without affecting others.
-      - publish_projection() routes to the CORRECT per-projection adapter.
+      - publish_projection() routes to the CORRECT per-projection adapter with the
+        CORRECT content (transport boundary mocked; real adapter body runs).
       - publish_all_ready_projections() fans out exactly once per ready projection.
 
-    The routing assertion (step 3) is non-trivial: if publish_projection ever
-    routed the canonical/projection_2's content while publishing projection_1
-    (a routing swap), the render_projection(received_proj) == "CUSTOM-BODY"
-    assertion FAILS because projection_2 is not customized to "CUSTOM-BODY".
+    Platform choice for steps 3 + combined:
+      Telegram is a push-API promotion platform whose adapter calls httpx.post
+      internally (syndication.adapters). By mocking only httpx.post at the
+      transport boundary (patch "syndication.adapters.httpx.post"), the REAL
+      publish_telegram_promotion function runs end-to-end, including the call to
+      transition_status(projection, "published"). This means:
+        (3a) We can inspect the actual Telegram payload text for routing correctness.
+        (3b) proj_1 transitions to PUBLISHED with frozen_content populated — the
+             real adapter path asserts both routing AND the lifecycle transition.
+
+    SetUp creates two Telegram promotion connections with bot tokens, so that
+    create_post produces ≥2 eager promotion projections on the shared canonical CV.
+    Projections are selected deterministically by connection pk, not by pk ordering,
+    so the test is stable across Postgres and SQLite.
     """
 
     def setUp(self):
         # Organizer: one user, one profile, two platform connections.
-        #   - switch (listing) → listing projections eager-created on create_event
-        #   - telegram (promotion) → promotion projections eager-created on create_post
+        #
+        # We use TWO Telegram promotion connections (tg_1 + tg_2) so that
+        # create_post produces ≥2 eager promotion projections sharing a canonical
+        # ContentVersion. The Telegram adapter uses httpx.post — mocking that
+        # boundary lets the real adapter run without network I/O.
         self.user = _make_vouched_user(
             username="e2e_user",
             email="e2e@test.com",
@@ -101,8 +149,8 @@ class E2EBoardFlowTest(TestCase):
         )
 
         # Two listing-capable connections (switch and fetlife) so we get ≥2
-        # eager listing projections on create_event. Using fetlife as second
-        # because it supports listing.
+        # eager listing projections on create_event. Used ONLY for steps 1 + 2
+        # (shared canonical + customize isolation). No network I/O for these.
         self.conn_switch = _make_connection(
             self.profile,
             platform="switch",
@@ -114,6 +162,23 @@ class E2EBoardFlowTest(TestCase):
             platform="fetlife",
             destination_id="fl-e2e-001",
             kinds=["listing"],
+        )
+
+        # Two Telegram promotion connections with bot tokens — used for steps
+        # 3 + combined (real Telegram adapter + httpx.post mock).
+        self.conn_tg_1 = _make_connection(
+            self.profile,
+            platform="telegram",
+            destination_id="@channel-1",
+            kinds=["promotion"],
+            credentials={"bot_token": "fake-bot-token-1"},
+        )
+        self.conn_tg_2 = _make_connection(
+            self.profile,
+            platform="telegram",
+            destination_id="@channel-2",
+            kinds=["promotion"],
+            credentials={"bot_token": "fake-bot-token-2"},
         )
 
     # -------------------------------------------------------------------------
@@ -177,7 +242,8 @@ class E2EBoardFlowTest(TestCase):
         )
 
     # -------------------------------------------------------------------------
-    # Step 2: Divergence isolation — customize proj_1, assert proj_2 unaffected
+    # Step 2: Divergence isolation — customize proj_1, assert proj_2 unaffected.
+    # Uses listing projections (switch + fetlife) — no network I/O needed.
     # -------------------------------------------------------------------------
 
     def test_step2_customize_diverges_without_affecting_sibling(self):
@@ -186,8 +252,8 @@ class E2EBoardFlowTest(TestCase):
         Editing proj_1's new version (edit_version) does NOT affect proj_2's
         effective/rendered content (proj_2 still points at canonical).
 
-        This tests the isolation invariant: single-row sharing is preserved for
-        proj_2; only proj_1 has diverged.
+        proj_1 and proj_2 are selected by their connection platform, not by pk
+        order, so the test is stable across Postgres and SQLite.
         """
         from syndication.services import create_event, customize, edit_version
         from syndication.engine import render_projection
@@ -199,10 +265,15 @@ class E2EBoardFlowTest(TestCase):
             start=timezone.now(),
         )
 
-        projs = list(PlatformProjection.objects.filter(source_event=event).order_by("pk"))
-        self.assertGreaterEqual(len(projs), 2)
-        proj_1 = projs[0]
-        proj_2 = projs[1]
+        # Select deterministically by platform, not by pk ordering.
+        proj_1 = PlatformProjection.objects.get(
+            source_event=event,
+            connection=self.conn_switch,
+        )
+        proj_2 = PlatformProjection.objects.get(
+            source_event=event,
+            connection=self.conn_fetlife,
+        )
 
         # Both start on the canonical CV.
         self.assertEqual(
@@ -242,32 +313,42 @@ class E2EBoardFlowTest(TestCase):
         )
 
     # -------------------------------------------------------------------------
-    # Step 3: Publish routing — proj_1 customized content reaches the adapter,
-    #         NOT canonical / proj_2 content. proj_2 stays draft.
+    # Step 3: Publish routing — real Telegram adapter with httpx.post mocked.
+    #
+    # REAL adapter path: only httpx.post (in syndication.adapters) is patched.
+    # publish_telegram_promotion runs end-to-end, calling transition_status
+    # internally — so BOTH the routing assertion AND the lifecycle transition
+    # assertion are meaningful.
+    #
+    # Routing-swap catch argument:
+    #   A swap would cause publish_projection to pass proj_2 (or proj_2's
+    #   canonical content) to the adapter. The adapter would then render
+    #   proj_2's body (the composed canonical listing body, NOT "CUSTOM-BODY-PROJ1")
+    #   and POST that text to Telegram. The assertion
+    #       mock_post.call_args.kwargs["json"]["text"] == "CUSTOM-BODY-PROJ1"
+    #   would FAIL because the payload text is proj_2's body, not proj_1's.
     # -------------------------------------------------------------------------
 
     def test_step3_publish_routes_customized_content_to_adapter(self):
         """
-        Publish routing: advancing proj_1 to ready and publishing it via the
-        adapter spy asserts:
-        (a) proj_1's adapter receives proj_1 with proj_1's CUSTOMIZED content
-            (frozen_content["body"] == "CUSTOM-BODY-PROJ1").
-        (b) proj_2 stays draft (unaffected by proj_1's publish).
+        Uses the REAL publish_telegram_promotion adapter (not a spy on the adapter
+        function itself) — only httpx.post is mocked at the transport boundary.
 
-        Non-trivial routing assertion: if publish_projection accidentally routed
-        proj_2's/canonical content while publishing proj_1 (a routing swap),
-        render_projection(received_proj) would return proj_2's body or the
-        composed canonical body — NOT "CUSTOM-BODY-PROJ1". This assertion would
-        then FAIL, catching the routing swap.
+        Assertions:
+        (3a) httpx.post was called exactly once with payload text == "CUSTOM-BODY-PROJ1"
+             (NOT proj_2's/canonical content). This catches a routing swap.
+        (3b) proj_1.status == PUBLISHED and proj_1.frozen_content["body"] ==
+             "CUSTOM-BODY-PROJ1" (real transition fired by the real adapter).
+             proj_2.status == DRAFT (unaffected).
         """
         from syndication.services import (
             create_event,
+            create_post,
             customize,
             edit_version,
             approve_projection,
             publish_projection,
         )
-        from syndication.engine import render_projection
 
         event = create_event(
             user=self.user,
@@ -276,12 +357,35 @@ class E2EBoardFlowTest(TestCase):
             start=timezone.now(),
         )
 
-        projs = list(PlatformProjection.objects.filter(source_event=event).order_by("pk"))
-        self.assertGreaterEqual(len(projs), 2)
-        proj_1 = projs[0]
-        proj_2 = projs[1]
+        # create_post eager-creates promotion projections on the two Telegram connections.
+        post = create_post(
+            user=self.user,
+            event=event,
+            headline="Test Headline",
+            body="Canonical post body",
+        )
 
-        # Customize proj_1 and set a distinguishable body.
+        # Select deterministically by connection, not by pk order.
+        proj_1 = PlatformProjection.objects.get(
+            source_post=post,
+            connection=self.conn_tg_1,
+        )
+        proj_2 = PlatformProjection.objects.get(
+            source_post=post,
+            connection=self.conn_tg_2,
+        )
+
+        self.assertEqual(proj_1.connection.platform, "telegram")
+        self.assertEqual(proj_2.connection.platform, "telegram")
+
+        # Both start on the same canonical CV (precondition).
+        self.assertEqual(
+            proj_1.content_version_id,
+            proj_2.content_version_id,
+            "Precondition: both projections start on the same canonical CV.",
+        )
+
+        # Customize proj_1 and set a DISTINGUISHABLE body.
         new_cv = customize(self.user, proj_1)
         proj_1.refresh_from_db()
         edit_version(self.user, new_cv, body="CUSTOM-BODY-PROJ1")
@@ -304,90 +408,62 @@ class E2EBoardFlowTest(TestCase):
             "proj_2 must still be draft after proj_1 is approved.",
         )
 
-        # Spy on the adapter for proj_1's platform.
-        received_by_switch_adapter = []
-        received_by_fetlife_adapter = []
+        # Publish proj_1 via the REAL adapter — only httpx.post is mocked.
+        # The real publish_telegram_promotion runs, calls transition_status,
+        # and stamps external_id.
+        with patch("syndication.adapters.httpx.post", return_value=_fake_ok_response()) as mock_post:
+            publish_projection(self.user, proj_1)
 
-        def spy_switch(p):
-            received_by_switch_adapter.append(p)
-
-        def spy_fetlife(p):
-            received_by_fetlife_adapter.append(p)
-
-        # Determine which spy to use based on proj_1's connection platform.
-        proj_1_platform = proj_1.connection.platform
-
-        if proj_1_platform == "switch":
-            with patch("syndication.services.publish_switch_own_page", side_effect=spy_switch):
-                publish_projection(self.user, proj_1)
-            received = received_by_switch_adapter
-        elif proj_1_platform == "fetlife":
-            # fetlife is attestation path (no external push), transitions directly.
-            # We spy on transition_status to verify the publish happened.
-            import syndication.engine as engine_mod
-            from syndication.engine import transition_status as real_transition
-
-            transition_calls = []
-
-            def spy_transition(projection, new_status):
-                transition_calls.append((projection.pk, new_status))
-                real_transition(projection, new_status)
-
-            with patch.object(engine_mod, "transition_status", side_effect=spy_transition):
-                publish_projection(self.user, proj_1)
-
-            proj_1.refresh_from_db()
-            self.assertEqual(
-                proj_1.status,
-                PlatformProjection.Status.PUBLISHED,
-                "proj_1 must be published after publish_projection for fetlife.",
-            )
-            # Check frozen_content was preserved.
-            self.assertEqual(
-                proj_1.frozen_content["body"],
-                "CUSTOM-BODY-PROJ1",
-                "(3a) The frozen content for proj_1 must be the CUSTOMIZED body, not canonical.",
-            )
-            # proj_2 must still be draft.
-            proj_2.refresh_from_db()
-            self.assertEqual(
-                proj_2.status,
-                PlatformProjection.Status.DRAFT,
-                "(3b) proj_2 must remain draft while only proj_1 was published.",
-            )
-            return  # exit test early for fetlife path (attestation, no adapter receive)
-        else:
-            self.fail(f"Unexpected platform {proj_1_platform!r} — test needs updating.")
-
-        # --- Assertions for push-adapter path (switch) ---
-
-        # (3a) The adapter received proj_1.
-        self.assertEqual(len(received), 1, "Adapter must be called exactly once for proj_1.")
-        received_proj = received[0]
+        # (3a) httpx.post must have been called exactly once.
         self.assertEqual(
-            received_proj.pk,
-            proj_1.pk,
-            "Adapter must receive proj_1 (not proj_2 or some other projection — routing swap catch).",
+            mock_post.call_count,
+            1,
+            "httpx.post must be called exactly once for proj_1's Telegram publish.",
         )
 
-        # (3a) Non-trivial routing assertion: the content the adapter WOULD post is
-        # proj_1's CUSTOMIZED body, NOT canonical/proj_2's body.
-        # render_projection on the received projection returns frozen_content["body"]
-        # (since it's ready/published). A routing swap would deliver the wrong projection
-        # object, whose frozen_content would NOT contain "CUSTOM-BODY-PROJ1".
+        # (3a) Non-trivial routing assertion: the payload text must be proj_1's
+        # CUSTOMIZED body, NOT proj_2's/canonical body.
+        # A routing swap would deliver proj_2's body ("Test Headline\n\nCanonical post body"
+        # or similar canonical composition) — NOT "CUSTOM-BODY-PROJ1". This assertion
+        # would FAIL, surfacing the routing bug.
+        # httpx.post is called as httpx.post(url, json=payload) → kwargs["json"].
+        actual_payload = mock_post.call_args.kwargs["json"]
         self.assertEqual(
-            render_projection(received_proj),
+            actual_payload["text"],
             "CUSTOM-BODY-PROJ1",
-            "(3a) Adapter must receive proj_1's CUSTOMIZED content (CUSTOM-BODY-PROJ1). "
-            "If this fails, publish_projection routed the wrong projection (routing swap).",
+            "(3a) Telegram payload text must be proj_1's CUSTOMIZED body. "
+            "A routing swap would post proj_2's body — this assertion catches it.",
         )
 
-        # Extra: explicitly assert the customized body is NOT the canonical/proj_2's body.
+        # Verify the payload is NOT proj_2's canonical body (explicit routing-swap catch).
+        from syndication.engine import render_projection
+        proj_2_canonical_body = render_projection(proj_2)
         self.assertNotEqual(
-            render_projection(received_proj),
-            render_projection(proj_2),
-            "(3a) The content routed to the adapter must differ from proj_2's body "
-            "(routing-swap catch: they must not accidentally be the same).",
+            actual_payload["text"],
+            proj_2_canonical_body,
+            "(3a) Routing-swap catch: the Telegram payload must differ from proj_2's body.",
+        )
+
+        # (3b) proj_1 must now be PUBLISHED (the REAL adapter ran transition_status).
+        proj_1.refresh_from_db()
+        self.assertEqual(
+            proj_1.status,
+            PlatformProjection.Status.PUBLISHED,
+            "(3b) proj_1 must be PUBLISHED — the real adapter must call transition_status.",
+        )
+
+        # (3b) frozen_content must be populated with the CUSTOMIZED body.
+        self.assertEqual(
+            proj_1.frozen_content["body"],
+            "CUSTOM-BODY-PROJ1",
+            "(3b) proj_1.frozen_content['body'] must be the customized body after publish.",
+        )
+
+        # (3b) external_id must be set (stamped by the real adapter from the mock response).
+        self.assertEqual(
+            proj_1.external_id,
+            "123",
+            "(3b) external_id must be set to the message_id from the Bot API response.",
         )
 
         # (3b) proj_2 must still be draft — untouched by proj_1's publish.
@@ -398,24 +474,22 @@ class E2EBoardFlowTest(TestCase):
             "(3b) proj_2 must remain draft while only proj_1 was published.",
         )
 
-        # (3b) proj_1 must now be published (frozen_content preserved).
-        # The spy_switch adapter did NOT call transition_status; so proj_1 stays
-        # at ready. We need to check what the actual adapter would do — since
-        # we're spying (not letting the real adapter run), we only assert the
-        # content routing, not the final status transition.
-        # The status assertion for the end-to-end "published" state is tested by
-        # existing test_publish_dispatch.py and test_switch_adapter.py.
-
     # -------------------------------------------------------------------------
-    # Step 4: Publish-all fan-out — each ready projection's adapter invoked once
+    # Step 4: Publish-all fan-out — each ready projection's adapter invoked once.
+    # Uses listing projections (switch + fetlife).
+    # switch: real adapter, but no external call (resolves URL, no httpx.post).
+    # fetlife: attestation path (no adapter call, transition_status direct).
     # -------------------------------------------------------------------------
 
     def test_step4_publish_all_ready_fanout(self):
         """
-        Advance all projections to ready, then call publish_all_ready_projections.
-        Assert each ready projection's adapter is invoked exactly once.
+        Advance all listing projections to ready, then call publish_all_ready_projections.
 
-        Uses switch + fetlife listing projections (both created by create_event).
+        switch: real publish_switch_own_page runs (URL resolution, no external I/O).
+        fetlife: attestation path — transition_status called directly in publish_projection.
+
+        Assert: each projection transitions to PUBLISHED, publish count matches.
+        Selected deterministically by connection, not pk order.
         """
         from syndication.services import (
             create_event,
@@ -430,8 +504,17 @@ class E2EBoardFlowTest(TestCase):
             start=timezone.now(),
         )
 
-        projs = list(PlatformProjection.objects.filter(source_event=event).order_by("pk"))
-        self.assertGreaterEqual(len(projs), 2)
+        # Select deterministically by connection platform.
+        proj_switch = PlatformProjection.objects.get(
+            source_event=event,
+            connection=self.conn_switch,
+        )
+        proj_fetlife = PlatformProjection.objects.get(
+            source_event=event,
+            connection=self.conn_fetlife,
+        )
+
+        projs = [proj_switch, proj_fetlife]
 
         # Advance all to ready.
         for proj in projs:
@@ -439,82 +522,56 @@ class E2EBoardFlowTest(TestCase):
             proj.refresh_from_db()
             self.assertEqual(proj.status, PlatformProjection.Status.READY)
 
-        # Spy on both adapters.
-        switch_calls = []
-        fetlife_transitions = []
-
-        def spy_switch(p):
-            switch_calls.append(p.pk)
-
-        # For fetlife (attestation path), we spy on transition_status inside services
-        # so we can count the calls without needing to intercept the engine level.
-        import syndication.engine as engine_mod
-        from syndication.engine import transition_status as real_transition
-
-        def spy_transition(projection, new_status):
-            if projection.connection.platform == "fetlife" and new_status == "published":
-                fetlife_transitions.append(projection.pk)
-            real_transition(projection, new_status)
-
-        with patch("syndication.services.publish_switch_own_page", side_effect=spy_switch):
-            with patch.object(engine_mod, "transition_status", side_effect=spy_transition):
-                published, failures = publish_all_ready_projections(self.user, event)
+        # Run publish-all. switch: real adapter (URL resolution, no httpx).
+        # fetlife: attestation path in publish_projection.
+        published_batch, failures = publish_all_ready_projections(self.user, event)
 
         self.assertEqual(failures, [], f"Expected no failures, got: {failures}")
-
-        # Collect the platforms of created projections.
-        switch_proj_pks = set(
-            p.pk for p in projs if p.connection.platform == "switch"
-        )
-        fetlife_proj_pks = set(
-            p.pk for p in projs if p.connection.platform == "fetlife"
-        )
-
-        # Switch adapter: called once per switch projection.
         self.assertEqual(
-            set(switch_calls),
-            switch_proj_pks,
-            "publish_switch_own_page must be called exactly once per switch projection.",
-        )
-
-        # FetLife (attestation path): transition_status(proj, 'published') called
-        # once per fetlife projection.
-        self.assertEqual(
-            set(fetlife_transitions),
-            fetlife_proj_pks,
-            "transition_status to 'published' must be called once per fetlife projection.",
-        )
-
-        # Total published count = all projections.
-        self.assertEqual(
-            len(published),
+            len(published_batch),
             len(projs),
             "All ready projections must appear in the published list.",
         )
 
+        # Both projections must have transitioned to PUBLISHED via real paths.
+        proj_switch.refresh_from_db()
+        self.assertEqual(
+            proj_switch.status,
+            PlatformProjection.Status.PUBLISHED,
+            "switch projection must be PUBLISHED after publish_all_ready_projections.",
+        )
+
+        proj_fetlife.refresh_from_db()
+        self.assertEqual(
+            proj_fetlife.status,
+            PlatformProjection.Status.PUBLISHED,
+            "fetlife projection must be PUBLISHED after publish_all_ready_projections.",
+        )
+
     # -------------------------------------------------------------------------
     # Combined flow: create → customize → freeze → publish proj_1 → publish-all
-    # (the full v0 path in one test)
+    # (the full v0 path in one test, using Telegram for the publish steps)
     # -------------------------------------------------------------------------
 
     def test_full_v0_path_start_shared_customize_publish(self):
         """
-        Combined end-to-end flow:
-          1. create_event → ≥2 projections on canonical CV.
+        Combined end-to-end flow using Telegram promotion projections:
+          1. create_post → ≥2 promotion projections on canonical CV.
           2. customize(proj_1) + edit_version → diverge.
           3. approve(proj_1) → freeze customized body.
-          4. publish_projection(proj_1) via adapter spy → customized body routed.
+          4. publish_projection(proj_1) with httpx.post mocked →
+             (4a) Telegram payload text == "COMBINED-CUSTOM-PROJ1" (routing assertion).
+             (4b) proj_1.status == PUBLISHED (real transition).
           5. approve(proj_2) → freeze canonical body.
-          6. publish_all_ready_projections → each adapter called once.
+          6. publish_all_ready_projections → each ready projection transitions to PUBLISHED.
 
-        The routing assertion in step 4 is the key integration probe:
-        if publish_projection accidentally routes proj_2's content while
-        publishing proj_1, render_projection(received_proj) would return
-        proj_2's canonical-derived body, NOT "COMBINED-CUSTOM-PROJ1". The
-        assertion would FAIL, surfacing the routing bug.
+        Routing-swap catch for step 4a: a swap delivers proj_2's canonical body to
+        the Telegram payload. That body is NOT "COMBINED-CUSTOM-PROJ1", so the
+        payload["text"] assertion FAILS, surfacing the routing bug.
         """
         from syndication.services import (
             create_event,
+            create_post,
             customize,
             edit_version,
             approve_projection,
@@ -533,10 +590,22 @@ class E2EBoardFlowTest(TestCase):
             start=timezone.now(),
         )
 
-        projs = list(PlatformProjection.objects.filter(source_event=event).order_by("pk"))
-        self.assertGreaterEqual(len(projs), 2, "Expected ≥2 eager listing projections")
-        proj_1 = projs[0]
-        proj_2 = projs[1]
+        post = create_post(
+            user=self.user,
+            event=event,
+            headline="Combined Headline",
+            body="Canonical post body",
+        )
+
+        # Select deterministically by connection, not by pk order.
+        proj_1 = PlatformProjection.objects.get(
+            source_post=post,
+            connection=self.conn_tg_1,
+        )
+        proj_2 = PlatformProjection.objects.get(
+            source_post=post,
+            connection=self.conn_tg_2,
+        )
 
         # --- Step 1: both on the same canonical CV ---
         canonical_cv = ContentVersion.objects.get(event=event, name="canonical")
@@ -586,60 +655,46 @@ class E2EBoardFlowTest(TestCase):
         proj_2.refresh_from_db()
         self.assertEqual(proj_2.status, PlatformProjection.Status.DRAFT)
 
-        # --- Step 4: publish proj_1 via adapter spy ---
-        proj_1_platform = proj_1.connection.platform
-        received_by_adapter = []
-
-        def capture_adapter(p):
-            received_by_adapter.append(p)
-
-        # Patch the appropriate adapter based on proj_1's platform.
-        adapter_patch_path = {
-            "switch": "syndication.services.publish_switch_own_page",
-            "fetlife": None,  # attestation path — handled separately below
-        }.get(proj_1_platform)
-
-        if adapter_patch_path:
-            with patch(adapter_patch_path, side_effect=capture_adapter):
-                publish_projection(self.user, proj_1)
-
-            self.assertEqual(len(received_by_adapter), 1)
-            received_proj = received_by_adapter[0]
-
-            # (3a) Non-trivial routing assertion:
-            # The adapter must receive proj_1 with "COMBINED-CUSTOM-PROJ1",
-            # NOT proj_2's canonical-derived body. A routing swap (delivering
-            # proj_2's content) would fail this assertion.
-            self.assertEqual(received_proj.pk, proj_1.pk)
-            self.assertEqual(
-                render_projection(received_proj),
-                "COMBINED-CUSTOM-PROJ1",
-                "(3a) Adapter received proj_1's CUSTOMIZED body. "
-                "A routing swap would deliver proj_2's body instead — this assertion catches it.",
-            )
-            self.assertNotEqual(
-                render_projection(received_proj),
-                render_projection(proj_2),
-                "(3a) Routing-swap catch: customized content must differ from proj_2's body.",
-            )
-        else:
-            # fetlife: attestation path, no external adapter call
+        # --- Step 4: publish proj_1 via real Telegram adapter (httpx.post mocked) ---
+        with patch("syndication.adapters.httpx.post", return_value=_fake_ok_response()) as mock_post_step4:
             publish_projection(self.user, proj_1)
-            proj_1.refresh_from_db()
-            self.assertEqual(proj_1.status, PlatformProjection.Status.PUBLISHED)
-            # Even without an external adapter, frozen_content must be the custom body.
-            self.assertEqual(
-                proj_1.frozen_content["body"],
-                "COMBINED-CUSTOM-PROJ1",
-                "(3a) frozen_content must preserve the customized body after publish.",
-            )
 
-        # (3b) proj_2 must still be draft
+        # (4a) Non-trivial routing assertion: the Telegram payload text must be
+        # proj_1's CUSTOMIZED body, NOT proj_2's canonical-derived body.
+        # A routing swap (delivering proj_2's content) would fail this assertion.
+        # httpx.post is called as httpx.post(url, json=payload) → kwargs["json"].
+        actual_payload = mock_post_step4.call_args.kwargs["json"]
+        self.assertEqual(
+            actual_payload["text"],
+            "COMBINED-CUSTOM-PROJ1",
+            "(4a) Telegram payload text must be proj_1's CUSTOMIZED body. "
+            "A routing swap would post proj_2's body — this assertion catches it.",
+        )
+        self.assertNotEqual(
+            actual_payload["text"],
+            render_projection(proj_2),
+            "(4a) Routing-swap catch: customized content must differ from proj_2's canonical body.",
+        )
+
+        # (4b) proj_1 must now be PUBLISHED (real transition fired by real adapter).
+        proj_1.refresh_from_db()
+        self.assertEqual(
+            proj_1.status,
+            PlatformProjection.Status.PUBLISHED,
+            "(4b) proj_1 must be PUBLISHED after real Telegram adapter publish.",
+        )
+        self.assertEqual(
+            proj_1.frozen_content["body"],
+            "COMBINED-CUSTOM-PROJ1",
+            "(4b) frozen_content must be the customized body after publish.",
+        )
+
+        # (4b) proj_2 must still be draft
         proj_2.refresh_from_db()
         self.assertEqual(
             proj_2.status,
             PlatformProjection.Status.DRAFT,
-            "(3b) proj_2 must remain draft while only proj_1 was published.",
+            "(4b) proj_2 must remain draft while only proj_1 was published.",
         )
 
         # --- Step 5: approve proj_2 ---
@@ -648,39 +703,37 @@ class E2EBoardFlowTest(TestCase):
         self.assertEqual(proj_2.status, PlatformProjection.Status.READY)
 
         # --- Step 6: publish_all_ready_projections fans out ---
-        # After step 4, proj_1 is either published (fetlife) or still ready
-        # (switch/spy didn't run real adapter). For fan-out we only count the
-        # projections that are in 'ready' state at this point.
+        # After step 4, proj_1 is PUBLISHED. Only proj_2 is ready.
+        # publish_all_ready_projections must publish each ready projection exactly once.
         ready_projs = PlatformProjection.objects.filter(
-            source_event=event,
+            source_post=post,
             status=PlatformProjection.Status.READY,
         )
         ready_count = ready_projs.count()
         self.assertGreaterEqual(ready_count, 1, "Expected at least proj_2 in ready state")
 
-        adapter_calls = []
-
-        def capture_all(p):
-            adapter_calls.append(p.pk)
-
-        import syndication.engine as engine_mod
-        from syndication.engine import transition_status as real_transition
-
-        fetlife_publish_calls = []
-
-        def spy_transition_for_fanout(projection, new_status):
-            if projection.connection.platform == "fetlife" and new_status == "published":
-                fetlife_publish_calls.append(projection.pk)
-            real_transition(projection, new_status)
-
-        with patch("syndication.services.publish_switch_own_page", side_effect=capture_all):
-            with patch("syndication.services.publish_telegram_promotion", side_effect=capture_all):
-                with patch.object(engine_mod, "transition_status", side_effect=spy_transition_for_fanout):
-                    published_batch, failures = publish_all_ready_projections(self.user, event)
+        # Mock httpx.post for the fan-out publish of proj_2 (real Telegram adapter).
+        with patch("syndication.adapters.httpx.post", return_value=_fake_ok_response()) as mock_post_fanout:
+            published_batch, failures = publish_all_ready_projections(self.user, event)
 
         self.assertEqual(failures, [], f"Expected no failures in fan-out: {failures}")
         self.assertEqual(
             len(published_batch),
             ready_count,
             f"publish_all_ready_projections must publish all {ready_count} ready projections.",
+        )
+
+        # httpx.post must be called once per ready Telegram projection in the fan-out.
+        self.assertEqual(
+            mock_post_fanout.call_count,
+            ready_count,
+            "httpx.post must be called once per ready Telegram projection in fan-out.",
+        )
+
+        # proj_2 must now be PUBLISHED.
+        proj_2.refresh_from_db()
+        self.assertEqual(
+            proj_2.status,
+            PlatformProjection.Status.PUBLISHED,
+            "proj_2 must be PUBLISHED after publish_all_ready_projections fan-out.",
         )
