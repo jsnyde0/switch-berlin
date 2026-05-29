@@ -91,6 +91,7 @@ class PlatformProjectionKindStatusTest(TestCase):
     """PlatformProjection: enum constraints for kind and status."""
 
     def setUp(self):
+        from syndication.models import ContentVersion
         self.profile = Profile.objects.create(
             name="Proj Status Test Organizer",
             slug="proj-status-test-organizer",
@@ -104,6 +105,12 @@ class PlatformProjectionKindStatusTest(TestCase):
             event=self.event,
             headline="Promo post",
             body="Come along.",
+        )
+        # A1 invariant: every projection needs a content_version (kb-wz8m.2 non-null FK).
+        self.canonical_cv, _ = ContentVersion.objects.get_or_create(
+            event=self.event,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
         )
         self.conn_fetlife = PlatformConnection.objects.create(
             organizer=self.profile,
@@ -133,6 +140,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn_fetlife,
+            content_version=self.canonical_cv,
         )
         fetched = PlatformProjection.objects.get(pk=proj.pk)
         self.assertEqual(fetched.kind, "listing")
@@ -147,6 +155,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_post=self.post,
             connection=self.conn_telegram,
+            content_version=self.canonical_cv,
         )
         fetched = PlatformProjection.objects.get(pk=proj.pk)
         self.assertEqual(fetched.kind, "promotion")
@@ -173,12 +182,14 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn_switch,
+            content_version=self.canonical_cv,
         )
-        # content_version attribute must exist (can be null for manually created rows)
+        # content_version attribute must exist and be non-null (A1 invariant, kb-wz8m.2).
         self.assertTrue(
             hasattr(proj, "content_version"),
             "PlatformProjection must have content_version attribute",
         )
+        self.assertIsNotNone(proj.content_version)
         # override_data must NOT exist (removed in kb-wz8m.2)
         self.assertFalse(
             hasattr(proj, "override_data"),
@@ -191,6 +202,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.PUBLISHED,
             source_event=self.event,
             connection=self.conn_fetlife,
+            content_version=self.canonical_cv,
             external_id="fl-12345",
         )
         self.assertEqual(proj.external_id, "fl-12345")
@@ -201,6 +213,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.PUBLISHED,
             source_event=self.event,
             connection=self.conn_fetlife,
+            content_version=self.canonical_cv,
             external_url="https://fetlife.com/events/12345",
         )
         self.assertEqual(proj.external_url, "https://fetlife.com/events/12345")
@@ -212,6 +225,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn_tt,
+            content_version=self.canonical_cv,
         )
         self.assertIsNone(proj.syndicated_at)
 
@@ -221,6 +235,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn_fetlife,
+            content_version=self.canonical_cv,
         )
         self.assertIn("fetlife", str(proj))
 
@@ -230,6 +245,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn_fetlife,
+            content_version=self.canonical_cv,
         )
         self.assertIsNotNone(proj.created_at)
 
@@ -239,6 +255,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn_fetlife,
+            content_version=self.canonical_cv,
         )
         self.assertIsNotNone(proj.updated_at)
 

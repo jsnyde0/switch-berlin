@@ -15,25 +15,27 @@ def backfill_canonical_content_versions(apps, schema_editor):
     promotion projections → event from source_post.event
 
     ContentVersion is seeded with all editorial fields NULL (track-live semantics).
+
+    F4: Use apps.get_model (historical registry) — never live-model imports.
+    This keeps the migration correct if those models later change shapes.
     """
     ContentVersion = apps.get_model("syndication", "ContentVersion")
+    Post = apps.get_model("syndication", "Post")
     PlatformProjection = apps.get_model("syndication", "PlatformProjection")
 
     for proj in PlatformProjection.objects.filter(content_version__isnull=True).select_related(
-        "source_event", "source_post__event"
+        "source_event", "source_post"
     ):
         # Resolve the event
         if proj.source_event_id:
             event_id = proj.source_event_id
         elif proj.source_post_id:
-            # Need to go through the post → event
+            # Need to go through the post → event using historical registry model.
             try:
-                from syndication.models import Post
                 post = Post.objects.get(pk=proj.source_post_id)
                 event_id = post.event_id
-            except Exception:
-                # If we can't resolve event, skip (ADR-008 D3: fail loud in production,
-                # but during migration we skip orphaned rows to avoid blocking).
+            except Post.DoesNotExist:
+                # Orphaned row — skip rather than block migration.
                 continue
         else:
             continue
@@ -149,21 +151,19 @@ class Migration(migrations.Migration):
         migrations.RunPython(backfill_canonical_content_versions, reverse_backfill),
 
         # Step 4: Make content_version FK non-null now that backfill is done.
-        # Still nullable=True at DB level with a clear help text about the
-        # SET_NULL on-delete behavior; application logic guarantees non-null for
-        # any projection created via services.
+        # on_delete=PROTECT: deleting a ContentVersion that still has consumer
+        # projections is blocked (ADR-008 D3 fail-loud; SET_NULL would require
+        # nullable and silently break the A1 invariant).
         migrations.AlterField(
             model_name='platformprojection',
             name='content_version',
             field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
+                on_delete=django.db.models.deletion.PROTECT,
                 related_name='projections',
                 to='syndication.contentversion',
                 help_text=(
                     'ContentVersion this projection draws editorial content from. '
-                    'Non-null after kb-wz8m.2 migration backfill. '
+                    'Non-null (A1 invariant): every projection always has a version. '
                     'NULL field on ContentVersion = derive from live canonical at render time.'
                 ),
             ),

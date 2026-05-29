@@ -94,14 +94,14 @@
           </span>
           {# Provenance tag #}
           <span class="kb-mono text-[9px] uppercase tracking-widest
-            {% if proj.provenance == 'manual' %}text-info/70
-            {% elif proj.provenance == 'agent_supplied' %}text-secondary/60
+            {% if proj.content_version.provenance == 'manual' %}text-info/70
+            {% elif proj.content_version.provenance == 'agent_supplied' %}text-secondary/60
             {% else %}text-base-content/25
             {% endif %}">
-            {% if proj.provenance == 'rule_template' %}template
-            {% elif proj.provenance == 'agent_supplied' %}from agent
-            {% elif proj.provenance == 'manual' %}edited
-            {% else %}{{ proj.provenance }}
+            {% if proj.content_version.provenance == 'rule_template' %}template
+            {% elif proj.content_version.provenance == 'agent_supplied' %}from agent
+            {% elif proj.content_version.provenance == 'manual' %}edited
+            {% else %}{{ proj.content_version.provenance }}
             {% endif %}
           </span>
         </div>

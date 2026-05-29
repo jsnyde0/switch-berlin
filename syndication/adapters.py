@@ -249,7 +249,7 @@ def publish_telegram_promotion(projection: PlatformProjection) -> None:
             "or settings.TELEGRAM_BOT_TOKEN. (ADR-008 D3 — fail loud)"
         )
 
-    # ---- Render body (effective content = canonical + override_data) ----
+    # ---- Render body (effective content = content_version fields + live canonical fallbacks) ----
     body = render_projection(projection)
 
     # ---- Bot API URL ----

@@ -69,6 +69,20 @@ def _make_telegram_connection(profile, destination_id="-1001234567890", credenti
     )
 
 
+def _seed_canonical_cv(event):
+    """
+    Get-or-create the canonical ContentVersion for an event.
+    Required by the F1 non-null content_version FK (kb-wz8m.2 A1 invariant).
+    """
+    from syndication.models import ContentVersion
+    cv, _ = ContentVersion.objects.get_or_create(
+        event=event,
+        name="canonical",
+        defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+    )
+    return cv
+
+
 def _make_ready_promotion_projection(connection, post):
     """
     Generate a promotion projection and advance it to ready status.
@@ -211,6 +225,7 @@ class TelegramPublishStatusPreconditionTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             connection=self.conn,
             source_post=self.post,
+            content_version=_seed_canonical_cv(self.event),
             frozen_content={"body": "test body", "headline": "test"},
         )
 
@@ -234,6 +249,7 @@ class TelegramPublishStatusPreconditionTest(TestCase):
             status=PlatformProjection.Status.PUBLISHED,
             connection=self.conn,
             source_post=self.post,
+            content_version=_seed_canonical_cv(self.event),
             frozen_content={"body": "test body", "headline": "test"},
             external_id="123",
         )
@@ -270,6 +286,7 @@ class TelegramPublishKindGuardTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_event=self.event,
+            content_version=_seed_canonical_cv(self.event),
             frozen_content={"body": "listing body", "title": "test"},
         )
 
@@ -298,11 +315,20 @@ class TelegramPublishMissingSourcePostTest(TestCase):
 
     def test_missing_source_post_transitions_to_failed_and_raises(self):
         """source_post=None → status=failed + ValueError."""
+        # Need a ContentVersion even though source_post is None — use a standalone event.
+        from events.models import Event
+        from django.utils import timezone as tz
+        orphan_event = Event.objects.create(
+            title="Orphan Event",
+            slug="orphan-event-tg-missing-post",
+            start=tz.now(),
+        )
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.PROMOTION,
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_post=None,
+            content_version=_seed_canonical_cv(orphan_event),
             frozen_content={"body": "promo body", "headline": "test"},
         )
 
@@ -702,6 +728,7 @@ class TelegramPublishTokenResolutionTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=conn,
             source_post=self.post,
+            content_version=_seed_canonical_cv(self.event),
             frozen_content={"body": "test body", "headline": "test"},
         )
 

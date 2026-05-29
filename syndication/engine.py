@@ -237,34 +237,37 @@ def generate_projection(
     # --- Resolve or create a ContentVersion for this event ---
     # get-or-create the canonical version for the event so generate_projection
     # can be called standalone (without having gone through create_event).
-    cv, _ = ContentVersion.objects.get_or_create(
+    canonical_cv, _ = ContentVersion.objects.get_or_create(
         event=canonical_event,
         name="canonical",
         defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
     )
 
-    # --- Set provenance and optional body on the ContentVersion ---
+    # --- Resolve the ContentVersion this projection will use ---
     if mode == "rule_based":
-        provenance = ContentVersion.Provenance.RULE_TEMPLATE
-        # NULL body = derive from live canonical at render time (track-live).
-        # Do NOT set cv.body — leave it null.
+        # rule_based points at the shared canonical track-live version.
+        # Body remains NULL — derives from live canonical at render time.
+        cv = canonical_cv
     elif mode == "agent_assisted":
         if body is None:
             raise ValueError(
                 "mode='agent_assisted' requires a body argument. "
                 "The external agent must supply the finished copy."
             )
-        provenance = ContentVersion.Provenance.AGENT_SUPPLIED
-        # Set explicit body on the ContentVersion (divergence from canonical).
-        cv.body = body
+        # F6 (adversarial review): agent-supplied copy for one target is divergence.
+        # Create a DEDICATED new ContentVersion — NEVER mutate the shared canonical.
+        # This prevents the agent's body from bleeding into sibling projections that
+        # share the canonical track-live version.
+        cv = ContentVersion.objects.create(
+            event=canonical_event,
+            name=f"agent-{connection.platform}-{connection.destination_id}",
+            provenance=ContentVersion.Provenance.AGENT_SUPPLIED,
+            body=body,
+        )
     else:
         raise ValueError(
             f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'"
         )
-
-    # Update provenance on the ContentVersion.
-    cv.provenance = provenance
-    cv.save(update_fields=["provenance", "body", "updated_at"])
 
     # --- Persist the projection ---
     proj = PlatformProjection.objects.create(
@@ -316,8 +319,9 @@ def _materialize_listing_fields(projection: PlatformProjection) -> dict:
     platform = projection.connection.platform
     cv = projection.content_version
 
-    # Body: ContentVersion.body if explicit, else compose from live canonical.
-    if cv is not None and cv.body is not None:
+    # Body: ContentVersion.body if explicit (override), else compose from live canonical.
+    # cv is always non-null (A1 invariant). cv.body null = derive from live canonical.
+    if cv.body is not None:
         body = cv.body
     else:
         body = _compose_listing_body(event, platform)
@@ -361,16 +365,17 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
     platform = projection.connection.platform
     cv = projection.content_version
 
-    if cv is not None and cv.body is not None:
+    # cv is always non-null (A1 invariant). cv fields null = derive from live canonical.
+    if cv.body is not None:
         body = cv.body
     else:
         body = _compose_promotion_body(post, platform)
 
     # For structured fields: ContentVersion explicit value overrides canonical.
-    headline = (cv.headline if cv is not None and cv.headline is not None else post.headline)
-    cta = (cv.cta if cv is not None and cv.cta is not None else post.cta)
-    imagery = (cv.imagery if cv is not None and cv.imagery is not None else post.imagery)
-    voice = (cv.voice if cv is not None and cv.voice is not None else post.voice)
+    headline = (cv.headline if cv.headline is not None else post.headline)
+    cta = (cv.cta if cv.cta is not None else post.cta)
+    imagery = (cv.imagery if cv.imagery is not None else post.imagery)
+    voice = (cv.voice if cv.voice is not None else post.voice)
 
     return {
         "body": body,
@@ -416,8 +421,8 @@ def _render_draft_body(projection: PlatformProjection) -> str:
     """
     cv = projection.content_version
 
-    # Explicit body on ContentVersion takes precedence.
-    if cv is not None and cv.body is not None:
+    # cv is always non-null (A1 invariant). Explicit body on ContentVersion takes precedence.
+    if cv.body is not None:
         return cv.body
 
     # NULL body on ContentVersion → derive from live canonical source fields.

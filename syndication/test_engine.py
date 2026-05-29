@@ -68,13 +68,20 @@ class StateMachineTest(TestCase):
     """PlatformProjection status state-machine: draft→ready→published→failed."""
 
     def setUp(self):
+        from syndication.models import ContentVersion
         self.event = _make_event()
         self.conn = _make_connection()
+        cv, _ = ContentVersion.objects.get_or_create(
+            event=self.event,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+        )
         self.proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
+            content_version=cv,
         )
 
     def test_draft_to_ready_is_legal(self):

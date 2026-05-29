@@ -117,6 +117,7 @@ class PlatformProjectionConnectionFKTest(TestCase):
     """PlatformProjection.connection FK to PlatformConnection — not a platform_id string."""
 
     def setUp(self):
+        from syndication.models import ContentVersion
         self.profile = Profile.objects.create(
             name="FK Test Organizer",
             slug="fk-test-organizer",
@@ -132,6 +133,11 @@ class PlatformProjectionConnectionFKTest(TestCase):
             slug="fk-test-event",
             start=timezone.now(),
         )
+        self.canonical_cv, _ = ContentVersion.objects.get_or_create(
+            event=self.event,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+        )
 
     def test_projection_connection_fk_resolves_to_platform_connection(self):
         """PlatformProjection.connection resolves to a PlatformConnection instance, not a string."""
@@ -140,6 +146,7 @@ class PlatformProjectionConnectionFKTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
+            content_version=self.canonical_cv,
         )
         fetched = PlatformProjection.objects.get(pk=proj.pk)
         self.assertIsInstance(fetched.connection, PlatformConnection)
@@ -153,6 +160,7 @@ class PlatformProjectionConnectionFKTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
+            content_version=self.canonical_cv,
         )
         self.assertFalse(hasattr(proj, "platform_id"))
 
@@ -165,6 +173,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
     """
 
     def setUp(self):
+        from syndication.models import ContentVersion
         self.profile = Profile.objects.create(
             name="Removed Fields Organizer",
             slug="removed-fields-organizer",
@@ -180,6 +189,11 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
             slug="removed-fields-test-event",
             start=timezone.now(),
         )
+        self.canonical_cv, _ = ContentVersion.objects.get_or_create(
+            event=self.event,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+        )
 
     def test_projection_has_no_override_data_field(self):
         """override_data is removed from PlatformProjection (kb-wz8m.2)."""
@@ -188,6 +202,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
+            content_version=self.canonical_cv,
         )
         self.assertFalse(
             hasattr(proj, "override_data"),
@@ -201,6 +216,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
+            content_version=self.canonical_cv,
         )
         self.assertFalse(
             hasattr(proj, "provenance"),
@@ -214,6 +230,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
+            content_version=self.canonical_cv,
         )
         self.assertFalse(
             hasattr(proj, "generated_by"),
@@ -227,6 +244,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             connection=self.conn,
+            content_version=self.canonical_cv,
         )
         self.assertFalse(
             hasattr(proj, "last_generated_at"),

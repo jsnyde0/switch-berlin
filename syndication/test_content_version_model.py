@@ -269,27 +269,42 @@ class ContentVersionStrTest(TestCase):
 
 
 class PlatformProjectionContentVersionFKTest(TestCase):
-    """PlatformProjection must have a nullable content_version FK (ADR-016 D2)."""
+    """
+    PlatformProjection.content_version FK (ADR-016 D2).
+
+    kb-wz8m.1 added the nullable FK (additive step).
+    kb-wz8m.2 made it non-null (A1 invariant: every projection always has a version).
+    """
 
     def test_platform_projection_has_content_version_field(self):
-        """PlatformProjection.content_version attribute must exist."""
-        pp = PlatformProjection()
-        self.assertTrue(
-            hasattr(pp, "content_version"),
-            "PlatformProjection must have a content_version attribute",
-        )
+        """PlatformProjection.content_version field must exist on the model."""
+        # Check via _meta.get_field — hasattr on an unsaved instance is unreliable
+        # for non-null FKs (no default, descriptor raises before __get__ returns).
+        try:
+            field = PlatformProjection._meta.get_field("content_version")
+            self.assertIsNotNone(field)
+        except Exception as exc:
+            self.fail(
+                f"PlatformProjection must have a content_version field: {exc}"
+            )
 
-    def test_platform_projection_content_version_nullable(self):
-        """content_version FK must be nullable — the additive step leaves it unset."""
+    def test_platform_projection_content_version_non_null_after_cutover(self):
+        """
+        kb-wz8m.2 cutover: content_version FK is non-null (A1 invariant).
+        Every projection must be created with a content_version.
+        """
         event = _make_event()
         profile = _make_profile()
         conn = _make_connection(profile)
+        cv = ContentVersion.objects.create(event=event, name="canonical")
         pp = PlatformProjection.objects.create(
             connection=conn,
             kind=PlatformProjection.Kind.LISTING,
             source_event=event,
+            content_version=cv,
         )
-        self.assertIsNone(pp.content_version)
+        self.assertIsNotNone(pp.content_version)
+        self.assertEqual(pp.content_version, cv)
 
     def test_platform_projection_content_version_can_be_set(self):
         """content_version FK can be set to a ContentVersion instance."""
@@ -313,10 +328,12 @@ class PlatformProjectionContentVersionFKTest(TestCase):
         event = _make_event()
         profile = _make_profile()
         conn = _make_connection(profile)
+        cv = ContentVersion.objects.create(event=event, name="canonical")
         pp = PlatformProjection.objects.create(
             connection=conn,
             kind=PlatformProjection.Kind.LISTING,
             source_event=event,
+            content_version=cv,
         )
         self.assertFalse(
             hasattr(pp, "override_data"),

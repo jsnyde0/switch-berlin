@@ -59,6 +59,20 @@ def _make_switch_connection(profile):
     )
 
 
+def _seed_canonical_cv(event):
+    """
+    Get-or-create the canonical ContentVersion for an event.
+    Required by the F1 non-null content_version FK (kb-wz8m.2 A1 invariant).
+    """
+    from syndication.models import ContentVersion
+    cv, _ = ContentVersion.objects.get_or_create(
+        event=event,
+        name="canonical",
+        defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+    )
+    return cv
+
+
 # ---------------------------------------------------------------------------
 # 1. Successful publish: status=published + external_url resolved
 # ---------------------------------------------------------------------------
@@ -195,6 +209,7 @@ class SwitchPublishFailLoudTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_event=event_no_org,
+            content_version=_seed_canonical_cv(event_no_org),
             frozen_content={"body": "frozen listing body", "title": "No Organizer Party"},
         )
 
@@ -210,12 +225,21 @@ class SwitchPublishFailLoudTest(TestCase):
         A listing projection with no source_event cannot publish.
         publish_switch_own_page must set status=failed.
         """
+        # Need a ContentVersion even though source_event is None — use a standalone event.
+        from events.models import Event as EventModel
+        from django.utils import timezone as tz
+        orphan_event = EventModel.objects.create(
+            title="Orphan Event SW",
+            slug="orphan-event-sw-no-source",
+            start=tz.now(),
+        )
         # Provide valid frozen_content — testing adapter data-integrity branch.
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_event=None,
+            content_version=_seed_canonical_cv(orphan_event),
             frozen_content={"body": "frozen listing body", "title": "No Source Event"},
         )
 
@@ -260,6 +284,7 @@ class SwitchPublishKindGuardTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_post=post,
+            content_version=_seed_canonical_cv(self.event),
             frozen_content={"body": "frozen promo body", "headline": "Promo for Switch"},
         )
 
@@ -302,6 +327,7 @@ class SwitchPublishDraftPreconditionTest(TestCase):
             status=PlatformProjection.Status.DRAFT,
             connection=self.conn,
             source_event=self.event,
+            content_version=_seed_canonical_cv(self.event),
         )
 
         from syndication.adapters import publish_switch_own_page
@@ -356,6 +382,7 @@ class SwitchPublishMissingSlugTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=self.conn,
             source_event=event_no_slug,
+            content_version=_seed_canonical_cv(event_no_slug),
             frozen_content={"body": "frozen listing body", "title": "No Slug Party"},
         )
 
@@ -397,6 +424,7 @@ class SwitchPublishMissingSlugTest(TestCase):
             status=PlatformProjection.Status.READY,
             connection=conn_no_slug,
             source_event=event,
+            content_version=_seed_canonical_cv(event),
             frozen_content={"body": "frozen listing body", "title": "Slugless Org Party"},
         )
 

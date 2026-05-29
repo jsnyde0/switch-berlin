@@ -421,18 +421,18 @@ class PlatformProjection(models.Model):
     )
 
     # ContentVersion FK (ADR-016 D2, revised 2026-05-29, kb-wz8m.2 cutover).
-    # Nullable at DB level for migration purposes (backfilled non-null after seed).
+    # Non-null — every projection always has a content version (A1 invariant).
+    # on_delete=PROTECT: deleting a ContentVersion that still has consumer
+    # projections is blocked rather than silently nulling/cascading (ADR-008 D3).
     # Many projections may point at one ContentVersion (single-row sharing).
     # Editorial content + authorship signals live on ContentVersion, not here.
     content_version = models.ForeignKey(
         ContentVersion,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.PROTECT,
         related_name="projections",
         help_text=(
             "ContentVersion this projection draws editorial content from. "
-            "Non-null after kb-wz8m.2 migration backfill. "
+            "Non-null (A1 invariant): every projection always has a version. "
             "NULL field on ContentVersion = derive from live canonical at render time."
         ),
     )

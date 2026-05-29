@@ -557,3 +557,116 @@ class GenerateProjectionProvenanceOnVersionTest(TestCase):
         )
         self.assertIsNotNone(proj.content_version)
         self.assertEqual(proj.content_version.provenance, "agent_supplied")
+
+
+# ---------------------------------------------------------------------------
+# F6: agent_assisted must NOT mutate the shared canonical ContentVersion
+# ---------------------------------------------------------------------------
+
+
+class AgentAssistedDedicatedVersionTest(TestCase):
+    """
+    F6 (adversarial review): generate_projection(agent_assisted) must create/attach
+    a DEDICATED ContentVersion for the one projection, never clobbering the shared
+    canonical version that sibling projections point at.
+
+    Invariant: agent-supplied copy for one target is divergence — its body must
+    live on a separate ContentVersion row; the canonical track-live version must
+    remain untouched (body=None) so sibling projections can continue deriving
+    from the live canonical Event.
+    """
+
+    def setUp(self):
+        self.profile = Profile.objects.create(name="F6 Org", slug="f6-org")
+        self.conn_a = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="fetlife",
+            destination_id="fl-f6-a",
+        )
+        self.conn_b = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="switch",
+            destination_id="sw-f6-b",
+        )
+        self.event = _make_event(slug="f6-agent-event")
+
+    def test_agent_assisted_does_not_mutate_canonical_version_body(self):
+        """
+        After generate_projection(agent_assisted), the canonical ContentVersion
+        (name='canonical') must still have body=None (track-live).
+
+        The agent-supplied body must live on the projection's OWN ContentVersion,
+        not the shared canonical.
+        """
+        from syndication.engine import generate_projection
+
+        # First: create a rule_based projection — establishes the canonical CV.
+        rule_proj = generate_projection(
+            kind="listing",
+            connection=self.conn_a,
+            source_event=self.event,
+            mode="rule_based",
+        )
+        canonical_cv = rule_proj.content_version
+        self.assertIsNone(canonical_cv.body)
+
+        # Now create an agent_assisted projection for the SAME event (different conn).
+        agent_proj = generate_projection(
+            kind="listing",
+            connection=self.conn_b,
+            source_event=self.event,
+            mode="agent_assisted",
+            body="Agent-supplied body for conn B only",
+        )
+
+        # The agent projection must have a DIFFERENT ContentVersion from the canonical.
+        self.assertNotEqual(
+            agent_proj.content_version_id,
+            canonical_cv.pk,
+            "agent_assisted must attach a DEDICATED ContentVersion, not the shared canonical",
+        )
+
+        # The canonical version body must still be None.
+        canonical_cv.refresh_from_db()
+        self.assertIsNone(
+            canonical_cv.body,
+            "agent_assisted must NOT mutate the canonical ContentVersion body",
+        )
+
+        # The agent projection's ContentVersion must carry the supplied body.
+        self.assertEqual(agent_proj.content_version.body, "Agent-supplied body for conn B only")
+        self.assertEqual(agent_proj.content_version.provenance, "agent_supplied")
+
+    def test_agent_assisted_siblings_unaffected_render(self):
+        """
+        A rule_based projection sharing the canonical CV must render from the
+        live canonical Event AFTER an agent_assisted projection is created for
+        the same event — the agent body must not bleed into the sibling's render.
+        """
+        from syndication.engine import generate_projection, render_projection
+
+        # Establish a rule_based sibling projection first.
+        rule_proj = generate_projection(
+            kind="listing",
+            connection=self.conn_a,
+            source_event=self.event,
+            mode="rule_based",
+        )
+
+        # Now add an agent_assisted projection for the same event.
+        agent_proj = generate_projection(
+            kind="listing",
+            connection=self.conn_b,
+            source_event=self.event,
+            mode="agent_assisted",
+            body="Exclusive agent body — must not appear in sibling",
+        )
+
+        # Sibling must render from the live canonical event (contains event title).
+        sibling_body = render_projection(rule_proj)
+        self.assertIn(self.event.title, sibling_body)
+        self.assertNotIn(
+            "Exclusive agent body",
+            sibling_body,
+            "Agent body must not bleed into sibling rule_based projection",
+        )
