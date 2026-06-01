@@ -1,24 +1,21 @@
 {% load i18n %}
-{# event_syndication fragment — composer + channel-rail board (kb-wz8m.5) #}
-{# Platform-distinct channel cards + version affordances #}
-{# Alpine 3.x: own x-data root required on each HTMX swap target #}
-<section id="event-syndication"
-  x-data="{
-    selectedProjectionPk: null,
-    selectProjection(pk) { this.selectedProjectionPk = (this.selectedProjectionPk === pk) ? null : pk; },
-    isSelected(pk) { return this.selectedProjectionPk === pk; }
-  }">
+{# event_syndication fragment — composer + channel-rail (kb-cxyz / kb-wz8m.5) #}
+{# Two-pane: composer pane (left) drives editing; channel rail (right) drives selection. #}
+{# Alpine 3.x: own x-data root required on each HTMX swap target. #}
 
-  {# Board header: title + review-all toggle + publish-all #}
-  <div class="flex items-center justify-between mb-5 gap-3 flex-wrap">
+{# Default selected PK = first projection pk (server-rendered, no JS data dance needed) #}
+{% with first_pk=projection_rows.0.projection.pk %}
+<section id="event-syndication"
+  x-data="{ selectedPk: {{ first_pk|default:'null' }} }">
+
+  {# ── Section header ── #}
+  <div class="flex items-center justify-between mb-6 gap-3">
     <h2 class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Syndication" %}</h2>
     <div class="flex items-center gap-2">
-      {# Review-all toggle #}
       <a href="{% url 'syndication:review-all' event_pk=event.pk %}"
-         class="kb-mono text-[9px] uppercase tracking-widest text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 rounded-sm transition-colors">
+         class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
         {% trans "Review all" %}
       </a>
-      {# Batch publish — only shown when can_publish and ≥1 projection is ready (F3) #}
       {% if can_publish and projection_rows and has_ready_projections %}
       <form method="post"
             action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
@@ -27,7 +24,7 @@
             hx-swap="outerHTML">
         {% csrf_token %}
         <button type="submit"
-                class="kb-mono text-[9px] uppercase tracking-widest text-fuchsia-300/80 hover:text-fuchsia-300 px-2.5 py-1.5 border border-fuchsia-300/25 hover:border-fuchsia-300/50 rounded-sm transition-colors">
+                class="kb-mono text-[9px] uppercase tracking-[0.16em] text-fuchsia-300/80 hover:text-fuchsia-300 px-2.5 py-1.5 border border-fuchsia-300/25 hover:border-fuchsia-300/50 transition-colors">
           {% trans "Publish all ready" %}
         </button>
       </form>
@@ -35,9 +32,9 @@
     </div>
   </div>
 
-  {# Transition error state (ADR-008 D3 fail-loud) #}
+  {# Action error (ADR-008 D3 fail-loud) #}
   {% if action_error %}
-  <div class="mb-4 px-4 py-3 border border-error/35 rounded-sm bg-error/8">
+  <div class="mb-5 px-4 py-3 border border-error/35 bg-error/8">
     <div class="flex items-start gap-3">
       <span class="kb-tag kb-tag-error shrink-0 mt-0.5">{% trans "Action failed" %}</span>
       <span class="kb-mono text-[10px] text-error/75 leading-relaxed">{{ action_error }}</span>
@@ -45,7 +42,7 @@
   </div>
   {% endif %}
 
-  {# State 1: No platform connections configured #}
+  {# ── State 1: No connections ── #}
   {% if not has_connections %}
   <div class="py-10">
     <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-3">
@@ -55,14 +52,13 @@
       {% trans "Connect Telegram, FetLife, or Switch to start syndicating this event across channels." %}
     </p>
     {% if can_edit %}
-    <a href="{% url 'syndication:connections-list' %}"
-       class="kb-btn-secondary text-[10px] inline-block">
+    <a href="{% url 'syndication:connections-list' %}" class="kb-btn-secondary text-[10px] inline-block">
       {% trans "Connect platforms" %}
     </a>
     {% endif %}
   </div>
 
-  {# State 2: Connections exist but no promo posts yet #}
+  {# ── State 2: No promo posts ── #}
   {% elif no_promo_posts and not projections %}
   <div class="py-10">
     <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-3">
@@ -72,219 +68,84 @@
       {% trans "Add a promotional post to fan out across your connected channels." %}
     </p>
     {% if can_edit %}
-    <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
-       class="kb-btn-secondary text-[10px] inline-block">
+    <a href="{% url 'syndication:post-create' event_pk=event.pk %}" class="kb-btn-secondary text-[10px] inline-block">
       {% trans "Add promo message" %}
     </a>
     {% endif %}
   </div>
 
-  {# Normal state: channel rail — one card per projection #}
+  {# ── State 3: Normal — two-pane composer + channel rail ── #}
   {% elif projection_rows %}
-  <div class="flex flex-col gap-2.5">
-    {% for row in projection_rows %}
-    {% with proj=row.projection body=row.body render_error=row.render_error %}
+  <div class="grid items-start" style="grid-template-columns: 1fr 300px; gap: 0;">
 
-    {% comment %}Platform-specific card treatments:
-       Telegram:  dark-blue panel, chat-bubble preview (rounded, blue tint)
-       FetLife:   deep-purple panel, warm-purple body text
-       Switch:    fuchsia-near-black panel, serif listing preview + fuchsia hairline
-       Each platform carries a tinted header band + distinct content treatment.
-    {% endcomment %}
-    <article
-      class="rounded-sm border overflow-hidden transition-all duration-200
-        {% if proj.connection.platform == 'telegram' %}border-sky-900/40
-        {% elif proj.connection.platform == 'fetlife' %}border-purple-900/40
-        {% elif proj.connection.platform == 'switch' %}border-fuchsia-900/25
-        {% else %}border-white/8
-        {% endif %}"
-      style="
-        {% if proj.connection.platform == 'telegram' %}background: rgb(24 28 36);
-        {% elif proj.connection.platform == 'fetlife' %}background: rgb(28 18 30);
-        {% elif proj.connection.platform == 'switch' %}background: rgb(22 20 28);
-        {% else %}background: rgb(26 26 32);
-        {% endif %}"
-      :class="isSelected({{ proj.pk }}) ? 'ring-1 ring-fuchsia-300/25 !border-fuchsia-300/20' : ''"
-      x-data="{ editing: false, showVersionOps: false }">
+    {# COMPOSER PANE (left) — becomes full-width at narrow viewports via grid reflow #}
+    <div class="pr-8 border-r min-w-0" style="border-right-color: rgba(255,255,255,0.07);">
 
-      {# ── Card header strip: platform identity + status pill ── #}
-      {# Platform-tinted header strip gives each card a distinct "chrome" band #}
-      <div class="px-4 pt-3 pb-2.5 cursor-pointer border-b"
-        style="
-        {% if proj.connection.platform == 'telegram' %}border-bottom-color: rgba(3, 105, 161, 0.3); background: rgba(3, 105, 161, 0.04);
-        {% elif proj.connection.platform == 'fetlife' %}border-bottom-color: rgba(107, 33, 168, 0.35); background: rgba(107, 33, 168, 0.06);
-        {% elif proj.connection.platform == 'switch' %}border-bottom-color: rgba(192, 38, 211, 0.2); background: rgba(192, 38, 211, 0.04);
-        {% else %}border-bottom-color: rgba(255, 255, 255, 0.06);
-        {% endif %}"
-        @click="selectProjection({{ proj.pk }})">
+      {# ── Composer header: which channel + live-on cue ── #}
+      <div class="mb-6">
 
-        <div class="flex items-center justify-between gap-3">
-          {# Left: platform identity chain #}
-          <div class="flex items-center gap-2 min-w-0">
-            {# Platform name — distinct color per platform #}
-            <span class="kb-mono text-[10px] uppercase tracking-[0.22em] font-semibold
+        {# Editing row: "Editing · <Platform> · <destination> · <status>" #}
+        <div class="flex items-center gap-3 mb-3 min-h-[24px]">
+          <span class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/28 shrink-0">{% trans "Editing" %}</span>
+          <span class="text-base-content/25 text-[10px] select-none shrink-0">·</span>
+
+          {# Selected channel identity — Alpine-driven, one per projection #}
+          {% for row in projection_rows %}{% with proj=row.projection %}
+          <div x-show="selectedPk === {{ proj.pk }}" x-cloak class="flex items-center gap-2.5 min-w-0">
+            <span class="kb-mono text-[11px] uppercase tracking-[0.2em] font-semibold shrink-0
               {% if proj.connection.platform == 'telegram' %}text-sky-400
               {% elif proj.connection.platform == 'fetlife' %}text-pink-400
               {% elif proj.connection.platform == 'switch' %}text-fuchsia-300
-              {% else %}text-base-content/60
-              {% endif %}">
+              {% else %}text-base-content/60{% endif %}">
               {{ proj.connection.platform }}
             </span>
-            {# Separator #}
-            <span class="text-base-content/15 text-[8px] select-none">·</span>
-            {# Destination #}
-            <span class="kb-mono text-[9px] text-base-content/35 truncate max-w-[120px]">
-              {{ proj.connection.destination_id }}
-            </span>
-            {# Separator #}
-            <span class="text-base-content/15 text-[8px] select-none">·</span>
-            {# Kind #}
-            <span class="kb-mono text-[9px] uppercase tracking-[0.16em]
-              {% if proj.kind == 'promotion' %}text-base-content/40
-              {% else %}text-base-content/28
-              {% endif %}">
-              {{ proj.kind }}
-            </span>
-          </div>
-
-          {# Right: provenance chip + status pill #}
-          <div class="flex items-center gap-2.5 shrink-0">
-            {# Provenance — quiet, only shown when meaningful #}
-            {% if proj.content_version.provenance != 'rule_template' %}
-            <span class="kb-mono text-[8px] uppercase tracking-widest
-              {% if proj.content_version.provenance == 'manual' %}text-sky-400/55
-              {% elif proj.content_version.provenance == 'agent_supplied' %}text-violet-400/55
-              {% else %}text-base-content/20
-              {% endif %}">
-              {% if proj.content_version.provenance == 'agent_supplied' %}agent
-              {% elif proj.content_version.provenance == 'manual' %}edited
-              {% else %}{{ proj.content_version.provenance }}
-              {% endif %}
-            </span>
-            {% endif %}
-            {# Status pill — clear colour hierarchy #}
-            <span class="kb-mono text-[9px] uppercase tracking-[0.16em] px-2 py-0.5 rounded-sm border font-medium
-              {% if proj.status == 'draft' %}text-amber-300/90 border-amber-300/25 bg-amber-300/6
-              {% elif proj.status == 'ready' %}text-fuchsia-300 border-fuchsia-300/35 bg-fuchsia-300/8
-              {% elif proj.status == 'published' %}text-emerald-400 border-emerald-400/30 bg-emerald-400/8
-              {% elif proj.status == 'failed' %}text-rose-400 border-rose-400/35 bg-rose-400/8
-              {% else %}text-base-content/40 border-white/10
-              {% endif %}">
+            <span class="kb-mono text-[9px] text-base-content/30 truncate">{{ proj.connection.destination_id }}</span>
+            <span class="kb-mono text-[8px] uppercase tracking-[0.14em] px-1.5 py-0.5 border shrink-0
+              {% if proj.status == 'draft' %}text-amber-300/85 border-amber-300/22 bg-amber-300/5
+              {% elif proj.status == 'ready' %}text-fuchsia-300/90 border-fuchsia-300/30 bg-fuchsia-300/6
+              {% elif proj.status == 'published' %}text-emerald-400 border-emerald-400/28 bg-emerald-400/6
+              {% elif proj.status == 'failed' %}text-rose-400 border-rose-400/30 bg-rose-400/6
+              {% else %}text-base-content/35 border-white/8{% endif %}">
               {{ proj.get_status_display }}
             </span>
           </div>
+          {% endwith %}{% endfor %}
         </div>
 
-        {# ── Live-on propagation cue — inline below identity, load-bearing ── #}
-        {# Shows channel names (e.g. "live on fetlife, switch") when ≥2 projections share this version (F4) #}
+        {# Live-on cue (LOAD-BEARING): when ≥2 channels share a content version #}
         {% if consumers_map %}
+          {% for row in projection_rows %}{% with proj=row.projection %}
           {% for cv, consumers in consumers_map.items %}
             {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
-            <div class="flex items-center gap-1.5 mt-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shrink-0"></span>
-              <span class="kb-mono text-[9px] uppercase tracking-[0.18em] text-emerald-400/80 font-medium">shared · live on {% for consumer in consumers %}{{ consumer.connection.platform }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+            <div x-show="selectedPk === {{ proj.pk }}" x-cloak
+                 class="flex items-start gap-2 px-3 py-2.5"
+                 style="background: rgba(52, 211, 153, 0.05); border: 1px solid rgba(52, 211, 153, 0.16);">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shrink-0 mt-1"></span>
+              <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-emerald-400/80 leading-relaxed">
+                {% trans "Live on" %} {% for consumer in consumers %}{{ consumer.connection.platform }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                <span class="text-emerald-400/45"> · {% trans "editing here updates all these channels" %}</span>
+              </span>
             </div>
             {% endif %}
           {% endfor %}
+          {% endwith %}{% endfor %}
         {% endif %}
 
       </div>
 
-      {# ── Card body: content preview ── #}
-      <div class="cursor-pointer" @click="selectProjection({{ proj.pk }})">
-        {# Platform-reskinned preview — shared partial (ADR-008 D2: two callers = extract) #}
-        {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error %}
-      </div>
+      {# ── Per-projection composer body (Alpine x-show) ── #}
+      {% for row in projection_rows %}{% with proj=row.projection body=row.body render_error=row.render_error %}
+      <div x-show="selectedPk === {{ proj.pk }}" x-cloak>
 
-      {# ── Per-channel lifecycle actions ── #}
-      {% if can_edit %}
-      <div class="px-4 pb-3.5 pt-2.5 flex items-center gap-2 flex-wrap border-t border-white/6">
+        {# Draft: editable body + version ops #}
+        {% if can_edit and proj.status == 'draft' %}
+        <div class="mb-7">
 
-        {# Approve: draft → ready — primary action #}
-        {% if proj.status == 'draft' %}
-        <form method="post"
-              action="{% url 'syndication:projection-approve' pk=proj.pk %}"
-              hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <button type="submit"
-                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-white/25 hover:border-white/50 text-base-content/65 hover:text-base-content rounded-sm transition-colors font-medium min-h-[44px]">
-            {% trans "Approve" %}
-          </button>
-        </form>
-        {% endif %}
+          {# Version sourcing controls — quiet inline strip #}
+          <div class="flex items-center gap-0 mb-5 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+            <span class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/22 mr-3 shrink-0">{% trans "Version" %}</span>
 
-        {# Publish: ready → published — gated on can_publish #}
-        {% if proj.status == 'ready' and can_publish %}
-        <form method="post"
-              action="{% url 'syndication:projection-publish' pk=proj.pk %}"
-              hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <button type="submit"
-                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-fuchsia-300/45 hover:border-fuchsia-300/75 text-fuchsia-300/85 hover:text-fuchsia-300 rounded-sm transition-colors font-semibold min-h-[44px]">
-            {% trans "Publish" %}
-          </button>
-        </form>
-
-        {# Copy-to-clipboard for manual-assisted platforms (FetLife) #}
-        {% if proj.connection.platform == 'fetlife' %}
-        <div x-data="{ copied: false }" class="flex items-center">
-          <pre id="copy-body-{{ proj.pk }}" data-copy-body="{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
-          <button type="button"
-                  @click="navigator.clipboard.writeText(document.getElementById('copy-body-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
-                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-white/12 hover:border-white/28 text-base-content/38 hover:text-base-content/65 rounded-sm transition-colors min-h-[44px]"
-                  x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">
-            {% trans "Copy" %}
-          </button>
-        </div>
-        {% endif %}
-
-        {# Mark-published: for no-API platforms (out-of-band posting) #}
-        <form method="post"
-              action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
-              hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <button type="submit"
-                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-white/8 hover:border-white/18 text-base-content/28 hover:text-base-content/55 rounded-sm transition-colors min-h-[44px]">
-            {% trans "Mark published" %}
-          </button>
-        </form>
-        {% endif %}
-
-        {# Failed: retry #}
-        {% if proj.status == 'failed' %}
-        <form method="post"
-              action="{% url 'syndication:projection-approve' pk=proj.pk %}"
-              hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <button type="submit"
-                  class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-rose-400/30 hover:border-rose-400/60 text-rose-400/70 hover:text-rose-400 rounded-sm transition-colors min-h-[44px]">
-            {% trans "Retry" %}
-          </button>
-        </form>
-        {% endif %}
-
-        {# Version-ops toggle — only for draft projections #}
-        {% if proj.status == 'draft' %}
-        <button type="button"
-                @click="showVersionOps = !showVersionOps"
-                class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-white/8 hover:border-white/18 text-base-content/25 hover:text-base-content/55 rounded-sm transition-colors ml-auto min-h-[44px]"
-                x-text="showVersionOps ? '{% trans "Close" %}' : '{% trans "Edit" %}'">
-          {% trans "Edit" %}
-        </button>
-
-        {# Version-ops panel — Alpine-toggled #}
-        <div x-show="showVersionOps" x-cloak class="w-full mt-2 border border-white/8 rounded-sm p-4 bg-black/20">
-          <p class="kb-mono text-[8px] uppercase tracking-[0.22em] text-base-content/22 mb-3">{% trans "Version ops" %}</p>
-          <div class="flex flex-wrap gap-2 mb-4">
-            {# Customize: mint own version row for this channel #}
+            {# Customize #}
             <form method="post"
                   action="{% url 'syndication:projection-customize' pk=proj.pk %}"
                   hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
@@ -292,23 +153,14 @@
                   hx-swap="outerHTML">
               {% csrf_token %}
               <button type="submit"
-                      class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/40 hover:text-base-content/70 px-2.5 py-1.5 border border-white/10 hover:border-white/25 rounded-sm transition-colors">
+                      class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
                 {% trans "Customize" %}
               </button>
             </form>
-            {# Duplicate: create a new independent ContentVersion from this one (no FK repoint) #}
-            <form method="post"
-                  action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-                  hx-post="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-                  hx-target="#event-syndication"
-                  hx-swap="outerHTML">
-              {% csrf_token %}
-              <button type="submit"
-                      class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/40 hover:text-base-content/70 px-2.5 py-1.5 border border-white/10 hover:border-white/25 rounded-sm transition-colors">
-                {% trans "Duplicate" %}
-              </button>
-            </form>
-            {# Reset to canonical #}
+
+            <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
+
+            {# Reset to shared #}
             <form method="post"
                   action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
                   hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
@@ -316,86 +168,282 @@
                   hx-swap="outerHTML">
               {% csrf_token %}
               <button type="submit"
-                      class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/28 hover:text-base-content/58 px-2.5 py-1.5 border border-white/7 hover:border-white/18 rounded-sm transition-colors">
-                {% trans "Reset to shared" %}
+                      class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
+                {% trans "Reset" %}
               </button>
             </form>
-          </div>
 
-          {# Copy-from: repoint this channel at a copy of another channel's version #}
-          {% if projections|length > 1 %}
-          <div class="mb-4">
-            <p class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/22 mb-2">{% trans "Copy from channel" %}</p>
+            <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
+
+            {# Duplicate #}
+            <form method="post"
+                  action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
+                  hx-post="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
+                  hx-target="#event-syndication"
+                  hx-swap="outerHTML">
+              {% csrf_token %}
+              <button type="submit"
+                      class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
+                {% trans "Duplicate" %}
+              </button>
+            </form>
+
+            {# Copy from another channel — right-aligned #}
+            {% if projection_rows|length > 1 %}
             <form method="post"
                   action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
                   hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
                   hx-target="#event-syndication"
                   hx-swap="outerHTML"
-                  class="flex items-center gap-2 flex-wrap">
+                  class="flex items-center gap-1.5 ml-auto">
               {% csrf_token %}
+              <span class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
               <div class="relative">
                 <select name="source_version_pk"
-                        class="kb-mono text-[9px] px-2 pr-6 py-1.5 border border-white/10 rounded-sm bg-black/20 text-base-content/50 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
+                        class="kb-mono text-[8px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
                   {% for other_row in projection_rows %}
                     {% if other_row.projection.pk != proj.pk %}
                     <option value="{{ other_row.projection.content_version.pk }}">
-                      {{ other_row.projection.connection.platform }} · {{ other_row.projection.connection.destination_id|truncatechars:18 }}
+                      {{ other_row.projection.connection.platform }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
                     </option>
                     {% endif %}
                   {% endfor %}
                 </select>
-                <span class="pointer-events-none absolute inset-y-0 right-1.5 flex items-center text-base-content/30" aria-hidden="true">
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28" aria-hidden="true">
+                  <svg width="6" height="6" viewBox="0 0 8 8" fill="none"><path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </span>
               </div>
               <button type="submit"
-                      class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/28 hover:text-base-content/58 px-2.5 py-1.5 border border-white/7 hover:border-white/18 rounded-sm transition-colors">
-                {% trans "Copy from" %}
+                      class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
+                {% trans "Apply" %}
               </button>
             </form>
+            {% endif %}
           </div>
-          {% endif %}
 
-          {# Inline edit form for the assigned ContentVersion body #}
+          {# Main body editor #}
           <form method="post"
                 action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
                 hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
                 hx-target="#event-syndication"
-                hx-swap="outerHTML"
-                @htmx:after-request="showVersionOps = false">
+                hx-swap="outerHTML">
             {% csrf_token %}
-            <label class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/28 block mb-2">
+            <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 block mb-3">
               {% trans "Body" %}
             </label>
             <textarea name="body"
-                      class="w-full border rounded-sm text-[12px] font-mono text-base-content/65 px-3 py-2.5 min-h-[100px] resize-y focus:outline-none focus:border-fuchsia-300/40 transition-colors"
-                      style="background: rgb(18 18 24); border-color: rgb(255 255 255 / 0.10);"
-                      placeholder="{% trans "Edit body…" %}">{{ body }}</textarea>
-            <div class="flex gap-2 mt-2.5">
+                      class="kb-textarea w-full min-h-[180px] resize-y"
+                      style="padding-left: 0; padding-right: 0;"
+                      placeholder="{% trans "Write the post body for this channel…" %}">{{ body }}</textarea>
+            <div class="flex items-center gap-4 mt-4 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06);">
               <button type="submit"
-                      class="kb-btn-secondary text-[9px] px-3 py-1.5">
+                      class="kb-btn text-[9px] px-5 py-2.5 min-h-[44px]">
                 {% trans "Save" %}
               </button>
-              <button type="button"
-                      @click="showVersionOps = false"
-                      class="kb-btn-quiet text-[9px]">
-                {% trans "Cancel" %}
-              </button>
+              {# Provenance marker #}
+              {% if proj.content_version.provenance == 'manual' %}
+              <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-sky-400/45">{% trans "Edited" %}</span>
+              {% elif proj.content_version.provenance == 'agent_supplied' %}
+              <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-violet-400/45">{% trans "Agent" %}</span>
+              {% endif %}
             </div>
           </form>
+        </div>
+        {% endif %}
+
+        {# Published/ready: body is locked, show as read-only #}
+        {% if proj.status != 'draft' %}
+        <div class="mb-6">
+          <p class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/28 mb-3">{% trans "Body" %}</p>
+          <div class="kb-mono text-[11px] text-base-content/55 leading-relaxed whitespace-pre-wrap border-b pb-4" style="border-bottom-color: rgba(255,255,255,0.07);">{{ body }}</div>
+        </div>
+        {% endif %}
+
+        {# ── Live preview (platform-reskinned) ── #}
+        <div class="mb-6">
+          <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 mb-3">{% trans "Preview" %}</p>
+          <div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07);">
+            {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+          </div>
+        </div>
+
+        {# ── Lifecycle actions ── #}
+        {% if can_edit or can_publish %}
+        <div class="flex items-center gap-2 flex-wrap pt-4" style="border-top: 1px solid rgba(255,255,255,0.07);">
+
+          {% if proj.status == 'draft' and can_edit %}
+          <form method="post"
+                action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+                hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+                hx-target="#event-syndication"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <button type="submit"
+                    class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]">
+              {% trans "Approve" %}
+            </button>
+          </form>
+          {% endif %}
+
+          {% if proj.status == 'ready' and can_publish %}
+          <form method="post"
+                action="{% url 'syndication:projection-publish' pk=proj.pk %}"
+                hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
+                hx-target="#event-syndication"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <button type="submit"
+                    class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">
+              {% trans "Publish" %}
+            </button>
+          </form>
+
+          {% if proj.connection.platform == 'fetlife' %}
+          <div x-data="{ copied: false }" class="flex items-center">
+            <pre id="copy-body-{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
+            <button type="button"
+                    @click="navigator.clipboard.writeText(document.getElementById('copy-body-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
+                    class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
+                    x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">
+              {% trans "Copy" %}
+            </button>
+          </div>
+          {% endif %}
+
+          <form method="post"
+                action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+                hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+                hx-target="#event-syndication"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <button type="submit"
+                    class="kb-btn-quiet text-[9px] min-h-[44px]">
+              {% trans "Mark published" %}
+            </button>
+          </form>
+          {% endif %}
+
+          {% if proj.status == 'failed' %}
+          <form method="post"
+                action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+                hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+                hx-target="#event-syndication"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <button type="submit"
+                    class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
+              {% trans "Retry" %}
+            </button>
+          </form>
+          {% endif %}
 
         </div>
         {% endif %}
 
       </div>
-      {% endif %}
+      {% endwith %}{% endfor %}
 
-    </article>
-    {% endwith %}
-    {% endfor %}
-  </div>
+    </div>{# /composer pane #}
+
+    {# CHANNEL RAIL (right) #}
+    <div class="pl-6">
+
+      {# Rail label #}
+      <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/28 mb-3">{% trans "Channels" %}</p>
+
+      <div class="flex flex-col gap-2">
+        {% for row in projection_rows %}{% with proj=row.projection body=row.body render_error=row.render_error %}
+        <button type="button"
+                @click="selectedPk = {{ proj.pk }}"
+                class="w-full text-left overflow-hidden transition-all duration-200 focus-visible:outline-none"
+                :class="selectedPk === {{ proj.pk }} ?
+                  'ring-1 ring-fuchsia-300/40 shadow-sm' :
+                  'opacity-70 hover:opacity-90'"
+                style="
+                  {% if proj.connection.platform == 'telegram' %}background: rgb(22 28 40); border: 1px solid rgba(3,105,161,{% if proj.pk == first_pk %}0.5{% else %}0.2{% endif %});
+                  {% elif proj.connection.platform == 'fetlife' %}background: rgb(26 16 30); border: 1px solid rgba(107,33,168,{% if proj.pk == first_pk %}0.5{% else %}0.25{% endif %});
+                  {% elif proj.connection.platform == 'switch' %}background: rgb(20 18 28); border: 1px solid rgba(192,38,211,{% if proj.pk == first_pk %}0.35{% else %}0.15{% endif %});
+                  {% else %}background: rgb(26 26 32); border: 1px solid rgba(255,255,255,0.07);{% endif %}"
+                aria-label="{{ proj.connection.platform }} — {{ proj.connection.destination_id }}"
+                aria-pressed="{{ proj.pk|stringformat:'s' }}">
+
+          {# Platform tinted header strip #}
+          <div class="px-3 pt-2.5 pb-2 border-b"
+               style="{% if proj.connection.platform == 'telegram' %}border-bottom-color: rgba(3,105,161,0.25); background: rgba(3,105,161,0.04);
+               {% elif proj.connection.platform == 'fetlife' %}border-bottom-color: rgba(107,33,168,0.30); background: rgba(107,33,168,0.05);
+               {% elif proj.connection.platform == 'switch' %}border-bottom-color: rgba(192,38,211,0.18); background: rgba(192,38,211,0.04);
+               {% else %}border-bottom-color: rgba(255,255,255,0.06);{% endif %}">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="kb-mono text-[10px] uppercase tracking-[0.2em] font-semibold shrink-0
+                  {% if proj.connection.platform == 'telegram' %}text-sky-400
+                  {% elif proj.connection.platform == 'fetlife' %}text-pink-400
+                  {% elif proj.connection.platform == 'switch' %}text-fuchsia-300
+                  {% else %}text-base-content/60{% endif %}">
+                  {{ proj.connection.platform }}
+                </span>
+                <span class="kb-mono text-[8px] text-base-content/25 truncate">{{ proj.connection.destination_id }}</span>
+              </div>
+              <span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-1.5 py-0.5 border shrink-0
+                {% if proj.status == 'draft' %}text-amber-300/80 border-amber-300/22 bg-amber-300/5
+                {% elif proj.status == 'ready' %}text-fuchsia-300/90 border-fuchsia-300/28 bg-fuchsia-300/6
+                {% elif proj.status == 'published' %}text-emerald-400 border-emerald-400/25 bg-emerald-400/6
+                {% elif proj.status == 'failed' %}text-rose-400 border-rose-400/28 bg-rose-400/5
+                {% else %}text-base-content/35 border-white/8{% endif %}">
+                {{ proj.get_status_display }}
+              </span>
+            </div>
+
+            {# Shared-version cue on rail card #}
+            {% if consumers_map %}
+              {% for cv, consumers in consumers_map.items %}
+                {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
+                <div class="flex items-center gap-1.5 mt-1.5">
+                  <span class="w-1 h-1 rounded-full bg-emerald-400/65 shrink-0"></span>
+                  <span class="kb-mono text-[8px] uppercase tracking-[0.14em] text-emerald-400/60">
+                    {% trans "shared" %} · {% for consumer in consumers %}{{ consumer.connection.platform }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                  </span>
+                </div>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          </div>
+
+          {# Compact body preview — platform-tinted, 2-line clamp #}
+          <div class="px-3 py-2.5">
+            {% if render_error %}
+            <span class="kb-mono text-[9px] text-error/55">{% trans "render error" %}</span>
+            {% elif proj.connection.platform == 'telegram' %}
+            <p class="text-[11px] line-clamp-2 leading-snug" style="color: rgb(165 205 240 / 0.60);">{{ body }}</p>
+            {% elif proj.connection.platform == 'fetlife' %}
+            <p class="text-[11px] line-clamp-2 leading-snug" style="color: rgb(195 145 215 / 0.58);">{{ body }}</p>
+            {% elif proj.connection.platform == 'switch' %}
+            <p class="kb-display text-[11px] line-clamp-2 leading-snug" style="color: rgb(215 210 230 / 0.52); font-size: 12px; font-variation-settings: 'opsz' 48, 'SOFT' 50;">{{ body }}</p>
+            {% else %}
+            <p class="text-[11px] line-clamp-2 leading-snug text-base-content/38">{{ body }}</p>
+            {% endif %}
+          </div>
+
+          {# Active selection indicator — fuchsia bottom hairline #}
+          <div class="h-px w-full transition-opacity duration-200"
+               :style="selectedPk === {{ proj.pk }} ? 'background: rgba(248,113,196,0.45); opacity:1;' : 'opacity:0;'"></div>
+
+        </button>
+        {% endwith %}{% endfor %}
+      </div>
+
+      {# Source vs destinations explainer #}
+      <div class="mt-5 pt-4" style="border-top: 1px solid rgba(255,255,255,0.06);">
+        <p class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/20 leading-relaxed">
+          {% trans "Composer edits the source." %}<br>
+          {% trans "Channels receive it." %}<br>
+          {% trans "Customize to diverge." %}
+        </p>
+      </div>
+
+    </div>{# /channel rail #}
+
+  </div>{# /two-pane grid #}
 
   {# Edge case: connections exist but no projections at all #}
   {% else %}
@@ -404,8 +452,7 @@
       {% trans "No projections yet" %}
     </p>
     {% if can_edit %}
-    <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
-       class="kb-btn-secondary text-[10px] inline-block">
+    <a href="{% url 'syndication:post-create' event_pk=event.pk %}" class="kb-btn-secondary text-[10px] inline-block">
       {% trans "Add promo message" %}
     </a>
     {% endif %}
@@ -413,3 +460,4 @@
   {% endif %}
 
 </section>
+{% endwith %}{# /first_pk #}
