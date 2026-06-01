@@ -73,8 +73,7 @@ class PlatformConnection(models.Model):
     platform = models.CharField(
         max_length=100,
         help_text=(
-            "Platform identifier, e.g. 'fetlife', 'tickettailor', "
-            "'switch', 'telegram'."
+            "Platform identifier, e.g. 'fetlife', 'tickettailor', 'switch', 'telegram'."
         ),
     )
     destination_id = models.CharField(
@@ -207,13 +206,17 @@ class Post(models.Model):
 
 class ContentVersion(models.Model):
     """
-    A named editorial copy variant for a given Event (ADR-016 D2, revised 2026-05-29,
-    added kb-wz8m.1).
+    A named editorial copy variant for a given Event or Post (ADR-016 D2,
+    revised 2026-05-29, added kb-wz8m.1, generalized kb-q4u9.1).
 
-    ContentVersion is per-Event and carries the editorial content fields
-    (headline, body, imagery, cta, voice) plus the content-authorship signals
-    (provenance, generated_by, last_generated_at) that ADR-016 D2 says now live
-    on the version rather than on the projection.
+    ContentVersion is scoped to exactly one publishable: either an Event
+    (event FK non-null, post FK null) or a Post (post FK non-null, event FK
+    null). A DB CheckConstraint enforces this at write-time (ADR-008 D3).
+
+    Carries the editorial content fields (headline, body, imagery, cta, voice)
+    plus the content-authorship signals (provenance, generated_by,
+    last_generated_at) that ADR-016 D2 says now live on the version rather than
+    on the projection.
 
     Many PlatformProjections may point at one ContentVersion (single-row sharing
     — editing the version propagates to all consumers). Divergence is opt-in via
@@ -224,7 +227,9 @@ class ContentVersion(models.Model):
     at render time (null-means-derive semantics). A1 canonical version is seeded
     EMPTY (all fields NULL = track-live). Editing a field is divergence.
 
-    ADR-008 D2: no speculative abstraction — plain Django model, no base class.
+    kb-q4u9.1: event FK made nullable; post FK added (nullable). Exactly one
+    must be non-null — enforced by CheckConstraint (fail loud, ADR-008 D3).
+    No Publishable base model (ADR-008 D2).
     ADR-003: data-shape reservation; behavioral use ships in kb-wz8m.2+.
     """
 
@@ -236,8 +241,24 @@ class ContentVersion(models.Model):
     event = models.ForeignKey(
         "events.Event",
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="content_versions",
-        help_text="The Event this version belongs to.",
+        help_text=(
+            "The Event this version belongs to. "
+            "Exactly one of event/post must be non-null (CheckConstraint)."
+        ),
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="content_versions",
+        help_text=(
+            "The Post this version belongs to. "
+            "Exactly one of event/post must be non-null (CheckConstraint)."
+        ),
     )
     name = models.CharField(
         max_length=200,
@@ -285,10 +306,7 @@ class ContentVersion(models.Model):
         null=True,
         blank=True,
         default=None,
-        help_text=(
-            "Call-to-action text or URL. "
-            "NULL = derive from canonical."
-        ),
+        help_text=("Call-to-action text or URL. NULL = derive from canonical."),
     )
     voice = models.CharField(
         max_length=100,
@@ -342,14 +360,37 @@ class ContentVersion(models.Model):
         verbose_name = _("content version")
         verbose_name_plural = _("content versions")
         constraints = [
+            # Exactly one of event/post must be non-null (ADR-008 D3 — fail loud).
+            models.CheckConstraint(
+                condition=(
+                    models.Q(event__isnull=False, post__isnull=True)
+                    | models.Q(event__isnull=True, post__isnull=False)
+                ),
+                name="syndication_contentversion_exactly_one_of_event_post",
+                violation_error_message=(
+                    "ContentVersion must be scoped to exactly one publishable: "
+                    "set exactly one of event or post, not both and not neither."
+                ),
+            ),
+            # Partial unique: (event, name) where event is set.
+            # Mirrors PlatformProjection.source_event/source_post pattern.
             models.UniqueConstraint(
                 fields=["event", "name"],
+                condition=models.Q(event__isnull=False),
                 name="syndication_contentversion_event_name_uniq",
-            )
+            ),
+            # Partial unique: (post, name) where post is set.
+            models.UniqueConstraint(
+                fields=["post", "name"],
+                condition=models.Q(post__isnull=False),
+                name="syndication_contentversion_post_name_uniq",
+            ),
         ]
 
     def __str__(self):
-        return f"{self.name} (event={self.event_id})"
+        if self.event_id is not None:
+            return f"{self.name} (event={self.event_id})"
+        return f"{self.name} (post={self.post_id})"
 
 
 class PlatformProjection(models.Model):
@@ -494,6 +535,7 @@ class PlatformProjection(models.Model):
 # Enforce expiry; do NOT consume-per-request.
 # ---------------------------------------------------------------------------
 
+
 def _generate_raw_key():
     """Generate a URL-safe 40-byte random token (320-bit entropy)."""
     return secrets.token_urlsafe(40)
@@ -635,6 +677,7 @@ class AgentCredential(models.Model):
 #   not needed; the pairing token is purely a short-lived handoff envelope.
 #   No email, profile, or intended_method fields here.
 # ---------------------------------------------------------------------------
+
 
 def _generate_pairing_token():
     """Generate a URL-safe 32-byte random token for display to the facilitator."""
