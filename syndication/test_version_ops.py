@@ -15,6 +15,8 @@ Acceptance assertions:
 canonical_refs: ADR-016 D2, ADR-017 D2, ADR-008 D2/D3.
 """
 
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
@@ -1603,4 +1605,254 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
         new_versions = copy_to(self.user, post_canonical, [projs[1]])
         new_cv = new_versions[0]
         self.assertEqual(new_cv.post_id, post.pk)
-        self.assertIsNone(new_cv.event_id)
+
+    def test_copy_to_post_source_n2_independence(self):
+        """
+        copy_to on a post-owned source with TWO targets must produce TWO
+        truly independent ContentVersion rows: different PKs, both post-owned,
+        and edits to one must not affect the other.
+
+        Mirrors the event-path test
+        test_copy_to_each_projection_gets_truly_independent_row.
+        """
+        from syndication.services import create_post, copy_to, edit_version
+        from syndication.engine import render_projection
+
+        post = create_post(
+            user=self.user, event=self.event, headline="N2 Independence Post", body="Shared body"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+        projs = list(PlatformProjection.objects.filter(source_post=post))
+        self.assertGreaterEqual(len(projs), 2, "Need ≥2 promotion projections for N=2 test")
+
+        proj_a, proj_b = projs[0], projs[1]
+
+        # copy_to both targets from the same source
+        new_versions = copy_to(self.user, post_canonical, [proj_a, proj_b])
+        self.assertEqual(len(new_versions), 2, "copy_to must return 2 new CVs for 2 targets")
+
+        cv_a, cv_b = new_versions[0], new_versions[1]
+
+        # (a) Distinct rows — not the same object
+        self.assertNotEqual(cv_a.pk, cv_b.pk, "Two copy_to targets must get distinct CV PKs")
+
+        # (b) Both post-owned
+        self.assertEqual(cv_a.post_id, post.pk)
+        self.assertIsNone(cv_a.event_id)
+        self.assertEqual(cv_b.post_id, post.pk)
+        self.assertIsNone(cv_b.event_id)
+
+        # (c) Independence: editing cv_a must not affect cv_b's render
+        proj_a.refresh_from_db()
+        proj_b.refresh_from_db()
+        edit_version(self.user, cv_a, body="EXCLUSIVE BODY A")
+        body_b = render_projection(proj_b)
+        self.assertNotIn(
+            "EXCLUSIVE BODY A",
+            body_b,
+            "Editing cv_a must not bleed into proj_b's render (true row independence)",
+        )
+
+
+# ---------------------------------------------------------------------------
+# kb-q4u9.2 Probe: publish path for post-owned promotion projections
+#
+# Acceptance: per-channel publish AND publish-all-ready over the post projections
+# each invoke the adapter with its OWN channel body (frozen at ready), not the
+# canonical's or the other channel's body.
+# ---------------------------------------------------------------------------
+
+
+def _make_publish_ok_response():
+    """Return a fake httpx.Response-like mock for Telegram Bot API success."""
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.json.return_value = {"ok": True, "result": {"message_id": 555}}
+    return resp
+
+
+class PostOwnedProjectionPublishProbeTest(TestCase):
+    """
+    Probe: per-channel publish AND publish-all-ready for post-owned promotion
+    projections each invoke the Telegram adapter with THAT channel's own frozen
+    body — not the canonical's or the other channel's.
+
+    Uses the REAL adapter path (only httpx.post is mocked at the transport
+    boundary), mirroring the style in test_e2e_board.py step 3/step 4.
+    """
+
+    def setUp(self):
+        self.user = _make_user(username="pubprobe_user", email="pubprobe@test.com", password="pw")
+        self.profile = _make_profile(name="PubProbe Org", slug="pubprobe-org", user=self.user)
+        self.event = _make_event(slug="pubprobe-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        # Two telegram promotion connections so each post gets ≥2 projections
+        self.conn_tg_a = _make_promo_connection(self.profile, destination_id="tg-pubprobe-001")
+        self.conn_tg_b = _make_promo_connection(self.profile, destination_id="tg-pubprobe-002")
+
+    def test_per_channel_publish_uses_own_frozen_body(self):
+        """
+        (a) Per-channel publish: customize one projection, advance both to ready,
+        publish the customized one — the Telegram adapter receives THAT channel's
+        own customized body, NOT the canonical's or the other channel's.
+        """
+        from syndication.services import (
+            create_post,
+            customize,
+            edit_version,
+            approve_projection,
+            publish_projection,
+        )
+
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="Publish Probe Post",
+            body="Shared canonical body",
+        )
+        projs = list(PlatformProjection.objects.filter(source_post=post).order_by("pk"))
+        self.assertGreaterEqual(len(projs), 2, "Need ≥2 promotion projections")
+
+        proj_a, proj_b = projs[0], projs[1]
+
+        # Customize proj_a with a distinguishable body
+        new_cv_a = customize(self.user, proj_a)
+        proj_a.refresh_from_db()
+        edit_version(self.user, new_cv_a, body="PUBLISH-BODY-CHAN-A")
+
+        # Advance proj_a to ready (freeze)
+        approve_projection(user=self.user, projection=proj_a)
+        proj_a.refresh_from_db()
+        self.assertEqual(proj_a.status, PlatformProjection.Status.READY)
+        self.assertEqual(
+            proj_a.frozen_content["body"],
+            "PUBLISH-BODY-CHAN-A",
+            "Precondition: proj_a must have its custom body frozen",
+        )
+
+        # proj_b stays draft (unaffected)
+        proj_b.refresh_from_db()
+        self.assertEqual(proj_b.status, PlatformProjection.Status.DRAFT)
+
+        # Publish proj_a — only httpx.post is mocked
+        with patch(
+            "syndication.adapters.httpx.post",
+            return_value=_make_publish_ok_response(),
+        ) as mock_post:
+            publish_projection(self.user, proj_a)
+
+        # httpx.post called exactly once
+        self.assertEqual(mock_post.call_count, 1)
+
+        # The payload text must be proj_a's OWN customized body
+        actual_payload = mock_post.call_args.kwargs["json"]
+        self.assertEqual(
+            actual_payload["text"],
+            "PUBLISH-BODY-CHAN-A",
+            "Per-channel publish must deliver proj_a's OWN frozen body to the adapter. "
+            "A routing swap would post proj_b's/canonical body — this assertion catches it.",
+        )
+
+        # proj_a must now be PUBLISHED
+        proj_a.refresh_from_db()
+        self.assertEqual(proj_a.status, PlatformProjection.Status.PUBLISHED)
+        self.assertEqual(proj_a.frozen_content["body"], "PUBLISH-BODY-CHAN-A")
+
+        # proj_b must still be draft
+        proj_b.refresh_from_db()
+        self.assertEqual(proj_b.status, PlatformProjection.Status.DRAFT)
+
+    def test_publish_all_ready_uses_own_frozen_body_per_projection(self):
+        """
+        (b) publish-all-ready: customize BOTH projections with divergent bodies,
+        advance both to ready, call publish_all_ready_projections — the adapter
+        is invoked for EACH projection with THAT channel's own frozen body.
+
+        Two httpx.post calls: one with "BODY-CHAN-A", one with "BODY-CHAN-B".
+        A routing swap or shared-body bug would cause both calls to carry the
+        same text — this assertion catches it.
+        """
+        from syndication.services import (
+            create_post,
+            customize,
+            edit_version,
+            approve_projection,
+            publish_all_ready_projections,
+        )
+
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="PublishAll Probe Post",
+            body="Canonical body for publish-all",
+        )
+        projs = list(PlatformProjection.objects.filter(source_post=post).order_by("pk"))
+        self.assertGreaterEqual(len(projs), 2, "Need ≥2 promotion projections")
+
+        proj_a, proj_b = projs[0], projs[1]
+
+        # Customize both with divergent bodies
+        cv_a = customize(self.user, proj_a)
+        proj_a.refresh_from_db()
+        edit_version(self.user, cv_a, body="BODY-CHAN-A")
+
+        cv_b = customize(self.user, proj_b)
+        proj_b.refresh_from_db()
+        edit_version(self.user, cv_b, body="BODY-CHAN-B")
+
+        # Advance both to ready
+        approve_projection(user=self.user, projection=proj_a)
+        approve_projection(user=self.user, projection=proj_b)
+        proj_a.refresh_from_db()
+        proj_b.refresh_from_db()
+        self.assertEqual(proj_a.status, PlatformProjection.Status.READY)
+        self.assertEqual(proj_b.status, PlatformProjection.Status.READY)
+        self.assertEqual(proj_a.frozen_content["body"], "BODY-CHAN-A")
+        self.assertEqual(proj_b.frozen_content["body"], "BODY-CHAN-B")
+
+        # Capture payloads from httpx.post calls
+        captured_payloads = []
+
+        def capture_post(url, **kwargs):
+            captured_payloads.append(kwargs.get("json", {}))
+            return _make_publish_ok_response()
+
+        with patch("syndication.adapters.httpx.post", side_effect=capture_post):
+            published_batch, failures = publish_all_ready_projections(self.user, self.event)
+
+        # No failures
+        self.assertEqual(failures, [], f"Expected no failures, got: {failures}")
+
+        # Both projections published
+        self.assertEqual(len(published_batch), 2)
+        published_pks = {p.pk for p in published_batch}
+        self.assertIn(proj_a.pk, published_pks)
+        self.assertIn(proj_b.pk, published_pks)
+
+        # httpx.post called exactly twice (once per projection)
+        self.assertEqual(
+            len(captured_payloads),
+            2,
+            "httpx.post must be called exactly twice — once per ready promotion projection",
+        )
+
+        # Each call must carry the channel's OWN body
+        captured_texts = {p["text"] for p in captured_payloads}
+        self.assertIn(
+            "BODY-CHAN-A",
+            captured_texts,
+            "publish-all-ready must deliver proj_a's OWN body to the adapter",
+        )
+        self.assertIn(
+            "BODY-CHAN-B",
+            captured_texts,
+            "publish-all-ready must deliver proj_b's OWN body to the adapter",
+        )
+
+        # Both projections must be PUBLISHED
+        proj_a.refresh_from_db()
+        proj_b.refresh_from_db()
+        self.assertEqual(proj_a.status, PlatformProjection.Status.PUBLISHED)
+        self.assertEqual(proj_a.frozen_content["body"], "BODY-CHAN-A")
+        self.assertEqual(proj_b.status, PlatformProjection.Status.PUBLISHED)
+        self.assertEqual(proj_b.frozen_content["body"], "BODY-CHAN-B")

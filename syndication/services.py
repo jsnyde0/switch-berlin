@@ -778,18 +778,6 @@ def _resolve_publishable_for_cv(content_version):
     )
 
 
-def _projection_publishable_event(projection):
-    """
-    Return the Event that owns a projection's publishable:
-    - listing → source_event
-    - promotion → source_post.event
-
-    Used for cross-publishable guard (source version must belong to the same
-    underlying event as the target projection).
-    """
-    return _resolve_projection_event(projection)
-
-
 def copy_from(user, projection, source_version):
     """
     Repoint the projection at a NEW independent copy taken from source_version

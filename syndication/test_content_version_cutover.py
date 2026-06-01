@@ -696,17 +696,47 @@ class AgentAssistedDedicatedVersionTest(TestCase):
 # ---------------------------------------------------------------------------
 
 
-def _get_0007_migration_forward():
-    """Return the forward RunPython function from migration 0007."""
+def _get_0007_migration_context():
+    """
+    Return (forward_fn, reverse_fn, historical_apps) for migration 0007.
+
+    Uses MigrationExecutor to obtain the historical registry as it stood just
+    before 0007 was applied — so the test runs against the model shapes the real
+    migration runner sees, not the current live models.  This prevents false
+    comfort from the test if the live model later evolves past the migration's
+    schema assumptions.
+
+    Pattern from tests/test_organizer_lia_migration.py, extended to surface the
+    historical apps object per the kb-q4u9.2 review request.
+    """
     from django.db import connections
+    from django.db.migrations.executor import MigrationExecutor
     from django.db.migrations.loader import MigrationLoader
 
-    loader = MigrationLoader(connections["default"])
+    conn = connections["default"]
+    loader = MigrationLoader(conn)
     migration = loader.get_migration("syndication", "0007_backfill_post_canonical_content_versions")
+
+    forward_fn = None
+    reverse_fn = None
     for operation in migration.operations:
         if hasattr(operation, "code"):
-            return operation.code, operation.reverse_code
-    raise ValueError("No RunPython found in syndication migration 0007")
+            forward_fn = operation.code
+            reverse_fn = operation.reverse_code
+            break
+    if forward_fn is None:
+        raise ValueError("No RunPython found in syndication migration 0007")
+
+    # Build the historical project state at the dependency boundary (just before
+    # 0007 is applied — i.e. the state after all 0007 dependencies are applied).
+    executor = MigrationExecutor(conn)
+    # 0007's dependency is 0006; ask for the state *at the end of* 0006.
+    pre_0007_state = executor.loader.project_state(
+        ("syndication", "0006_contentversion_publishable_scope")
+    )
+    historical_apps = pre_0007_state.apps
+
+    return forward_fn, reverse_fn, historical_apps
 
 
 class Migration0007BackfillTest(TestCase):
@@ -769,12 +799,11 @@ class Migration0007BackfillTest(TestCase):
         """
         post, proj, event_canonical = self._seed_pre_generalization_state()
 
-        forward_fn, _ = _get_0007_migration_forward()
-        from django.apps import apps
+        forward_fn, _, historical_apps = _get_0007_migration_context()
         from django.db import connection
 
         with connection.schema_editor() as schema_editor:
-            forward_fn(apps, schema_editor)
+            forward_fn(historical_apps, schema_editor)
 
         post_cvs = ContentVersion.objects.filter(post=post, name="canonical")
         self.assertEqual(post_cvs.count(), 1, "Migration must create exactly one post-canonical CV per Post")
@@ -789,12 +818,11 @@ class Migration0007BackfillTest(TestCase):
         """
         post, proj, event_canonical = self._seed_pre_generalization_state()
 
-        forward_fn, _ = _get_0007_migration_forward()
-        from django.apps import apps
+        forward_fn, _, historical_apps = _get_0007_migration_context()
         from django.db import connection
 
         with connection.schema_editor() as schema_editor:
-            forward_fn(apps, schema_editor)
+            forward_fn(historical_apps, schema_editor)
 
         proj.refresh_from_db()
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
@@ -841,12 +869,11 @@ class Migration0007BackfillTest(TestCase):
             connection=conn2, source_post=post2, content_version=event_canonical,
         )
 
-        forward_fn, _ = _get_0007_migration_forward()
-        from django.apps import apps
+        forward_fn, _, historical_apps = _get_0007_migration_context()
         from django.db import connection
 
         with connection.schema_editor() as schema_editor:
-            forward_fn(apps, schema_editor)
+            forward_fn(historical_apps, schema_editor)
 
         cv1 = ContentVersion.objects.get(post=post1, name="canonical")
         cv2 = ContentVersion.objects.get(post=post2, name="canonical")
@@ -859,19 +886,18 @@ class Migration0007BackfillTest(TestCase):
         """
         post, proj, event_canonical = self._seed_pre_generalization_state()
 
-        forward_fn, _ = _get_0007_migration_forward()
-        from django.apps import apps
+        forward_fn, _, historical_apps = _get_0007_migration_context()
         from django.db import connection
 
         # First run
         with connection.schema_editor() as schema_editor:
-            forward_fn(apps, schema_editor)
+            forward_fn(historical_apps, schema_editor)
 
         cv_count_after_first = ContentVersion.objects.filter(post=post, name="canonical").count()
 
         # Second run — idempotent
         with connection.schema_editor() as schema_editor:
-            forward_fn(apps, schema_editor)
+            forward_fn(historical_apps, schema_editor)
 
         cv_count_after_second = ContentVersion.objects.filter(post=post, name="canonical").count()
         self.assertEqual(
@@ -887,12 +913,11 @@ class Migration0007BackfillTest(TestCase):
         """
         post, proj, event_canonical = self._seed_pre_generalization_state()
 
-        forward_fn, _ = _get_0007_migration_forward()
-        from django.apps import apps
+        forward_fn, _, historical_apps = _get_0007_migration_context()
         from django.db import connection
 
         with connection.schema_editor() as schema_editor:
-            forward_fn(apps, schema_editor)
+            forward_fn(historical_apps, schema_editor)
 
         # Event canonical must still exist
         self.assertTrue(
