@@ -59,6 +59,15 @@ def reverse_backfill(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    # Non-atomic: the backfill RunPython (step 3) writes content_version FK
+    # references, which queue deferred FK trigger events. The final AlterField
+    # (step 4) issues an ALTER TABLE that Postgres refuses while those triggers
+    # are pending ("cannot ALTER TABLE ... because it has pending trigger
+    # events"). Running non-atomically commits the backfill first, flushing the
+    # triggers before the ALTER. Harmless on a fresh DB (backfill is a no-op);
+    # required against any DB that already has projection rows.
+    atomic = False
+
     dependencies = [
         ('syndication', '0004_contentversion_platformprojection_content_version_and_more'),
     ]
