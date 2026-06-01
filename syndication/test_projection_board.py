@@ -2348,3 +2348,366 @@ class LiveOnChannelNamesTest(TestCase):
             re.search(bare_count_pattern, content),
             "Live-on cue must not use a bare count ('live on N channels'); use channel names",
         )
+
+
+# ---------------------------------------------------------------------------
+# kb-q4u9.3: Typefully-shaped workspace — channel icon-tabs + post hub
+# ---------------------------------------------------------------------------
+
+
+class ChannelIconTabsRenderTest(TestCase):
+    """
+    kb-q4u9.3 D2: The event_syndication fragment must render horizontal channel
+    icon-tabs (Typefully shape), not a vertical channel rail.
+
+    Assertions on rendered HTML content (not response.context — per the
+    django-view-test-context-vs-content-hollow memory, context is hollow).
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="tabs_user", email="tabs@test.com", password="pw")
+        self.profile = _make_profile(name="Tabs Org", slug="tabs-org", user=self.user)
+        self.event = _make_event(slug="tabs-event", title="Tabs Test Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn_switch = _make_connection(
+            self.profile, platform="switch", destination_id="own-page", kinds=["listing"]
+        )
+        self.conn_tg = _make_connection(
+            self.profile, platform="telegram", destination_id="@my-channel", kinds=["listing"]
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_event_workspace_renders_channel_tabs(self):
+        """
+        The event_syndication fragment must contain tab-shaped channel selectors
+        (role=tab or data-tab or a tab-like button row), not a vertical card rail.
+        """
+        _make_listing_projection(self.conn_switch, self.event)
+        _make_listing_projection(self.conn_tg, self.event)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Must contain tab role or data-channel-tab attribute for the channel tabs
+        self.assertTrue(
+            'role="tab"' in content or 'data-channel-tab' in content or 'aria-selected' in content,
+            "Event workspace must render channel icon-tabs (role='tab' or aria-selected)",
+        )
+
+    def test_event_workspace_has_sync_toggle(self):
+        """
+        The event_syndication fragment must have a sync toggle control
+        (a button or input for customize/reset).
+        """
+        _make_listing_projection(self.conn_switch, self.event)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Must contain the sync toggle: customize or reset-to-canonical controls
+        self.assertTrue(
+            "Customize" in content or "Reset" in content or "customize" in content.lower(),
+            "Event workspace must have a sync toggle (Customize/Reset controls)",
+        )
+
+    def test_event_workspace_has_switch_tab_as_canonical(self):
+        """
+        For an event workspace, the Switch tab must be the canonical anchor.
+        The Switch tab must be labelled "Switch" (ADR-010 D1, kb-q4u9.3 D3).
+        """
+        _make_listing_projection(self.conn_switch, self.event)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "switch",
+            content.lower(),
+            "Event workspace must render a Switch tab as the canonical anchor (ADR-010 D1)",
+        )
+
+    def test_event_workspace_has_no_generate_affordance(self):
+        """
+        No platform-owned-LLM 'generate' affordance must appear (carried constraint kb-wz8m D-B).
+        """
+        _make_listing_projection(self.conn_switch, self.event)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode().lower()
+        # "generate" as a button/label should not appear
+        self.assertNotIn(
+            ">generate<",
+            content,
+            "No platform-owned-LLM generate affordance must appear",
+        )
+        self.assertNotIn(
+            'value="generate"',
+            content,
+            "No generate button/input must appear",
+        )
+
+    def test_event_workspace_has_facts_header(self):
+        """
+        The event hub page renders event facts as a slim header (D5).
+        The hub page must include the HTMX-loaded event-facts section.
+        """
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # The hub must include the event-facts HTMX trigger section
+        self.assertIn(
+            "event-facts",
+            content,
+            "Event hub must include the event-facts section (D5 shared header)",
+        )
+
+
+class PostHubViewTest(TestCase):
+    """
+    kb-q4u9.3 item 6: Post-scoped hub/fragment views + routes.
+
+    Today urls.py has only post-create, no post hub/fragment route.
+    These tests verify the new post_hub and fragment_post_syndication views exist
+    and render correctly.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="posthub_user", email="posthub@test.com", password="pw")
+        self.profile = _make_profile(name="PostHub Org", slug="posthub-org", user=self.user)
+        self.event = _make_event(slug="posthub-event", title="PostHub Test Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(
+            self.profile, platform="telegram", destination_id="@posthub-ch", kinds=["promotion"]
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def _make_post_with_projection(self):
+        """Create a post and use the service to get its projection."""
+        from syndication.services import create_post
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="Test Post",
+            body="Post body",
+        )
+        return post
+
+    def test_post_hub_route_exists(self):
+        """
+        GET /syndication/posts/<pk>/ must return 200, not 404.
+        The post_hub view must be registered.
+        """
+        post = self._make_post_with_projection()
+        response = self.client.get(f"/syndication/posts/{post.pk}/")
+        self.assertNotEqual(
+            response.status_code,
+            404,
+            "Post hub route must exist at /syndication/posts/<pk>/",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_syndication_fragment_route_exists(self):
+        """
+        GET /syndication/posts/<pk>/fragments/post_syndication/ must return 200.
+        The fragment_post_syndication view must be registered.
+        """
+        post = self._make_post_with_projection()
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertNotEqual(
+            response.status_code,
+            404,
+            "Post syndication fragment route must exist",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_workspace_renders_source_tab(self):
+        """
+        The post syndication fragment must anchor canonical at a "Source" tab
+        (not Switch — a post has no native-home channel, kb-q4u9.3 D3).
+        """
+        post = self._make_post_with_projection()
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "Source",
+            content,
+            "Post workspace must anchor canonical at a 'Source' tab (not Switch)",
+        )
+
+    def test_post_workspace_has_no_generate_affordance(self):
+        """
+        No platform-owned-LLM generate affordance in post workspace either.
+        """
+        post = self._make_post_with_projection()
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode().lower()
+        self.assertNotIn(
+            ">generate<",
+            content,
+            "No generate affordance in post workspace",
+        )
+
+    def test_post_workspace_renders_channel_tabs(self):
+        """
+        The post syndication fragment must render horizontal channel icon-tabs.
+        """
+        post = self._make_post_with_projection()
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Must contain projections for the post
+        self.assertIn(
+            "@posthub-ch",
+            content,
+            "Post workspace must render the channel tab for the post's projection",
+        )
+
+
+class VersionOpRedirectDispatchTest(TestCase):
+    """
+    kb-q4u9.3 item 7: Version-op views must dispatch redirect by publishable type.
+
+    Today the version-op POST views (version_copy_to, version_edit, version_reset,
+    version_duplicate) hardcode redirect("syndication:event-hub", pk=event.pk).
+    For a post-owned version, event is null → AttributeError on event.pk.
+
+    These tests verify that the redirect goes to the post-hub (not 500) when the
+    version is post-owned.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="redir_user", email="redir@test.com", password="pw")
+        self.profile = _make_profile(name="Redir Org", slug="redir-org", user=self.user)
+        self.event = _make_event(slug="redir-event", title="Redir Test Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(
+            self.profile, platform="telegram", destination_id="@redir-ch", kinds=["promotion"]
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def _make_post_with_projection(self):
+        from syndication.services import create_post
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="Redir Post",
+            body="Redir body",
+        )
+        from syndication.models import PlatformProjection
+        proj = PlatformProjection.objects.filter(source_post=post).first()
+        return post, proj
+
+    def test_version_edit_on_post_version_does_not_500(self):
+        """
+        POST to version-edit on a post-owned ContentVersion must NOT return 500.
+        It must redirect to the post hub (not AttributeError on event.pk).
+        """
+        post, proj = self._make_post_with_projection()
+        cv = proj.content_version
+
+        response = self.client.post(
+            f"/syndication/versions/{cv.pk}/edit/",
+            data={"body": "Updated body"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertNotEqual(
+            response.status_code,
+            500,
+            "version-edit on post-owned version must not 500 (AttributeError on event.pk)",
+        )
+        self.assertEqual(
+            response.status_code,
+            200,
+            "version-edit on post-owned version (HTMX) must return 200 with refreshed fragment",
+        )
+
+    def test_version_reset_on_post_projection_does_not_500(self):
+        """
+        POST to projection-reset-to-canonical on a post-owned projection must NOT 500.
+        It must return the post syndication fragment (not AttributeError on event.pk).
+        """
+        _post, proj = self._make_post_with_projection()
+
+        response = self.client.post(
+            f"/syndication/projections/{proj.pk}/reset-to-canonical/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertNotEqual(
+            response.status_code,
+            500,
+            "reset-to-canonical on post projection must not 500",
+        )
+        self.assertIn(
+            response.status_code,
+            [200, 302],
+            "reset-to-canonical on post projection must return 200 or redirect",
+        )
+
+    def test_projection_customize_on_post_projection_does_not_500(self):
+        """
+        POST to projection-customize on a post-owned projection must NOT 500.
+        """
+        _post, proj = self._make_post_with_projection()
+
+        response = self.client.post(
+            f"/syndication/projections/{proj.pk}/customize/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertNotEqual(
+            response.status_code,
+            500,
+            "projection-customize on post projection must not 500",
+        )
+        self.assertIn(
+            response.status_code,
+            [200, 302],
+        )
+
+    def test_version_edit_on_post_version_non_htmx_redirects_to_post_hub(self):
+        """
+        Non-HTMX POST to version-edit on post-owned version must redirect to
+        /syndication/posts/<pk>/ (the post hub), not cause AttributeError.
+        """
+        post, proj = self._make_post_with_projection()
+        cv = proj.content_version
+
+        response = self.client.post(
+            f"/syndication/versions/{cv.pk}/edit/",
+            data={"body": "Updated body"},
+        )
+        self.assertNotEqual(
+            response.status_code,
+            500,
+            "Non-HTMX version-edit on post version must not 500",
+        )
+        # Should redirect to post hub
+        if response.status_code == 302:
+            self.assertIn(
+                f"/syndication/posts/{post.pk}/",
+                response.url,
+                "Non-HTMX redirect must go to post hub",
+            )

@@ -19,6 +19,7 @@ dispatcher — each fragment is a named, explicit URL).
 """
 
 import json
+import logging as _views_logger_mod
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -47,6 +48,7 @@ from syndication.services import (
     reset_to_canonical,
     edit_version,
     content_version_consumers_map,
+    _resolve_publishable_for_cv,
 )
 
 
@@ -330,6 +332,94 @@ def fragment_event_syndication(request, pk, *, action_error=None):
 
 
 # ---------------------------------------------------------------------------
+# Post hub and fragment (kb-q4u9.3)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def post_hub(request, pk):
+    """
+    Post detail hub page — the per-post Typefully workspace.
+
+    Analogous to event_hub but scoped to a Post publishable.
+    Composes the post_syndication fragment via HTMX.
+    ADR-008 D2: no tab framework speculation — explicit, named fragment.
+    """
+    post = get_object_or_404(Post, pk=pk)
+    event = post.event
+    user_can_edit = can_edit(request.user, event)
+    return render(request, "syndication/post_hub.html", {
+        "post": post,
+        "event": event,
+        "can_edit": user_can_edit,
+    })
+
+
+@login_required
+def fragment_post_syndication(request, pk, *, action_error=None):
+    """
+    post_syndication fragment: the per-post Typefully composer workspace.
+
+    Shows the post's per-channel ContentVersions (promotion projections).
+    Canonical is anchored at a "Source" tab (a post has no native-home channel,
+    unlike events which anchor at Switch — kb-q4u9.3 D3, ADR-008 D2).
+
+    Context mirrors fragment_event_syndication but scoped to the post's
+    projections and its own canonical ContentVersion.
+
+    Alpine 3.x: each swapped partial must carry its own x-data root.
+    """
+    from syndication.engine import render_projection
+    import logging as _logging
+
+    _logger = _logging.getLogger(__name__)
+
+    post = get_object_or_404(Post, pk=pk)
+    event = post.event
+    user_can_edit = can_edit(request.user, event)
+    user_can_publish = can_publish(request.user, event)
+
+    projections = list(
+        PlatformProjection.objects.filter(
+            source_post=post
+        ).select_related("connection", "source_post")
+        .order_by("connection__platform")
+    )
+
+    rendered_rows = {}
+    projection_rows = []
+    for proj in projections:
+        render_error = False
+        try:
+            body = render_projection(proj)
+        except ValueError as exc:
+            render_error = True
+            body = str(exc)
+            _logger.warning("render_projection failed for post projection %r: %s", proj.pk, exc)
+        rendered_rows[proj.pk] = body
+        projection_rows.append({"projection": proj, "body": body, "render_error": render_error})
+
+    consumers_map = content_version_consumers_map(post=post)
+
+    has_ready_projections = any(
+        row["projection"].status == "ready" for row in projection_rows
+    )
+
+    return render(request, "syndication/fragments/post_syndication.html", {
+        "post": post,
+        "event": event,
+        "projections": projections,
+        "projection_rows": projection_rows,
+        "rendered_rows": rendered_rows,
+        "can_edit": user_can_edit,
+        "can_publish": user_can_publish,
+        "action_error": action_error,
+        "consumers_map": consumers_map,
+        "has_ready_projections": has_ready_projections,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Post creation (scoped to Event)
 # ---------------------------------------------------------------------------
 
@@ -476,7 +566,75 @@ def _syndication_fragment_response(request, event):
     return fragment_event_syndication(request, pk=event.pk)
 
 
-import logging as _views_logger_mod
+def _post_syndication_fragment_response(request, post):
+    """
+    Return the post_syndication fragment for the given post.
+    Post-scoped counterpart to _syndication_fragment_response (kb-q4u9.3).
+    ADR-008 D2: explicit named delegate, no generic dispatcher.
+    """
+    return fragment_post_syndication(request, pk=post.pk)
+
+
+def _publishable_hub_redirect(proj):
+    """
+    Return the URL for the hub page of the projection's publishable (event or post).
+
+    Dispatches by publishable type so version-op views don't AttributeError when
+    a ContentVersion is post-owned (event is null). kb-q4u9.3 item 7.
+
+    listing → event hub
+    promotion → post hub (source_post)
+    """
+    if proj.kind == PlatformProjection.Kind.LISTING:
+        return redirect("syndication:event-hub", pk=proj.source_event.pk)
+    if proj.kind == PlatformProjection.Kind.PROMOTION:
+        return redirect("syndication:post-hub", pk=proj.source_post.pk)
+    raise ValueError(f"Unknown projection kind {proj.kind!r}")
+
+
+def _publishable_hub_redirect_for_cv(content_version):
+    """
+    Return the hub redirect for the publishable owning a ContentVersion.
+
+    For version-op views that operate on ContentVersion directly (version_edit,
+    version_duplicate, version_copy_to) and need to redirect after the op.
+    kb-q4u9.3 item 7: dispatch by publishable type (event-hub vs post-hub).
+    """
+    event, post = _resolve_publishable_for_cv(content_version)
+    if event is not None:
+        return redirect("syndication:event-hub", pk=event.pk)
+    return redirect("syndication:post-hub", pk=post.pk)
+
+
+def _publishable_fragment_response(request, proj):
+    """
+    Return the refreshed syndication fragment for the projection's publishable.
+
+    Dispatches by publishable type (event → event_syndication fragment;
+    post → post_syndication fragment). kb-q4u9.3 item 7.
+    """
+    if proj.kind == PlatformProjection.Kind.LISTING:
+        return fragment_event_syndication(request, pk=proj.source_event.pk)
+    if proj.kind == PlatformProjection.Kind.PROMOTION:
+        return fragment_post_syndication(request, pk=proj.source_post.pk)
+    raise ValueError(f"Unknown projection kind {proj.kind!r}")
+
+
+def _publishable_fragment_response_for_cv(request, content_version, action_error=None):
+    """
+    Return the refreshed syndication fragment for a ContentVersion's publishable.
+
+    For version-op views that operate directly on ContentVersion.
+    kb-q4u9.3 item 7: dispatch by publishable type.
+    """
+    event, post = _resolve_publishable_for_cv(content_version)
+    if event is not None:
+        return fragment_event_syndication(
+            request, pk=event.pk, action_error=action_error
+        )
+    return fragment_post_syndication(request, pk=post.pk, action_error=action_error)
+
+
 _views_logger = _views_logger_mod.getLogger(__name__)
 
 
@@ -502,7 +660,7 @@ def projection_approve(request, pk):
     proj = get_object_or_404(PlatformProjection, pk=pk)
     event = _resolve_projection_event(proj)
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     try:
         approve_projection(user=request.user, projection=proj)
@@ -512,11 +670,11 @@ def projection_approve(request, pk):
         # ADR-008 D3: fail loud — surface the error, never return success-shaped output
         if request.headers.get("HX-Request"):
             return _projection_transition_error_response(request, exc, event)
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
 
 
 @login_required
@@ -530,7 +688,7 @@ def projection_publish(request, pk):
     proj = get_object_or_404(PlatformProjection, pk=pk)
     event = _resolve_projection_event(proj)
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     try:
         publish_projection(user=request.user, projection=proj)
@@ -540,11 +698,11 @@ def projection_publish(request, pk):
         # ADR-008 D3: fail loud — surface the error, never return success-shaped output
         if request.headers.get("HX-Request"):
             return _projection_transition_error_response(request, exc, event)
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
 
 
 @login_required
@@ -559,7 +717,7 @@ def projection_mark_published(request, pk):
     proj = get_object_or_404(PlatformProjection, pk=pk)
     event = _resolve_projection_event(proj)
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     try:
         mark_projection_published(user=request.user, projection=proj)
@@ -569,11 +727,11 @@ def projection_mark_published(request, pk):
         # ADR-008 D3: fail loud — surface the error, never return success-shaped output
         if request.headers.get("HX-Request"):
             return _projection_transition_error_response(request, exc, event)
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
 
 
 # ---------------------------------------------------------------------------
@@ -596,51 +754,50 @@ def projection_customize(request, pk):
     ADR-008 D3: PermissionError → 403; ValueError → fail-loud error state.
     """
     proj = get_object_or_404(PlatformProjection, pk=pk)
-    event = _resolve_projection_event(proj)
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     try:
         customize(user=request.user, projection=proj)
     except PermissionError:
         return render(request, "syndication/403.html", {}, status=403)
-    except ValueError as exc:
+    except ValueError:
         if request.headers.get("HX-Request"):
-            return _projection_transition_error_response(request, exc, event)
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response(request, proj)
+        return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
 
 
 @login_required
 def projection_reset_to_canonical(request, pk):
     """
-    Reset-to-canonical: repoint the projection's FK back at the event's
+    Reset-to-canonical: repoint the projection's FK back at the publishable's
     canonical ContentVersion (re-enters single-row sharing).
 
     POST only. Calls reset_to_canonical(user, projection) service.
     HTMX-aware: returns refreshed syndication fragment on HX-Request.
     ADR-008 D3: PermissionError → 403; ValueError (missing canonical) → fail loud.
+    kb-q4u9.3 item 7: dispatch by publishable type (event-hub vs post-hub).
     """
     proj = get_object_or_404(PlatformProjection, pk=pk)
-    event = _resolve_projection_event(proj)
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(proj)
 
     try:
         reset_to_canonical(user=request.user, projection=proj)
     except PermissionError:
         return render(request, "syndication/403.html", {}, status=403)
-    except ValueError as exc:
+    except ValueError:
         if request.headers.get("HX-Request"):
-            return _projection_transition_error_response(request, exc, event)
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response(request, proj)
+        return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
 
 
 @login_required
@@ -657,10 +814,9 @@ def version_copy_to(request, pk):
     from syndication.models import ContentVersion
 
     source_version = get_object_or_404(ContentVersion, pk=pk)
-    event = source_version.event
 
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect_for_cv(source_version)
 
     # Parse target_projection_pks: supports comma-separated string or multi-value
     raw_pks = request.POST.getlist("target_projection_pks")
@@ -670,8 +826,8 @@ def version_copy_to(request, pk):
 
     if not target_pks:
         if request.headers.get("HX-Request"):
-            return _syndication_fragment_response(request, event)
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response_for_cv(request, source_version)
+        return _publishable_hub_redirect_for_cv(source_version)
 
     target_projections = list(
         PlatformProjection.objects.filter(pk__in=target_pks)
@@ -683,13 +839,14 @@ def version_copy_to(request, pk):
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
         if request.headers.get("HX-Request"):
-            # Return error state with event context
-            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response_for_cv(
+                request, source_version, action_error=str(exc)
+            )
+        return _publishable_hub_redirect_for_cv(source_version)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response_for_cv(request, source_version)
+    return _publishable_hub_redirect_for_cv(source_version)
 
 
 @login_required
@@ -706,10 +863,9 @@ def version_edit(request, pk):
     from syndication.models import ContentVersion
 
     version = get_object_or_404(ContentVersion, pk=pk)
-    event = version.event
 
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect_for_cv(version)
 
     # Collect editorial fields from POST (only known fields; services.py filters unknowns)
     fields = {}
@@ -723,12 +879,14 @@ def version_edit(request, pk):
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
         if request.headers.get("HX-Request"):
-            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response_for_cv(
+                request, version, action_error=str(exc)
+            )
+        return _publishable_hub_redirect_for_cv(version)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response_for_cv(request, version)
+    return _publishable_hub_redirect_for_cv(version)
 
 
 @login_required
@@ -744,10 +902,9 @@ def version_duplicate(request, pk):
     from syndication.models import ContentVersion
 
     version = get_object_or_404(ContentVersion, pk=pk)
-    event = version.event
 
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect_for_cv(version)
 
     try:
         duplicate(user=request.user, version=version)
@@ -755,12 +912,14 @@ def version_duplicate(request, pk):
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
         if request.headers.get("HX-Request"):
-            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response_for_cv(
+                request, version, action_error=str(exc)
+            )
+        return _publishable_hub_redirect_for_cv(version)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response_for_cv(request, version)
+    return _publishable_hub_redirect_for_cv(version)
 
 
 @login_required
@@ -777,16 +936,15 @@ def version_copy_from(request, pk):
     from syndication.models import ContentVersion
 
     projection = get_object_or_404(PlatformProjection, pk=pk)
-    event = _resolve_projection_event(projection)
 
     if request.method != "POST":
-        return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_hub_redirect(projection)
 
     source_version_pk = request.POST.get("source_version_pk", "").strip()
     if not source_version_pk:
         if request.headers.get("HX-Request"):
-            return _syndication_fragment_response(request, event)
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response(request, projection)
+        return _publishable_hub_redirect(projection)
 
     source_version = get_object_or_404(ContentVersion, pk=source_version_pk)
 
@@ -794,14 +952,14 @@ def version_copy_from(request, pk):
         copy_from(user=request.user, projection=projection, source_version=source_version)
     except PermissionError:
         return render(request, "syndication/403.html", {}, status=403)
-    except ValueError as exc:
+    except ValueError:
         if request.headers.get("HX-Request"):
-            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
-        return redirect("syndication:event-hub", pk=event.pk)
+            return _publishable_fragment_response(request, projection)
+        return _publishable_hub_redirect(projection)
 
     if request.headers.get("HX-Request"):
-        return _syndication_fragment_response(request, event)
-    return redirect("syndication:event-hub", pk=event.pk)
+        return _publishable_fragment_response(request, projection)
+    return _publishable_hub_redirect(projection)
 
 
 @login_required

@@ -1,24 +1,27 @@
 {% load i18n %}
-{# event_syndication fragment — Typefully-shaped composer workspace (kb-q4u9.3) #}
-{# Horizontal channel icon-tabs; canonical anchored at Switch tab (ADR-010 D1). #}
+{# post_syndication fragment — Typefully-shaped post composer workspace (kb-q4u9.3) #}
+{# Horizontal channel icon-tabs; canonical anchored at "Source" tab (no native-home channel). #}
 {# Alpine 3.x: own x-data root required on each HTMX swap target. #}
-
 {% with first_pk=projection_rows.0.projection.pk %}
-<section id="event-syndication"
+<section id="post-syndication"
   x-data="{ selectedPk: {{ first_pk|default:'null' }} }">
 
-  <div class="flex items-center justify-between mb-6 gap-3">
-    <h2 class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Syndication" %}</h2>
+  <div class="flex items-center justify-between mb-5 gap-3">
     <div class="flex items-center gap-2">
-      <a href="{% url 'syndication:review-all' event_pk=event.pk %}"
-         class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
-        {% trans "Review all" %}
+      <span class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/35">{% trans "Source" %}</span>
+      <span class="text-base-content/20 text-[10px] select-none">·</span>
+      <span class="kb-mono text-[9px] text-base-content/40">{{ post.headline }}</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+         class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors">
+        {% trans "Event hub" %} ↗
       </a>
       {% if can_publish and projection_rows and has_ready_projections %}
       <form method="post"
             action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
             hx-post="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
-            hx-target="#event-syndication"
+            hx-target="#post-syndication"
             hx-swap="outerHTML">
         {% csrf_token %}
         <button type="submit"
@@ -39,37 +42,26 @@
   </div>
   {% endif %}
 
-  {% if not has_connections %}
+  {% if not projection_rows %}
   <div class="py-10">
     <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-3">
-      {% trans "No platforms connected yet" %}
+      {% trans "No channels yet" %}
     </p>
     <p class="text-[13px] text-base-content/50 mb-5 max-w-md leading-relaxed">
-      {% trans "Connect Telegram, FetLife, or Switch to start syndicating this event across channels." %}
+      {% trans "Connect Telegram, FetLife, or other platforms to publish this post." %}
     </p>
-    {% if can_edit %}
-    <a href="{% url 'syndication:connections-list' %}" class="kb-btn-secondary text-[10px] inline-block">
-      {% trans "Connect platforms" %}
-    </a>
-    {% endif %}
   </div>
 
-  {% elif no_promo_posts and not projections %}
-  <div class="py-10">
-    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-3">
-      {% trans "No promo posts yet" %}
-    </p>
-    <p class="text-[13px] text-base-content/50 mb-5 max-w-md leading-relaxed">
-      {% trans "Add a promotional post to fan out across your connected channels." %}
-    </p>
-    {% if can_edit %}
-    <a href="{% url 'syndication:post-create' event_pk=event.pk %}" class="kb-btn-secondary text-[10px] inline-block">
-      {% trans "Add promo message" %}
-    </a>
-    {% endif %}
+  {% else %}
+
+  <div class="mb-5">
+    <p class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/28 mb-2">{% trans "Source" %}</p>
+    <div class="px-3 py-2.5 border" style="border-color: rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);">
+      <p class="text-[12px] text-base-content/60 leading-relaxed">{{ post.body|default:"—" }}</p>
+    </div>
   </div>
 
-  {% elif projection_rows %}
+  <div class="kb-rule mb-5"></div>
 
   <div class="flex items-start gap-1 mb-5 overflow-x-auto pb-1" role="tablist" aria-label="{% trans 'Channels' %}">
 
@@ -100,8 +92,8 @@
       </span>
 
       {% if consumers_map %}
-        {% for cv, consumers in consumers_map.items %}
-          {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
+        {% for cv, cv_consumers in consumers_map.items %}
+          {% if cv.pk == proj.content_version.pk and cv_consumers|length > 1 %}
           <span class="w-1 h-1 rounded-full bg-emerald-400/70 shrink-0"></span>
           {% endif %}
         {% endfor %}
@@ -114,13 +106,13 @@
   <div x-show="selectedPk === {{ proj.pk }}" x-cloak>
 
     {% if consumers_map %}
-      {% for cv, consumers in consumers_map.items %}
-        {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
+      {% for cv, cv_consumers in consumers_map.items %}
+        {% if cv.pk == proj.content_version.pk and cv_consumers|length > 1 %}
         <div class="flex items-start gap-2 px-3 py-2.5 mb-4"
              style="background: rgba(52, 211, 153, 0.05); border: 1px solid rgba(52, 211, 153, 0.16);">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shrink-0 mt-1"></span>
           <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-emerald-400/80 leading-relaxed">
-            {% trans "Live on" %} {% for consumer in consumers %}{{ consumer.connection.platform }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            {% trans "Live on" %} {% for consumer in cv_consumers %}{{ consumer.connection.platform }}{% if not forloop.last %}, {% endif %}{% endfor %}
             <span class="text-emerald-400/45"> · {% trans "editing here updates all these channels" %}</span>
           </span>
         </div>
@@ -128,95 +120,49 @@
       {% endfor %}
     {% endif %}
 
+    <div class="flex items-center gap-0 mb-4 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+      <span class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/22 mr-3 shrink-0">{% trans "Sync" %}</span>
+
+      <form method="post"
+            action="{% url 'syndication:projection-customize' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
+            hx-target="#post-syndication"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        <button type="submit"
+                class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
+          {% trans "Customize" %}
+        </button>
+      </form>
+
+      <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
+
+      <form method="post"
+            action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-target="#post-syndication"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        <button type="submit"
+                class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
+          {% trans "Reset" %}
+        </button>
+      </form>
+    </div>
+
     {% if can_edit and proj.status == 'draft' %}
-    <div class="mb-7">
-
-      <div class="flex items-center gap-0 mb-5 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07);">
-        <span class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/22 mr-3 shrink-0">{% trans "Sync" %}</span>
-
-        <form method="post"
-              action="{% url 'syndication:projection-customize' pk=proj.pk %}"
-              hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <button type="submit"
-                  class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
-            {% trans "Customize" %}
-          </button>
-        </form>
-
-        <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
-
-        <form method="post"
-              action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-              hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <button type="submit"
-                  class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
-            {% trans "Reset" %}
-          </button>
-        </form>
-
-        <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
-
-        <form method="post"
-              action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-              hx-post="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <button type="submit"
-                  class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
-            {% trans "Duplicate" %}
-          </button>
-        </form>
-
-        {% if projection_rows|length > 1 %}
-        <form method="post"
-              action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-              hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-              hx-target="#event-syndication"
-              hx-swap="outerHTML"
-              class="flex items-center gap-1.5 ml-auto">
-          {% csrf_token %}
-          <span class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
-          <div class="relative">
-            <select name="source_version_pk"
-                    class="kb-mono text-[8px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
-              {% for other_row in projection_rows %}
-                {% if other_row.projection.pk != proj.pk %}
-                <option value="{{ other_row.projection.content_version.pk }}">
-                  {{ other_row.projection.connection.platform }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
-                </option>
-                {% endif %}
-              {% endfor %}
-            </select>
-            <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28" aria-hidden="true">
-              <svg width="6" height="6" viewBox="0 0 8 8" fill="none"><path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-          </div>
-          <button type="submit"
-                  class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
-            {% trans "Apply" %}
-          </button>
-        </form>
-        {% endif %}
-      </div>
-
+    <div class="mb-6">
       <form method="post"
             action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
             hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
-            hx-target="#event-syndication"
+            hx-target="#post-syndication"
             hx-swap="outerHTML">
         {% csrf_token %}
         <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 block mb-3">
           {% trans "Body" %}
         </label>
         <textarea name="body"
-                  class="kb-textarea w-full min-h-[180px] resize-y"
+                  class="kb-textarea w-full min-h-[160px] resize-y"
                   style="padding-left: 0; padding-right: 0;"
                   placeholder="{% trans "Write the post body for this channel…" %}">{{ body }}</textarea>
         <div class="flex items-center gap-4 mt-4 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06);">
@@ -226,8 +172,6 @@
           </button>
           {% if proj.content_version.provenance == 'manual' %}
           <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-sky-400/45">{% trans "Edited" %}</span>
-          {% elif proj.content_version.provenance == 'agent_supplied' %}
-          <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-violet-400/45">{% trans "Agent" %}</span>
           {% endif %}
         </div>
       </form>
@@ -255,7 +199,7 @@
       <form method="post"
             action="{% url 'syndication:projection-approve' pk=proj.pk %}"
             hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
-            hx-target="#event-syndication"
+            hx-target="#post-syndication"
             hx-swap="outerHTML">
         {% csrf_token %}
         <button type="submit"
@@ -269,7 +213,7 @@
       <form method="post"
             action="{% url 'syndication:projection-publish' pk=proj.pk %}"
             hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
-            hx-target="#event-syndication"
+            hx-target="#post-syndication"
             hx-swap="outerHTML">
         {% csrf_token %}
         <button type="submit"
@@ -280,9 +224,9 @@
 
       {% if proj.connection.platform == 'fetlife' %}
       <div x-data="{ copied: false }" class="flex items-center">
-        <pre id="copy-body-{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
+        <pre id="copy-body-post-{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
         <button type="button"
-                @click="navigator.clipboard.writeText(document.getElementById('copy-body-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
+                @click="navigator.clipboard.writeText(document.getElementById('copy-body-post-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
                 class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
                 x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">
           {% trans "Copy" %}
@@ -293,7 +237,7 @@
       <form method="post"
             action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
             hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
-            hx-target="#event-syndication"
+            hx-target="#post-syndication"
             hx-swap="outerHTML">
         {% csrf_token %}
         <button type="submit"
@@ -307,7 +251,7 @@
       <form method="post"
             action="{% url 'syndication:projection-approve' pk=proj.pk %}"
             hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
-            hx-target="#event-syndication"
+            hx-target="#post-syndication"
             hx-swap="outerHTML">
         {% csrf_token %}
         <button type="submit"
@@ -323,17 +267,6 @@
   </div>
   {% endwith %}{% endfor %}
 
-  {% else %}
-  <div class="py-8">
-    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/35 mb-5">
-      {% trans "No projections yet" %}
-    </p>
-    {% if can_edit %}
-    <a href="{% url 'syndication:post-create' event_pk=event.pk %}" class="kb-btn-secondary text-[10px] inline-block">
-      {% trans "Add promo message" %}
-    </a>
-    {% endif %}
-  </div>
   {% endif %}
 
 </section>

@@ -48,6 +48,16 @@ urlpatterns = [
         name="post-create",
     ),
 
+    # --- Post hub + fragment (kb-q4u9.3) ---
+    # Post-scoped workspace: analogous to event-hub but for a Post publishable.
+    # "Source" tab anchors the canonical (a post has no native-home channel).
+    path("posts/<int:pk>/", views.post_hub, name="post-hub"),
+    path(
+        "posts/<int:pk>/fragments/post_syndication/",
+        views.fragment_post_syndication,
+        name="fragment-post-syndication",
+    ),
+
     # --- PlatformConnections ---
     path("connections/", views.connections_list, name="connections-list"),
     path("connections/new/", views.connection_create, name="connection-create"),
