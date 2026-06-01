@@ -40,6 +40,7 @@ from syndication.services import (
     publish_projection,
     mark_projection_published,
     publish_all_ready_projections,
+    publish_all_ready_projections_for_post,
     _resolve_projection_event,
     customize,
     copy_to,
@@ -1122,3 +1123,41 @@ def projection_batch_publish(request, event_pk):
     if request.headers.get("HX-Request"):
         return _syndication_fragment_response(request, event)
     return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def post_projection_batch_publish(request, pk):
+    """
+    Batch-publish all ready promotion projections for a single post.
+
+    POST only. Calls publish_all_ready_projections_for_post service.
+    HTMX-aware: returns refreshed post_syndication fragment on HX-Request.
+
+    Post-scoped counterpart to projection_batch_publish (kb-q4u9.6 MATERIAL FIX 1).
+    The event-scoped view wires the whole event; this view scopes to one post.
+    On success returns the POST fragment (_post_syndication_fragment_response),
+    NOT the event fragment — the post template's hx-target is #post-syndication.
+    """
+    post = get_object_or_404(Post, pk=pk)
+    if request.method != "POST":
+        return redirect("syndication:post-hub", pk=post.pk)
+
+    try:
+        _published, failures = publish_all_ready_projections_for_post(
+            user=request.user, post=post
+        )
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+
+    if failures:
+        # ADR-008 D3: fail loud — surface per-projection errors as visible error state.
+        failed_descs = ", ".join(str(proj.pk) for proj, _ in failures)
+        first_exc = failures[0][1]
+        error_msg = (
+            f"Partial publish failure (projections: {failed_descs}): {first_exc}"
+        )
+        return fragment_post_syndication(request, pk=post.pk, action_error=error_msg)
+
+    if request.headers.get("HX-Request"):
+        return _post_syndication_fragment_response(request, post)
+    return redirect("syndication:post-hub", pk=post.pk)

@@ -720,9 +720,12 @@ def _unique_copy_name(source_name):
     """
     Generate a unique name for a new ContentVersion copied from source_name.
 
-    The (event, name) pair is UNIQUE-constrained; callers creating multiple
-    copies of the same source in one operation would collide on a plain
-    "copy-of-<name>" slug. A short UUID suffix guarantees uniqueness.
+    The name uniqueness is enforced by two partial constraints (migration 0006):
+    - (event, name) WHERE event IS NOT NULL
+    - (post, name) WHERE post IS NOT NULL
+    Callers creating multiple copies of the same source in one operation
+    would collide on a plain "copy-of-<name>" slug. A short UUID suffix
+    guarantees uniqueness across both partial constraints.
     """
     import uuid as _uuid
     suffix = _uuid.uuid4().hex[:8]
@@ -1231,6 +1234,53 @@ def publish_all_ready_projections(user, event):
             # ADR-008 D3: collect per-item ValueError (adapter data/transport
             # failure) so one channel failing doesn't abort the batch.
             # Caller is responsible for surfacing failures as a visible error state.
+            # PermissionError and unexpected exceptions propagate (fail loud).
+            failures.append((proj, exc))
+
+    return published, failures
+
+
+def publish_all_ready_projections_for_post(user, post):
+    """
+    Batch-publish every ready promotion projection for the given post.
+
+    Scoped to a single Post publishable — only publishes ready projections
+    with source_post=post. Does NOT touch listing projections or projections
+    of sibling posts under the same event.
+
+    Gate: user must be able to publish the post's event (can_publish seam,
+    ADR-017 D2). Raises PermissionError if user lacks publish authority.
+
+    Returns (published, failures) where failures is a list of (proj, exc) tuples.
+    Per-item adapter failures are collected (publish the rest) — ADR-008 D3.
+
+    Co-equal seam (ADR-016 D6): called by the HTMX view and usable from the API.
+    """
+    from syndication.authz import can_publish
+    from syndication.models import PlatformProjection
+
+    event = post.event
+    if not can_publish(user, event):
+        raise PermissionError(
+            f"User {user} cannot publish projections for post '{post}' "
+            f"(event '{event}'). (ADR-017 D2)"
+        )
+
+    ready_projections = list(
+        PlatformProjection.objects.filter(
+            source_post=post, status=PlatformProjection.Status.READY
+        )
+    )
+
+    published = []
+    failures = []
+    for proj in ready_projections:
+        try:
+            publish_projection(user, proj)
+            published.append(proj)
+        except ValueError as exc:
+            # ADR-008 D3: collect per-item ValueError so one channel failing
+            # does not abort the batch. Caller surfaces failures as visible error.
             # PermissionError and unexpected exceptions propagate (fail loud).
             failures.append((proj, exc))
 

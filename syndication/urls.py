@@ -86,6 +86,11 @@ urlpatterns = [
         views.projection_batch_publish,
         name="projection-batch-publish",
     ),
+    path(
+        "posts/<int:pk>/projections/publish-all-ready/",
+        views.post_projection_batch_publish,
+        name="post-projection-batch-publish",
+    ),
 
     # --- Version-op endpoints (kb-wz8m.5) ---
     # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).

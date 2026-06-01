@@ -6,17 +6,18 @@
   <div class="flex items-center justify-between mb-4">
     <h2 class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45">{% trans "Event facts" %}</h2>
     {% if can_edit %}
-    <a href="{% url 'syndication:event-edit' pk=event.pk %}"
-       class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40 hover:text-base-content transition-colors">
-      {% trans "Edit" %} ↗
-    </a>
+      <a href="{% url 'syndication:event-edit' pk=event.pk %}"
+         class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40 hover:text-base-content transition-colors">
+        {% trans "Edit" %} ↗
+      </a>
     {% endif %}
   </div>
-
   <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
     <div>
       <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Title" %}</dt>
-      <dd class="text-base-content/90 mt-1">{{ event.title }}</dd>
+      <dd class="text-base-content/90 mt-1">
+        {{ event.title }}
+      </dd>
     </div>
     <div>
       <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Status" %}</dt>
@@ -28,53 +29,74 @@
     </div>
     <div>
       <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Start" %}</dt>
-      <dd class="text-base-content/90 mt-1">{{ event.start|date:"D, d F Y · H:i" }}</dd>
-    </div>
-    {% if event.end %}
-    <div>
-      <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "End" %}</dt>
-      <dd class="text-base-content/90 mt-1">{{ event.end|date:"H:i" }}</dd>
-    </div>
-    {% endif %}
-    {% if event.description %}
-    <div class="sm:col-span-2">
-      <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Description" %}</dt>
-      <dd class="text-base-content/85 mt-1 leading-relaxed">{{ event.description|truncatewords:40 }}</dd>
-    </div>
-    {% endif %}
-    {% if event.dress_code %}
-    <div>
-      <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Dress code" %}</dt>
-      <dd class="text-base-content/90 mt-1">{{ event.dress_code }}</dd>
-    </div>
-    {% endif %}
-    {% if event.age_restriction %}
-    <div>
-      <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Age" %}</dt>
-      <dd class="text-base-content/90 mt-1">{{ event.age_restriction }}+</dd>
-    </div>
-    {% endif %}
-    {% if event.capacity %}
-    <div>
-      <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Capacity" %}</dt>
-      <dd class="text-base-content/90 mt-1">{{ event.capacity }}</dd>
-    </div>
-    {% endif %}
-    {% if event.visibility %}
-    <div>
-      <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Visibility" %}</dt>
-      <dd class="text-base-content/90 mt-1">{{ event.get_visibility_display }}</dd>
-    </div>
-    {% endif %}
-    {% if event.content_warnings %}
-    <div class="sm:col-span-2">
-      <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Content warnings" %}</dt>
-      <dd class="flex flex-wrap gap-2 mt-1">
-        {% for cw in event.content_warnings %}
-          <span class="kb-tag normal-case">{{ cw }}</span>
-        {% endfor %}
+      <dd class="text-base-content/90 mt-1">
+        {{ event.start|date:"D, d F Y · H:i" }}
       </dd>
     </div>
+    {% if event.end %}
+      <div>
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "End" %}</dt>
+        <dd class="text-base-content/90 mt-1">
+          {{ event.end|date:"H:i" }}
+        </dd>
+      </div>
+    {% endif %}
+    {% if event.venue %}
+      <div>
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Venue" %}</dt>
+        <dd class="text-base-content/90 mt-1">
+          {{ event.venue.name }}
+          {% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+        </dd>
+      </div>
+    {% endif %}
+    {% if event.description %}
+      <div class="sm:col-span-2">
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Description" %}</dt>
+        <dd class="text-base-content/85 mt-1 leading-relaxed">
+          {{ event.description|truncatewords:40 }}
+        </dd>
+      </div>
+    {% endif %}
+    {% if event.dress_code %}
+      <div>
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Dress code" %}</dt>
+        <dd class="text-base-content/90 mt-1">
+          {{ event.dress_code }}
+        </dd>
+      </div>
+    {% endif %}
+    {% if event.age_restriction %}
+      <div>
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Age" %}</dt>
+        <dd class="text-base-content/90 mt-1">
+          {{ event.age_restriction }}+
+        </dd>
+      </div>
+    {% endif %}
+    {% if event.capacity %}
+      <div>
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Capacity" %}</dt>
+        <dd class="text-base-content/90 mt-1">
+          {{ event.capacity }}
+        </dd>
+      </div>
+    {% endif %}
+    {% if event.visibility %}
+      <div>
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Visibility" %}</dt>
+        <dd class="text-base-content/90 mt-1">
+          {{ event.get_visibility_display }}
+        </dd>
+      </div>
+    {% endif %}
+    {% if event.content_warnings %}
+      <div class="sm:col-span-2">
+        <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Content warnings" %}</dt>
+        <dd class="flex flex-wrap gap-2 mt-1">
+          {% for cw in event.content_warnings %}<span class="kb-tag normal-case">{{ cw }}</span>{% endfor %}
+        </dd>
+      </div>
     {% endif %}
   </dl>
 </section>

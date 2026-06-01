@@ -18,8 +18,8 @@
         </a>
         {% if can_publish and projection_rows and has_ready_projections %}
           <form method="post"
-                action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
-                hx-post="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
+                action="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
+                hx-post="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
                 hx-target="#post-syndication"
                 hx-swap="outerHTML">
             {% csrf_token %}

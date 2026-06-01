@@ -690,3 +690,340 @@ class AnchorConfirmationTest(TestCase):
             "for posts — the canonical anchor is the source content, not "
             "a channel tab).",
         )
+
+
+# ---------------------------------------------------------------------------
+# Post-scoped publish-all-ready seam (kb-q4u9.6 MATERIAL FIX 1).
+#
+# The event-scoped batch-publish was wired into the post workspace button.
+# This test proves the post-scoped endpoint:
+#   (a) each channel's adapter invoked with its OWN body,
+#   (b) projections under OTHER posts / the event's listing are NOT published,
+#   (c) the response is the POST fragment (not the event fragment).
+# ---------------------------------------------------------------------------
+
+
+class PostScopedPublishAllReadyTest(TestCase):
+    """
+    Prove the post-scoped publish-all-ready endpoint (kb-q4u9.6 MATERIAL FIX 1):
+
+    1. Create a post with ≥2 ready promotion projections carrying DIVERGENT bodies.
+    2. Create a second post + listing projection (must NOT be published by this call).
+    3. POST the post-scoped publish-all-ready endpoint.
+    4. Assert:
+       (a) Each channel's adapter invoked with its OWN body (mock httpx.post,
+           assert call_count == 2 and each call carries the right text).
+       (b) Projections under OTHER posts / the event's listing are NOT published.
+       (c) The response contains the post-workspace marker (id="post-syndication"),
+           NOT the event-syndication id — proves the POST fragment was returned.
+
+    ADR-016 D5: publish invokes the adapter with the channel's own frozen body.
+    ADR-008 D3: fail loud — no silent fallback on wrong fragment returned.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(
+            username="pbatch_user",
+            email="pbatch@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile(
+            name="PBatch Organizer",
+            slug="pbatch-organizer",
+            user=self.user,
+        )
+
+        self.event = Event.objects.create(
+            title="PBatch Event",
+            slug="pbatch-event",
+            start=timezone.now(),
+        )
+        EventOrganizer.objects.create(
+            event=self.event,
+            profile=self.profile,
+            is_primary=True,
+        )
+
+        # Two Telegram promotion connections for the post under test.
+        self.conn_tg_1 = _make_connection(
+            self.profile,
+            platform="telegram",
+            destination_id="@pbatch-ch-1",
+            kinds=["promotion"],
+            credentials={"bot_token": "fake-token-pbatch-1"},
+        )
+        self.conn_tg_2 = _make_connection(
+            self.profile,
+            platform="telegram",
+            destination_id="@pbatch-ch-2",
+            kinds=["promotion"],
+            credentials={"bot_token": "fake-token-pbatch-2"},
+        )
+
+        # FetLife listing connection — its projection must NOT be published
+        # by the post-scoped endpoint.
+        self.conn_fl = _make_connection(
+            self.profile,
+            platform="fetlife",
+            destination_id="fl-pbatch-001",
+            kinds=["listing"],
+        )
+
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_post_scoped_publish_all_ready_invokes_each_adapter_with_own_body_and_returns_post_fragment(self):
+        """
+        POST the post-scoped publish-all-ready endpoint for a post with two
+        divergent ready Telegram channels:
+
+        (a) httpx.post called exactly twice — once per channel — each with its
+            OWN divergent body (not the canonical body, not the other channel's body).
+        (b) Listing projection + projections under a different post remain DRAFT
+            (scoping: this call must NOT publish the whole event).
+        (c) response.content contains id="post-syndication" (the POST fragment),
+            and does NOT contain id="event-syndication" (the event fragment).
+        """
+        from syndication.services import create_post
+
+        # Primary post: two Telegram channels, divergent bodies.
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="PBatch Primary Post",
+            body="Canonical body for pbatch primary",
+        )
+
+        proj_1 = PlatformProjection.objects.get(
+            source_post=post,
+            connection=self.conn_tg_1,
+        )
+        proj_2 = PlatformProjection.objects.get(
+            source_post=post,
+            connection=self.conn_tg_2,
+        )
+
+        # Create a second post — its projections must NOT be published.
+        post_other = create_post(
+            user=self.user,
+            event=self.event,
+            headline="PBatch Other Post",
+            body="Other post body",
+        )
+        proj_other = PlatformProjection.objects.get(
+            source_post=post_other,
+            connection=self.conn_tg_1,
+        )
+
+        # Create listing projection — must NOT be published by post-scoped endpoint.
+        from syndication.models import ContentVersion
+        cv_listing = ContentVersion.objects.create(
+            event=self.event,
+            name="listing-cv",
+            provenance="rule_template",
+        )
+        proj_listing = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            source_event=self.event,
+            connection=self.conn_fl,
+            content_version=cv_listing,
+            status=PlatformProjection.Status.READY,
+        )
+
+        # Customize ch1 and ch2 to divergent bodies, then approve both.
+        body_1 = "PBATCH-DIVERGENT-BODY-CHANNEL-1"
+        body_2 = "PBATCH-DIVERGENT-BODY-CHANNEL-2"
+
+        self.client.post(
+            f"/syndication/projections/{proj_1.pk}/customize/",
+            HTTP_HX_REQUEST="true",
+        )
+        proj_1.refresh_from_db()
+        cv_1 = proj_1.content_version
+        self.client.post(
+            f"/syndication/versions/{cv_1.pk}/edit/",
+            {"body": body_1},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.client.post(
+            f"/syndication/projections/{proj_2.pk}/customize/",
+            HTTP_HX_REQUEST="true",
+        )
+        proj_2.refresh_from_db()
+        cv_2 = proj_2.content_version
+        self.client.post(
+            f"/syndication/versions/{cv_2.pk}/edit/",
+            {"body": body_2},
+            HTTP_HX_REQUEST="true",
+        )
+
+        # Approve both channels → ready status.
+        self.client.post(
+            f"/syndication/projections/{proj_1.pk}/approve/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.client.post(
+            f"/syndication/projections/{proj_2.pk}/approve/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        proj_1.refresh_from_db()
+        proj_2.refresh_from_db()
+        self.assertEqual(
+            proj_1.status,
+            PlatformProjection.Status.READY,
+            "Precondition: proj_1 must be READY.",
+        )
+        self.assertEqual(
+            proj_2.status,
+            PlatformProjection.Status.READY,
+            "Precondition: proj_2 must be READY.",
+        )
+
+        # POST the post-scoped publish-all-ready endpoint (mocking httpx.post).
+        with patch(
+            "syndication.adapters.httpx.post",
+            return_value=_fake_ok_response(),
+        ) as mock_post:
+            response = self.client.post(
+                f"/syndication/posts/{post.pk}/projections/publish-all-ready/",
+                HTTP_HX_REQUEST="true",
+            )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+            "Post-scoped publish-all-ready must return HTTP 200.",
+        )
+
+        # (a) httpx.post called exactly twice — one per channel.
+        self.assertEqual(
+            mock_post.call_count,
+            2,
+            "(a) httpx.post must be called exactly twice — once per ready channel "
+            "of the target post. Publishing the event-scope would call more times.",
+        )
+
+        # (a) Each channel was called with its OWN body.
+        called_texts = {
+            call.kwargs["json"]["text"] for call in mock_post.call_args_list
+        }
+        self.assertIn(
+            body_1,
+            called_texts,
+            "(a) Channel 1's adapter must be called with channel 1's OWN body.",
+        )
+        self.assertIn(
+            body_2,
+            called_texts,
+            "(a) Channel 2's adapter must be called with channel 2's OWN body.",
+        )
+
+        # (b) Other post's projection and listing projection must remain DRAFT / READY
+        # (untouched by this call).
+        proj_other.refresh_from_db()
+        self.assertNotEqual(
+            proj_other.status,
+            PlatformProjection.Status.PUBLISHED,
+            "(b) Other post's projection must NOT be published by post-scoped endpoint.",
+        )
+
+        proj_listing.refresh_from_db()
+        self.assertNotEqual(
+            proj_listing.status,
+            PlatformProjection.Status.PUBLISHED,
+            "(b) Listing projection must NOT be published by post-scoped endpoint.",
+        )
+
+        # (c) Response contains the POST fragment id, not the event fragment id.
+        content = response.content.decode("utf-8")
+        self.assertIn(
+            'id="post-syndication"',
+            content,
+            '(c) Response must contain the post-syndication fragment '
+            '(id="post-syndication") — not the event fragment.',
+        )
+        self.assertNotIn(
+            'id="event-syndication"',
+            content,
+            "(c) Response must NOT contain the event-syndication fragment id — "
+            "the post-scoped endpoint returns the post fragment only.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Post card navigation: post card in the event hub must link to the post
+# composer (syndication:post-hub). kb-q4u9.6 MATERIAL FIX 2.
+# ---------------------------------------------------------------------------
+
+
+class PostCardNavigationTest(TestCase):
+    """
+    Assert the event hub's post list renders each post card with a link to
+    the post-hub URL (/syndication/posts/<pk>/).
+
+    Parent acceptance bullet 1 / D1: "a flat list of publishables is navigable;
+    selecting one opens its composer."
+
+    Assertion: GET the event_posts fragment and check that the rendered HTML
+    contains a link href pointing to /syndication/posts/<post.pk>/.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(
+            username="pnav_user",
+            email="pnav@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile(
+            name="PNav Organizer",
+            slug="pnav-organizer",
+            user=self.user,
+        )
+
+        self.event = Event.objects.create(
+            title="PNav Event",
+            slug="pnav-event",
+            start=timezone.now(),
+        )
+        EventOrganizer.objects.create(
+            event=self.event,
+            profile=self.profile,
+            is_primary=True,
+        )
+
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_post_card_links_to_post_hub(self):
+        """
+        GET the event_posts fragment: each post card must render a link to
+        /syndication/posts/<pk>/ (the post composer / post-hub route).
+
+        Asserts on response.content (rendered bytes), not response.context.
+        """
+        from syndication.services import create_post
+
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="PNav Post Headline",
+            body="PNav post body",
+        )
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_posts/",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        content = response.content.decode("utf-8")
+        post_hub_url = f"/syndication/posts/{post.pk}/"
+
+        self.assertIn(
+            post_hub_url,
+            content,
+            f"event_posts fragment must contain a link to the post-hub URL "
+            f"({post_hub_url}). Selecting a post must open its composer "
+            "(parent acceptance bullet 1 / D1).",
+        )
