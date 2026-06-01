@@ -18,7 +18,6 @@ dependencies = [
     # Frontend seams
     "django-htmx>=1.22",
     "django-cotton>=2.1",
-    "django-template-partials>=25.1",
     "django-vite>=3.1",
     # Background jobs (Postgres ORM broker, no Redis)
     "django-q2>=1.8",

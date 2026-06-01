@@ -98,7 +98,6 @@ INSTALLED_APPS = [
     "django_htmx",
     "django_vite",
     "django_q",
-    "template_partials.apps.SimpleAppConfig",
     # local
     "a_core.apps.ACoreConfig",
     "accounts",
@@ -149,22 +148,16 @@ TEMPLATES = [
             ],
             "loaders": [
                 (
-                    "template_partials.loader.Loader",
+                    "django.template.loaders.cached.Loader",
                     [
-                        (
-                            "django.template.loaders.cached.Loader",
-                            [
-                                "django_cotton.cotton_loader.Loader",
-                                "django.template.loaders.filesystem.Loader",
-                                "django.template.loaders.app_directories.Loader",
-                            ],
-                        )
+                        "django_cotton.cotton_loader.Loader",
+                        "django.template.loaders.filesystem.Loader",
+                        "django.template.loaders.app_directories.Loader",
                     ],
                 )
             ],
             "builtins": [
                 "django_cotton.templatetags.cotton",
-                "template_partials.templatetags.partials",
             ],
         },
     },

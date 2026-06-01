@@ -1,5 +1,4 @@
 {% extends "layouts/_default.html" %}
-{% load partials %}
 {% block content %}
   <section class="prose max-w-none mb-12">
     <h1>Switch</h1>
@@ -9,7 +8,7 @@
   <section class="mb-8">
     <h2 class="text-xl mb-4">Stack smoke tests</h2>
     <div class="mb-6">
-      <p class="mb-2">HTMX + django-template-partials:</p>
+      <p class="mb-2">HTMX + Django native partials:</p>
       <button class="btn btn-primary"
               hx-get="{% url 'test-partial' %}"
               hx-target="this"

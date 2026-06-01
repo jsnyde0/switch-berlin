@@ -30,14 +30,9 @@ DEBUG = True
 # dev server. Drop the cached layer for local visual iteration: read templates
 # fresh on every request (slower, but no restart needed to see markup changes).
 TEMPLATES[0]["OPTIONS"]["loaders"] = [  # noqa: F405
-    (
-        "template_partials.loader.Loader",
-        [
-            "django_cotton.cotton_loader.Loader",
-            "django.template.loaders.filesystem.Loader",
-            "django.template.loaders.app_directories.Loader",
-        ],
-    )
+    "django_cotton.cotton_loader.Loader",
+    "django.template.loaders.filesystem.Loader",
+    "django.template.loaders.app_directories.Loader",
 ]
 
 # Bypass system checks that require production env vars
