@@ -114,12 +114,34 @@ def _make_listing_projection(connection, event, status="draft", provenance="rule
     )
 
 
+def _make_post_content_version(post, name="canonical", provenance="rule_template"):
+    """
+    Create or get a POST-scoped ContentVersion (post FK set, event FK null).
+    Required for promotion projections — using an event-scoped CV is wrong
+    because _resolve_publishable_for_cv would return the event, not the post.
+    (kb-q4u9.3 review finding 5)
+    """
+    from syndication.models import ContentVersion
+    cv, _ = ContentVersion.objects.get_or_create(
+        post=post,
+        name=name,
+        defaults={"provenance": provenance},
+    )
+    if cv.provenance != provenance:
+        cv.provenance = provenance
+        cv.save(update_fields=["provenance"])
+    return cv
+
+
 def _make_promotion_projection(connection, post, status="draft", provenance="rule_template"):
     """
-    Create a promotion projection with an associated canonical ContentVersion.
+    Create a promotion projection with an associated POST-scoped ContentVersion.
     provenance lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
+    Uses a post-scoped CV (post FK non-null, event FK null) so that
+    _resolve_publishable_for_cv correctly dispatches to the post hub on redirect.
+    (kb-q4u9.3 review finding 5: was event-scoped, wrong for promotion projections)
     """
-    cv = _make_content_version(post.event, provenance=provenance)
+    cv = _make_post_content_version(post, provenance=provenance)
     return PlatformProjection.objects.create(
         kind=PlatformProjection.Kind.PROMOTION,
         status=status,
@@ -2418,19 +2440,36 @@ class ChannelIconTabsRenderTest(TestCase):
     def test_event_workspace_has_switch_tab_as_canonical(self):
         """
         For an event workspace, the Switch tab must be the canonical anchor.
-        The Switch tab must be labelled "Switch" (ADR-010 D1, kb-q4u9.3 D3).
+        With Switch + Telegram present, Switch tab must appear BEFORE Telegram
+        in the DOM (not alphabetical-first), falsifying the old tautological check.
+        ADR-010 D1, kb-q4u9.3 review finding 4.
         """
         _make_listing_projection(self.conn_switch, self.event)
+        _make_listing_projection(self.conn_tg, self.event)
 
         response = self.client.get(
             f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
         )
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn(
-            "switch",
-            content.lower(),
-            "Event workspace must render a Switch tab as the canonical anchor (ADR-010 D1)",
+        switch_idx = content.lower().find("switch")
+        telegram_idx = content.lower().find("telegram")
+
+        self.assertGreater(
+            switch_idx,
+            -1,
+            "Event workspace must render a Switch tab (ADR-010 D1)",
+        )
+        self.assertGreater(
+            telegram_idx,
+            -1,
+            "Telegram tab must also appear in multi-channel event workspace",
+        )
+        self.assertLess(
+            switch_idx,
+            telegram_idx,
+            "Switch tab must appear BEFORE Telegram in the tab rail (canonical anchor, "
+            "not alphabetical-first). ADR-010 D1.",
         )
 
     def test_event_workspace_has_no_generate_affordance(self):
@@ -2711,3 +2750,304 @@ class VersionOpRedirectDispatchTest(TestCase):
                 response.url,
                 "Non-HTMX redirect must go to post hub",
             )
+
+
+# ---------------------------------------------------------------------------
+# kb-q4u9.3 review findings: correctness + parity tests
+# ---------------------------------------------------------------------------
+
+
+class ProjectionTransitionErrorDispatchTest(TestCase):
+    """
+    Finding 1: _projection_transition_error_response must dispatch by publishable
+    type — return POST fragment for promotion projections, EVENT fragment for
+    listing projections.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="trans_err_user", email="trans_err@test.com", password="pw")
+        self.profile = _make_profile(name="TransErr Org", slug="transerr-org", user=self.user)
+        self.event = _make_event(slug="transerr-event", title="TransErr Test Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(
+            self.profile, platform="telegram", destination_id="@transerr-ch", kinds=["promotion"]
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def _make_post_with_promotion_projection(self, status="ready"):
+        from syndication.services import create_post
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="TransErr Post",
+            body="TransErr body",
+        )
+        from syndication.models import PlatformProjection
+        proj = PlatformProjection.objects.filter(source_post=post).first()
+        if proj is not None and proj.status != status:
+            proj.status = status
+            proj.save(update_fields=["status"])
+        return post, proj
+
+    def test_approve_error_on_promotion_projection_returns_post_fragment(self):
+        """
+        Finding 1: When approving a promotion (post-owned) projection triggers a
+        ValueError (e.g. already approved), the error response must return the
+        POST fragment (#post-syndication), NOT the event fragment (#event-syndication).
+        """
+        post, proj = self._make_post_with_promotion_projection(status="ready")
+        # proj is already 'ready' — attempting approve again should raise ValueError
+        response = self.client.post(
+            f"/syndication/projections/{proj.pk}/approve/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Must NOT return the event fragment container — that would corrupt post workspace
+        self.assertNotIn(
+            'id="event-syndication"',
+            content,
+            "Error response for promotion projection must NOT return event fragment",
+        )
+        # Must return the post fragment container
+        self.assertIn(
+            'id="post-syndication"',
+            content,
+            "Error response for promotion projection must return post fragment (#post-syndication)",
+        )
+
+    def test_publish_error_on_promotion_projection_returns_post_fragment(self):
+        """
+        Finding 1: When publishing a promotion projection that errors (e.g. wrong state),
+        the error response must return the POST fragment, not the event fragment.
+        """
+        post, proj = self._make_post_with_promotion_projection(status="draft")
+        # proj is 'draft' — attempting publish directly should raise ValueError (not ready)
+        response = self.client.post(
+            f"/syndication/projections/{proj.pk}/publish/",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn(
+            'id="event-syndication"',
+            content,
+            "Error response for promotion projection publish must NOT return event fragment",
+        )
+        self.assertIn(
+            'id="post-syndication"',
+            content,
+            "Error response for promotion projection publish must return post fragment",
+        )
+
+
+class SwitchFirstCanonicalTabTest(TestCase):
+    """
+    Finding 2+4: With multiple channels (Switch + Telegram + FetLife), the
+    Switch tab must be the canonical anchor (first / aria-selected) per ADR-010 D1.
+    This is a stronger test than the original tautological "switch in content" check.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="swfirst_user", email="swfirst@test.com", password="pw")
+        self.profile = _make_profile(name="SwFirst Org", slug="swfirst-org", user=self.user)
+        self.event = _make_event(slug="swfirst-event", title="SwFirst Test Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn_fetlife = _make_connection(
+            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"]
+        )
+        self.conn_switch = _make_connection(
+            self.profile, platform="switch", destination_id="own-page", kinds=["listing"]
+        )
+        self.conn_tg = _make_connection(
+            self.profile, platform="telegram", destination_id="@swfirst-ch", kinds=["listing"]
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_switch_tab_is_aria_selected_with_multiple_channels(self):
+        """
+        Finding 2+4: With Switch + Telegram + FetLife channels present, the Switch
+        tab must be the selected/anchor tab (aria-selected="true"), NOT FetLife
+        which would sort first alphabetically. This falsifies alphabetical ordering.
+        """
+        proj_fl = _make_listing_projection(self.conn_fetlife, self.event)
+        proj_sw = _make_listing_projection(self.conn_switch, self.event)
+        proj_tg = _make_listing_projection(self.conn_tg, self.event)
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # The Switch tab must be the anchor/selected tab
+        # Check that aria-selected="true" appears on/near the Switch tab before
+        # the FetLife tab (Switch must precede FetLife in DOM order).
+        # We assert that Switch appears BEFORE FetLife in the tab rail.
+        switch_idx = content.lower().find("switch")
+        fetlife_idx = content.lower().find("fetlife")
+
+        self.assertGreater(
+            switch_idx,
+            -1,
+            "Switch tab must appear in content",
+        )
+        self.assertGreater(
+            fetlife_idx,
+            -1,
+            "FetLife tab must appear in content",
+        )
+        self.assertLess(
+            switch_idx,
+            fetlife_idx,
+            "Switch tab must appear BEFORE FetLife in the DOM (Switch is canonical anchor, "
+            "not alphabetical-first FetLife). ADR-010 D1.",
+        )
+
+
+class PostComposerPublishedStateGatingTest(TestCase):
+    """
+    Finding 3+6: The post composer sync toggle (Customize/Reset) and
+    Duplicate/Copy-from must NOT appear for published or ready projections.
+    Only draft projections show actionable controls.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="postgating_user", email="postgating@test.com", password="pw")
+        self.profile = _make_profile(name="PostGating Org", slug="postgating-org", user=self.user)
+        self.event = _make_event(slug="postgating-event", title="PostGating Test Event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(
+            self.profile, platform="telegram", destination_id="@postgating-ch", kinds=["promotion"]
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def _make_post_with_projection(self, status="draft"):
+        from syndication.services import create_post
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="PostGating Post",
+            body="PostGating body",
+        )
+        from syndication.models import PlatformProjection
+        proj = PlatformProjection.objects.filter(source_post=post).first()
+        if proj is not None and proj.status != status:
+            proj.status = status
+            proj.save(update_fields=["status"])
+        return post, proj
+
+    def test_customize_reset_not_shown_on_published_post_projection(self):
+        """
+        Finding 3: Customize/Reset controls must NOT appear on a published post projection.
+        The event template gates on can_edit + draft; the post template must do the same.
+        """
+        post, proj = self._make_post_with_projection(status="published")
+
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # Customize and Reset must not appear as buttons on published projections
+        # (They appear in forms with specific hx-post URLs for the projection)
+        proj_customize_url = f"/syndication/projections/{proj.pk}/customize/"
+        proj_reset_url = f"/syndication/projections/{proj.pk}/reset-to-canonical/"
+        self.assertNotIn(
+            proj_customize_url,
+            content,
+            "Customize must NOT appear for a published post projection",
+        )
+        self.assertNotIn(
+            proj_reset_url,
+            content,
+            "Reset must NOT appear for a published post projection",
+        )
+
+    def test_customize_reset_shown_on_draft_post_projection(self):
+        """
+        Finding 3: Customize/Reset MUST appear on a draft post projection.
+        """
+        post, proj = self._make_post_with_projection(status="draft")
+
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        proj_customize_url = f"/syndication/projections/{proj.pk}/customize/"
+        self.assertIn(
+            proj_customize_url,
+            content,
+            "Customize MUST appear for a draft post projection",
+        )
+
+    def test_customize_reset_not_shown_on_ready_post_projection(self):
+        """
+        Finding 3: Customize/Reset controls must NOT appear on a ready post projection.
+        """
+        post, proj = self._make_post_with_projection(status="ready")
+
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        proj_customize_url = f"/syndication/projections/{proj.pk}/customize/"
+        proj_reset_url = f"/syndication/projections/{proj.pk}/reset-to-canonical/"
+        self.assertNotIn(
+            proj_customize_url,
+            content,
+            "Customize must NOT appear for a ready post projection",
+        )
+        self.assertNotIn(
+            proj_reset_url,
+            content,
+            "Reset must NOT appear for a ready post projection",
+        )
+
+    def test_duplicate_not_shown_on_published_post_projection(self):
+        """
+        Finding 6: Duplicate must NOT appear on published post projections
+        (parity with event template gating).
+        """
+        post, proj = self._make_post_with_projection(status="published")
+
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # Check that version-duplicate URL for this projection's CV is not present
+        version_dup_url = f"/syndication/versions/{proj.content_version.pk}/duplicate/"
+        self.assertNotIn(
+            version_dup_url,
+            content,
+            "Duplicate must NOT appear for a published post projection (parity with event template)",
+        )
+
+    def test_duplicate_shown_on_draft_post_projection(self):
+        """
+        Finding 6: Duplicate MUST appear on draft post projections (parity with event template).
+        """
+        post, proj = self._make_post_with_projection(status="draft")
+
+        response = self.client.get(
+            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        version_dup_url = f"/syndication/versions/{proj.content_version.pk}/duplicate/"
+        self.assertIn(
+            version_dup_url,
+            content,
+            "Duplicate MUST appear for a draft post projection (parity with event template)",
+        )

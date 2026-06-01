@@ -107,35 +107,80 @@
                 {% endif %}
               {% endfor %}
             {% endif %}
-            <div class="flex items-center gap-0 mb-4 pb-3"
-                 style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-              <span class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/22 mr-3 shrink-0">{% trans "Sync" %}</span>
-              <form method="post"
-                    action="{% url 'syndication:projection-customize' pk=proj.pk %}"
-                    hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
-                    hx-target="#post-syndication"
-                    hx-swap="outerHTML">
-                {% csrf_token %}
-                <button type="submit"
-                        class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
-                  {% trans "Customize" %}
-                </button>
-              </form>
-              <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
-              <form method="post"
-                    action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-                    hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-                    hx-target="#post-syndication"
-                    hx-swap="outerHTML">
-                {% csrf_token %}
-                <button type="submit"
-                        class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
-                  {% trans "Reset" %}
-                </button>
-              </form>
-            </div>
             {% if can_edit and proj.status == 'draft' %}
-              <div class="mb-6">
+              <div class="mb-7">
+                <div class="flex items-center gap-0 mb-5 pb-3"
+                     style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+                  <span class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/22 mr-3 shrink-0">{% trans "Sync" %}</span>
+                  <form method="post"
+                        action="{% url 'syndication:projection-customize' pk=proj.pk %}"
+                        hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
+                        hx-target="#post-syndication"
+                        hx-swap="outerHTML">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
+                      {% trans "Customize" %}
+                    </button>
+                  </form>
+                  <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
+                  <form method="post"
+                        action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                        hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                        hx-target="#post-syndication"
+                        hx-swap="outerHTML">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
+                      {% trans "Reset" %}
+                    </button>
+                  </form>
+                  <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
+                  <form method="post"
+                        action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
+                        hx-post="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
+                        hx-target="#post-syndication"
+                        hx-swap="outerHTML">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
+                      {% trans "Duplicate" %}
+                    </button>
+                  </form>
+                  {% if projection_rows|length > 1 %}
+                    <form method="post"
+                          action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
+                          hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
+                          hx-target="#post-syndication"
+                          hx-swap="outerHTML"
+                          class="flex items-center gap-1.5 ml-auto">
+                      {% csrf_token %}
+                      <span class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
+                      <div class="relative">
+                        <select name="source_version_pk"
+                                class="kb-mono text-[8px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
+                          {% for other_row in projection_rows %}
+                            {% if other_row.projection.pk != proj.pk %}
+                              <option value="{{ other_row.projection.content_version.pk }}">
+                                {{ other_row.projection.connection.platform }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
+                              </option>
+                            {% endif %}
+                          {% endfor %}
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28"
+                              aria-hidden="true">
+                          <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+                            <path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                          </svg>
+                        </span>
+                      </div>
+                      <button type="submit"
+                              class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
+                        {% trans "Apply" %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
                 <form method="post"
                       action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
                       hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"

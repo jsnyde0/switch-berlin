@@ -262,7 +262,19 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     # Combine: listing first, then promotion
     from itertools import chain
     projections = list(chain(listing_projections, promotion_projections))
-    projections.sort(key=lambda p: (p.connection.platform, p.kind))
+    # ADR-010 D1: Switch is the canonical anchor for the event workspace — sort it first.
+    # Within listing projections the Switch tab leads; all other channels follow alphabetically.
+    # Promotion projections (post-owned) trail listing projections.
+    def _event_proj_sort_key(p):
+        # Tier 0: Switch listing → canonical anchor, always first
+        if p.connection.platform == "switch" and p.kind == PlatformProjection.Kind.LISTING:
+            return (0, "", "")
+        # Tier 1: remaining listing channels alphabetically
+        if p.kind == PlatformProjection.Kind.LISTING:
+            return (1, p.connection.platform, "")
+        # Tier 2: promotion channels alphabetically
+        return (2, p.connection.platform, p.kind)
+    projections.sort(key=_event_proj_sort_key)
 
     # Build rendered_rows: attempt render; on ValueError record error flag + error string.
     # rendered_rows is a dict {pk: body_str} for test assertions and template lookups.
@@ -638,15 +650,26 @@ def _publishable_fragment_response_for_cv(request, content_version, action_error
 _views_logger = _views_logger_mod.getLogger(__name__)
 
 
-def _projection_transition_error_response(request, exc, event):
+def _projection_transition_error_response(request, exc, proj):
     """
     Return an error-state fragment response for a failed lifecycle transition.
     ADR-008 D3: fail loud — surface the error to the user with a visible error state.
-    ADR-008 D2: one clear path — delegate to fragment_event_syndication to avoid
-    duplicating query/flag logic.
+    ADR-008 D2: one clear path — delegate to _publishable_fragment_response pattern.
+
+    Dispatches by publishable type (event vs post), mirroring _publishable_fragment_response,
+    so that a promotion/post-owned projection error returns the POST fragment rather than
+    corrupting the post workspace with an event fragment. (kb-q4u9.3 review finding 1)
     """
-    _views_logger.warning("Illegal transition for event %r: %s", event.pk, exc)
-    return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
+    _views_logger.warning("Illegal transition for projection %r: %s", proj.pk, exc)
+    if proj.kind == PlatformProjection.Kind.LISTING:
+        return fragment_event_syndication(
+            request, pk=proj.source_event.pk, action_error=str(exc)
+        )
+    if proj.kind == PlatformProjection.Kind.PROMOTION:
+        return fragment_post_syndication(
+            request, pk=proj.source_post.pk, action_error=str(exc)
+        )
+    raise ValueError(f"Unknown projection kind {proj.kind!r}")
 
 
 @login_required
@@ -658,7 +681,6 @@ def projection_approve(request, pk):
     ADR-008 D3: ValueError (illegal transition) surfaces as error state, never swallowed.
     """
     proj = get_object_or_404(PlatformProjection, pk=pk)
-    event = _resolve_projection_event(proj)
     if request.method != "POST":
         return _publishable_hub_redirect(proj)
 
@@ -669,7 +691,7 @@ def projection_approve(request, pk):
     except ValueError as exc:
         # ADR-008 D3: fail loud — surface the error, never return success-shaped output
         if request.headers.get("HX-Request"):
-            return _projection_transition_error_response(request, exc, event)
+            return _projection_transition_error_response(request, exc, proj)
         return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
@@ -686,7 +708,6 @@ def projection_publish(request, pk):
     ADR-008 D3: ValueError (illegal transition) surfaces as error state, never swallowed.
     """
     proj = get_object_or_404(PlatformProjection, pk=pk)
-    event = _resolve_projection_event(proj)
     if request.method != "POST":
         return _publishable_hub_redirect(proj)
 
@@ -697,7 +718,7 @@ def projection_publish(request, pk):
     except ValueError as exc:
         # ADR-008 D3: fail loud — surface the error, never return success-shaped output
         if request.headers.get("HX-Request"):
-            return _projection_transition_error_response(request, exc, event)
+            return _projection_transition_error_response(request, exc, proj)
         return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
@@ -715,7 +736,6 @@ def projection_mark_published(request, pk):
     ADR-008 D3: ValueError (illegal transition) surfaces as error state, never swallowed.
     """
     proj = get_object_or_404(PlatformProjection, pk=pk)
-    event = _resolve_projection_event(proj)
     if request.method != "POST":
         return _publishable_hub_redirect(proj)
 
@@ -726,7 +746,7 @@ def projection_mark_published(request, pk):
     except ValueError as exc:
         # ADR-008 D3: fail loud — surface the error, never return success-shaped output
         if request.headers.get("HX-Request"):
-            return _projection_transition_error_response(request, exc, event)
+            return _projection_transition_error_response(request, exc, proj)
         return _publishable_hub_redirect(proj)
 
     if request.headers.get("HX-Request"):
@@ -1010,7 +1030,14 @@ def review_all(request, event_pk):
     ).select_related("connection", "source_post", "content_version")
 
     projections = list(chain(listing_projections, promotion_projections))
-    projections.sort(key=lambda p: (p.connection.platform, p.kind))
+    # ADR-010 D1: Switch leads (same ordering as fragment_event_syndication)
+    def _review_proj_sort_key(p):
+        if p.connection.platform == "switch" and p.kind == PlatformProjection.Kind.LISTING:
+            return (0, "", "")
+        if p.kind == PlatformProjection.Kind.LISTING:
+            return (1, p.connection.platform, "")
+        return (2, p.connection.platform, p.kind)
+    projections.sort(key=_review_proj_sort_key)
 
     # Build projection_rows — same fail-loud pattern as fragment_event_syndication
     projection_rows = []
