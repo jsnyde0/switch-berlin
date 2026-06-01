@@ -189,28 +189,46 @@ def _get_primary_profile_for_user(user):
     return claim.profile
 
 
-def _ensure_canonical_content_version(event):
+def _ensure_canonical_content_version(event=None, post=None):
     """
-    Ensure a canonical ContentVersion exists for event and return it.
+    Ensure a canonical ContentVersion exists for a publishable (event OR post)
+    and return it.
+
+    Exactly one of event/post must be provided (ADR-008 D3: fail loud if both
+    or neither are given — mirrors the DB check constraint).
 
     Creates it with all editorial fields NULL (track-live semantics) if absent.
     This is idempotent: if a canonical version already exists, it is returned as-is.
 
     ADR-016 D2 (kb-wz8m.2): A1 canonical version is seeded EMPTY.
-    NULL editorial fields = derive from live canonical Event at render time.
+    NULL editorial fields = derive from live canonical Event/Post at render time.
     """
     from syndication.models import ContentVersion
 
-    cv, _ = ContentVersion.objects.get_or_create(
-        event=event,
-        name="canonical",
-        defaults={
-            "provenance": ContentVersion.Provenance.RULE_TEMPLATE,
-            # All editorial fields intentionally omitted → DB default None
-            # (null-means-derive semantics per ADR-016 D2 revised 2026-05-29).
-        },
-    )
-    return cv
+    if event is not None and post is None:
+        cv, _ = ContentVersion.objects.get_or_create(
+            event=event,
+            name="canonical",
+            defaults={
+                "provenance": ContentVersion.Provenance.RULE_TEMPLATE,
+            },
+        )
+        return cv
+    elif post is not None and event is None:
+        cv, _ = ContentVersion.objects.get_or_create(
+            post=post,
+            name="canonical",
+            defaults={
+                "provenance": ContentVersion.Provenance.RULE_TEMPLATE,
+            },
+        )
+        return cv
+    else:
+        raise ValueError(
+            "_ensure_canonical_content_version requires exactly one of event or post, "
+            f"got event={event!r}, post={post!r}. "
+            "(ADR-008 D3: fail loud — exactly-one-publishable invariant)"
+        )
 
 
 def _eager_create_listing_projections(event, canonical_cv=None):
@@ -262,16 +280,17 @@ def _eager_create_promotion_projections(post, canonical_cv=None):
     ADR-016 D4: For each enabled PlatformConnection that supports 'promotion'
     owned by the post's event's organizer profiles, create a draft PlatformProjection.
 
-    Called after a Post is saved.
+    Called after a Post is saved. Projections FK to the POST's canonical
+    ContentVersion (ADR-016 D2), not the event's canonical.
 
-    All created projections FK to the canonical ContentVersion (A1 seed,
-    kb-wz8m.2). canonical_cv is passed in to avoid redundant DB round-trips.
+    canonical_cv is passed in to avoid redundant DB round-trips; must be the
+    POST's canonical (post FK set, event FK null).
     """
     from events.models import EventOrganizer
     from syndication.models import PlatformConnection, PlatformProjection
 
     if canonical_cv is None:
-        canonical_cv = _ensure_canonical_content_version(post.event)
+        canonical_cv = _ensure_canonical_content_version(post=post)
 
     # Get all organizer Profile IDs for this post's event
     organizer_profile_ids = EventOrganizer.objects.filter(
@@ -507,9 +526,10 @@ def create_post(user, event, **kwargs):
     post_kwargs = {k: v for k, v in kwargs.items() if k in _POST_FIELDS}
     post = Post.objects.create(event=event, **post_kwargs)
 
-    # A1 seed (kb-wz8m.2): ensure the canonical ContentVersion exists for the
-    # event so eager promotion projections can FK to it.
-    canonical_cv = _ensure_canonical_content_version(event)
+    # A1 seed (kb-q4u9.2): create the canonical ContentVersion for the POST
+    # (ADR-016 D2: promotion projections FK the post's canonical, not the
+    # event's). ContentVersion.post=post, ContentVersion.event=None.
+    canonical_cv = _ensure_canonical_content_version(post=post)
 
     # Eager-create draft promotion projections (ADR-016 D4)
     _eager_create_promotion_projections(post, canonical_cv=canonical_cv)
@@ -616,11 +636,28 @@ def _gate_can_edit_for_cv(user, content_version):
     """
     Resolve the event from a ContentVersion and gate on can_edit.
 
-    Raises PermissionError if user cannot edit the ContentVersion's event.
-    ContentVersion.event is the binding event; we resolve through that.
+    For event-owned versions: event = content_version.event.
+    For post-owned versions: event = content_version.post.event.
+    Never calls can_edit(user, None) — fail loud if neither is resolvable
+    (ADR-008 D3).
+
+    Raises PermissionError if user cannot edit the resolved event.
     """
     from syndication.authz import can_edit
-    event = content_version.event
+
+    if content_version.event_id is not None:
+        # Event-owned ContentVersion — resolve directly
+        event = content_version.event
+    elif content_version.post_id is not None:
+        # Post-owned ContentVersion — resolve event via post (ADR-016 D2)
+        event = content_version.post.event
+    else:
+        raise ValueError(
+            f"ContentVersion {content_version.pk!r} has neither event nor post FK set. "
+            "Check constraint violation — exactly one must be non-null. "
+            "(ADR-008 D3: fail loud)"
+        )
+
     if not can_edit(user, event):
         raise PermissionError(
             f"User {user} cannot edit ContentVersion {content_version.pk!r} "
@@ -641,21 +678,38 @@ def consumers(version):
     return version.projections.all()
 
 
-def content_version_consumers_map(event):
+def content_version_consumers_map(event=None, post=None):
     """
-    Return the per-event aggregate the board reads for the "live on <channels>" cue.
+    Return the per-publishable aggregate the board reads for the "live on" cue.
 
     Shape: {ContentVersion: [PlatformProjection, ...]}
 
-    Maps each ContentVersion for the given event to the list of PlatformProjections
-    currently pointing at it. Versions with zero consumers are included (they still
-    belong to the event). Versions from other events are excluded.
+    Maps each ContentVersion for the given publishable (event OR post) to the
+    list of PlatformProjections currently pointing at it. Versions with zero
+    consumers are included. Versions from other publishables are excluded.
+
+    Exactly one of event/post must be provided (ADR-008 D3: fail loud if both
+    or neither are given).
 
     kb-wz8m.5 (UI) consumes this for the board's per-version channel summary.
     """
-    from syndication.models import ContentVersion, PlatformProjection
+    from syndication.models import ContentVersion
 
-    versions = ContentVersion.objects.filter(event=event).prefetch_related("projections")
+    if event is not None and post is None:
+        versions = ContentVersion.objects.filter(event=event).prefetch_related(
+            "projections"
+        )
+    elif post is not None and event is None:
+        versions = ContentVersion.objects.filter(post=post).prefetch_related(
+            "projections"
+        )
+    else:
+        raise ValueError(
+            "content_version_consumers_map requires exactly one of event or post, "
+            f"got event={event!r}, post={post!r}. "
+            "(ADR-008 D3: fail loud — exactly-one-publishable invariant)"
+        )
+
     result = {}
     for cv in versions:
         result[cv] = list(cv.projections.all())
@@ -678,25 +732,62 @@ def _unique_copy_name(source_name):
 def duplicate(user, version):
     """
     Create and return a NEW independent ContentVersion seeded (copied) from an
-    existing one (same Event, copied editorial fields, fresh row).
+    existing one (same publishable — event or post — copied fields, fresh row).
 
-    Gate: user must be able to edit the version's event (can_edit seam).
+    Gate: user must be able to edit the version's publishable (can_edit seam).
 
     The new version is not attached to any projection — callers (copy_from,
     copy_to, customize) wire up the FK after calling this.
+
+    ADR-016 D2 / ADR-008 D3: the new version inherits the publishable scope
+    (event or post) of the source — never collapses a post-owned version to
+    event-owned or vice versa.
     """
     from syndication.models import ContentVersion
 
     _gate_can_edit_for_cv(user, version)
 
+    # Preserve publishable scope: post-owned → post FK; event-owned → event FK.
     new_cv = ContentVersion(
         event=version.event,
+        post=version.post,
         name=_unique_copy_name(version.name),
         provenance=version.provenance,
     )
     _copy_cv_fields(version, new_cv)
     new_cv.save()
     return new_cv
+
+
+def _resolve_publishable_for_cv(content_version):
+    """
+    Return the owning publishable of a ContentVersion as (event_or_none, post_or_none).
+
+    For event-owned: returns (event, None).
+    For post-owned: returns (None, post).
+    Fail loud if neither is set (ADR-008 D3).
+    """
+    if content_version.event_id is not None:
+        return content_version.event, None
+    if content_version.post_id is not None:
+        return None, content_version.post
+    raise ValueError(
+        f"ContentVersion {content_version.pk!r} has neither event nor post FK set. "
+        "Check constraint violation — exactly one must be non-null. "
+        "(ADR-008 D3: fail loud)"
+    )
+
+
+def _projection_publishable_event(projection):
+    """
+    Return the Event that owns a projection's publishable:
+    - listing → source_event
+    - promotion → source_post.event
+
+    Used for cross-publishable guard (source version must belong to the same
+    underlying event as the target projection).
+    """
+    return _resolve_projection_event(projection)
 
 
 def copy_from(user, projection, source_version):
@@ -707,6 +798,11 @@ def copy_from(user, projection, source_version):
     Gate: user must be able to edit the projection's event (can_edit seam).
     The original ContentVersion the projection was pointing at is left as-is
     (GC is out of scope).
+
+    ADR-016 D2 / ADR-008 D3: the new CV inherits the publishable scope of the
+    source version (event or post). A post-owned source → new CV has post FK.
+    Cross-publishable copy (source owned by a different event than the target
+    projection's event) raises fail loud.
 
     Returns the new ContentVersion.
     """
@@ -720,20 +816,34 @@ def copy_from(user, projection, source_version):
             f"(event '{event}'). (ADR-017 D2)"
         )
 
-    # Guard: source_version must belong to the same event as the projection.
+    # Guard: source_version's owning event must match the projection's event.
+    # For event-owned source: source.event must equal projection's event.
+    # For post-owned source: source.post.event must equal projection's event.
     # Cross-event copy is a data-integrity violation — fail loud before any DB
     # mutation (ADR-008 D3).
-    if source_version.event != event:
+    if source_version.event_id is not None:
+        source_event = source_version.event
+    elif source_version.post_id is not None:
+        source_event = source_version.post.event
+    else:
+        raise ValueError(
+            f"copy_from: source_version {source_version.pk!r} has neither event "
+            "nor post FK — check constraint violation. (ADR-008 D3: fail loud)"
+        )
+
+    if source_event != event:
         raise ValueError(
             f"copy_from: source_version {source_version.pk!r} belongs to event "
-            f"{source_version.event_id!r} but target projection {projection.pk!r} "
+            f"{source_event.pk!r} but target projection {projection.pk!r} "
             f"belongs to event {event.pk!r}. "
             "Source version must belong to the same event as the target projection. "
             "(ADR-008 D3: fail loud — cross-event data-integrity violation)"
         )
 
+    # Preserve publishable scope: post-owned source → new CV has post FK set.
     new_cv = ContentVersion(
         event=source_version.event,
+        post=source_version.post,
         name=_unique_copy_name(source_version.name),
         provenance=source_version.provenance,
     )
@@ -752,9 +862,12 @@ def copy_to(user, source_version, target_projections):
 
     N targets → N independent rows (so each target can diverge independently).
 
-    Gate: user must be able to edit the source_version's event (can_edit seam).
+    Gate: user must be able to edit the source_version's publishable (can_edit seam).
     All target projections must belong to the same event as source_version
     (ADR-008 D3: fail loud on cross-event data-integrity violation).
+
+    ADR-016 D2 / ADR-008 D3: the new CVs inherit the publishable scope of the
+    source version (event or post).
 
     Returns the list of new ContentVersions (in target order).
     """
@@ -762,24 +875,37 @@ def copy_to(user, source_version, target_projections):
 
     _gate_can_edit_for_cv(user, source_version)
 
+    # Resolve source_version's owning event for cross-publishable guard.
+    if source_version.event_id is not None:
+        source_event = source_version.event
+    elif source_version.post_id is not None:
+        source_event = source_version.post.event
+    else:
+        raise ValueError(
+            f"copy_to: source_version {source_version.pk!r} has neither event "
+            "nor post FK — check constraint violation. (ADR-008 D3: fail loud)"
+        )
+
     # Guard: all targets must belong to the same event as source_version.
     # Cross-event repointing is a data-integrity violation — fail loud before
     # any DB mutation (ADR-008 D3).
     for proj in target_projections:
         proj_event = _resolve_projection_event(proj)
-        if proj_event != source_version.event:
+        if proj_event != source_event:
             raise ValueError(
                 f"copy_to: target projection {proj.pk!r} belongs to event "
                 f"{proj_event.pk!r} but source_version {source_version.pk!r} "
-                f"belongs to event {source_version.event_id!r}. "
+                f"belongs to event {source_event.pk!r}. "
                 "All targets must belong to the same event as source_version. "
                 "(ADR-008 D3: fail loud — cross-event data-integrity violation)"
             )
 
     new_versions = []
     for proj in target_projections:
+        # Preserve publishable scope: post-owned source → new CV has post FK set.
         new_cv = ContentVersion(
             event=source_version.event,
+            post=source_version.post,
             name=_unique_copy_name(source_version.name),
             provenance=source_version.provenance,
         )
@@ -810,20 +936,24 @@ def customize(user, projection):
 
 def reset_to_canonical(user, projection):
     """
-    Repoint the projection's FK back at the Event's canonical ContentVersion
+    Repoint the projection's FK back at the publishable's canonical ContentVersion
     (pure FK assignment, NO new row; re-enters single-row sharing).
 
     Gate: user must be able to edit the projection's event (can_edit seam).
 
-    Fetch-or-raise: a missing canonical is a violated A1 invariant (every
-    event is seeded with exactly one canonical version at create).  This is
+    For listing projections: resolves the event's canonical.
+    For promotion projections: resolves the POST's canonical (NOT the event's —
+    ADR-016 D2, ADR-008 D3: post-owned versions must never silently collapse to
+    the event's canonical).
+
+    Fetch-or-raise: a missing canonical is a violated A1 invariant. This is
     a data bug — fail loud (ADR-008 D3), do NOT silently create a new row.
 
     If a customized version row is left with zero consumers after reset, it is
     left in place (GC is out of scope per kb-wz8m.3 acceptance).
     """
     from syndication.authz import can_edit
-    from syndication.models import ContentVersion
+    from syndication.models import ContentVersion, PlatformProjection
 
     event = _resolve_projection_event(projection)
     if not can_edit(user, event):
@@ -832,15 +962,36 @@ def reset_to_canonical(user, projection):
             f"(event '{event}'). (ADR-017 D2)"
         )
 
-    try:
-        canonical_cv = ContentVersion.objects.get(event=event, name="canonical")
-    except ContentVersion.DoesNotExist:
-        raise ValueError(
-            f"reset_to_canonical: event {event.pk!r} has no canonical "
-            "ContentVersion. A1 invariant violated — every event must be "
-            "seeded with a canonical version at creation. "
-            "(ADR-008 D3: fail loud — missing canonical is a data bug)"
-        )
+    if projection.kind == PlatformProjection.Kind.PROMOTION:
+        # Promotion: resolve the POST's canonical, not the event's.
+        # ADR-016 D2 / ADR-008 D3: a promotion projection belongs to a Post;
+        # resetting it to the event's canonical would be a silent wrong target.
+        post = projection.source_post
+        if post is None:
+            raise ValueError(
+                f"reset_to_canonical: promotion projection {projection.pk!r} has no "
+                "source_post. (ADR-008 D3: fail loud)"
+            )
+        try:
+            canonical_cv = ContentVersion.objects.get(post=post, name="canonical")
+        except ContentVersion.DoesNotExist as exc:
+            raise ValueError(
+                f"reset_to_canonical: post {post.pk!r} has no canonical "
+                "ContentVersion. A1 invariant violated — every post must be "
+                "seeded with a canonical version at creation. "
+                "(ADR-008 D3: fail loud — missing canonical is a data bug)"
+            ) from exc
+    else:
+        # Listing: resolve the event's canonical.
+        try:
+            canonical_cv = ContentVersion.objects.get(event=event, name="canonical")
+        except ContentVersion.DoesNotExist as exc:
+            raise ValueError(
+                f"reset_to_canonical: event {event.pk!r} has no canonical "
+                "ContentVersion. A1 invariant violated — every event must be "
+                "seeded with a canonical version at creation. "
+                "(ADR-008 D3: fail loud — missing canonical is a data bug)"
+            ) from exc
 
     projection.content_version = canonical_cv
     projection.save(update_fields=["content_version", "updated_at"])

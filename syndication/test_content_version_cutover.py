@@ -176,8 +176,11 @@ class CanonicalVersionSeedTest(TestCase):
 
     def test_create_post_seeds_canonical_version_for_promotion_projections(self):
         """
-        create_post seeds a canonical ContentVersion for the Event (if absent)
+        create_post seeds a canonical ContentVersion for the POST (not the Event)
         and points eager promotion projections FK at it.
+
+        ADR-016 D2 (kb-q4u9.2): promotion projections FK the post's canonical
+        (ContentVersion.post set, ContentVersion.event null), not the event's.
         """
         from syndication.services import create_post
 
@@ -195,16 +198,24 @@ class CanonicalVersionSeedTest(TestCase):
             body="Big party coming up",
         )
 
-        canonical_cv = ContentVersion.objects.filter(event=event, name="canonical").first()
-        self.assertIsNotNone(canonical_cv, "create_post must ensure a canonical ContentVersion exists")
+        # The canonical must be POST-owned (post FK set, event FK null)
+        post_canonical_cv = ContentVersion.objects.filter(post=post, name="canonical").first()
+        self.assertIsNotNone(
+            post_canonical_cv,
+            "create_post must seed a canonical ContentVersion for the POST (post FK set)",
+        )
+        self.assertIsNone(
+            post_canonical_cv.event_id,
+            "Post's canonical CV must have event=None (post-owned, not event-owned)",
+        )
 
         projections = PlatformProjection.objects.filter(source_post=post)
         self.assertGreater(projections.count(), 0)
         for proj in projections:
             self.assertEqual(
                 proj.content_version_id,
-                canonical_cv.pk,
-                f"Promotion projection {proj.pk} must FK to the canonical ContentVersion",
+                post_canonical_cv.pk,
+                f"Promotion projection {proj.pk} must FK to the POST's canonical ContentVersion",
             )
 
 
@@ -669,4 +680,222 @@ class AgentAssistedDedicatedVersionTest(TestCase):
             "Exclusive agent body",
             sibling_body,
             "Agent body must not bleed into sibling rule_based projection",
+        )
+
+
+# ---------------------------------------------------------------------------
+# kb-q4u9.2 Probe 2: Migration 0007 backfill
+#
+# Tests that migration 0007 correctly backfills existing dogfood data:
+# - Mints a canonical ContentVersion per existing Post
+# - Repoints each promotion PlatformProjection.content_version from the
+#   event's canonical to the post's new canonical.
+#
+# Uses MigrationLoader + RunPython.code() pattern from
+# tests/test_organizer_lia_migration.py.
+# ---------------------------------------------------------------------------
+
+
+def _get_0007_migration_forward():
+    """Return the forward RunPython function from migration 0007."""
+    from django.db import connections
+    from django.db.migrations.loader import MigrationLoader
+
+    loader = MigrationLoader(connections["default"])
+    migration = loader.get_migration("syndication", "0007_backfill_post_canonical_content_versions")
+    for operation in migration.operations:
+        if hasattr(operation, "code"):
+            return operation.code, operation.reverse_code
+    raise ValueError("No RunPython found in syndication migration 0007")
+
+
+class Migration0007BackfillTest(TestCase):
+    """
+    Probe 2: Migration 0007 backfill correctness.
+
+    Seed a pre-generalization state: Posts whose promotion projections FK the
+    event's canonical ContentVersion. Run the 0007 forward function. Assert:
+    - Each Post has its own canonical ContentVersion row (post FK set, event null).
+    - Every promotion projection that belonged to a Post now FKs the Post's
+      canonical (not the event's canonical).
+    - Two different Posts each have a DISTINCT canonical row.
+
+    Assert raw-ORM, independent of the service path.
+    """
+
+    def setUp(self):
+        self.profile = _make_profile(name="Mig0007 Org", slug="mig0007-org")
+        self.event = _make_event(slug="mig0007-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+
+    def _seed_pre_generalization_state(self):
+        """
+        Create a post and promotion projections that FK the EVENT's canonical
+        (the pre-0007 state that the migration must fix).
+        """
+        # Event canonical (the old state — projections pointed here)
+        event_canonical, _ = ContentVersion.objects.get_or_create(
+            event=self.event,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+        )
+
+        # A Post on the event
+        post = Post.objects.create(event=self.event, headline="Pre-gen Post", body="Body")
+
+        # Promotion connection
+        conn = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="tg-mig007-001",
+            kinds=["promotion"],
+            enabled=True,
+        )
+
+        # Promotion projection pointing at EVENT's canonical (pre-0007 state)
+        proj = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            connection=conn,
+            source_post=post,
+            content_version=event_canonical,
+        )
+        return post, proj, event_canonical
+
+    def test_migration_creates_post_canonical_per_post(self):
+        """
+        After running migration 0007, each Post must have exactly one
+        canonical ContentVersion with post FK set and event FK null.
+        """
+        post, proj, event_canonical = self._seed_pre_generalization_state()
+
+        forward_fn, _ = _get_0007_migration_forward()
+        from django.apps import apps
+        from django.db import connection
+
+        with connection.schema_editor() as schema_editor:
+            forward_fn(apps, schema_editor)
+
+        post_cvs = ContentVersion.objects.filter(post=post, name="canonical")
+        self.assertEqual(post_cvs.count(), 1, "Migration must create exactly one post-canonical CV per Post")
+        cv = post_cvs.first()
+        self.assertIsNone(cv.event_id, "Post's canonical CV must have event=None")
+        self.assertEqual(cv.post_id, post.pk)
+
+    def test_migration_repoints_promotion_projections_to_post_canonical(self):
+        """
+        After migration 0007, every promotion projection that had source_post set
+        must FK the POST's canonical ContentVersion (not the event's).
+        """
+        post, proj, event_canonical = self._seed_pre_generalization_state()
+
+        forward_fn, _ = _get_0007_migration_forward()
+        from django.apps import apps
+        from django.db import connection
+
+        with connection.schema_editor() as schema_editor:
+            forward_fn(apps, schema_editor)
+
+        proj.refresh_from_db()
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+
+        self.assertEqual(
+            proj.content_version_id,
+            post_canonical.pk,
+            "Promotion projection must be repointed to the POST's canonical after migration",
+        )
+        self.assertNotEqual(
+            proj.content_version_id,
+            event_canonical.pk,
+            "Promotion projection must NOT still point at the event's canonical after migration",
+        )
+
+    def test_migration_two_posts_get_distinct_canonicals(self):
+        """
+        Two Posts on the same Event must each get their own distinct canonical
+        ContentVersion after migration 0007 runs.
+        """
+        # Seed first post + projection
+        event_canonical, _ = ContentVersion.objects.get_or_create(
+            event=self.event,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+        )
+        post1 = Post.objects.create(event=self.event, headline="Post 1", body="Body 1")
+        post2 = Post.objects.create(event=self.event, headline="Post 2", body="Body 2")
+
+        conn1 = PlatformConnection.objects.create(
+            organizer=self.profile, platform="telegram", destination_id="tg-mig007-p1",
+            kinds=["promotion"], enabled=True,
+        )
+        conn2 = PlatformConnection.objects.create(
+            organizer=self.profile, platform="fetlife", destination_id="fl-mig007-p2",
+            kinds=["promotion"], enabled=True,
+        )
+        PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION, status=PlatformProjection.Status.DRAFT,
+            connection=conn1, source_post=post1, content_version=event_canonical,
+        )
+        PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION, status=PlatformProjection.Status.DRAFT,
+            connection=conn2, source_post=post2, content_version=event_canonical,
+        )
+
+        forward_fn, _ = _get_0007_migration_forward()
+        from django.apps import apps
+        from django.db import connection
+
+        with connection.schema_editor() as schema_editor:
+            forward_fn(apps, schema_editor)
+
+        cv1 = ContentVersion.objects.get(post=post1, name="canonical")
+        cv2 = ContentVersion.objects.get(post=post2, name="canonical")
+        self.assertNotEqual(cv1.pk, cv2.pk, "Two posts must have distinct canonical CVs after migration")
+
+    def test_migration_idempotent(self):
+        """
+        Running migration 0007 twice must not double-create canonical rows or
+        produce inconsistent state (idempotent forward function).
+        """
+        post, proj, event_canonical = self._seed_pre_generalization_state()
+
+        forward_fn, _ = _get_0007_migration_forward()
+        from django.apps import apps
+        from django.db import connection
+
+        # First run
+        with connection.schema_editor() as schema_editor:
+            forward_fn(apps, schema_editor)
+
+        cv_count_after_first = ContentVersion.objects.filter(post=post, name="canonical").count()
+
+        # Second run — idempotent
+        with connection.schema_editor() as schema_editor:
+            forward_fn(apps, schema_editor)
+
+        cv_count_after_second = ContentVersion.objects.filter(post=post, name="canonical").count()
+        self.assertEqual(
+            cv_count_after_first,
+            cv_count_after_second,
+            "Migration 0007 must be idempotent (running twice must not create extra canonical rows)",
+        )
+
+    def test_migration_event_canonical_retained_not_deleted(self):
+        """
+        The event's canonical ContentVersion must be RETAINED after migration
+        (on_delete=PROTECT means we can't cascade — the event canonical stays).
+        """
+        post, proj, event_canonical = self._seed_pre_generalization_state()
+
+        forward_fn, _ = _get_0007_migration_forward()
+        from django.apps import apps
+        from django.db import connection
+
+        with connection.schema_editor() as schema_editor:
+            forward_fn(apps, schema_editor)
+
+        # Event canonical must still exist
+        self.assertTrue(
+            ContentVersion.objects.filter(pk=event_canonical.pk).exists(),
+            "Event's canonical ContentVersion must be retained after migration (on_delete=PROTECT)",
         )

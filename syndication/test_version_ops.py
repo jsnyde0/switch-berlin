@@ -1239,3 +1239,368 @@ class SaveProjectionOverrideGoneTest(TestCase):
             hasattr(api_mod, "save_projection_override"),
             "api.py must not import save_projection_override after kb-wz8m.3",
         )
+
+
+# ---------------------------------------------------------------------------
+# kb-q4u9.2 Probe 1: Post-owned ContentVersion paths
+#
+# ADR-016 D2: promotion projections FK the post's canonical, not the event's.
+# ADR-008 D3: post-owned version resolving to its event must RAISE.
+# ---------------------------------------------------------------------------
+
+
+def _make_post(event, headline="Save the Date", body="Big party coming up"):
+    """Create a Post for an event."""
+    return Post.objects.create(event=event, headline=headline, body=body)
+
+
+def _make_promo_connection(profile, platform="telegram", destination_id="tg-promo-001"):
+    """Create a promotion-capable PlatformConnection."""
+    return PlatformConnection.objects.create(
+        organizer=profile,
+        platform=platform,
+        destination_id=destination_id,
+        kinds=["promotion"],
+        enabled=True,
+    )
+
+
+def _make_canonical_cv_for_post(post, **kwargs):
+    """Get-or-create the canonical ContentVersion for a post."""
+    cv, _ = ContentVersion.objects.get_or_create(
+        post=post,
+        name="canonical",
+        defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+    )
+    return cv
+
+
+class PostOwnedCanonicalSeedTest(TestCase):
+    """
+    create_post must seed a canonical ContentVersion for the POST
+    (ContentVersion.post set, ContentVersion.event null), not the event.
+
+    All eager promotion projections must FK to the post's canonical, not the event's.
+    ADR-016 D2, ADR-008 D3.
+    """
+
+    def setUp(self):
+        self.user = _make_user(username="postseed_user", email="postseed@test.com", password="pw")
+        self.profile = _make_profile(name="PostSeed Org", slug="postseed-org", user=self.user)
+        self.event = _make_event(slug="postseed-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn_tg = _make_promo_connection(self.profile, destination_id="tg-postseed-001")
+        self.conn_fl = _make_promo_connection(
+            self.profile, platform="fetlife", destination_id="fl-postseed-002"
+        )
+
+    def test_create_post_seeds_post_canonical_not_event_canonical(self):
+        """
+        create_post must seed a canonical ContentVersion with post FK set
+        and event FK null (post-owned, not event-owned).
+        """
+        from syndication.services import create_post
+
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="Test Post",
+            body="Test body",
+        )
+
+        # Must be a ContentVersion with post=post, event=null
+        post_cvs = ContentVersion.objects.filter(post=post, name="canonical")
+        self.assertEqual(post_cvs.count(), 1, "create_post must seed exactly one post-owned canonical CV")
+        cv = post_cvs.first()
+        self.assertIsNone(cv.event_id, "Post's canonical CV must have event=None (post-owned)")
+        self.assertEqual(cv.post_id, post.pk, "Post's canonical CV must have post FK set")
+
+    def test_create_post_promotion_projections_fk_post_canonical(self):
+        """
+        All eager promotion projections created by create_post must FK to the
+        POST's canonical ContentVersion, not the event's canonical.
+        """
+        from syndication.services import create_post
+
+        post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="FK Test Post",
+            body="FK test body",
+        )
+
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+        projections = PlatformProjection.objects.filter(source_post=post)
+        self.assertGreater(projections.count(), 0, "create_post must produce eager projections")
+        for proj in projections:
+            self.assertEqual(
+                proj.content_version_id,
+                post_canonical.pk,
+                f"Projection {proj.pk} must FK to the POST's canonical, not the event's",
+            )
+            # Verify the FK'd CV is post-owned (event=None)
+            self.assertIsNone(
+                proj.content_version.event_id,
+                f"Projection {proj.pk}'s content_version must be post-owned (event=None)",
+            )
+
+    def test_two_posts_each_get_own_canonical(self):
+        """
+        Two Posts on the same Event each get their own canonical ContentVersion.
+        The event's canonical (if any) is distinct from both post canonicals.
+        """
+        from syndication.services import create_post
+
+        post1 = create_post(
+            user=self.user, event=self.event, headline="Post 1", body="Body 1"
+        )
+        post2 = create_post(
+            user=self.user, event=self.event, headline="Post 2", body="Body 2"
+        )
+
+        cv1 = ContentVersion.objects.get(post=post1, name="canonical")
+        cv2 = ContentVersion.objects.get(post=post2, name="canonical")
+        self.assertNotEqual(cv1.pk, cv2.pk, "Two posts must have separate canonical ContentVersions")
+
+
+class PostPromotionCustomizeResetTest(TestCase):
+    """
+    customize + reset_to_canonical round-trip for post-owned promotion projections.
+
+    ADR-016 D2: reset_to_canonical for a promotion projection must resolve the
+    POST's canonical, not the event's. The consumers_map must also work for post-owned CVs.
+    """
+
+    def setUp(self):
+        self.user = _make_user(username="postctrl_user", email="postctrl@test.com", password="pw")
+        self.profile = _make_profile(name="PostCtrl Org", slug="postctrl-org", user=self.user)
+        self.event = _make_event(slug="postctrl-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn_tg = _make_promo_connection(self.profile, destination_id="tg-postctrl-001")
+        self.conn_fl = _make_promo_connection(
+            self.profile, platform="fetlife", destination_id="fl-postctrl-002"
+        )
+
+    def test_customize_on_post_promotion_creates_post_owned_version(self):
+        """
+        customize(projection) on a post-owned promotion projection must create
+        a new ContentVersion with post FK set (not event FK).
+        """
+        from syndication.services import create_post, customize
+
+        post = create_post(
+            user=self.user, event=self.event, headline="Promo Post", body="Body"
+        )
+        proj = PlatformProjection.objects.filter(source_post=post).first()
+        self.assertIsNotNone(proj)
+
+        new_cv = customize(self.user, proj)
+        # The customized CV must be post-owned, not event-owned
+        self.assertEqual(new_cv.post_id, post.pk)
+        self.assertIsNone(new_cv.event_id)
+
+    def test_customize_isolates_post_channels(self):
+        """
+        Customizing one promotion channel must not affect the other still-synced channel.
+        """
+        from syndication.services import create_post, customize, edit_version
+        from syndication.engine import render_projection
+
+        post = create_post(
+            user=self.user, event=self.event, headline="Isolation Post", body="Original body"
+        )
+        projs = list(PlatformProjection.objects.filter(source_post=post))
+        self.assertGreaterEqual(len(projs), 2, "Need ≥2 promotion projections")
+
+        proj_a, proj_b = projs[0], projs[1]
+
+        # Customize proj_a
+        new_cv = customize(self.user, proj_a)
+        proj_a.refresh_from_db()
+
+        # Edit customized version's body
+        edit_version(self.user, new_cv, body="CUSTOM BODY CHAN A")
+
+        # proj_b still shares the post canonical → render uses post body
+        body_b = render_projection(proj_b)
+        self.assertNotIn("CUSTOM BODY CHAN A", body_b)
+
+    def test_reset_to_canonical_for_post_promotion_uses_post_canonical(self):
+        """
+        reset_to_canonical for a post-owned promotion projection must re-point
+        at the POST's canonical, not the event's canonical.
+        """
+        from syndication.services import create_post, customize, reset_to_canonical
+
+        post = create_post(
+            user=self.user, event=self.event, headline="Reset Post", body="Body"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+
+        proj = PlatformProjection.objects.filter(source_post=post).first()
+        # Customize to diverge
+        customize(self.user, proj)
+        proj.refresh_from_db()
+        self.assertNotEqual(proj.content_version_id, post_canonical.pk)
+
+        # Reset — must re-point at POST's canonical, not event's
+        reset_to_canonical(self.user, proj)
+        proj.refresh_from_db()
+        self.assertEqual(
+            proj.content_version_id,
+            post_canonical.pk,
+            "reset_to_canonical for a promotion projection must point at the POST's canonical",
+        )
+
+    def test_content_version_consumers_map_for_post(self):
+        """
+        content_version_consumers_map must support post-scoped queries.
+        Both synced promotion channels must be listed under the post's canonical.
+        """
+        from syndication.services import create_post, content_version_consumers_map
+
+        post = create_post(
+            user=self.user, event=self.event, headline="Map Post", body="Body"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+        projs = list(PlatformProjection.objects.filter(source_post=post))
+        self.assertGreaterEqual(len(projs), 2)
+
+        mapping = content_version_consumers_map(post=post)
+        self.assertIn(post_canonical, mapping)
+        consumer_pks = {p.pk for p in mapping[post_canonical]}
+        for proj in projs:
+            self.assertIn(proj.pk, consumer_pks)
+
+    def test_edit_post_canonical_propagates_to_draft_not_frozen(self):
+        """
+        Editing the post's shared canonical propagates to still-synced draft channels
+        but NOT to a channel already ready/published (freeze, ADR-016 D2).
+        """
+        from syndication.services import create_post, edit_version, approve_projection
+        from syndication.engine import render_projection, transition_status
+
+        post = create_post(
+            user=self.user, event=self.event, headline="Freeze Post", body="Original"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+        projs = list(PlatformProjection.objects.filter(source_post=post))
+        self.assertGreaterEqual(len(projs), 2)
+
+        proj_draft, proj_ready = projs[0], projs[1]
+
+        # Advance proj_ready to ready (frozen)
+        approve_projection(user=self.user, projection=proj_ready)
+        proj_ready.refresh_from_db()
+        frozen_body = render_projection(proj_ready)
+
+        # Edit the shared canonical
+        edit_version(self.user, post_canonical, body="UPDATED CANONICAL")
+
+        # Draft channel sees the update
+        draft_render = render_projection(proj_draft)
+        self.assertIn("UPDATED CANONICAL", draft_render)
+
+        # Ready channel is frozen — unchanged
+        proj_ready.refresh_from_db()
+        ready_render = render_projection(proj_ready)
+        self.assertEqual(ready_render, frozen_body)
+        self.assertNotIn("UPDATED CANONICAL", ready_render)
+
+
+class PostOwnedVersionResolveEventRaisesTest(TestCase):
+    """
+    ADR-008 D3: Any service resolving a post-owned ContentVersion to its event
+    must RAISE rather than silently fall back.
+
+    _gate_can_edit_for_cv is the specific guard that must fail loud when
+    content_version.event is None.
+    """
+
+    def setUp(self):
+        self.user = _make_user(username="postguard_user", email="postguard@test.com", password="pw")
+        self.profile = _make_profile(name="PostGuard Org", slug="postguard-org", user=self.user)
+        self.event = _make_event(slug="postguard-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_promo_connection(self.profile, destination_id="tg-postguard-001")
+        # Second promotion connection so tests that need ≥2 projections work
+        self.conn2 = _make_promo_connection(
+            self.profile, platform="fetlife", destination_id="fl-postguard-002"
+        )
+
+    def test_gate_can_edit_for_cv_resolves_event_via_post_not_none(self):
+        """
+        _gate_can_edit_for_cv on a post-owned ContentVersion must resolve
+        the event via post.event (not raise or pass None to can_edit).
+
+        A user who IS the organizer of the event must be allowed to edit.
+        (Regression guard: previously would fail with can_edit(user, None).)
+        """
+        from syndication.services import create_post, edit_version
+
+        post = create_post(
+            user=self.user, event=self.event, headline="Guard Post", body="Body"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+
+        # If _gate_can_edit_for_cv incorrectly passes None to can_edit, this raises.
+        # The correct behavior is: can_edit resolves event via post.event → succeeds.
+        proj = PlatformProjection.objects.filter(source_post=post).first()
+        # edit_version goes through _gate_can_edit_for_cv
+        edit_version(self.user, post_canonical, body="Edited via post-owned CV")
+        post_canonical.refresh_from_db()
+        self.assertEqual(post_canonical.body, "Edited via post-owned CV")
+
+    def test_copy_from_on_post_source_creates_post_owned_version(self):
+        """
+        copy_from when source_version is post-owned must create a new ContentVersion
+        with post FK set (not event=source.event, which would violate check constraint
+        since source.event=None → CV with both null → raises DB constraint).
+        """
+        from syndication.services import create_post, copy_from
+
+        post = create_post(
+            user=self.user, event=self.event, headline="CopyFrom Post", body="Body"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+        proj = PlatformProjection.objects.filter(source_post=post).first()
+
+        # copy_from with a post-owned source must produce a post-owned new CV
+        new_cv = copy_from(self.user, proj, post_canonical)
+        self.assertEqual(new_cv.post_id, post.pk)
+        self.assertIsNone(new_cv.event_id)
+
+    def test_duplicate_on_post_owned_cv_creates_post_owned_version(self):
+        """
+        duplicate on a post-owned ContentVersion must produce a new CV with
+        post FK set, not event FK (which is None on the source → would violate constraint).
+        """
+        from syndication.services import create_post, duplicate
+
+        post = create_post(
+            user=self.user, event=self.event, headline="Dup Post", body="Body"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+
+        new_cv = duplicate(self.user, post_canonical)
+        self.assertEqual(new_cv.post_id, post.pk)
+        self.assertIsNone(new_cv.event_id)
+
+    def test_copy_to_on_post_source_creates_post_owned_versions(self):
+        """
+        copy_to when source_version is post-owned must create new CVs with
+        post FK set for each target projection.
+        """
+        from syndication.services import create_post, copy_to
+
+        post = create_post(
+            user=self.user, event=self.event, headline="CopyTo Post", body="Body"
+        )
+        post_canonical = ContentVersion.objects.get(post=post, name="canonical")
+        projs = list(PlatformProjection.objects.filter(source_post=post))
+        self.assertGreaterEqual(len(projs), 2)
+
+        new_versions = copy_to(self.user, post_canonical, [projs[1]])
+        new_cv = new_versions[0]
+        self.assertEqual(new_cv.post_id, post.pk)
+        self.assertIsNone(new_cv.event_id)

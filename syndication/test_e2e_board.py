@@ -608,7 +608,9 @@ class E2EBoardFlowTest(TestCase):
         )
 
         # --- Step 1: both on the same canonical CV ---
-        canonical_cv = ContentVersion.objects.get(event=event, name="canonical")
+        # ADR-016 D2 (kb-q4u9.2): promotion projections FK the POST's canonical,
+        # not the event's. Resolve post canonical.
+        canonical_cv = ContentVersion.objects.get(post=post, name="canonical")
         self.assertEqual(proj_1.content_version_id, canonical_cv.pk)
         self.assertEqual(proj_2.content_version_id, canonical_cv.pk)
 
@@ -617,8 +619,8 @@ class E2EBoardFlowTest(TestCase):
         self.assertIn(proj_1.pk, consumer_pks)
         self.assertIn(proj_2.pk, consumer_pks)
 
-        # content_version_consumers_map maps canonical → both
-        cv_map = content_version_consumers_map(event)
+        # content_version_consumers_map for the post maps canonical → both
+        cv_map = content_version_consumers_map(post=post)
         map_pks = {p.pk for p in cv_map[canonical_cv]}
         self.assertIn(proj_1.pk, map_pks)
         self.assertIn(proj_2.pk, map_pks)

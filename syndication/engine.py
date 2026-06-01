@@ -223,10 +223,12 @@ def generate_projection(
         if source_event is None:
             raise ValueError("source_event is required for kind='listing'")
         canonical_event = source_event
+        canonical_post = None
     elif kind == "promotion":
         if source_post is None:
             raise ValueError("source_post is required for kind='promotion'")
-        canonical_event = source_post.event
+        canonical_event = None  # promotion CVs are post-owned, not event-owned
+        canonical_post = source_post
     else:
         raise ValueError(f"Unknown kind {kind!r}. Valid: 'listing', 'promotion'")
 
@@ -234,14 +236,23 @@ def generate_projection(
     # Event.visibility is a read-side concern (switch.berlin visible_to) only.
     # Eager creation is uniform across all visibility tiers.
 
-    # --- Resolve or create a ContentVersion for this event ---
-    # get-or-create the canonical version for the event so generate_projection
-    # can be called standalone (without having gone through create_event).
-    canonical_cv, _ = ContentVersion.objects.get_or_create(
-        event=canonical_event,
-        name="canonical",
-        defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
-    )
+    # --- Resolve or create a ContentVersion for this publishable ---
+    # get-or-create the canonical version for the publishable so generate_projection
+    # can be called standalone (without having gone through create_event/create_post).
+    # ADR-016 D2 / kb-q4u9.2: promotion projections use the POST's canonical
+    # (post FK set, event FK null), not the event's canonical.
+    if canonical_post is not None:
+        canonical_cv, _ = ContentVersion.objects.get_or_create(
+            post=canonical_post,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+        )
+    else:
+        canonical_cv, _ = ContentVersion.objects.get_or_create(
+            event=canonical_event,
+            name="canonical",
+            defaults={"provenance": ContentVersion.Provenance.RULE_TEMPLATE},
+        )
 
     # --- Resolve the ContentVersion this projection will use ---
     if mode == "rule_based":
@@ -258,8 +269,10 @@ def generate_projection(
         # Create a DEDICATED new ContentVersion — NEVER mutate the shared canonical.
         # This prevents the agent's body from bleeding into sibling projections that
         # share the canonical track-live version.
+        # Preserve publishable scope (post or event) for the agent-assisted version.
         cv = ContentVersion.objects.create(
             event=canonical_event,
+            post=canonical_post,
             name=f"agent-{connection.platform}-{connection.destination_id}",
             provenance=ContentVersion.Provenance.AGENT_SUPPLIED,
             body=body,
