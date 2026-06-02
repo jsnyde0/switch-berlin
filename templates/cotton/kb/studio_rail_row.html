@@ -1,0 +1,58 @@
+{% comment %}
+  Studio rail row — a single publishable in the left nav rail.
+
+  HTMX-wired: hx-get the real composer path, hx-target="#studio-main",
+  hx-push-url so window.location reflects the canonical URL.
+
+  Active state: set as a reactive Alpine boolean. Initialised from
+  window.location.pathname at mount. Updates on htmx:pushedIntoHistory so
+  the active highlight stays in sync after an HTMX swap without re-rendering
+  the rail.
+
+  x-data on the root is REQUIRED — without it Alpine directives are inert
+  (this repo has bitten on this; per build caution in kb-9f1h.3).
+
+  Attributes:
+    url        — real composer path (/syndication/events/<pk>/ etc.)
+    kind       — "event" | "post"
+    title      — display title (Event.title or Post.headline)
+    subtitle   — optional; only for Post rows (e.g. "Launch teaser · ↳ Spring Munch")
+    is_active  — "true" when this row matches the current URL at server render time
+{% endcomment %}
+<div x-data="{ active: window.location.pathname === '{{ url }}' }"
+     x-on:htmx:pushed-into-history.window="active = (window.location.pathname === '{{ url }}')"
+     x-on:htmx:pop-history.window="active = (window.location.pathname === '{{ url }}')"
+     class="group/row relative cursor-pointer select-none transition-colors duration-100"
+     :class="active ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'"
+     hx-get="{{ url }}"
+     hx-target="#studio-main"
+     hx-push-url="{{ url }}"
+     role="button"
+     tabindex="0"
+     aria-label="{{ title }}"
+     :aria-current="active ? 'page' : false"
+     @keydown.enter="$el.click()"
+     @keydown.space.prevent="$el.click()">
+  {% comment %}Fuchsia hairline active indicator on the left edge{% endcomment %}
+  <div aria-hidden="true"
+       class="absolute inset-y-0 left-0 w-px transition-colors duration-100"
+       :class="active ? 'bg-fuchsia-300/70' : 'bg-transparent group-hover/row:bg-white/15'"></div>
+  <div class="pl-5 pr-4 py-2.5">
+    {% comment %}Type badge + title{% endcomment %}
+    <div class="flex items-baseline gap-2 min-w-0">
+      <span class="kb-mono text-[9px] uppercase tracking-[0.18em] shrink-0 {% if kind == 'event' %}text-fuchsia-300/55{% else %}text-base-content/30{% endif %}">
+        {{ kind }}
+      </span>
+      <span class="kb-mono text-[12px] tracking-[0.03em] leading-snug truncate transition-colors duration-100"
+            :class="active ? 'text-base-content' : 'text-base-content/70 group-hover/row:text-base-content/88'">
+        {{ title }}
+      </span>
+    </div>
+    {% if subtitle %}
+      {% comment %}Post parent-event subtitle: literal " · ↳ " separators preserved per spec{% endcomment %}
+      <p class="kb-mono text-[10px] tracking-[0.02em] leading-snug mt-0.5 ml-11 text-base-content/30 truncate">
+        {{ subtitle }}
+      </p>
+    {% endif %}
+  </div>
+</div>

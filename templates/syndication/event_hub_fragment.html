@@ -1,49 +1,6 @@
 {% load i18n %}
-<div class="w-full pt-8 pb-16" x-data="{}">
-  {# Slim event header #}
-  <div class="flex items-start justify-between mb-6 gap-6">
-    <div class="min-w-0">
-      <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-1.5">
-        {% trans "Event Hub" %}
-        <span class="mx-2 text-base-content/15">·</span>
-        <span class="{% if event.status == 'draft' %}text-yellow-400/80{% elif event.status == 'published' %}text-green-400/80{% else %}text-base-content/40{% endif %}">
-          {{ event.get_status_display }}
-        </span>
-        {% if event.start %}
-          <span class="mx-2 text-base-content/15">·</span>
-          <span class="text-base-content/40">{{ event.start|date:"D, d F Y · H:i" }}</span>
-        {% endif %}
-      </p>
-      <h1 class="kb-display text-[32px] font-light leading-tight truncate">{{ event.title }}</h1>
-    </div>
-    {% if can_edit %}
-      <a href="{% url 'syndication:event-edit' pk=event.pk %}"
-         class="kb-btn-secondary text-[10px] shrink-0 mt-1">{% trans "Edit event" %}</a>
-    {% endif %}
-  </div>
-  <div class="kb-rule mb-6"></div>
-  <section id="event-facts"
-           hx-get="{% url 'syndication:fragment-event-facts' pk=event.pk %}"
-           hx-trigger="load"
-           hx-swap="outerHTML">
-    <div class="py-3 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest">
-      {% trans "Loading event facts…" %}
-    </div>
-  </section>
-  <div class="kb-rule my-5"></div>
-  <section id="event-posts"
-           hx-get="{% url 'syndication:fragment-event-posts' pk=event.pk %}"
-           hx-trigger="load"
-           hx-swap="outerHTML">
-    <div class="py-3 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest">{% trans "Loading posts…" %}</div>
-  </section>
-  <div class="kb-rule my-5"></div>
-  <section id="event-syndication"
-           hx-get="{% url 'syndication:fragment-event-syndication' pk=event.pk %}"
-           hx-trigger="load"
-           hx-swap="outerHTML">
-    <div class="py-10 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest text-center">
-      {% trans "Loading syndication board…" %}
-    </div>
-  </section>
-</div>
+{% comment %}
+Layout-less event hub body — returned on HX-Request for studio main-pane swap.
+Shares its body with the full-page event_hub.html via _event_hub_body.html.
+{% endcomment %}
+{% include "syndication/_event_hub_body.html" %}

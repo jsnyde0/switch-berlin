@@ -23,6 +23,12 @@
         {% trans "Listings" %}
       </a>
       {% if user.is_authenticated %}
+        {% if user_primary_profile %}
+          <a href="{% url 'studio' %}"
+             class="kb-mono whitespace-nowrap text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content transition-colors">
+            {% trans "Studio" %}
+          </a>
+        {% endif %}
         <a href="/me/"
            class="kb-mono whitespace-nowrap text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content transition-colors">
           {% trans "My profile" %}

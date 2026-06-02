@@ -1,10 +1,108 @@
-{% extends "layouts/_default.html" %}
+{% extends "_base.html" %}
 {% load i18n %}
-{% block title %}Studio — Switch{% endblock %}
-{% block content %}
-  <div class="w-full pt-8 pb-16">
-    <h1 class="text-2xl font-bold mb-4">{% trans "Studio" %}</h1>
-    <p class="text-base-content/60">{% trans "Your publishables workspace." %}</p>
-    {# Placeholder — the two-pane shell and rail are kb-9f1h.3's job. #}
-  </div>
+{% block title %}
+  {% trans "Studio" %} — Switch
 {% endblock %}
+{% comment %}
+Studio two-pane shell (kb-9f1h.3).
+
+Override body_content to control the full-viewport layout without the outer
+max-w-7xl wrapper that _base.html injects around the layout block.
+
+Architecture:
+  - Left rail (aside): persistent publishables list. Fixed 232px on sm+.
+    The rail border-right runs to the bottom of the viewport.
+  - Main pane (#studio-main): HTMX swap target. Rail row clicks do
+    hx-get + hx-target="#studio-main" + hx-push-url to the real composer path.
+
+Cheap-foresight slots (ADR-003, kb-5ok6):
+  - .studio-profile-switcher: empty; future Hipsy outer shell fills this
+  - .studio-nav-sections: empty; future nav sections (Dashboard / Sales / …)
+
+publishables is a list of {"kind": "event"|"post", "obj": <instance>} dicts.
+{% endcomment %}
+{% block footer %}
+{% endblock footer %}
+{% block body_content %}
+  <div class="antialiased flex flex-col" style="min-height: 100vh">
+    <c-navbar />
+    <div class="flex flex-1 items-stretch w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {% comment %}── Left rail ──────────────────────────────────────────────{% endcomment %}
+      <aside class="hidden sm:flex flex-col shrink-0 w-[232px] pt-6 pb-20 border-r border-white/[0.09]"
+             aria-label="{% trans "Publishables" %}">
+        {% comment %}Profile-switcher slot (empty) — reserved for kb-5ok6{% endcomment %}
+        <div class="studio-profile-switcher" aria-hidden="true"></div>
+        {% comment %}Profile identity kicker{% endcomment %}
+        <div class="pr-5 mb-4">
+          <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 truncate"
+             title="{{ primary_profile.name }}">{{ primary_profile.name }}</p>
+        </div>
+        {% comment %}Nav-sections slot (empty) — reserved for kb-5ok6{% endcomment %}
+        <div class="studio-nav-sections" aria-hidden="true"></div>
+        {% comment %}Publishables section rule + label{% endcomment %}
+        <div class="pr-5 mb-2.5">
+          <div class="kb-rule"></div>
+        </div>
+        <div class="pr-5 mb-2">
+          <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25">{% trans "Publishables" %}</p>
+        </div>
+        {% comment %}Flat publishables list (D1: Events + Posts as peers, no nesting){% endcomment %}
+        {% if publishables %}
+          <nav class="flex flex-col overflow-y-auto flex-1 pt-1 -ml-4"
+               aria-label="{% trans "Your publishables" %}">
+            {% for item in publishables %}
+              {% if item.kind == "event" %}
+                {% with obj=item.obj url_path=item.obj.pk|stringformat:"d" %}
+                  {% with composer_url="/syndication/events/"|add:url_path|add:"/" %}
+                    {% if current_path == composer_url %}
+                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="event" title="{{ obj.title }}" is_active="true" />
+                    {% else %}
+                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="event" title="{{ obj.title }}" is_active="" />
+                    {% endif %}
+                  {% endwith %}
+                {% endwith %}
+              {% else %}
+                {% with obj=item.obj url_path=item.obj.pk|stringformat:"d" %}
+                  {% with composer_url="/syndication/posts/"|add:url_path|add:"/" %}
+                    {% if current_path == composer_url %}
+                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="post" title="{{ obj.headline }}" subtitle="{{ obj.headline }} · ↳ {{ obj.event.title }}" is_active="true" />
+                    {% else %}
+                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="post" title="{{ obj.headline }}" subtitle="{{ obj.headline }} · ↳ {{ obj.event.title }}" is_active="" />
+                    {% endif %}
+                  {% endwith %}
+                {% endwith %}
+              {% endif %}
+            {% endfor %}
+          </nav>
+        {% else %}
+          {% comment %}Zero publishables in rail — quiet secondary CTA{% endcomment %}
+          <div class="pr-5 pt-2">
+            <p class="kb-mono text-[10px] tracking-[0.06em] text-base-content/30 mb-3 leading-relaxed">
+              {% trans "Nothing here yet." %}
+            </p>
+            <a href="{% url 'syndication:event-create' %}"
+               class="kb-btn-secondary text-[10px]">{% trans "Create event" %} ↗</a>
+          </div>
+        {% endif %}
+      </aside>
+      {% comment %}── Main pane (#studio-main, HTMX swap target) ──────────────{% endcomment %}
+      <main id="studio-main"
+            class="flex-1 min-w-0 px-6 sm:px-8 lg:px-10 pt-6 pb-20">
+        {% if publishables %}
+          {% comment %}
+          Default state: prompt the user to select a publishable.
+          Rail row clicks replace this entire element via hx-target="#studio-main".
+          {% endcomment %}
+          <div class="pt-8">
+            <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 mb-5">{% trans "workspace" %}</p>
+            <p class="kb-display text-[28px] sm:text-[34px] font-light leading-tight text-base-content/45 max-w-[32ch]">
+              {% trans "Select a publishable from the rail to open its workspace." %}
+            </p>
+          </div>
+        {% else %}
+          <c-kb.studio-empty-state event_create_url="{% url 'syndication:event-create' %}" />
+        {% endif %}
+      </main>
+    </div>
+  </div>
+{% endblock body_content %}

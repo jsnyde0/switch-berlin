@@ -88,10 +88,22 @@ def studio(request):
         return HttpResponseForbidden("No organizer profile. Studio access requires an active profile claim.")
 
     primary_profile = claim.profile
-    publishables = get_publishables_for_profile(primary_profile)
+    raw_publishables = get_publishables_for_profile(primary_profile)
+
+    # Annotate each item with its kind so templates can distinguish Event vs Post
+    # without a template filter (ADR-008 D2 — simplest thing that works).
+    from events.models import Event as _Event
+    publishables = []
+    for item in raw_publishables:
+        publishables.append({
+            "kind": "event" if isinstance(item, _Event) else "post",
+            "obj": item,
+        })
+
     return render(request, "syndication/studio.html", {
         "primary_profile": primary_profile,
         "publishables": publishables,
+        "current_path": request.path,
     })
 
 

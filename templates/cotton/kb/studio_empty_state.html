@@ -1,0 +1,22 @@
+{% comment %}
+  Studio empty-state — welcome panel for a claimant with zero publishables.
+
+  Shows a plain editorial message and a CTA to create the first event.
+  Never renders a blank list (ADR-008 D3 — visible state over silence).
+
+  Attributes:
+    event_create_url — URL for the event-create route
+{% endcomment %}
+<div class="flex flex-col items-center justify-center min-h-[360px] py-16 px-8 text-center">
+  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/30 mb-6">Nothing here yet</p>
+  <p class="kb-display text-[22px] font-light leading-tight text-base-content/70 mb-3 max-w-[28ch]">
+    Create your first event to get started.
+  </p>
+  <p class="text-[13px] leading-relaxed text-base-content/35 mb-8 max-w-[44ch]">
+    Events and posts you create will appear in the rail. Click any row to open its workspace.
+  </p>
+  <a href="{{ event_create_url }}" class="kb-btn">
+    Create your first event
+    <span aria-hidden="true">↗</span>
+  </a>
+</div>
