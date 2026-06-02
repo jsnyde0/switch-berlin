@@ -189,6 +189,34 @@ def _get_primary_profile_for_user(user):
     return claim.profile
 
 
+def get_publishables_for_profile(profile):
+    """
+    Return the profile's Events and Posts merged into one list sorted by
+    updated_at descending.
+
+    NO visibility filter — this lists an owner's OWN assets; visibility is a
+    public-render concept that does NOT gate owner-management (ADR-012 read-side-
+    only scope header).
+
+    NO UNION SQL, NO pagination at V0 (ADR-008 D2 — add on a real volume signal).
+    Python-level merge of two querysets spanning two apps (events.models.Event
+    lives in the events app; syndication.models.Post lives here).
+
+    Lives beside _get_primary_profile_for_user (parent D5).
+    """
+    from events.models import Event
+    from syndication.models import Post
+
+    # Fetch full Event objects for the profile (no visibility filter — ADR-012)
+    event_qs = list(Event.objects.filter(organizers=profile))
+    # Fetch Posts for all events belonging to this profile
+    post_qs = list(Post.objects.filter(event__organizers=profile))
+
+    merged = event_qs + post_qs
+    merged.sort(key=lambda p: p.updated_at, reverse=True)
+    return merged
+
+
 def _ensure_canonical_content_version(event=None, post=None):
     """
     Ensure a canonical ContentVersion exists for a publishable (event OR post)

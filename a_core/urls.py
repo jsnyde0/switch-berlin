@@ -19,9 +19,11 @@ from organizers.views import organizer_profile
 from pages.views import age_check_view, robots_txt_view
 from reviews.views import organizer_opt_out_view, takedown_view
 from syndication.api import api as syndication_api
+from syndication.views import studio
 
 urlpatterns = [
     path("api/", syndication_api.urls),
+    path("studio/", studio, name="studio"),
     path("syndication/", include("syndication.urls")),
     path("", include("pages.urls")),
     path("healthz", healthz, name="healthz"),

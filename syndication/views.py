@@ -36,6 +36,7 @@ from syndication.services import (
     update_event,
     set_event_cover,
     _get_primary_profile_for_user,
+    get_publishables_for_profile,
     approve_projection,
     publish_projection,
     mark_projection_published,
@@ -51,6 +52,47 @@ from syndication.services import (
     content_version_consumers_map,
     _resolve_publishable_for_cv,
 )
+
+
+# ---------------------------------------------------------------------------
+# Studio front door (kb-9f1h.1)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def studio(request):
+    """
+    Organizer studio front door — claimant-gated.
+
+    A claimant sees their publishables (Events + Posts) merged and sorted by
+    updated_at descending. A zero-claims user gets 403 (fail loud, ADR-008 D3 —
+    never a synthesized empty workspace).
+
+    The gating check mirrors the context processor: uses ProfileClaim directly
+    (not the raising _get_primary_profile_for_user) so the error path is 403,
+    not an uncaught ValueError.
+
+    The studio shell/rail templates are kb-9f1h.3's job; this view renders a
+    minimal placeholder template.
+    """
+    from organizers.models import ProfileClaim
+
+    claim = (
+        ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True)
+        .select_related("profile")
+        .first()
+    )
+    if claim is None:
+        # Zero-claims user — fail loud, never synthesize an empty workspace
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("No organizer profile. Studio access requires an active profile claim.")
+
+    primary_profile = claim.profile
+    publishables = get_publishables_for_profile(primary_profile)
+    return render(request, "syndication/studio.html", {
+        "primary_profile": primary_profile,
+        "publishables": publishables,
+    })
 
 
 # ---------------------------------------------------------------------------

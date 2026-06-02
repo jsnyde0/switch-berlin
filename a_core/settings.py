@@ -145,6 +145,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "a_core.context_processors.feature_flags",
                 "a_core.context_processors.legal_contact_processor",
+                "a_core.context_processors.user_primary_profile",
             ],
             "loaders": [
                 (

@@ -9,6 +9,34 @@ def legal_contact_processor(request):
     return {"legal_contact": get_legal_contact()}
 
 
+def user_primary_profile(request):
+    """
+    Expose the claimant's primary Profile in all template contexts.
+
+    Returns the first active ProfileClaim's Profile for a claimant user,
+    or None for non-claimants, anonymous users, and any user with no claim.
+
+    MUST NOT call the raising _get_primary_profile_for_user — wraps the
+    zero-claims case as None so it never raises during template rendering
+    (parent D3, ADR-008 D3 context-processor contract).
+
+    Used by the navbar to show/hide the Studio link (claimant-gated).
+    """
+    user = request.user
+    # Anonymous users are never claimants
+    if not user.is_authenticated:
+        return {"user_primary_profile": None}
+
+    from organizers.models import ProfileClaim
+
+    claim = (
+        ProfileClaim.objects.filter(user=user, rejected_at__isnull=True)
+        .select_related("profile")
+        .first()
+    )
+    return {"user_primary_profile": claim.profile if claim is not None else None}
+
+
 def feature_flags(request):
     return {
         "MAP_ENABLED": get_flag("MAP_ENABLED", default=True),
