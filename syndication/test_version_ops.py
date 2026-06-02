@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.test import override_settings as _override_settings
 from django.utils import timezone
 
 from events.models import Event, EventOrganizer
@@ -1624,6 +1625,7 @@ def _make_publish_ok_response():
     return resp
 
 
+@_override_settings(TELEGRAM_BOT_TOKEN="test-dummy-token")
 class PostOwnedProjectionPublishProbeTest(TestCase):
     """
     Probe: per-channel publish AND publish-all-ready for post-owned promotion
