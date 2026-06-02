@@ -143,6 +143,12 @@ jobs:
           # Long-enough SECRET_KEY so security.W009 (key length < 50) doesn't
           # trip the WARNING gate. Test value only; prod is set from GH secret.
           SECRET_KEY: "ci-only-deploy-check-secret-key-with-enough-entropy-for-w009"
+          # This fast pre-merge gate runs without a frontend build, so the Vite
+          # manifest is absent and django_vite.W001 would trip --fail-level
+          # WARNING. The authoritative manifest check is deploy.yml's check
+          # --deploy (runs inside the built image where the manifest exists),
+          # so silencing W001 here only — never in prod — keeps that gate whole.
+          CI_SKIP_VITE_MANIFEST_CHECK: "True"
         run: uv run python manage.py check --deploy --fail-level WARNING
 
       - name: makemessages check (i18n catalog not empty)

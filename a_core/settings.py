@@ -67,6 +67,16 @@ SILENCED_SYSTEM_CHECKS = [
     "security.W021",  # HSTS_PRELOAD not True
 ]
 
+# The test.yml check --deploy step is a fast pre-merge mirror of the deploy
+# gate that runs WITHOUT a frontend build, so django_vite.W001 ("manifest not
+# readable") fires only because static/dist is legitimately absent there. The
+# AUTHORITATIVE manifest validation happens in deploy.yml's check --deploy,
+# which runs inside the built image where the manifest exists — W001 stays
+# active there. This flag is set ONLY in test.yml's check --deploy env, never
+# in prod, so the real gate is never weakened (ADR-008 D3).
+if env.bool("CI_SKIP_VITE_MANIFEST_CHECK", default=False):
+    SILENCED_SYSTEM_CHECKS.append("django_vite.W001")
+
 if DEBUG:
     import socket
 
