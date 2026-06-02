@@ -11,9 +11,11 @@ Covers:
 - Context contains 'sort' and 'trending_enabled' keys
 """
 
+import unittest
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.db import connection
 from django.test import TestCase
 from django.utils import timezone
 
@@ -57,6 +59,11 @@ def _make_event(organizer, slug, start_days_from_now, interested=0, attendance=0
 # ---------------------------------------------------------------------------
 
 
+@unittest.skipIf(
+    connection.vendor == "sqlite",
+    "TrendingSortOrderingTest uses EXTRACT(EPOCH FROM ...) PostgreSQL syntax in the "
+    "trending sort query. Not supported in SQLite. Run under default Postgres settings.",
+)
 class TrendingSortOrderingTest(TestCase):
     """?sort=trending returns events in descending trending-score order."""
 
@@ -166,6 +173,11 @@ class TrendingSortFlagDisabledTest(TestCase):
 # ---------------------------------------------------------------------------
 
 
+@unittest.skipIf(
+    connection.vendor == "sqlite",
+    "TrendingSortFlagEnabledTest uses EXTRACT(EPOCH FROM ...) PostgreSQL syntax in the "
+    "trending sort query. Not supported in SQLite. Run under default Postgres settings.",
+)
 class TrendingSortFlagEnabledTest(TestCase):
     """TRENDING_SORT_ENABLED=True: ?sort=trending is honored."""
 

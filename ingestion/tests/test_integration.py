@@ -1,8 +1,10 @@
+import unittest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
@@ -137,6 +139,11 @@ class FullIngestionLoopTest(TestCase):
         reply = update.message.reply_text.call_args[0][0]
         self.assertIn("Only text", reply)
 
+    @unittest.skipIf(
+        connection.vendor == "sqlite",
+        "Calls process_raw_message which invokes match_entities (TrigramSimilarity / "
+        "pg_trgm). Not available in SQLite. Run under default Postgres settings.",
+    )
     def test_low_confidence_does_not_create_event(self):
         """Extraction with confidence < 0.4 sets needs_review, no Event created."""
         raw = RawMessage.objects.create(
@@ -215,6 +222,11 @@ class FullIngestionLoopTest(TestCase):
         event = Event.objects.get(raw_message=raw)
         self.assertEqual(event.organizer, self.organizer)
 
+    @unittest.skipIf(
+        connection.vendor == "sqlite",
+        "Calls process_raw_message which invokes match_entities (TrigramSimilarity / "
+        "pg_trgm). Not available in SQLite. Run under default Postgres settings.",
+    )
     def test_organizer_no_match_leaves_event_organizer_null(self):
         """No organizer match -> Event.organizer is NULL (admin resolves later)."""
         raw = RawMessage.objects.create(
@@ -236,6 +248,11 @@ class FullIngestionLoopTest(TestCase):
         event = Event.objects.get(raw_message=raw)
         self.assertIsNone(event.organizer)
 
+    @unittest.skipIf(
+        connection.vendor == "sqlite",
+        "Calls process_raw_message which invokes match_entities (TrigramSimilarity / "
+        "pg_trgm). Not available in SQLite. Run under default Postgres settings.",
+    )
     def test_tag_matching_splits_into_matched_and_suggested(self):
         """Known tags go to M2M, unknown tags go to suggested_tags JSONField."""
         Tag.objects.create(slug="queer", label="Queer", kind="identity")

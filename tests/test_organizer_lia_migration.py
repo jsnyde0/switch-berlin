@@ -10,7 +10,9 @@ Tests:
 """
 
 import os
+import unittest
 
+from django.db import connection
 from django.test import TestCase  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -67,6 +69,12 @@ def _apply_migration_reverse(migration_label, apps, schema_editor):
 # ---------------------------------------------------------------------------
 
 
+@unittest.skipIf(
+    connection.vendor == "sqlite",
+    "TestOrganizerLIAMigrationForward uses connection.schema_editor() inside a test "
+    "transaction, which SQLite does not support (NotSupportedError: FK constraint "
+    "checks are enabled). Run under default Postgres settings instead.",
+)
 class TestOrganizerLIAMigrationForward(TestCase):
     """Forward migration rewrites telegram_forward_implied → legitimate_interest."""
 

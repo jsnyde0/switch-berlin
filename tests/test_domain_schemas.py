@@ -7,6 +7,7 @@ All five apps: organizers, venues, events, ingestion, reviews.
 
 import pytest
 from django.conf import settings
+from django.db import connection
 
 # ---------------------------------------------------------------------------
 # INSTALLED_APPS assertions
@@ -552,6 +553,13 @@ def test_review_constraint_no_targets_rejected(organizer):
 
 
 @pytest.mark.django_db
+@pytest.mark.skipif(
+    connection.vendor == "sqlite",
+    reason=(
+        "test_event_unique_constraints_in_db queries pg_indexes — a Postgres system "
+        "table that does not exist in SQLite. Run under default Postgres settings."
+    ),
+)
 def test_event_unique_constraints_in_db():
     """
     [kb-n0y] Old FK-based constraints were dropped; verify new M2M constraint.
@@ -560,6 +568,8 @@ def test_event_unique_constraints_in_db():
     intentionally removed when Event.organizer FK became EventOrganizer M2M.
     The new constraint event_organizer_one_primary_per_event (partial unique on
     is_primary=True per event) replaces them in spirit.
+
+    NOTE: Postgres-only — queries pg_indexes. Skipped on SQLite.
     """
     from django.db import connection
 
@@ -578,8 +588,18 @@ def test_event_unique_constraints_in_db():
 
 
 @pytest.mark.django_db
+@pytest.mark.skipif(
+    connection.vendor == "sqlite",
+    reason=(
+        "test_review_check_constraint_in_db queries pg_constraint — a Postgres system "
+        "table that does not exist in SQLite. Run under default Postgres settings."
+    ),
+)
 def test_review_check_constraint_in_db():
-    """Verify CheckConstraint exists in pg_constraint."""
+    """Verify CheckConstraint exists in pg_constraint.
+
+    NOTE: Postgres-only — queries pg_constraint. Skipped on SQLite.
+    """
     from django.db import connection
 
     with connection.cursor() as cursor:
