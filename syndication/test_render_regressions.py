@@ -5,13 +5,14 @@ These tests assert against the RENDERED HTML string, not response.context,
 because the regression class (whitespace mangling, separator stripping) is
 invisible to context assertions — only the rendered output can catch it.
 
-Finding 1: connections_list.html kinds separator must render as 'listing · promotion'
-  (space-middot-space in the TEXT content of the kinds span), not 'listing·promotion'
-  or 'listing\n  ·\n\n  promotion' (djlint stripped surrounding spaces from the separator).
+Finding 1: connections_list.html kinds separator must render as
+  'listing · promotion' (space-middot-space in the kinds span's text content),
+  not 'listing·promotion' or a newline-broken form (djlint stripped the
+  surrounding spaces from the separator).
 
-Finding 2: events/list.html sort-tab hrefs must not contain embedded newlines or
-  multi-space whitespace — djlint wrapped the href attribute value across multiple lines,
-  injecting literal '\n' + indentation into the attribute string, producing malformed URLs.
+Finding 2: events/list.html sort-tab hrefs must not contain embedded newlines
+  or multi-space whitespace — djlint wrapped the href attribute value across
+  lines, injecting literal newlines + indentation and producing malformed URLs.
 """
 
 import re
@@ -45,16 +46,15 @@ def _make_profile(name, slug, user=None):
 
 class ConnectionsListKindsSeparatorTest(TestCase):
     """
-    Regression: connections_list.html kinds separator must render as ' · ' (space-middot-space).
+    Regression: connections_list.html kinds separator must render as ' · '.
 
-    Pre-reformat: {% for k in conn.kinds %}{{ k }}{% if not forloop.last %} · {% endif %}{% endfor %}
-    After djlint reformat the loop body was reflowed across multiple lines and the spaces were
-    stripped from the separator block, so the raw rendered output is:
-      \n  listing\n  ·\n\n  promotion\n
-    This does NOT contain ' · ' (space-middot-space) as an adjacent sequence.
+    Pre-reformat the kinds loop used a literal ' · ' separator. After djlint
+    reformat the loop body was reflowed across lines and the spaces were
+    stripped from the separator block, so the raw rendered output became a
+    newline-broken form that does NOT contain ' · ' as an adjacent sequence.
 
-    The fix must produce 'listing · promotion' (space-middot-space) adjacent in the output,
-    e.g. via {{ conn.kinds|join:" · " }}.
+    The fix must produce 'listing · promotion' (space-middot-space) adjacent in
+    the output, e.g. via {{ conn.kinds|join:" · " }}.
     """
 
     def setUp(self):
@@ -80,9 +80,9 @@ class ConnectionsListKindsSeparatorTest(TestCase):
     def test_kinds_separator_renders_as_spaced_middot_adjacent_in_output(self):
         """
         The raw rendered HTML for a multi-kind connection must contain
-        'listing · promotion' (kind1, space, middot, space, kind2) as adjacent text —
-        or at minimum must contain ' · ' in the kb-mono/kinds span's text content
-        without intervening newlines/indentation breaking the space-middot-space sequence.
+        'listing · promotion' (kind1, space, middot, space, kind2) as adjacent
+        text — without intervening newlines/indentation breaking the
+        space-middot-space sequence.
 
         Specifically: the rendered text content (after collapsing Django template
         whitespace) of the span containing the kinds must produce 'listing · promotion'
@@ -98,14 +98,14 @@ class ConnectionsListKindsSeparatorTest(TestCase):
         response = client.get("/syndication/connections/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # The exact sequence 'listing · promotion' must appear adjacently in the raw HTML.
-        # If the loop is split across lines, the raw HTML has 'listing\n  ·\n\n  promotion'
-        # which does NOT contain 'listing · promotion' as a substring.
+        # The exact sequence 'listing · promotion' must appear adjacently in the
+        # raw HTML. If the loop is split across lines, the raw HTML carries a
+        # newline-broken form that does NOT contain it as a substring.
         self.assertIn(
             "listing · promotion",
             content,
-            "Kinds must render as 'listing · promotion' (space-middot-space adjacent); "
-            "djlint stripped surrounding spaces — check the kinds loop or use |join:' · '",
+            "Kinds must render as 'listing · promotion' (space-middot-space "
+            "adjacent); djlint stripped the spaces — check the loop or use |join",
         )
 
 
@@ -177,8 +177,8 @@ class EventListSortTabHrefTest(TestCase):
 
         # The Latest sort tab renders as <a href="?"> when no filters are active.
         # If djlint injected newlines into the href attribute, the value would be
-        # '?\n                ' instead of '?'.
-        # Check: no href="? " (href="?" followed by whitespace inside the quotes) appears.
+        # '?' followed by whitespace instead of a bare '?'.
+        # Check: no href="?" immediately followed by whitespace inside the quotes.
         malformed = re.search(r'href="\?[\n\r\t ]+[^"]*"', content)
         self.assertIsNone(
             malformed,
