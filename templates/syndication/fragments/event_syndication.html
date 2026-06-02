@@ -254,6 +254,7 @@
                     <div x-data="{ copied: false }" class="flex items-center">
                       <pre id="copy-body-{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
                       <button type="button"
+                              data-copy-body="{{ proj.pk }}"
                               @click="navigator.clipboard.writeText(document.getElementById('copy-body-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
                               class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
                               x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">
