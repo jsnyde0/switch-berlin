@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     # Core Django
-    "django>=5.2",
+    "django>=6.0.5",
     "dj-database-url>=3.0",
     "django-environ>=0.12",
     "psycopg[binary]>=3.2",
@@ -23,7 +23,18 @@ dependencies = [
     "django-q2>=1.8",
     "croniter>=6.0",  # required by django-q2 for Schedule.CRON type
     # Ingestion / LLM
-    "pydantic-ai>=0.2",
+    "pydantic-ai>=1.99.0",
+    # Transitive CVE floors (pydantic-ai tree doesn't pull patched versions automatically):
+    # PYSEC-2026-161: starlette<1.0.1 (via pydantic-ai -> mcp/fastmcp)
+    "starlette>=1.0.1",
+    # PYSEC-2026-175/177/178/179: pyjwt<2.13.0 (via pydantic-ai -> mcp -> fastmcp)
+    "pyjwt>=2.13.0",
+    # CVE-2026-42561: python-multipart<0.0.27 (via pydantic-ai -> mcp -> fastmcp)
+    "python-multipart>=0.0.27",
+    # PYSEC-2026-141/142: urllib3<2.7.0 (transitive via httpx/requests)
+    "urllib3>=2.7.0",
+    # CVE-2026-45409: idna<3.15 (transitive)
+    "idna>=3.15",
     "httpx>=0.28",
     "beautifulsoup4>=4.13",
     "markdownify>=0.14",

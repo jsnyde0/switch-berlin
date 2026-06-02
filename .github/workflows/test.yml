@@ -65,7 +65,7 @@ jobs:
       - name: pip-audit (CVE scan)
         run: |
           uv export --frozen --no-dev --no-emit-project --format requirements.txt > /tmp/reqs.txt
-          uvx pip-audit -r /tmp/reqs.txt
+          uvx --python 3.13 pip-audit -r /tmp/reqs.txt
 
   test:
     runs-on: ubuntu-latest

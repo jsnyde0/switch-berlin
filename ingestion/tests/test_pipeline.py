@@ -92,7 +92,7 @@ class ExtractEventDraftTest(TestCase):
             confidence=0.9,
         )
         mock_result = MagicMock()
-        mock_result.data = mock_draft
+        mock_result.output = mock_draft
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             draft, version = extract_event_draft("Some event text", {})
@@ -238,7 +238,7 @@ class ProcessRawMessageTest(TestCase):
 
         raw = self._make_raw()
         mock_result = MagicMock()
-        mock_result.data = self._mock_draft(confidence=0.25)
+        mock_result.output = self._mock_draft(confidence=0.25)
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
@@ -263,7 +263,7 @@ class ProcessRawMessageTest(TestCase):
         mock_resp.text = "<html>Event detail</html>"
         mock_resp.status_code = 200
         mock_result = MagicMock()
-        mock_result.data = self._mock_draft(confidence=0.9)
+        mock_result.output = self._mock_draft(confidence=0.9)
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             with patch("ingestion.enrichment.httpx.get", return_value=mock_resp):
@@ -322,7 +322,7 @@ class ProcessRawMessageTest(TestCase):
             confidence=0.9,
         )
         mock_result = MagicMock()
-        mock_result.data = mock_draft
+        mock_result.output = mock_draft
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             # Patch enrich_urls to simulate unexpected error from the function itself

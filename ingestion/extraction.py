@@ -45,9 +45,9 @@ def extract_event_draft(raw_message_text: str, enriched_payload: dict) -> tuple[
     from django.conf import settings
 
     model_name = getattr(settings, "LLM_MODEL_NAME", "claude-opus-4-7")
-    agent = Agent(model_name, result_type=EventDraft)
+    agent = Agent(model_name, output_type=EventDraft)
     result = agent.run_sync(prompt)
-    draft = result.data
+    draft = result.output
 
     logfire.info(
         "extraction.llm_call",

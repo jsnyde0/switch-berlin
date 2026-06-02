@@ -95,7 +95,7 @@ class FullIngestionLoopTest(TestCase):
         mock_resp.text = "<html><body>Event details</body></html>"
         mock_resp.status_code = 200
         mock_result = MagicMock()
-        mock_result.data = mock_draft
+        mock_result.output = mock_draft
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             with patch("ingestion.enrichment.httpx.get", return_value=mock_resp):
@@ -148,7 +148,7 @@ class FullIngestionLoopTest(TestCase):
             confidence=0.25,
         )
         mock_result = MagicMock()
-        mock_result.data = mock_draft
+        mock_result.output = mock_draft
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
@@ -201,7 +201,7 @@ class FullIngestionLoopTest(TestCase):
             confidence=0.9,
         )
         mock_result = MagicMock()
-        mock_result.data = mock_draft
+        mock_result.output = mock_draft
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
@@ -225,7 +225,7 @@ class FullIngestionLoopTest(TestCase):
             confidence=0.9,
         )
         mock_result = MagicMock()
-        mock_result.data = mock_draft
+        mock_result.output = mock_draft
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
@@ -251,7 +251,7 @@ class FullIngestionLoopTest(TestCase):
             tags=["queer", "underground", "fetish"],
         )
         mock_result = MagicMock()
-        mock_result.data = mock_draft
+        mock_result.output = mock_draft
         with patch("ingestion.extraction.Agent") as MockAgent:
             MockAgent.return_value.run_sync.return_value = mock_result
             with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
