@@ -186,6 +186,7 @@ Pantry, not a recipe. Agents compose per-task by consulting fit profiles first.
 - **Catches**: Postgres-specific migration issues that SQLite test_settings hides, bandit/pip-audit/gitleaks gates, makemessages catalog check, prod-shaped deploy check.
 - **Useful when**: After pushing — especially if local was SQLite-only.
 - **Less useful when**: Tight inner-loop work; full CI cycle is slow.
+- **"CI green" caveat**: a task whose acceptance is "CI green on HEAD" must verify the FULL job set, not a pytest+djlint proxy — `test.yml` gates on `ruff check .` + `ruff format --check .` + `djlint --check` (lint job), bare `uv run pytest` + `makemigrations --check` + `check --deploy` (test job), and `gitleaks` (full history) + `bandit` + `pip-audit` (security job). Run each with its EXACT command (bare `uv run pytest`, not a local `--ignore`'d variant) and reproduce CI's env — tests reading a local `.env` token (e.g. `TELEGRAM_BOT_TOKEN`) pass locally and fail in CI. Local-green ≠ CI-green (kb-33do, 2026-06-02 — a narrow gate closed a parent on a false "CI green" bullet). Memory `ci-green-means-full-ci-job-set-not-pytest-proxy`.
 
 ### Logfire (`LOGFIRE_TOKEN` set in prod)
 
