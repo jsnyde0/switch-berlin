@@ -286,10 +286,15 @@ class StudioViewAuthzTest(TestCase):
             "A claimant user must get 200 from /studio/.",
         )
 
-    def test_zero_claims_user_gets_403_or_redirect(self):
+    def test_zero_claims_user_gets_styled_403(self):
         """
-        A zero-claims user hitting /studio/ gets 403 or a redirect.
-        Never a synthesized empty 200 (ADR-008 D3 — fail loud).
+        A zero-claims user hitting /studio/ gets a 403 rendered via the styled
+        403 template (navbar/footer + go-back affordance), never a synthesized
+        empty 200 (ADR-008 D3 — fail loud) and never a bare unstyled string.
+
+        Asserts on response.content (not just status / context) so a regression
+        back to HttpResponseForbidden("...") is caught — see bd memory
+        django-view-test-context-vs-content-hollow.
         """
         user = _make_user(username="studio_noclaim", email="snc@test.com", password="pw")
         # No ProfileClaim created
@@ -297,11 +302,21 @@ class StudioViewAuthzTest(TestCase):
 
         response = self.client.get("/studio/")
 
-        self.assertIn(
+        self.assertEqual(
             response.status_code,
-            [403, 302, 301],
-            "A zero-claims user must get 403 or a redirect from /studio/ — never a synthesized empty 200 (ADR-008 D3).",
+            403,
+            "A zero-claims user must get 403 from /studio/ — never a synthesized empty 200 (ADR-008 D3).",
         )
+        self.assertTemplateUsed(
+            response,
+            "syndication/403.html",
+            "The studio zero-claims 403 must render the styled 403 template, not a bare HttpResponseForbidden string.",
+        )
+        content = response.content.decode()
+        # Styled-template markers (the bare-string response has none of these)
+        self.assertIn("403", content)
+        self.assertIn("Go back", content)
+        self.assertIn("profile claim", content)
 
     def test_unauthenticated_user_gets_redirect(self):
         """An unauthenticated user is redirected (to login)."""

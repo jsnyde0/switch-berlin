@@ -76,10 +76,15 @@ def studio(request):
 
     claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
     if claim is None:
-        # Zero-claims user — fail loud, never synthesize an empty workspace
-        from django.http import HttpResponseForbidden
-
-        return HttpResponseForbidden("No organizer profile. Studio access requires an active profile claim.")
+        # Zero-claims user — fail loud, never synthesize an empty workspace.
+        # Render the styled 403 template (status=403) rather than a bare string,
+        # mirroring the other syndication 403 gates (e.g. connections views).
+        return render(
+            request,
+            "syndication/403.html",
+            {"detail": "No organizer profile. Studio access requires an active profile claim."},
+            status=403,
+        )
 
     primary_profile = claim.profile
     raw_publishables = get_publishables_for_profile(primary_profile)
