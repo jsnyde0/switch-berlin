@@ -96,26 +96,17 @@
             <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-3">{% trans "Sort" %}</p>
             {% with sort_active=sort|default:"date" %}
               <div role="tablist" class="flex flex-col gap-1.5">
-                <c-kb.tab href="?
-                {% if filter_query_string %}{{ filter_query_string }}{% endif %}
-                {% if bounds_param %}&bounds={{ bounds_param }}{% endif %}
-                " :active="sort_active == 'date'" label="{% trans 'Latest' %}" />
+                {# djlint:off #}
+                {# Sort-tab hrefs: inline to prevent djlint line-wrap injecting newlines into href attribute value (kb-33do.3) #}
+                <c-kb.tab href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'date'" label="{% trans 'Latest' %}" />
                 {% if trending_enabled %}
-                  <c-kb.tab href="?sort=trending
-                  {% if filter_query_string %}&{{ filter_query_string }}{% endif %}
-                  {% if bounds_param %}&bounds={{ bounds_param }}{% endif %}
-                  " :active="sort_active == 'trending'" label="{% trans 'Trending' %}" />
+                  <c-kb.tab href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'trending'" label="{% trans 'Trending' %}" />
                 {% endif %}
                 {% if EVENT_REVIEWS_DISPLAYED %}
-                  <c-kb.tab href="?sort=lowest_rated
-                  {% if filter_query_string %}&{{ filter_query_string }}{% endif %}
-                  {% if bounds_param %}&bounds={{ bounds_param }}{% endif %}
-                  " :active="sort_active == 'lowest_rated'" label="{% trans 'Lowest rated' %}" />
-                  <c-kb.tab href="?sort=most_reviewed
-                  {% if filter_query_string %}&{{ filter_query_string }}{% endif %}
-                  {% if bounds_param %}&bounds={{ bounds_param }}{% endif %}
-                  " :active="sort_active == 'most_reviewed'" label="{% trans 'Most reviewed' %}" />
+                  <c-kb.tab href="?sort=lowest_rated{% if filter_query_string %}&{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'lowest_rated'" label="{% trans 'Lowest rated' %}" />
+                  <c-kb.tab href="?sort=most_reviewed{% if filter_query_string %}&{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'most_reviewed'" label="{% trans 'Most reviewed' %}" />
                 {% endif %}
+                {# djlint:on #}
               </div>
             {% endwith %}
           </div>

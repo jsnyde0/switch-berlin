@@ -23,12 +23,7 @@
             <div class="flex flex-col gap-1">
               <span class="kb-mono text-[12px] uppercase tracking-wider font-medium text-base-content/90">{{ conn.platform }}</span>
               <span class="text-sm text-base-content/60">{{ conn.destination_id }}</span>
-              <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">
-                {% for k in conn.kinds %}
-                  {{ k }}
-                  {% if not forloop.last %}·{% endif %}
-                {% endfor %}
-              </span>
+              <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{{ conn.kinds|join:" · " }}</span>
             </div>
             <div class="flex items-center gap-4">
               <span class="kb-tag {% if conn.enabled %}kb-tag-success{% else %}text-base-content/30{% endif %} normal-case text-[10px]">
