@@ -142,13 +142,21 @@ def event_hub(request, pk):
 
     The hub page does NOT inline fragment query logic — it just includes
     the fragments by reference. ADR-008 D2: no tab framework speculation.
+
+    HX-Request branching (kb-9f1h.2): when requested via HTMX, return the
+    layout-less body fragment (no {% extends %} so it can be swapped into
+    #studio-main without nesting <head>/<body>). Normal GET returns the full
+    page for deep-link/refresh compatibility.
     """
     event = get_object_or_404(Event, pk=pk)
     user_can_edit = can_edit(request.user, event)
-    return render(request, "syndication/event_hub.html", {
+    ctx = {
         "event": event,
         "can_edit": user_can_edit,
-    })
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "syndication/event_hub_fragment.html", ctx)
+    return render(request, "syndication/event_hub.html", ctx)
 
 
 @login_required
@@ -399,15 +407,23 @@ def post_hub(request, pk):
     Analogous to event_hub but scoped to a Post publishable.
     Composes the post_syndication fragment via HTMX.
     ADR-008 D2: no tab framework speculation — explicit, named fragment.
+
+    HX-Request branching (kb-9f1h.2): when requested via HTMX, return the
+    layout-less body fragment (no {% extends %} so it can be swapped into
+    #studio-main without nesting <head>/<body>). Normal GET returns the full
+    page for deep-link/refresh compatibility.
     """
     post = get_object_or_404(Post, pk=pk)
     event = post.event
     user_can_edit = can_edit(request.user, event)
-    return render(request, "syndication/post_hub.html", {
+    ctx = {
         "post": post,
         "event": event,
         "can_edit": user_can_edit,
-    })
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "syndication/post_hub_fragment.html", ctx)
+    return render(request, "syndication/post_hub.html", ctx)
 
 
 @login_required

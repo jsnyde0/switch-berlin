@@ -13,6 +13,9 @@
       </div>
       <div class="flex items-center gap-2">
         <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+           hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
+           hx-target="#studio-main"
+           hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
            class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors">
           {% trans "Event hub" %} ↗
         </a>
