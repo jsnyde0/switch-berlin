@@ -2,5 +2,8 @@
 {% comment %}
 Layout-less post hub body — returned on HX-Request for studio main-pane swap.
 Shares its body with the full-page post_hub.html via _post_hub_body.html.
+studio_swap=True activates HTMX swap attrs on the "Event hub" cross-link
+(and threads ?studio=1 to the post_syndication sub-fragment so its link is
+also context-aware). kb-9f1h.7.
 {% endcomment %}
-{% include "syndication/_post_hub_body.html" %}
+{% include "syndication/_post_hub_body.html" with studio_swap=True %}

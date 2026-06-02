@@ -488,6 +488,12 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         row["projection"].status == "ready" for row in projection_rows
     )
 
+    # kb-9f1h.7: thread studio context to the template so the "Event hub"
+    # cross-link uses HTMX swap attrs only when inside the studio shell.
+    # The body partial passes ?studio=1 when studio_swap is True; this view
+    # reads it and forwards it to post_syndication.html.
+    studio_swap = bool(request.GET.get("studio"))
+
     return render(request, "syndication/fragments/post_syndication.html", {
         "post": post,
         "event": event,
@@ -499,6 +505,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         "action_error": action_error,
         "consumers_map": consumers_map,
         "has_ready_projections": has_ready_projections,
+        "studio_swap": studio_swap,
     })
 
 

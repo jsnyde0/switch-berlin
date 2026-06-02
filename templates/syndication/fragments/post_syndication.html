@@ -12,13 +12,20 @@
         <span class="kb-mono text-[9px] text-base-content/40">{{ post.headline }}</span>
       </div>
       <div class="flex items-center gap-2">
-        <a href="{% url 'syndication:event-hub' pk=event.pk %}"
-           hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
-           hx-target="#studio-main"
-           hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
-           class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors">
-          {% trans "Event hub" %} ↗
-        </a>
+        {% if studio_swap %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-target="#studio-main"
+             hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors">
+            {% trans "Event hub" %} ↗
+          </a>
+        {% else %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors">
+            {% trans "Event hub" %} ↗
+          </a>
+        {% endif %}
         {% if can_publish and projection_rows and has_ready_projections %}
           <form method="post"
                 action="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"

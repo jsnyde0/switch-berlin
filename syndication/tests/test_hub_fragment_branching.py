@@ -1,5 +1,5 @@
 """
-Hub fragment branching tests (kb-9f1h.2).
+Hub fragment branching tests (kb-9f1h.2 / kb-9f1h.7).
 
 Contract groups:
 (a) event_hub + post_hub, requested with HX-Request, return layout-less body
@@ -11,6 +11,11 @@ Contract groups:
     hx-target="#studio-main" + hx-push-url set to the real composer path
     (/syndication/events/<pk>/ or /syndication/posts/<pk>/), NOT the
     fragments/ endpoint.
+(d) kb-9f1h.7 — context-aware cross-links: the "Event hub ↗" link in
+    _post_hub_body.html and post_syndication.html must NOT carry
+    hx-target="#studio-main" on standalone pages (no #studio-main in DOM),
+    but MUST carry it in the studio context (HX-Request / ?studio=1).
+    A standalone click must navigate (href); in-studio it swaps.
 
 Assertions are on response.content.decode() (NOT response.context — hollow per memory).
 
@@ -251,12 +256,13 @@ class PostHubNormalGetFullPageTest(TestCase):
 
 class PostSyndicationCrossLinkTest(TestCase):
     """
-    The post_syndication fragment must have the "Event hub" cross-link rewired
-    to use hx-get (not a plain <a href>) with hx-target="#studio-main" and
-    hx-push-url pointing to the real event hub path (/syndication/events/<pk>/).
+    The post_syndication fragment in the STUDIO CONTEXT (?studio=1) must have
+    the "Event hub" cross-link rewired to use hx-get (not a plain <a href>)
+    with hx-target="#studio-main" and hx-push-url pointing to the real event
+    hub path (/syndication/events/<pk>/).
 
-    The symmetric back-link in post_hub (the link from post header to event hub)
-    is a full-navigate <a> — this test verifies the fragment cross-link only.
+    kb-9f1h.7: the swap attrs are only emitted when ?studio=1 is present.
+    Without it the fragment serves standalone context (plain href only).
     """
 
     def setUp(self):
@@ -269,10 +275,11 @@ class PostSyndicationCrossLinkTest(TestCase):
 
     def test_post_syndication_fragment_event_hub_link_has_hx_target(self):
         """
-        The "Event hub" link in post_syndication fragment must have
-        hx-target="#studio-main" so clicks swap within the studio shell.
+        The "Event hub" link in post_syndication fragment (with ?studio=1)
+        must have hx-target="#studio-main" so clicks swap within the studio
+        shell. Without ?studio=1, no swap attrs (tested in (d) below).
         """
-        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -281,16 +288,16 @@ class PostSyndicationCrossLinkTest(TestCase):
         self.assertIn(
             'hx-target="#studio-main"',
             content,
-            "post_syndication fragment Event hub link must have hx-target='#studio-main'.",
+            "post_syndication fragment Event hub link (studio context) must have hx-target='#studio-main'.",
         )
 
     def test_post_syndication_fragment_event_hub_link_has_hx_push_url_real_path(self):
         """
-        The "Event hub" link in post_syndication fragment must have
-        hx-push-url pointing to the real event hub path (/syndication/events/<pk>/).
-        NOT the fragments/ endpoint — history must show the real page URL.
+        The "Event hub" link in post_syndication fragment (with ?studio=1)
+        must have hx-push-url pointing to the real event hub path
+        (/syndication/events/<pk>/). NOT the fragments/ endpoint.
         """
-        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -305,10 +312,10 @@ class PostSyndicationCrossLinkTest(TestCase):
 
     def test_post_syndication_fragment_event_hub_link_uses_hx_get(self):
         """
-        The "Event hub" link must use hx-get to trigger the HTMX swap
-        (not a plain href full-navigation).
+        The "Event hub" link (with ?studio=1) must use hx-get to trigger the
+        HTMX swap within the studio shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -358,4 +365,160 @@ class EventHubBackLinkTest(TestCase):
             "<html",
             content,
             "event_hub HX fragment regression: must not contain <html.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# (d) kb-9f1h.7 — context-aware cross-links (standalone vs in-studio)
+# ---------------------------------------------------------------------------
+
+
+class PostHubStandaloneCrossLinkTest(TestCase):
+    """
+    kb-9f1h.7: The "Event hub ↗" back-link in _post_hub_body.html must NOT
+    carry hx-target="#studio-main" when rendered on the standalone full page
+    (normal GET at /syndication/posts/<pk>/ — no studio shell present).
+
+    In the standalone context #studio-main does not exist; HTMX intercepts
+    the click and fires htmx:targetError → silent no-op. This is an ADR-008
+    D3 violation (silent fallback). The fix: gate the HTMX swap attrs on
+    studio_swap context flag; standalone renders a plain navigable <a href>.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="phsa_user", email="phsa@test.com", password="pw")
+        self.profile = _make_profile("PHSA Org", "phsa-org", user=self.user)
+        self.event = _make_event(self.profile, "PHSA Event", "phsa-event")
+        self.post = _make_post(self.event, "PHSA Post Headline")
+        self.client.force_login(self.user)
+
+    def test_standalone_post_hub_cross_link_has_no_bare_hx_target_studio_main(self):
+        """
+        The standalone post_hub page (normal GET — no HX-Request header) must
+        NOT render hx-target="#studio-main" on the "Event hub" back-link.
+        Without a studio shell the target element doesn't exist, and HTMX
+        would intercept the click and do nothing (ADR-008 D3 violation).
+        """
+        url = f"/syndication/posts/{self.post.pk}/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertNotIn(
+            'hx-target="#studio-main"',
+            content,
+            "Standalone post_hub must NOT emit hx-target='#studio-main' — "
+            "no studio shell on this page; HTMX would silently no-op the click.",
+        )
+
+    def test_standalone_post_hub_cross_link_has_plain_href(self):
+        """
+        The standalone post_hub's "Event hub" back-link must include a plain
+        href pointing to the event hub URL (so clicking it navigates correctly).
+        """
+        url = f"/syndication/posts/{self.post.pk}/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        expected_event_hub_path = f"/syndication/events/{self.event.pk}/"
+        self.assertIn(
+            f'href="{expected_event_hub_path}"',
+            content,
+            "Standalone post_hub 'Event hub' link must have plain href for navigation.",
+        )
+
+    def test_studio_fragment_post_hub_cross_link_has_hx_target_studio_main(self):
+        """
+        The post_hub body when requested via HX-Request (in-studio context)
+        MUST still render hx-target="#studio-main" on the "Event hub" link —
+        the in-studio swap behavior must be preserved.
+        """
+        url = f"/syndication/posts/{self.post.pk}/"
+        response = self.client.get(url, HTTP_HX_REQUEST="true")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            'hx-target="#studio-main"',
+            content,
+            "post_hub HX fragment (in-studio context) MUST have hx-target='#studio-main' "
+            "on the 'Event hub' link so the studio swap works.",
+        )
+
+
+class PostSyndicationStudioContextTest(TestCase):
+    """
+    kb-9f1h.7: The "Event hub ↗" link in post_syndication.html must be
+    context-aware:
+    - Without ?studio=1 (standalone context): no hx-target="#studio-main"
+      → plain navigable <a href>
+    - With ?studio=1 (in-studio context): hx-target="#studio-main" present
+      → HTMX swap within the studio shell
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="pssc_user", email="pssc@test.com", password="pw")
+        self.profile = _make_profile("PSSC Org", "pssc-org", user=self.user)
+        self.event = _make_event(self.profile, "PSSC Event", "pssc-event")
+        self.post = _make_post(self.event, "PSSC Post Headline")
+        self.client.force_login(self.user)
+
+    def test_post_syndication_without_studio_param_has_no_hx_target_studio_main(self):
+        """
+        post_syndication fragment without ?studio=1 must NOT render
+        hx-target="#studio-main" — it's in a standalone context where
+        #studio-main doesn't exist.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertNotIn(
+            'hx-target="#studio-main"',
+            content,
+            "post_syndication without ?studio=1 must NOT emit hx-target='#studio-main'.",
+        )
+
+    def test_post_syndication_without_studio_param_has_plain_href(self):
+        """
+        post_syndication fragment without ?studio=1 must have a plain href
+        on the "Event hub" link so standalone navigation works.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        expected_event_hub_path = f"/syndication/events/{self.event.pk}/"
+        self.assertIn(
+            f'href="{expected_event_hub_path}"',
+            content,
+            "post_syndication without ?studio=1 must have plain href for navigation.",
+        )
+
+    def test_post_syndication_with_studio_param_has_hx_target_studio_main(self):
+        """
+        post_syndication fragment with ?studio=1 (in-studio context) MUST
+        render hx-target="#studio-main" for the "Event hub" link.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            'hx-target="#studio-main"',
+            content,
+            "post_syndication with ?studio=1 MUST have hx-target='#studio-main' "
+            "for the in-studio swap to work.",
         )

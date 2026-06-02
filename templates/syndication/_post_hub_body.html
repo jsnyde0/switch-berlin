@@ -5,8 +5,12 @@ post_hub_fragment.html (layout-less HX swap target). One source of truth;
 neither the full page nor the fragment can diverge (kb-9f1h.3 carry-forward).
 
 Context variables required:
-  post   — Post instance
-  event  — Event instance (post.event)
+  post         — Post instance
+  event        — Event instance (post.event)
+  studio_swap  — bool (optional, default falsy). When True, the "Event hub"
+                 back-link uses HTMX swap attrs (hx-get/hx-target/hx-push-url)
+                 for in-studio navigation. When False/absent (standalone page),
+                 the link is a plain <a href> — ADR-008 D3: no silent fallback.
 {% endcomment %}
 <div class="w-full pt-8 pb-16" x-data="{}">
   <div class="flex items-start justify-between mb-6 gap-6">
@@ -14,18 +18,23 @@ Context variables required:
       <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-1.5">
         {% trans "Post Workspace" %}
         <span class="mx-2 text-base-content/15">·</span>
-        <a href="{% url 'syndication:event-hub' pk=event.pk %}"
-           hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
-           hx-target="#studio-main"
-           hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
-           class="text-base-content/40 hover:text-base-content/65 transition-colors">{{ event.title }}</a>
+        {% if studio_swap %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-target="#studio-main"
+             hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="text-base-content/40 hover:text-base-content/65 transition-colors">{{ event.title }}</a>
+        {% else %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="text-base-content/40 hover:text-base-content/65 transition-colors">{{ event.title }}</a>
+        {% endif %}
       </p>
       <h1 class="kb-display text-[28px] font-light leading-tight">{{ post.headline }}</h1>
     </div>
   </div>
   <div class="kb-rule mb-6"></div>
   <section id="post-syndication"
-           hx-get="{% url 'syndication:fragment-post-syndication' pk=post.pk %}"
+           hx-get="{% url 'syndication:fragment-post-syndication' pk=post.pk %}{% if studio_swap %}?studio=1{% endif %}"
            hx-trigger="load"
            hx-swap="outerHTML">
     <div class="py-10 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest text-center">
