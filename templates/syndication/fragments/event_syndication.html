@@ -117,30 +117,33 @@
               <div class="mb-7">
                 <div class="flex items-center gap-0 mb-5 pb-3"
                      style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-                  <span class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/22 mr-3 shrink-0">{% trans "Sync" %}</span>
-                  <form method="post"
-                        action="{% url 'syndication:projection-customize' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
-                      {% trans "Customize" %}
-                    </button>
-                  </form>
-                  <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
-                  <form method="post"
-                        action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
-                    {% csrf_token %}
-                    <button type="submit"
-                            class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
-                      {% trans "Reset" %}
-                    </button>
-                  </form>
+                  {% if proj.content_version.name == "canonical" %}
+                    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] text-base-content/22 mr-3 shrink-0 select-none">{% trans "synced" %}</span>
+                    <form method="post"
+                          action="{% url 'syndication:projection-customize' pk=proj.pk %}"
+                          hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
+                          hx-target="#event-syndication"
+                          hx-swap="outerHTML">
+                      {% csrf_token %}
+                      <button type="submit"
+                              class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
+                        {% trans "Customize" %}
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] text-amber-300/50 mr-3 shrink-0 select-none">{% trans "custom" %}</span>
+                    <form method="post"
+                          action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                          hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                          hx-target="#event-syndication"
+                          hx-swap="outerHTML">
+                      {% csrf_token %}
+                      <button type="submit"
+                              class="kb-mono text-[8px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors px-0">
+                        {% trans "Reset" %}
+                      </button>
+                    </form>
+                  {% endif %}
                   <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
                   <form method="post"
                         action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"

@@ -2437,6 +2437,92 @@ class ChannelIconTabsRenderTest(TestCase):
             "Event workspace must have a sync toggle (Customize/Reset controls)",
         )
 
+    def test_sync_control_synced_state_shows_customize_only(self):
+        """
+        Render-regression: when a projection is at the canonical version (synced
+        state), the sync control row must render 'Customize' (the advance action)
+        and must NOT render 'Reset' (which is the diverged-state action).
+        Also asserts the 'synced' state label is present.
+        kb-9f1h.6: single-control toggle folded from the original two-button row.
+        """
+        proj = _make_listing_projection(self.conn_switch, self.event)
+        # Sanity: projection must start at the canonical version
+        self.assertEqual(
+            proj.content_version.name,
+            "canonical",
+            "Test precondition: _make_listing_projection must start at the canonical version",
+        )
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # Synced state: must show 'Customize' action
+        self.assertIn(
+            "Customize",
+            content,
+            "Synced projection: sync control must render 'Customize'",
+        )
+        # Synced state: must NOT show 'Reset' (that is the diverged-state action)
+        self.assertNotIn(
+            "Reset",
+            content,
+            "Synced projection: sync control must NOT render 'Reset' (only one action shown per state)",
+        )
+        # Synced state: 'synced' state label must be present
+        self.assertIn(
+            "synced",
+            content.lower(),
+            "Synced projection: 'synced' state label must be rendered",
+        )
+
+    def test_sync_control_diverged_state_shows_reset_only(self):
+        """
+        Render-regression: when a projection has been customized (diverged from
+        canonical), the sync control row must render 'Reset' (the revert action)
+        and must NOT render 'Customize' (which is the synced-state advance action).
+        Also asserts the 'custom' state label is present.
+        kb-9f1h.6: single-control toggle folded from the original two-button row.
+        """
+        from syndication.services import customize as svc_customize
+
+        proj = _make_listing_projection(self.conn_switch, self.event)
+        # Diverge the projection so its version is no longer canonical
+        svc_customize(user=self.user, projection=proj)
+        proj.refresh_from_db()
+        self.assertNotEqual(
+            proj.content_version.name,
+            "canonical",
+            "Test precondition: after svc_customize the version must not be named 'canonical'",
+        )
+
+        response = self.client.get(
+            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # Diverged state: must show 'Reset' action
+        self.assertIn(
+            "Reset",
+            content,
+            "Diverged projection: sync control must render 'Reset'",
+        )
+        # Diverged state: must NOT show 'Customize' (that is the synced-state action)
+        self.assertNotIn(
+            "Customize",
+            content,
+            "Diverged projection: sync control must NOT render 'Customize' (only one action shown per state)",
+        )
+        # Diverged state: 'custom' state label must be present
+        self.assertIn(
+            "custom",
+            content.lower(),
+            "Diverged projection: 'custom' state label must be rendered",
+        )
+
     def test_event_workspace_has_switch_tab_as_canonical(self):
         """
         For an event workspace, the Switch tab must be the canonical anchor.
