@@ -25,6 +25,7 @@ Pantry, not a recipe. Agents compose per-task by consulting fit profiles first.
 - **Catches**: Malformed HTML, unclosed Django tags, indentation drift in templates including `templates/cotton/`, `templates/cotton/kb/` (editorial primitives), and per-app `templates/`.
 - **Useful when**: After editing templates (cotton components, kb editorial primitives, page templates).
 - **Less useful when**: The bug is Alpine.js reactivity or HTMX swap behavior — djlint doesn't parse `x-data`, `@click`, or `hx-*` directives.
+- **Reformat caveat**: `uv run djlint --reformat` is NOT whitespace-only — it has collapsed a rendered `" · "` separator to `"·"` and line-wrapped `href` attribute values, both invisible to `djlint --check` AND pytest (kb-33do.3, 2 of 18 templates). After any reformat: lock render with `response.content` assertions (`syndication/test_render_regressions.py`), prefer a filter for literal separators (`{{ x|join:" · " }}`), fence un-wrappable attrs with single-line `{# djlint:off #}`, and fresh-context review the diff — do not self-certify "whitespace-only." Memory `djlint-reformat-mutates-rendered-output`.
 
 ### TypeScript build (`tsc -b && vite build`)
 
@@ -78,7 +79,7 @@ Pantry, not a recipe. Agents compose per-task by consulting fit profiles first.
 ### `pytest` — full suite
 
 - **What**: pytest + pytest-django configured in `pyproject.toml`. Default `DJANGO_SETTINGS_MODULE = a_core.settings` (reads `.env`); for isolated runs override with `a_core.test_settings`, which substitutes SQLite `:memory:`, MD5 password hashing, disabled migrations for all local apps (kb-33do.2: `a_core` → `test_migrations`, `syndication` → `test_migrations`, the rest → `None`/run_syncdb — builds tables from current model state, skipping `pgvector`/`pg_trgm` and sidestepping renamed-model historical-FK breakage), and `RATELIMIT_ENABLE = False`. Genuinely Postgres-only tests (schema_editor-in-transaction, `pg_indexes`/`pg_constraint` catalog queries, `EXTRACT(EPOCH)`, `TrigramSimilarity`) carry `@skipIf(sqlite)` and run only on the Postgres path. Auto-excludes `agentic` and `slow` markers via `addopts = "-m 'not agentic and not slow'"`. CI uses real Postgres (pgvector/pgvector:pg17) instead of test_settings so migrations are exercised end-to-end.
-- **Command**: `uv run pytest` (uses `a_core.settings` + `.env`) or `DJANGO_SETTINGS_MODULE=a_core.test_settings uv run pytest` (SQLite-only)
+- **Command**: `uv run pytest` (uses `a_core.settings` + `.env`) or `DJANGO_SETTINGS_MODULE=a_core.test_settings uv run pytest` (SQLite-only). Root `addopts` carries `--ignore=tools` so bare pytest does not descend into the nested `tools/switch-cli` uv sub-project (kb-33do.6 — collection-time `ModuleNotFoundError` otherwise; switch-cli tests are consequently NOT in main CI). Memory `nested-uv-subproject-breaks-root-pytest-collection`.
 - **Speed**: 30–60s for full suite (locally, SQLite)
 - **Catches**: View routing + response codes, model constraints, form validation, ingestion pipeline logic (mocked externals), data-migration correctness, deploy-check system checks, auth adapter behavior, middleware behavior (LoginWall, AgeGate, HtmxMiddleware).
 - **Useful when**: Before commit, after a non-trivial change, when you need confidence across the codebase.
