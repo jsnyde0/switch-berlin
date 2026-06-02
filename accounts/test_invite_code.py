@@ -23,9 +23,7 @@ def test_invite_code_has_used_at_field():
     """InviteCode.used_at field must exist."""
     from accounts.models import InviteCode
 
-    assert hasattr(InviteCode, "used_at") or "used_at" in [
-        f.name for f in InviteCode._meta.get_fields()
-    ]
+    assert hasattr(InviteCode, "used_at") or "used_at" in [f.name for f in InviteCode._meta.get_fields()]
 
 
 def test_invite_code_has_used_by_field():
@@ -49,9 +47,7 @@ def test_invite_code_usable_when_fresh():
     from accounts.models import InviteCode
 
     User = get_user_model()
-    grantor = User.objects.create_user(
-        username="icu_grantor", email="icu_grantor@example.com", password="pass"
-    )
+    grantor = User.objects.create_user(username="icu_grantor", email="icu_grantor@example.com", password="pass")
 
     ic = InviteCode.objects.create(created_by=grantor)
     assert ic.usable() is True
@@ -71,16 +67,10 @@ def test_invite_code_not_usable_when_used():
     from accounts.models import InviteCode
 
     User = get_user_model()
-    grantor = User.objects.create_user(
-        username="icnu_grantor", email="icnu_grantor@example.com", password="pass"
-    )
-    recipient = User.objects.create_user(
-        username="icnu_recip", email="icnu_recip@example.com", password="pass"
-    )
+    grantor = User.objects.create_user(username="icnu_grantor", email="icnu_grantor@example.com", password="pass")
+    recipient = User.objects.create_user(username="icnu_recip", email="icnu_recip@example.com", password="pass")
 
-    ic = InviteCode.objects.create(
-        created_by=grantor, used_by=recipient, used_at=timezone.now()
-    )
+    ic = InviteCode.objects.create(created_by=grantor, used_by=recipient, used_at=timezone.now())
     assert ic.usable() is False
 
 
@@ -100,9 +90,7 @@ def test_invite_code_not_usable_when_expired():
     from accounts.models import InviteCode
 
     User = get_user_model()
-    grantor = User.objects.create_user(
-        username="ice_grantor", email="ice_grantor@example.com", password="pass"
-    )
+    grantor = User.objects.create_user(username="ice_grantor", email="ice_grantor@example.com", password="pass")
 
     past = timezone.now() - timedelta(days=1)
     ic = InviteCode.objects.create(created_by=grantor, expires_at=past)
@@ -122,9 +110,7 @@ def test_invite_code_has_created_by():
     from accounts.models import InviteCode
 
     User = get_user_model()
-    staff = User.objects.create_user(
-        username="staff1", email="staff1@example.com", password="pass", is_staff=True
-    )
+    staff = User.objects.create_user(username="staff1", email="staff1@example.com", password="pass", is_staff=True)
 
     ic = InviteCode.objects.create(created_by=staff)
     assert ic.created_by == staff
@@ -143,9 +129,7 @@ def test_invite_code_usable_predicate_with_no_expiry():
     from accounts.models import InviteCode
 
     User = get_user_model()
-    grantor = User.objects.create_user(
-        username="icp_grantor", email="icp_grantor@example.com", password="pass"
-    )
+    grantor = User.objects.create_user(username="icp_grantor", email="icp_grantor@example.com", password="pass")
 
     ic = InviteCode.objects.create(created_by=grantor)
     assert ic.used_at is None

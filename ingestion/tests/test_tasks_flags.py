@@ -143,9 +143,7 @@ class TestFinalizeAttendance:
     def test_leaves_interested_status_unchanged(self, past_event, make_user):
         """Attendance(status='interested') is not touched."""
         user = make_user()
-        att = Attendance.objects.create(
-            user=user, event=past_event, status="interested"
-        )
+        att = Attendance.objects.create(user=user, event=past_event, status="interested")
 
         from ingestion.tasks_flags import finalize_attendance
 
@@ -181,9 +179,7 @@ class TestFinalizeAttendance:
     def test_skips_cancelled_event(self, cancelled_event, make_user):
         """Going attendance on a cancelled event is NOT flipped."""
         user = make_user()
-        att = Attendance.objects.create(
-            user=user, event=cancelled_event, status="going"
-        )
+        att = Attendance.objects.create(user=user, event=cancelled_event, status="going")
 
         from ingestion.tasks_flags import finalize_attendance
 
@@ -296,9 +292,7 @@ class TestRecomputeAggregatesWithWent:
         """'interested' status is NOT counted in attendance_count."""
         user_interested = make_user()
         user_went = make_user()
-        Attendance.objects.create(
-            user=user_interested, event=past_event, status="interested"
-        )
+        Attendance.objects.create(user=user_interested, event=past_event, status="interested")
         Attendance.objects.create(user=user_went, event=past_event, status="went")
 
         from ingestion.tasks_flags import recompute_aggregates

@@ -204,9 +204,7 @@ class MeViewUpcomingAttendancesTest(TestCase):
 
     def test_hidden_event_not_in_upcoming(self):
         """Hidden events are not shown in upcoming."""
-        event = _make_event(
-            self.org, "me-going-hidden", start_delta_days=7, hidden=True
-        )
+        event = _make_event(self.org, "me-going-hidden", start_delta_days=7, hidden=True)
         Attendance.objects.create(user=self.user, event=event, status="going")
         response = self.client.get("/me/")
         upcoming_events = [a.event for a in response.context["upcoming"]]
@@ -214,9 +212,7 @@ class MeViewUpcomingAttendancesTest(TestCase):
 
     def test_unpublished_event_not_in_upcoming(self):
         """Draft/cancelled events don't appear in upcoming."""
-        event = _make_event(
-            self.org, "me-going-draft", start_delta_days=7, status="draft"
-        )
+        event = _make_event(self.org, "me-going-draft", start_delta_days=7, status="draft")
         Attendance.objects.create(user=self.user, event=event, status="going")
         response = self.client.get("/me/")
         upcoming_events = [a.event for a in response.context["upcoming"]]
@@ -262,9 +258,7 @@ class MeViewPastAttendancesTest(TestCase):
 
     def test_hidden_past_event_not_in_past_section(self):
         """Hidden past events are excluded from the past attendances list."""
-        event = _make_event(
-            self.org, "me-went-hidden-past", start_delta_days=-10, hidden=True
-        )
+        event = _make_event(self.org, "me-went-hidden-past", start_delta_days=-10, hidden=True)
         Attendance.objects.create(user=self.user, event=event, status="went")
         response = self.client.get("/me/")
         past_events = [a.event for a in response.context["past"]]

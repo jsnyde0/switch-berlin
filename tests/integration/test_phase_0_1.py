@@ -27,9 +27,7 @@ def test_user_create():
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="alice", email="alice@example.com", password="x"
-    )
+    user = User.objects.create_user(username="alice", email="alice@example.com", password="x")
     retrieved = User.objects.get(pk=user.pk)
     assert retrieved.status == "open"
 
@@ -97,12 +95,8 @@ def test_event_image_create():
     from organizers.models import Profile
 
     org = Profile.objects.create(name="Img Org", slug="img-org-rt")
-    event = Event.objects.create(
-        title="Img Event", slug="img-event-rt", organizer=org, start=tz.now()
-    )
-    img = EventImage.objects.create(
-        event=event, image="events/placeholder.jpg", alt="Test", is_cover=True
-    )
+    event = Event.objects.create(title="Img Event", slug="img-event-rt", organizer=org, start=tz.now())
+    img = EventImage.objects.create(event=event, image="events/placeholder.jpg", alt="Test", is_cover=True)
     assert EventImage.objects.filter(event=event).count() == 1
     assert img.is_cover is True
 
@@ -123,9 +117,7 @@ def test_source_failure_create():
     """SourceFailure links to RawMessage correctly."""
     from ingestion.models import RawMessage, SourceFailure
 
-    raw = RawMessage.objects.create(
-        source_type="telegram_bot_forward", raw_payload={"text": "fail"}
-    )
+    raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={"text": "fail"})
     sf = SourceFailure.objects.create(
         source_type="telegram_bot_forward",
         raw_message=raw,
@@ -159,13 +151,9 @@ def test_review_on_event():
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="rev-event-user", email="rev-event@example.com", password="x"
-    )
+    user = User.objects.create_user(username="rev-event-user", email="rev-event@example.com", password="x")
     org = Profile.objects.create(name="Rev Org", slug="rev-org-rt")
-    event = Event.objects.create(
-        title="Rev Event", slug="rev-event-rt", organizer=org, start=tz.now()
-    )
+    event = Event.objects.create(title="Rev Event", slug="rev-event-rt", organizer=org, start=tz.now())
     review = Review.objects.create(author=user, event=event, rating=4)
     fetched = Review.objects.get(pk=review.pk)
     assert fetched.event_id == event.pk
@@ -181,9 +169,7 @@ def test_review_on_organizer():
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="rev-org-user", email="rev-org@example.com", password="x"
-    )
+    user = User.objects.create_user(username="rev-org-user", email="rev-org@example.com", password="x")
     org = Profile.objects.create(name="Rev Org 2", slug="rev-org2-rt")
     review = Review.objects.create(author=user, organizer=org, rating=5)
     fetched = Review.objects.get(pk=review.pk)
@@ -209,13 +195,9 @@ def test_review_xor_both_raises():
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="xor-both", email="xor-both@example.com", password="x"
-    )
+    user = User.objects.create_user(username="xor-both", email="xor-both@example.com", password="x")
     org = Profile.objects.create(name="XOR Org", slug="xor-org-both")
-    event = Event.objects.create(
-        title="XOR Event", slug="xor-event-both", organizer=org, start=tz.now()
-    )
+    event = Event.objects.create(title="XOR Event", slug="xor-event-both", organizer=org, start=tz.now())
     with pytest.raises(IntegrityError):
         with transaction.atomic():
             Review.objects.create(author=user, organizer=org, event=event, rating=3)
@@ -232,9 +214,7 @@ def test_review_xor_neither_raises():
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="xor-neither", email="xor-neither@example.com", password="x"
-    )
+    user = User.objects.create_user(username="xor-neither", email="xor-neither@example.com", password="x")
     with pytest.raises(IntegrityError):
         with transaction.atomic():
             Review.objects.create(author=user, rating=3)
@@ -257,9 +237,7 @@ def test_event_slug_unique_per_organizer():
 
     org = Profile.objects.create(name="Slug Org", slug="slug-org-dup")
     start = tz.now()
-    Event.objects.create(
-        title="Slug Event A", slug="dup-slug", organizer=org, start=start
-    )
+    Event.objects.create(title="Slug Event A", slug="dup-slug", organizer=org, start=start)
     # No longer raises — constraint was intentionally dropped (see bead kb-n0y notes)
     Event.objects.create(
         title="Slug Event B",
@@ -282,9 +260,7 @@ def test_event_dup_guard():
 
     org = Profile.objects.create(name="Dup Org", slug="dup-org-guard")
     start = tz.now()
-    Event.objects.create(
-        title="Same Title", slug="slug-a-dup-guard", organizer=org, start=start
-    )
+    Event.objects.create(title="Same Title", slug="slug-a-dup-guard", organizer=org, start=start)
     # No longer raises — constraint was intentionally dropped (see bead kb-n0y notes)
     Event.objects.create(
         title="Same Title",
@@ -306,9 +282,7 @@ def test_event_status_transitions():
     from organizers.models import Profile
 
     org = Profile.objects.create(name="Status Org", slug="status-org-rt")
-    event = Event.objects.create(
-        title="Status Event", slug="status-event-rt", organizer=org, start=tz.now()
-    )
+    event = Event.objects.create(title="Status Event", slug="status-event-rt", organizer=org, start=tz.now())
     assert event.status == "draft"
 
     for status in ("review", "published", "cancelled"):
@@ -407,9 +381,7 @@ def test_makemessages_produces_catalog(tmp_path, monkeypatch):
 
     call_command("makemessages", "-l", "de")
     po = pathlib.Path("locale/de/LC_MESSAGES/django.po").read_text()
-    assert "msgid " in po, (
-        "django.po has no msgid lines — add at least one trans tag to a template"
-    )
+    assert "msgid " in po, "django.po has no msgid lines — add at least one trans tag to a template"
 
 
 # ---------------------------------------------------------------------------
@@ -451,9 +423,7 @@ def test_end_to_end_orm_flow():
     User = get_user_model()
 
     # Create all objects
-    user = User.objects.create_user(
-        username="e2e-user", email="e2e@example.com", password="x"
-    )
+    user = User.objects.create_user(username="e2e-user", email="e2e@example.com", password="x")
     org = Profile.objects.create(name="E2E Org", slug="e2e-org")
     venue = Venue.objects.create(name="E2E Venue", slug="e2e-venue")
     event = Event.objects.create(
@@ -468,9 +438,7 @@ def test_end_to_end_orm_flow():
 
     # Verify retrievals — organizer is now via EventOrganizer M2M; use compat property
     fetched_event = (
-        Event.objects.select_related("venue")
-        .prefetch_related("event_organizer_set__profile")
-        .get(pk=event.pk)
+        Event.objects.select_related("venue").prefetch_related("event_organizer_set__profile").get(pk=event.pk)
     )
     assert fetched_event.organizer.slug == "e2e-org"
     assert fetched_event.venue.slug == "e2e-venue"

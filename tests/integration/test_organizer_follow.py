@@ -140,12 +140,8 @@ def test_follow_get_or_create_does_not_raise(approved_organizer, staff_user):
     """get_or_create on Follow is idempotent."""
     from organizers.models import Follow
 
-    follow1, created1 = Follow.objects.get_or_create(
-        user=staff_user, profile=approved_organizer
-    )
-    follow2, created2 = Follow.objects.get_or_create(
-        user=staff_user, profile=approved_organizer
-    )
+    follow1, created1 = Follow.objects.get_or_create(user=staff_user, profile=approved_organizer)
+    follow2, created2 = Follow.objects.get_or_create(user=staff_user, profile=approved_organizer)
     assert created1 is True
     assert created2 is False
     assert follow1.pk == follow2.pk
@@ -168,9 +164,7 @@ def test_follow_post_creates_row(client, staff_user, approved_organizer):
 
 
 @pytest.mark.django_db
-def test_follow_post_open_tier_user_can_follow(
-    client, open_tier_user, approved_organizer
-):
+def test_follow_post_open_tier_user_can_follow(client, open_tier_user, approved_organizer):
     """Open-tier (non-vouched, non-staff) users can follow.
 
     Following is a private subscription powering the personalized feed, not a
@@ -182,9 +176,7 @@ def test_follow_post_open_tier_user_can_follow(
     client.force_login(open_tier_user)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
-    assert Follow.objects.filter(
-        user=open_tier_user, profile=approved_organizer
-    ).exists()
+    assert Follow.objects.filter(user=open_tier_user, profile=approved_organizer).exists()
 
 
 @pytest.mark.django_db
@@ -210,15 +202,11 @@ def test_follow_post_twice_deletes_row(client, staff_user, approved_organizer):
     # Second POST — deletes the follow (unfollow)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
-    assert not Follow.objects.filter(
-        user=staff_user, profile=approved_organizer
-    ).exists()
+    assert not Follow.objects.filter(user=staff_user, profile=approved_organizer).exists()
 
 
 @pytest.mark.django_db
-def test_follow_post_unfollow_returns_follow_button(
-    client, staff_user, approved_organizer
-):
+def test_follow_post_unfollow_returns_follow_button(client, staff_user, approved_organizer):
     """After unfollow, response shows Follow (not Following) button."""
     client.force_login(staff_user)
     client.post(f"/o/{approved_organizer.slug}/follow/")
@@ -245,9 +233,7 @@ def test_follow_nonexistent_organizer_returns_404(client, staff_user):
 
 
 @pytest.mark.django_db
-def test_follow_non_approved_organizer_returns_404(
-    client, staff_user, candidate_organizer
-):
+def test_follow_non_approved_organizer_returns_404(client, staff_user, candidate_organizer):
     """POST /o/<slug>/follow/ for non-approved organizer returns 404."""
     client.force_login(staff_user)
     response = client.post(f"/o/{candidate_organizer.slug}/follow/")
@@ -268,9 +254,7 @@ def test_follow_get_method_not_allowed(client, staff_user, approved_organizer):
 
 
 @pytest.mark.django_db
-def test_profile_shows_follow_button_for_authenticated_user(
-    client, staff_user, approved_organizer
-):
+def test_profile_shows_follow_button_for_authenticated_user(client, staff_user, approved_organizer):
     """GET /p/<slug>/ shows a Follow button for authenticated users."""
     client.force_login(staff_user)
     response = client.get(f"/p/{approved_organizer.slug}/")
@@ -281,9 +265,7 @@ def test_profile_shows_follow_button_for_authenticated_user(
 
 
 @pytest.mark.django_db
-def test_profile_follow_button_shows_following_when_followed(
-    client, staff_user, approved_organizer
-):
+def test_profile_follow_button_shows_following_when_followed(client, staff_user, approved_organizer):
     """GET /p/<slug>/ shows Following button when user already follows."""
     from organizers.models import Follow
 
@@ -296,9 +278,7 @@ def test_profile_follow_button_shows_following_when_followed(
 
 
 @pytest.mark.django_db
-def test_profile_follow_button_shows_follow_when_not_followed(
-    client, staff_user, approved_organizer
-):
+def test_profile_follow_button_shows_follow_when_not_followed(client, staff_user, approved_organizer):
     """GET /p/<slug>/ shows Follow (no btn-active) when user does not follow."""
     client.force_login(staff_user)
     response = client.get(f"/p/{approved_organizer.slug}/")

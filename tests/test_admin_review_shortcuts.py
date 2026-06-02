@@ -34,27 +34,21 @@ def test_flag_admin_has_resolve_approved_action():
     """FlagAdmin must have a resolve_approved bulk action."""
     from reviews.admin import FlagAdmin
 
-    assert "resolve_approved" in FlagAdmin.actions, (
-        f"resolve_approved not in FlagAdmin.actions: {FlagAdmin.actions}"
-    )
+    assert "resolve_approved" in FlagAdmin.actions, f"resolve_approved not in FlagAdmin.actions: {FlagAdmin.actions}"
 
 
 def test_flag_admin_has_resolve_rejected_action():
     """FlagAdmin must have a resolve_rejected bulk action."""
     from reviews.admin import FlagAdmin
 
-    assert "resolve_rejected" in FlagAdmin.actions, (
-        f"resolve_rejected not in FlagAdmin.actions: {FlagAdmin.actions}"
-    )
+    assert "resolve_rejected" in FlagAdmin.actions, f"resolve_rejected not in FlagAdmin.actions: {FlagAdmin.actions}"
 
 
 def test_event_admin_has_publish_events_action():
     """EventAdmin must have a publish_events action (GDPR-correct publish)."""
     from events.admin import EventAdmin
 
-    assert "publish_events" in EventAdmin.actions, (
-        f"publish_events not in EventAdmin.actions: {EventAdmin.actions}"
-    )
+    assert "publish_events" in EventAdmin.actions, f"publish_events not in EventAdmin.actions: {EventAdmin.actions}"
 
 
 def test_js_shortcut_uses_publish_events_not_publish_selected_for_approve():
@@ -77,9 +71,7 @@ def test_js_shortcut_uses_publish_events_not_publish_selected_for_approve():
         content = f.read()
 
     # The approve shortcut must reference publish_events (GDPR-correct action)
-    assert "'publish_events'" in content, (
-        "publish_events not found in JS — 'A' shortcut must target publish_events"
-    )
+    assert "'publish_events'" in content, "publish_events not found in JS — 'A' shortcut must target publish_events"
 
     # publish_events must appear before resolve_approved so EventAdmin hits it first
     idx_publish_events = content.find("'publish_events'")

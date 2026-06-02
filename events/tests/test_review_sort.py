@@ -23,9 +23,7 @@ from organizers.models import Profile
 def _enable_event_reviews():
     """Flip EVENT_REVIEWS_DISPLAYED=True so rating-based sorts are exposed."""
     cache.clear()
-    FeatureFlag.objects.update_or_create(
-        key="EVENT_REVIEWS_DISPLAYED", defaults={"enabled": True}
-    )
+    FeatureFlag.objects.update_or_create(key="EVENT_REVIEWS_DISPLAYED", defaults={"enabled": True})
 
 
 # ---------------------------------------------------------------------------
@@ -72,13 +70,9 @@ class LowestRatedSortTest(TestCase):
         self.org = _make_organizer("lr-org")
         # avg_rating values:  3.0,  5.0,  1.0,  None (no reviews)
         self.event_mid = _make_event(self.org, "lr-mid", avg_rating=3.0, rating_count=2)
-        self.event_high = _make_event(
-            self.org, "lr-high", avg_rating=5.0, rating_count=1
-        )
+        self.event_high = _make_event(self.org, "lr-high", avg_rating=5.0, rating_count=1)
         self.event_low = _make_event(self.org, "lr-low", avg_rating=1.0, rating_count=3)
-        self.event_none = _make_event(
-            self.org, "lr-none", avg_rating=None, rating_count=0
-        )
+        self.event_none = _make_event(self.org, "lr-none", avg_rating=None, rating_count=0)
 
     def test_lowest_rated_ordering(self):
         """?sort=lowest_rated: order is low(1.0) < mid(3.0) < high(5.0), none last."""
@@ -99,10 +93,7 @@ class LowestRatedSortTest(TestCase):
         self.assertEqual(response.status_code, 200)
         page_pks = [e.pk for e in response.context["page_obj"]]
         none_idx = page_pks.index(self.event_none.pk)
-        rated_indices = [
-            page_pks.index(pk)
-            for pk in [self.event_low.pk, self.event_mid.pk, self.event_high.pk]
-        ]
+        rated_indices = [page_pks.index(pk) for pk in [self.event_low.pk, self.event_mid.pk, self.event_high.pk]]
         self.assertTrue(all(none_idx > i for i in rated_indices))
 
     def test_lowest_rated_context_sort_key(self):
@@ -123,15 +114,9 @@ class MostReviewedSortTest(TestCase):
         _enable_event_reviews()
         self.org = _make_organizer("mr-org")
         self.event_few = _make_event(self.org, "mr-few", rating_count=2, avg_rating=4.0)
-        self.event_many = _make_event(
-            self.org, "mr-many", rating_count=20, avg_rating=3.0
-        )
-        self.event_none = _make_event(
-            self.org, "mr-none", rating_count=0, avg_rating=None
-        )
-        self.event_mid = _make_event(
-            self.org, "mr-mid", rating_count=10, avg_rating=4.5
-        )
+        self.event_many = _make_event(self.org, "mr-many", rating_count=20, avg_rating=3.0)
+        self.event_none = _make_event(self.org, "mr-none", rating_count=0, avg_rating=None)
+        self.event_mid = _make_event(self.org, "mr-mid", rating_count=10, avg_rating=4.5)
 
     def test_most_reviewed_ordering(self):
         """?sort=most_reviewed: order is many(20) > mid(10) > few(2) > none(0)."""

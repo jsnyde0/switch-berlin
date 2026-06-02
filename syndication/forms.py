@@ -90,12 +90,11 @@ class EventForm(forms.Form):
         if raw is None:
             return None
         from venues.models import Venue
+
         try:
             return Venue.objects.get(pk=raw)
         except Venue.DoesNotExist:
-            raise forms.ValidationError(
-                _("Venue with ID %(id)s does not exist.") % {"id": raw}
-            )
+            raise forms.ValidationError(_("Venue with ID %(id)s does not exist.") % {"id": raw}) from None
 
     def clean_tags(self):
         """
@@ -105,11 +104,13 @@ class EventForm(forms.Form):
         hard failure on typo). Returns a list of Tag pk values.
         """
         from events.models import Tag
+
         raw = self.cleaned_data.get("tags", "").strip()
         if not raw:
             return []
         slugs = [s.strip() for s in raw.split(",") if s.strip()]
         return list(Tag.objects.filter(slug__in=slugs).values_list("pk", flat=True))
+
     dress_code = forms.CharField(
         required=False,
         max_length=300,
@@ -119,7 +120,7 @@ class EventForm(forms.Form):
     content_warnings = forms.CharField(
         required=False,
         label=_("Content warnings"),
-        help_text=_("JSON array of strings. e.g. [\"nudity\", \"bdsm\"]"),
+        help_text=_('JSON array of strings. e.g. ["nudity", "bdsm"]'),
         widget=forms.TextInput(attrs={"placeholder": '["nudity", "bdsm"]'}),
     )
     age_restriction = forms.IntegerField(
@@ -246,12 +247,10 @@ class EventForm(forms.Form):
             parsed = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise forms.ValidationError(
-                _("Content warnings must be a valid JSON array, e.g. [\"nudity\", \"bdsm\"].")
+                _('Content warnings must be a valid JSON array, e.g. ["nudity", "bdsm"].')
             ) from exc
         if not isinstance(parsed, list):
-            raise forms.ValidationError(
-                _("Content warnings must be a JSON array.")
-            )
+            raise forms.ValidationError(_("Content warnings must be a JSON array."))
         return parsed
 
 
@@ -314,7 +313,7 @@ class ContentVersionForm(forms.Form):
     imagery = forms.CharField(
         required=False,
         label=_("Imagery"),
-        help_text=_("JSON array of image references/URLs, e.g. [\"img1.jpg\"]"),
+        help_text=_('JSON array of image references/URLs, e.g. ["img1.jpg"]'),
         widget=forms.TextInput(attrs={"placeholder": '["img1.jpg"]'}),
     )
     cta = forms.CharField(
@@ -378,7 +377,5 @@ class PlatformConnectionForm(forms.Form):
         allowed = {"listing", "promotion"}
         for k in parsed:
             if k not in allowed:
-                raise forms.ValidationError(
-                    _(f"Invalid kind '{k}'. Must be 'listing' or 'promotion'.")
-                )
+                raise forms.ValidationError(_(f"Invalid kind '{k}'. Must be 'listing' or 'promotion'."))
         return parsed

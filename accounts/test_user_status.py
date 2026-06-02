@@ -18,9 +18,9 @@ def test_user_has_status_field():
     User = get_user_model()
     user = User(username="status_test")
     assert hasattr(user, "status"), "User has no status attribute"
-    assert not hasattr(User, "is_approved") or not any(
-        f.name == "is_approved" for f in User._meta.get_fields()
-    ), "is_approved should be gone from User model"
+    assert not hasattr(User, "is_approved") or not any(f.name == "is_approved" for f in User._meta.get_fields()), (
+        "is_approved should be gone from User model"
+    )
 
 
 def test_user_status_default_is_open():
@@ -29,9 +29,7 @@ def test_user_status_default_is_open():
 
     User = get_user_model()
     user = User(username="status_default")
-    assert user.status == "open", (
-        f"status should default to 'open', got {user.status!r}"
-    )
+    assert user.status == "open", f"status should default to 'open', got {user.status!r}"
 
 
 def test_user_status_choices_are_correct():
@@ -72,9 +70,7 @@ def test_user_has_vouch_score_field():
     User = get_user_model()
     user = User(username="vouch_test")
     assert hasattr(user, "vouch_score"), "User has no vouch_score attribute"
-    assert user.vouch_score == 0.0, (
-        f"vouch_score should default to 0.0, got {user.vouch_score!r}"
-    )
+    assert user.vouch_score == 0.0, f"vouch_score should default to 0.0, got {user.vouch_score!r}"
 
 
 def test_user_has_personal_rating_field():
@@ -84,9 +80,7 @@ def test_user_has_personal_rating_field():
     User = get_user_model()
     user = User(username="rating_test")
     assert hasattr(user, "personal_rating"), "User has no personal_rating attribute"
-    assert user.personal_rating is None, (
-        f"personal_rating should default to None, got {user.personal_rating!r}"
-    )
+    assert user.personal_rating is None, f"personal_rating should default to None, got {user.personal_rating!r}"
 
 
 def test_user_has_invite_codes_remaining_field():
@@ -95,12 +89,9 @@ def test_user_has_invite_codes_remaining_field():
 
     User = get_user_model()
     user = User(username="invite_test")
-    assert hasattr(user, "invite_codes_remaining"), (
-        "User has no invite_codes_remaining attribute"
-    )
+    assert hasattr(user, "invite_codes_remaining"), "User has no invite_codes_remaining attribute"
     assert user.invite_codes_remaining == 0, (
-        "invite_codes_remaining should default to 0, "
-        f"got {user.invite_codes_remaining!r}"
+        f"invite_codes_remaining should default to 0, got {user.invite_codes_remaining!r}"
     )
 
 
@@ -115,9 +106,7 @@ def test_user_status_persists_to_db():
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="status_db", email="status_db@example.com", password="x"
-    )
+    user = User.objects.create_user(username="status_db", email="status_db@example.com", password="x")
     assert user.status == "open"
 
     user.status = "vouched"
@@ -133,9 +122,7 @@ def test_user_vouch_score_persists_to_db():
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="vouch_db", email="vouch_db@example.com", password="x"
-    )
+    user = User.objects.create_user(username="vouch_db", email="vouch_db@example.com", password="x")
     user.vouch_score = 3.14
     user.save()
 
@@ -149,9 +136,7 @@ def test_user_personal_rating_nullable_in_db():
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="rating_db", email="rating_db@example.com", password="x"
-    )
+    user = User.objects.create_user(username="rating_db", email="rating_db@example.com", password="x")
     assert user.personal_rating is None
 
     fetched = User.objects.get(pk=user.pk)
@@ -164,9 +149,7 @@ def test_user_invite_codes_remaining_persists_to_db():
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="invite_db", email="invite_db@example.com", password="x"
-    )
+    user = User.objects.create_user(username="invite_db", email="invite_db@example.com", password="x")
     assert user.invite_codes_remaining == 0
 
     user.invite_codes_remaining = 3
@@ -312,21 +295,13 @@ def test_admin_list_filter_includes_status():
     """CustomUserAdmin must include 'status' in list_filter (not is_approved)."""
     from accounts.admin import CustomUserAdmin
 
-    assert "status" in CustomUserAdmin.list_filter, (
-        f"'status' not in list_filter: {CustomUserAdmin.list_filter}"
-    )
-    assert "is_approved" not in CustomUserAdmin.list_filter, (
-        "'is_approved' should have been removed from list_filter"
-    )
+    assert "status" in CustomUserAdmin.list_filter, f"'status' not in list_filter: {CustomUserAdmin.list_filter}"
+    assert "is_approved" not in CustomUserAdmin.list_filter, "'is_approved' should have been removed from list_filter"
 
 
 def test_admin_list_display_includes_status():
     """CustomUserAdmin must include 'status' in list_display."""
     from accounts.admin import CustomUserAdmin
 
-    assert "status" in CustomUserAdmin.list_display, (
-        f"'status' not in list_display: {CustomUserAdmin.list_display}"
-    )
-    assert "is_approved" not in CustomUserAdmin.list_display, (
-        "'is_approved' should have been removed from list_display"
-    )
+    assert "status" in CustomUserAdmin.list_display, f"'status' not in list_display: {CustomUserAdmin.list_display}"
+    assert "is_approved" not in CustomUserAdmin.list_display, "'is_approved' should have been removed from list_display"

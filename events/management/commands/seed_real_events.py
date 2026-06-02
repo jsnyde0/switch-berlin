@@ -119,8 +119,7 @@ VENUES: list[dict] = [
         "blur_radius_m": 1500,
         "url": "https://www.kachenka.org",
         "notes": (
-            "Kachenka uses varying Berlin venues per event; shown as a "
-            "blurred pin until per-event venues are sourced."
+            "Kachenka uses varying Berlin venues per event; shown as a blurred pin until per-event venues are sourced."
         ),
     },
 ]
@@ -214,9 +213,7 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "iksk-berlin",
         "slug": "ika-eska-kink-bodywork",
-        "external_url": (
-            "https://www.iksk-berlin.de/playparty/ika-eska-felicitas-bodywork"
-        ),
+        "external_url": ("https://www.iksk-berlin.de/playparty/ika-eska-felicitas-bodywork"),
         "title": "IKA ESKA Play Party — Kink & Bodywork (hosted by Ale Felicitas)",
         # Recurring; no concrete date on page — plausible near-future placeholder.
         "start": dt(2026, 5, 16, 12, 0),
@@ -335,9 +332,7 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "iksk-berlin",
         "slug": "venus-unbound-mary-magdalene-mai-2026",
-        "external_url": (
-            "https://www.iksk-berlin.de/venus-unbound-2-anna-valeska-pohl"
-        ),
+        "external_url": ("https://www.iksk-berlin.de/venus-unbound-2-anna-valeska-pohl"),
         "title": "Venus Unbound — Ritual II: Mary Magdalene & The Lover",
         "start": dt(2026, 5, 23, 11, 0),
         "end": dt(2026, 5, 23, 16, 0),
@@ -513,19 +508,14 @@ EVENTS: list[dict] = [
         "title": "Orgasmic Dance Temple Night",
         "start": dt(2026, 5, 29, 18, 0),
         "end": dt(2026, 5, 31, 23, 45),
-        "description": (
-            "Ecstatic, embodied, sex-positive temple night by Kachenka. "
-            "Dance, breath, ritual. Berlin."
-        ),
+        "description": ("Ecstatic, embodied, sex-positive temple night by Kachenka. Dance, breath, ritual. Berlin."),
         "suggested_tags": ["ecstatic-dance", "temple", "ritual", "sex-positive"],
     },
     # --- Karada House --------------------------------------------------------
     {
         "organizer_slug": "karada-house",
         "slug": "delving-into-dominance-archetypes",
-        "external_url": (
-            "https://karada-house.de/events/delving-into-dominance-archetypes/"
-        ),
+        "external_url": ("https://karada-house.de/events/delving-into-dominance-archetypes/"),
         "title": "Delving Into Dominance — Archetypes & Inspiration (Part 4)",
         "start": dt(2026, 5, 5, 19, 0),
         "end": dt(2026, 5, 5, 22, 0),
@@ -539,9 +529,7 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "karada-house",
         "slug": "delving-into-dominance-series-2",
-        "external_url": (
-            "https://karada-house.de/events/delving-into-dominance-series-2/"
-        ),
+        "external_url": ("https://karada-house.de/events/delving-into-dominance-series-2/"),
         "title": "Delving Into Dominance — 4-Part Series (2026)",
         "start": dt(2026, 4, 14, 19, 0),
         "end": dt(2026, 5, 5, 22, 0),
@@ -556,9 +544,7 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "karada-house",
         "slug": "delving-into-dominance-styles",
-        "external_url": (
-            "https://karada-house.de/events/delving-into-dominance-styles/"
-        ),
+        "external_url": ("https://karada-house.de/events/delving-into-dominance-styles/"),
         "title": "Delving Into Dominance — Styles of Leadership (Part 3)",
         "start": dt(2026, 4, 28, 19, 0),
         "end": dt(2026, 4, 28, 22, 0),
@@ -576,10 +562,7 @@ EVENTS: list[dict] = [
         "title": "First Aid for Kink & Rope",
         "start": dt(2026, 4, 26, 19, 0),
         "end": dt(2026, 4, 26, 22, 0),
-        "description": (
-            "Practical first aid training tailored for kink and rope "
-            "practitioners at Karada House."
-        ),
+        "description": ("Practical first aid training tailored for kink and rope practitioners at Karada House."),
         "suggested_tags": ["rope", "bdsm", "safety", "workshop"],
     },
     {
@@ -600,9 +583,7 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "karada-house",
         "slug": "sm-weekend-caning-and-flogging",
-        "external_url": (
-            "https://karada-house.de/events/sm-weekend-caning-and-flogging/"
-        ),
+        "external_url": ("https://karada-house.de/events/sm-weekend-caning-and-flogging/"),
         "title": "SM Weekend: Caning and Flogging",
         "start": dt(2026, 5, 3, 12, 0),
         "end": dt(2026, 5, 3, 14, 0),
@@ -615,9 +596,7 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "karada-house",
         "slug": "sm-weekend-face-slapping-biting-scratching",
-        "external_url": (
-            "https://karada-house.de/events/sm-weekend-face-slapping-biting-scratching/"
-        ),
+        "external_url": ("https://karada-house.de/events/sm-weekend-face-slapping-biting-scratching/"),
         "title": "SM Weekend: Face Slapping, Biting & Scratching",
         "start": dt(2026, 5, 2, 15, 30),
         "end": dt(2026, 5, 2, 17, 30),
@@ -631,24 +610,17 @@ EVENTS: list[dict] = [
     {
         "organizer_slug": "karada-house",
         "slug": "sm-weekend-genital-nipple-torment",
-        "external_url": (
-            "https://karada-house.de/events/sm-weekend-genital-nipple-torment/"
-        ),
+        "external_url": ("https://karada-house.de/events/sm-weekend-genital-nipple-torment/"),
         "title": "SM Weekend: Genital & Nipple Torment",
         "start": dt(2026, 5, 2, 12, 0),
         "end": dt(2026, 5, 2, 14, 0),
-        "description": (
-            "SM Weekend session on CBT/nipple torment — anatomy, safety, "
-            "tools and play."
-        ),
+        "description": ("SM Weekend session on CBT/nipple torment — anatomy, safety, tools and play."),
         "suggested_tags": ["bdsm", "sm-weekend", "sensation", "workshop"],
     },
     {
         "organizer_slug": "karada-house",
         "slug": "sm-weekend-pain-processing-theory",
-        "external_url": (
-            "https://karada-house.de/events/sm-weekend-pain-processing-theory/"
-        ),
+        "external_url": ("https://karada-house.de/events/sm-weekend-pain-processing-theory/"),
         "title": "SM Weekend: Pain Processing & Theory",
         "start": dt(2026, 5, 1, 11, 0),
         "end": dt(2026, 5, 1, 13, 0),
@@ -678,24 +650,18 @@ EVENTS: list[dict] = [
         "title": "SM Weekend: Spanking",
         "start": dt(2026, 5, 1, 14, 0),
         "end": dt(2026, 5, 1, 16, 0),
-        "description": (
-            "SM Weekend hands-on spanking workshop — OTK, warm-up, hand "
-            "and implement technique."
-        ),
+        "description": ("SM Weekend hands-on spanking workshop — OTK, warm-up, hand and implement technique."),
         "suggested_tags": ["bdsm", "impact", "spanking", "sm-weekend", "workshop"],
     },
     {
         "organizer_slug": "karada-house",
         "slug": "sm-weekend-thuddy-impact-kicking-punching",
-        "external_url": (
-            "https://karada-house.de/events/sm-weekend-thuddy-impact-kicking-punching/"
-        ),
+        "external_url": ("https://karada-house.de/events/sm-weekend-thuddy-impact-kicking-punching/"),
         "title": "SM Weekend: Thuddy Impact — Kicking & Punching",
         "start": dt(2026, 5, 2, 18, 0),
         "end": dt(2026, 5, 2, 20, 0),
         "description": (
-            "SM Weekend session on thuddy impact — safe kicking and "
-            "punching, target areas, intensity calibration."
+            "SM Weekend session on thuddy impact — safe kicking and punching, target areas, intensity calibration."
         ),
         "suggested_tags": ["bdsm", "impact", "primal", "sm-weekend", "workshop"],
     },
@@ -706,10 +672,7 @@ EVENTS: list[dict] = [
         "title": "SM Weekend: Wax Play",
         "start": dt(2026, 5, 3, 15, 30),
         "end": dt(2026, 5, 3, 17, 30),
-        "description": (
-            "SM Weekend wax play workshop — candle types, temperature, "
-            "aftercare, cleanup."
-        ),
+        "description": ("SM Weekend wax play workshop — candle types, temperature, aftercare, cleanup."),
         "suggested_tags": ["bdsm", "sensation", "wax", "sm-weekend", "workshop"],
     },
 ]
@@ -723,10 +686,7 @@ class Command(BaseCommand):
             "--wipe",
             action="store_true",
             default=False,
-            help=(
-                "Delete previously seeded events and organizers matching the "
-                "seed set before re-seeding."
-            ),
+            help=("Delete previously seeded events and organizers matching the seed set before re-seeding."),
         )
         parser.add_argument(
             "--publish",
@@ -749,9 +709,7 @@ class Command(BaseCommand):
 
         if wipe:
             if verbosity >= 1:
-                self.stdout.write(
-                    "Wiping previously seeded events + venues + organizers…"
-                )
+                self.stdout.write("Wiping previously seeded events + venues + organizers…")
             # Events first (Event.venue is on_delete=PROTECT), then venues, then orgs.
             for org_slug, ev_slug in event_keys:
                 Event.objects.filter(
@@ -763,10 +721,7 @@ class Command(BaseCommand):
             Profile.objects.filter(slug__in=org_slugs).delete()
 
         now = timezone.now()
-        consent_notes = (
-            "Public website — LIA per docs/compliance/organizer-lia.md, "
-            "scraped 2026-04-23"
-        )
+        consent_notes = "Public website — LIA per docs/compliance/organizer-lia.md, scraped 2026-04-23"
 
         orgs_created = 0
         orgs_by_slug: dict[str, Profile] = {}
@@ -844,9 +799,7 @@ class Command(BaseCommand):
             if created:
                 events_created += 1
                 if verbosity >= 2:
-                    self.stdout.write(
-                        f"  + {org.slug}/{obj.slug}  ({obj.start.isoformat()})"
-                    )
+                    self.stdout.write(f"  + {org.slug}/{obj.slug}  ({obj.start.isoformat()})")
             else:
                 # Backfill venue on rows seeded before per-event venues existed.
                 if venue is not None and obj.venue_id != venue.pk:
@@ -861,15 +814,9 @@ class Command(BaseCommand):
                     events_published += 1
 
         if verbosity >= 1:
-            published_msg = (
-                f" Published {events_published} pre-existing draft(s)."
-                if events_published
-                else ""
-            )
+            published_msg = f" Published {events_published} pre-existing draft(s)." if events_published else ""
             relinked_msg = (
-                f" Backfilled venue link on {events_relinked} pre-existing event(s)."
-                if events_relinked
-                else ""
+                f" Backfilled venue link on {events_relinked} pre-existing event(s)." if events_relinked else ""
             )
             self.stdout.write(
                 self.style.SUCCESS(

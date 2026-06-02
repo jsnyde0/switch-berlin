@@ -6,8 +6,8 @@ so the syndication board renders meaningfully.
 Run with:
     DJANGO_SETTINGS_MODULE=a_core.dev_sqlite_settings uv run python seed_dev.py
 """
+
 import os
-import sys
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "a_core.dev_sqlite_settings")
 
@@ -15,13 +15,13 @@ import django  # noqa: E402
 
 django.setup()
 
-from django.contrib.auth import get_user_model
-from django.utils import timezone
+from django.contrib.auth import get_user_model  # noqa: E402
+from django.utils import timezone  # noqa: E402
 
-from events.models import Event, EventOrganizer
-from organizers.models import Profile, ProfileClaim
-from syndication.models import PlatformConnection
-from syndication.services import create_event, create_post
+from events.models import Event, EventOrganizer  # noqa: E402
+from organizers.models import Profile, ProfileClaim  # noqa: E402
+from syndication.models import PlatformConnection  # noqa: E402
+from syndication.services import create_event, create_post  # noqa: E402
 
 User = get_user_model()
 

@@ -175,11 +175,13 @@ class ClearAreaQueryStringTest(TestCase):
         self.assertIsNotNone(match, "Clear-area link not found in rendered HTML")
         href_qs = match.group(1)
         self.assertNotIn(
-            "bounds", href_qs,
+            "bounds",
+            href_qs,
             f"Clear-area href must not contain bounds; got: ?{href_qs}",
         )
         self.assertIn(
-            "price=free", href_qs,
+            "price=free",
+            href_qs,
             f"Clear-area href must preserve price; got: ?{href_qs}",
         )
 
@@ -190,6 +192,7 @@ class SelectedKeyRemovedFromTemplateTest(TestCase):
     def test_selected_key_not_in_event_list_template(self):
         """The rendered partial must contain no reference to selectedKey."""
         import os
+
         # __file__ is events/tests/test_filter_qs_bugs.py
         # repo root is two levels up: events/ -> repo root
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -299,7 +302,7 @@ class BoundsPreservedOnFilterFormTest(TestCase):
         # The hidden input must appear somewhere in the filter-form region.
         # A simple substring check is sufficient; it must carry the correct value.
         self.assertIn(
-            f'name="bounds"',
+            'name="bounds"',
             content,
             "Hidden bounds input must be present in rendered list.html when bounds is active",
         )

@@ -39,16 +39,12 @@ def admin_user(db):
 
 @pytest.fixture
 def regular_user(db):
-    return User.objects.create_user(
-        username="revoke_claimer", email="revoke_claimer@example.com", password="x"
-    )
+    return User.objects.create_user(username="revoke_claimer", email="revoke_claimer@example.com", password="x")
 
 
 @pytest.fixture
 def profile(db):
-    return Profile.objects.create(
-        name="Revoke Test Profile", slug="revoke-test-profile"
-    )
+    return Profile.objects.create(name="Revoke Test Profile", slug="revoke-test-profile")
 
 
 @pytest.fixture
@@ -80,9 +76,7 @@ def make_request(admin_user):
 @pytest.mark.django_db
 def test_profile_claim_has_revocation_reason_field():
     """ProfileClaim has a revocation_reason CharField (cheap-foresight ADR-003)."""
-    assert hasattr(ProfileClaim, "revocation_reason"), (
-        "ProfileClaim missing revocation_reason field"
-    )
+    assert hasattr(ProfileClaim, "revocation_reason"), "ProfileClaim missing revocation_reason field"
     field = ProfileClaim._meta.get_field("revocation_reason")
     assert field is not None
 
@@ -183,9 +177,7 @@ def test_revoke_sets_revocation_reason_default_blank(admin_user, active_claim):
 
 
 @pytest.mark.django_db
-def test_revoked_claim_excluded_from_active_claimants(
-    admin_user, regular_user, profile, active_claim
-):
+def test_revoked_claim_excluded_from_active_claimants(admin_user, regular_user, profile, active_claim):
     """After revoke, user is no longer in profile.active_claimants."""
     from organizers.admin import ProfileClaimAdmin
 

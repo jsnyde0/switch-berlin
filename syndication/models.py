@@ -72,9 +72,7 @@ class PlatformConnection(models.Model):
     )
     platform = models.CharField(
         max_length=100,
-        help_text=(
-            "Platform identifier, e.g. 'fetlife', 'tickettailor', 'switch', 'telegram'."
-        ),
+        help_text=("Platform identifier, e.g. 'fetlife', 'tickettailor', 'switch', 'telegram'."),
     )
     destination_id = models.CharField(
         max_length=300,
@@ -244,10 +242,7 @@ class ContentVersion(models.Model):
         null=True,
         blank=True,
         related_name="content_versions",
-        help_text=(
-            "The Event this version belongs to. "
-            "Exactly one of event/post must be non-null (CheckConstraint)."
-        ),
+        help_text=("The Event this version belongs to. Exactly one of event/post must be non-null (CheckConstraint)."),
     )
     post = models.ForeignKey(
         Post,
@@ -255,16 +250,12 @@ class ContentVersion(models.Model):
         null=True,
         blank=True,
         related_name="content_versions",
-        help_text=(
-            "The Post this version belongs to. "
-            "Exactly one of event/post must be non-null (CheckConstraint)."
-        ),
+        help_text=("The Post this version belongs to. Exactly one of event/post must be non-null (CheckConstraint)."),
     )
     name = models.CharField(
         max_length=200,
         help_text=(
-            "Human-readable name for this editorial variant, "
-            "e.g. 'canonical', 'hipsy-censored', 'campaign-v1'."
+            "Human-readable name for this editorial variant, e.g. 'canonical', 'hipsy-censored', 'campaign-v1'."
         ),
     )
 
@@ -278,28 +269,21 @@ class ContentVersion(models.Model):
         null=True,
         blank=True,
         default=None,
-        help_text=(
-            "Headline / hook for this version. "
-            "NULL = derive from canonical Event/Post at render time."
-        ),
+        help_text=("Headline / hook for this version. NULL = derive from canonical Event/Post at render time."),
     )
     body = models.TextField(
         null=True,
         blank=True,
         default=None,
         help_text=(
-            "Body text for this version. "
-            "NULL = compose body from live canonical Event/Post fields at render time."
+            "Body text for this version. NULL = compose body from live canonical Event/Post fields at render time."
         ),
     )
     imagery = models.JSONField(
         null=True,
         blank=True,
         default=None,
-        help_text=(
-            "List of image references/URLs for this version. "
-            "NULL = derive from canonical."
-        ),
+        help_text=("List of image references/URLs for this version. NULL = derive from canonical."),
     )
     cta = models.CharField(
         max_length=500,
@@ -313,10 +297,7 @@ class ContentVersion(models.Model):
         null=True,
         blank=True,
         default=None,
-        help_text=(
-            "Voice/tone for this version (e.g. 'playful', 'formal'). "
-            "NULL = derive from canonical."
-        ),
+        help_text=("Voice/tone for this version (e.g. 'playful', 'formal'). NULL = derive from canonical."),
     )
 
     # Content-authorship signals (ADR-016 D2, revised 2026-05-29).
@@ -325,10 +306,7 @@ class ContentVersion(models.Model):
         max_length=20,
         choices=Provenance.choices,
         default=Provenance.RULE_TEMPLATE,
-        help_text=(
-            "How the content in this version was last produced. "
-            "Flips to 'manual' on human edit."
-        ),
+        help_text=("How the content in this version was last produced. Flips to 'manual' on human edit."),
     )
     # RESERVED: agent identity that produced this version (ADR-003 cheap foresight).
     generated_by = models.CharField(
@@ -363,8 +341,7 @@ class ContentVersion(models.Model):
             # Exactly one of event/post must be non-null (ADR-008 D3 — fail loud).
             models.CheckConstraint(
                 condition=(
-                    models.Q(event__isnull=False, post__isnull=True)
-                    | models.Q(event__isnull=True, post__isnull=False)
+                    models.Q(event__isnull=False, post__isnull=True) | models.Q(event__isnull=True, post__isnull=False)
                 ),
                 name="syndication_contentversion_exactly_one_of_event_post",
                 violation_error_message=(

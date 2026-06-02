@@ -32,9 +32,7 @@ def make_profile(slug, **kwargs):
 
 def make_user(username, email=None):
     email = email or f"{username}@example.com"
-    return User.objects.create_user(
-        username=username, email=email, password="testpass123"
-    )
+    return User.objects.create_user(username=username, email=email, password="testpass123")
 
 
 # ---------------------------------------------------------------------------
@@ -79,8 +77,7 @@ def test_magic_link_redeem_fast_path_creates_profile_claim_with_email_domain(cli
     claim = ProfileClaim.objects.filter(profile=profile, user=user).first()
     assert claim is not None
     assert claim.verified_method == "email_domain", (
-        f"Expected verified_method='email_domain' for fast-path token,"
-        f" got '{claim.verified_method}'"
+        f"Expected verified_method='email_domain' for fast-path token, got '{claim.verified_method}'"
     )
 
 
@@ -111,8 +108,7 @@ def test_magic_link_redeem_admin_review_marks_claim_intent_verified(client):
     # ClaimIntent.submitter_verified_at must be stamped
     intent.refresh_from_db()
     assert intent.submitter_verified_at is not None, (
-        "ClaimIntent.submitter_verified_at should be stamped after magic-link"
-        " redemption"
+        "ClaimIntent.submitter_verified_at should be stamped after magic-link redemption"
     )
 
     # No ProfileClaim created (admin must approve first)
@@ -146,9 +142,7 @@ def test_check_email_page_shows_verified_state_after_admin_review_redeem(client)
     body = response.content.decode().lower()
     assert "verified" in body, "post-redeem page must say the email is verified"
     assert "pending" in body, "post-redeem page must say the claim is pending review"
-    assert "inbox" not in body, (
-        "post-redeem page must NOT show the pre-redeem 'check your inbox' copy"
-    )
+    assert "inbox" not in body, "post-redeem page must NOT show the pre-redeem 'check your inbox' copy"
 
 
 @pytest.mark.django_db

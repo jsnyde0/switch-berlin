@@ -78,9 +78,7 @@ def approved_user_with_went_attendance(db, approved_user, past_event):
 
 
 @pytest.mark.django_db
-def test_event_detail_context_false_when_no_attendance(
-    approved_user_without_attendance, past_event
-):
+def test_event_detail_context_false_when_no_attendance(approved_user_without_attendance, past_event):
     """event_detail view sets user_has_went_attendance=False when no went attendance."""
     client = Client()
     client.force_login(approved_user_without_attendance)
@@ -97,9 +95,7 @@ def test_event_detail_context_false_when_no_attendance(
 
 
 @pytest.mark.django_db
-def test_event_detail_context_true_when_went_attendance(
-    approved_user_with_went_attendance, past_event
-):
+def test_event_detail_context_true_when_went_attendance(approved_user_with_went_attendance, past_event):
     """event_detail view sets user_has_went_attendance=True when went attendance
     exists."""
     client = Client()
@@ -138,9 +134,7 @@ def test_event_detail_context_false_for_anonymous(past_event):
 
 
 @pytest.mark.django_db
-def test_submit_review_without_went_attendance_returns_429(
-    approved_user_without_attendance, past_event
-):
+def test_submit_review_without_went_attendance_returns_429(approved_user_without_attendance, past_event):
     """Direct POST to submit_review without went attendance returns HTTP 429."""
     client = Client()
     client.force_login(approved_user_without_attendance)
@@ -157,9 +151,7 @@ def test_submit_review_without_went_attendance_returns_429(
 
 
 @pytest.mark.django_db
-def test_submit_review_without_went_attendance_renders_rating_form(
-    approved_user_without_attendance, past_event
-):
+def test_submit_review_without_went_attendance_renders_rating_form(approved_user_without_attendance, past_event):
     """429 response uses _rating_form.html template (HTMX swap compatible)."""
     client = Client()
     client.force_login(approved_user_without_attendance)
@@ -177,9 +169,7 @@ def test_submit_review_without_went_attendance_renders_rating_form(
 
 
 @pytest.mark.django_db
-def test_submit_review_without_went_attendance_does_not_create_review(
-    approved_user_without_attendance, past_event
-):
+def test_submit_review_without_went_attendance_does_not_create_review(approved_user_without_attendance, past_event):
     """No Review row is created when attendance gate blocks the submission."""
     client = Client()
     client.force_login(approved_user_without_attendance)
@@ -201,9 +191,7 @@ def test_submit_review_without_went_attendance_does_not_create_review(
 
 
 @pytest.mark.django_db
-def test_submit_review_with_went_attendance_returns_200(
-    approved_user_with_went_attendance, past_event
-):
+def test_submit_review_with_went_attendance_returns_200(approved_user_with_went_attendance, past_event):
     """User with went attendance can POST successfully (200)."""
     client = Client()
     client.force_login(approved_user_with_went_attendance)
@@ -220,9 +208,7 @@ def test_submit_review_with_went_attendance_returns_200(
 
 
 @pytest.mark.django_db
-def test_submit_review_with_went_attendance_creates_review(
-    approved_user_with_went_attendance, past_event
-):
+def test_submit_review_with_went_attendance_creates_review(approved_user_with_went_attendance, past_event):
     """User with went attendance: POST creates a Review row."""
     client = Client()
     client.force_login(approved_user_with_went_attendance)
@@ -250,9 +236,7 @@ def test_submit_review_with_went_attendance_creates_review(
 @pytest.mark.django_db
 def test_submit_review_with_going_attendance_returns_429(db, past_event):
     """Attendance(status='going') does not satisfy the went gate → 429."""
-    user = User.objects.create_user(
-        username="going_user", email="going@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="going_user", email="going@example.com", password="testpass123")
     user.status = "vouched"
     user.save()
     Attendance.objects.create(user=user, event=past_event, status="going")
@@ -285,9 +269,7 @@ def test_submit_review_ratings_disabled_blocks_even_with_went_attendance(
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="RATINGS_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="RATINGS_ENABLED", defaults={"enabled": False})
     cache.clear()
 
     client = Client()
@@ -319,9 +301,7 @@ def test_submit_organizer_review_unaffected_by_attendance_gate(
 ):
     """Attendance gate only applies to event target_type; organizer reviews still
     work."""
-    org = Profile.objects.create(
-        name="Unrelated Organizer", slug="unrelated-org", status="approved"
-    )
+    org = Profile.objects.create(name="Unrelated Organizer", slug="unrelated-org", status="approved")
     client = Client()
     client.force_login(approved_user_without_attendance)
     url = reverse("review-submit")

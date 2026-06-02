@@ -22,9 +22,7 @@ def public_read_on(db):
     """Ensure PUBLIC_READ_ENABLED=True in DB and clear cache."""
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.get_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": True}
-    )
+    FeatureFlag.objects.get_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": True})
     FeatureFlag.objects.filter(key="PUBLIC_READ_ENABLED").update(enabled=True)
     cache.clear()
     yield
@@ -36,9 +34,7 @@ def public_read_off(db):
     """Set PUBLIC_READ_ENABLED=False in DB and clear cache; restore after."""
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.get_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.get_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
     FeatureFlag.objects.filter(key="PUBLIC_READ_ENABLED").update(enabled=False)
     cache.clear()
     yield
@@ -415,9 +411,7 @@ def test_privacy_has_llm_processor_with_scc_transfer(client, public_read_on):
     content = response.content
     assert b"OpenAI" in content or b"Anthropic" in content
     # SCC or Standard Contractual Clauses must be mentioned
-    assert (
-        b"SCC" in content or b"Standard Contractual" in content or b"Art. 44" in content
-    )
+    assert b"SCC" in content or b"Standard Contractual" in content or b"Art. 44" in content
 
 
 @pytest.mark.django_db
@@ -449,10 +443,7 @@ def test_privacy_has_juschg_minimum_age(client, public_read_on):
 def test_privacy_has_last_updated(client, public_read_on):
     """Privacy page must display a 'Last updated' date."""
     response = client.get("/privacy/")
-    assert (
-        b"Last updated" in response.content
-        or b"Zuletzt aktualisiert" in response.content
-    )
+    assert b"Last updated" in response.content or b"Zuletzt aktualisiert" in response.content
 
 
 @pytest.mark.django_db
@@ -519,9 +510,7 @@ def test_privacy_lia_inline_text_present(client, public_read_on):
     content = response.content
     # The inline LIA text must mention key concepts: organizer events are public,
     # curation serves legitimate interest, objection via /takedown/
-    assert b"organizer-lia.md" not in content, (
-        "Dead link to organizer-lia.md must not appear on privacy page"
-    )
+    assert b"organizer-lia.md" not in content, "Dead link to organizer-lia.md must not appear on privacy page"
     # Must still mention the LIA/legitimate interest concepts inline
     assert b"Art. 6(1)(f)" in content
     assert b"/takedown/" in content
@@ -565,12 +554,10 @@ def test_takedown_no_hardcoded_email(client, public_read_on):
     response = client.get("/takedown/")
     assert response.status_code == 200
     assert b"takedown@switch.berlin" not in response.content, (
-        "Hardcoded mailto takedown@switch.berlin must not appear; "
-        "use legal_contact.dsa_email"
+        "Hardcoded mailto takedown@switch.berlin must not appear; use legal_contact.dsa_email"
     )
     assert b"takedown@kinkybubbles.de" not in response.content, (
-        "Legacy hardcoded mailto takedown@kinkybubbles.de must not appear; "
-        "use legal_contact.dsa_email"
+        "Legacy hardcoded mailto takedown@kinkybubbles.de must not appear; use legal_contact.dsa_email"
     )
 
 

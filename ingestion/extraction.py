@@ -24,9 +24,7 @@ Enriched content from URLs:
 """
 
 
-def extract_event_draft(
-    raw_message_text: str, enriched_payload: dict
-) -> tuple[EventDraft, str]:
+def extract_event_draft(raw_message_text: str, enriched_payload: dict) -> tuple[EventDraft, str]:
     """Returns (draft, prompt_version). Runs synchronously inside a django-q2 worker."""
     from events.models import Tag
     from organizers.models import Profile
@@ -76,9 +74,7 @@ def match_entities(draft: EventDraft) -> dict:
     organizer = Profile.objects.filter(name__iexact=draft.organizer_name).first()
     if organizer is None:
         candidates = (
-            Profile.objects.annotate(
-                sim=TrigramSimilarity("name", draft.organizer_name)
-            )
+            Profile.objects.annotate(sim=TrigramSimilarity("name", draft.organizer_name))
             .filter(sim__gte=0.6)
             .order_by("-sim")
         )
@@ -88,11 +84,7 @@ def match_entities(draft: EventDraft) -> dict:
         # If count == 0 or count > 1: leave organizer as None
 
     # Venue matching: exact only, no fuzzy fallback
-    venue = (
-        Venue.objects.filter(name__iexact=draft.venue_name).first()
-        if draft.venue_name
-        else None
-    )
+    venue = Venue.objects.filter(name__iexact=draft.venue_name).first() if draft.venue_name else None
 
     # Tag matching: exact on slug, unmatched -> suggested_tags
     # Fetch all tags in one query and match in Python to avoid N+1.

@@ -9,9 +9,7 @@ from a_core.models import EmailFailure
 def send_takedown_notification(event_url, reason, body, contact_email):
     """Async task: send email notification for takedown submission."""
     subject = f"[Takedown] {reason}: {event_url[:100]}"
-    message = (
-        f"URL: {event_url}\nReason: {reason}\nBody: {body}\nContact: {contact_email}"
-    )
+    message = f"URL: {event_url}\nReason: {reason}\nBody: {body}\nContact: {contact_email}"
     try:
         send_mail(
             subject=subject,

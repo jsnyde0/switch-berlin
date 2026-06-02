@@ -132,15 +132,9 @@ class TrendingSortFlagDisabledTest(TestCase):
     def setUp(self):
         self.org = _make_organizer("ts-flag-off-org")
         # Create events with staggered start dates so chronological order is clear
-        self.event_first = _make_event(
-            self.org, "ts-off-first", 1, interested=0, attendance=5
-        )
-        self.event_second = _make_event(
-            self.org, "ts-off-second", 3, interested=10, attendance=0
-        )
-        self.event_third = _make_event(
-            self.org, "ts-off-third", 7, interested=20, attendance=1
-        )
+        self.event_first = _make_event(self.org, "ts-off-first", 1, interested=0, attendance=5)
+        self.event_second = _make_event(self.org, "ts-off-second", 3, interested=10, attendance=0)
+        self.event_third = _make_event(self.org, "ts-off-third", 7, interested=20, attendance=1)
 
     def test_flag_disabled_returns_chronological_order(self):
         """With flag=False, ?sort=trending is ignored; order is start ascending."""
@@ -212,15 +206,9 @@ class DefaultSortTest(TestCase):
 
     def setUp(self):
         self.org = _make_organizer("ts-default-org")
-        self.event_first = _make_event(
-            self.org, "ts-def-first", 1, interested=100, attendance=100
-        )
-        self.event_second = _make_event(
-            self.org, "ts-def-second", 3, interested=0, attendance=0
-        )
-        self.event_third = _make_event(
-            self.org, "ts-def-third", 7, interested=50, attendance=10
-        )
+        self.event_first = _make_event(self.org, "ts-def-first", 1, interested=100, attendance=100)
+        self.event_second = _make_event(self.org, "ts-def-second", 3, interested=0, attendance=0)
+        self.event_third = _make_event(self.org, "ts-def-third", 7, interested=50, attendance=10)
 
     def test_no_sort_param_returns_chronological(self):
         """No ?sort param → start ascending."""

@@ -11,12 +11,8 @@ def _capture_organizer_consent(organizer, approved_by_user):
         now = timezone.now()
         organizer.consent_recorded_at = now
         organizer.consent_method = "telegram_forward_implied"
-        organizer.consent_notes = (
-            f"First event approved by {approved_by_user} on {now.date()}"
-        )
-        organizer.save(
-            update_fields=["consent_recorded_at", "consent_method", "consent_notes"]
-        )
+        organizer.consent_notes = f"First event approved by {approved_by_user} on {now.date()}"
+        organizer.save(update_fields=["consent_recorded_at", "consent_method", "consent_notes"])
 
 
 class EventImageInline(admin.TabularInline):
@@ -137,11 +133,7 @@ class EventAdmin(admin.ModelAdmin):
         from django.utils.html import format_html
 
         enriched = obj.raw_message.enriched_payload
-        enriched_str = (
-            json.dumps(enriched, indent=2, ensure_ascii=False)
-            if enriched
-            else _("(not yet enriched)")
-        )
+        enriched_str = json.dumps(enriched, indent=2, ensure_ascii=False) if enriched else _("(not yet enriched)")
         return format_html(
             "<strong>{}</strong>"
             '<pre style="max-height:200px;overflow:auto">{}</pre>'
@@ -175,17 +167,13 @@ class EventAdmin(admin.ModelAdmin):
         from ingestion.models import ExtractionAttempt  # noqa: PLC0415
 
         extra_context = extra_context or {}
-        attempts = ExtractionAttempt.objects.filter(event_id=object_id).order_by(
-            "-attempted_at"
-        )
+        attempts = ExtractionAttempt.objects.filter(event_id=object_id).order_by("-attempted_at")
         extra_context["extraction_attempts"] = attempts
         if attempts.exists():
             latest = attempts.first()
             extra_context["extracted_draft"] = latest.extracted_draft
             extra_context["confidence_score"] = latest.confidence_score
-        return super().change_view(
-            request, object_id, form_url, extra_context=extra_context
-        )
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def primary_organizer_display(self, obj):
         """Show the primary organizer name in list display."""
@@ -196,11 +184,7 @@ class EventAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         old_status = (
-            obj.__class__.objects.filter(pk=obj.pk)
-            .values_list("status", flat=True)
-            .first()
-            if obj.pk
-            else None
+            obj.__class__.objects.filter(pk=obj.pk).values_list("status", flat=True).first() if obj.pk else None
         )
         super().save_model(request, obj, form, change)
         if obj.status == "published" and old_status != "published":
@@ -221,9 +205,7 @@ class EventAdmin(admin.ModelAdmin):
 
         # Only set published_at on first publish; do not overwrite if already set.
         now = timezone.now()
-        queryset.filter(published_at__isnull=True).update(
-            status="published", published_at=now
-        )
+        queryset.filter(published_at__isnull=True).update(status="published", published_at=now)
         queryset.filter(published_at__isnull=False).update(status="published")
 
         # Capture GDPR consent for each organizer on their first event publish.
@@ -233,9 +215,7 @@ class EventAdmin(admin.ModelAdmin):
     @admin.action(description=_("Publish selected (draft only)"))
     def publish_selected(self, request, queryset):
         count = queryset.filter(status="draft").update(status="published")
-        self.message_user(
-            request, _("%(count)d event(s) published.") % {"count": count}
-        )
+        self.message_user(request, _("%(count)d event(s) published.") % {"count": count})
 
     @admin.action(description=_("Reject selected events"))
     def reject_events(self, request, queryset):

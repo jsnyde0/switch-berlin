@@ -25,9 +25,7 @@ class Review(models.Model):
         on_delete=models.CASCADE,
         related_name="reviews",
     )
-    rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
+    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     body = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     hidden = models.BooleanField(default=False, db_index=True)
@@ -118,12 +116,8 @@ class Flag(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(organizer__isnull=False, event__isnull=True, review__isnull=True)
-                    | Q(
-                        organizer__isnull=True, event__isnull=False, review__isnull=True
-                    )
-                    | Q(
-                        organizer__isnull=True, event__isnull=True, review__isnull=False
-                    )
+                    | Q(organizer__isnull=True, event__isnull=False, review__isnull=True)
+                    | Q(organizer__isnull=True, event__isnull=True, review__isnull=False)
                 ),
                 name="flag_targets_exactly_one",
             ),

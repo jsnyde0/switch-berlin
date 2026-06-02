@@ -27,9 +27,7 @@ def get_backfill_functions():
     """
     import importlib
 
-    migration = importlib.import_module(
-        "accounts.migrations.0006_backfill_allauth_email_verification"
-    )
+    migration = importlib.import_module("accounts.migrations.0006_backfill_allauth_email_verification")
     return migration.forwards, migration.backwards
 
 
@@ -121,9 +119,7 @@ def test_backfill_raises_for_user_with_blank_email():
 
     # Error message must include the offending user ID
     error_msg = str(exc_info.value)
-    assert str(user.pk) in error_msg, (
-        f"Error message should list offending user IDs but got: {error_msg}"
-    )
+    assert str(user.pk) in error_msg, f"Error message should list offending user IDs but got: {error_msg}"
 
 
 # ---------------------------------------------------------------------------
@@ -170,9 +166,5 @@ def test_backfill_migration_file_exists():
     """Migration file 0006_backfill_allauth_email_verification.py must exist."""
     from pathlib import Path
 
-    migration_path = (
-        Path(__file__).resolve().parent
-        / "migrations"
-        / "0006_backfill_allauth_email_verification.py"
-    )
+    migration_path = Path(__file__).resolve().parent / "migrations" / "0006_backfill_allauth_email_verification.py"
     assert migration_path.exists(), f"Migration file not found: {migration_path}"

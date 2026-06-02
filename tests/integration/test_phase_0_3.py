@@ -66,9 +66,7 @@ def test_signup_open(client):
     assert response.status_code == 200
     content = response.content.decode()
     # Must contain a password input — the signup form IS rendered
-    assert 'type="password"' in content, (
-        "Signup form was NOT rendered — signup must be open in phase 0.5+"
-    )
+    assert 'type="password"' in content, "Signup form was NOT rendered — signup must be open in phase 0.5+"
 
 
 # ---------------------------------------------------------------------------
@@ -114,9 +112,7 @@ def test_x_robots_tag_on_events_page_when_rollback(client, staff_user, published
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
     cache.clear()
     client.force_login(staff_user)
     try:
@@ -160,9 +156,7 @@ def test_event_detail_404_for_missing(client, staff_user, approved_organizer):
 
 
 @pytest.mark.django_db
-def test_organizer_profile_smoke(
-    client, staff_user, approved_organizer, published_event
-):
+def test_organizer_profile_smoke(client, staff_user, approved_organizer, published_event):
     """GET /p/<slug>/ returns 200 for staff user with approved organizer."""
     client.force_login(staff_user)
     response = client.get(f"/p/{approved_organizer.slug}/")

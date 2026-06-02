@@ -201,9 +201,7 @@ class TestFlagAdminChangeView:
 
 
 class TestProcessActionModerationActionCreation:
-    def test_no_action_on_event_creates_moderation_action(
-        self, staff_client, event_flag
-    ):
+    def test_no_action_on_event_creates_moderation_action(self, staff_client, event_flag):
         url = _action_url(event_flag.pk)
         response = staff_client.post(url, {"action": "no_action"})
         assert response.status_code == 302
@@ -223,9 +221,7 @@ class TestProcessActionModerationActionCreation:
         assert ma.target_id == event_flag.event.pk
         assert ma.action == "hide"
 
-    def test_hide_on_organizer_creates_moderation_action(
-        self, staff_client, organizer_flag
-    ):
+    def test_hide_on_organizer_creates_moderation_action(self, staff_client, organizer_flag):
         url = _action_url(organizer_flag.pk)
         staff_client.post(url, {"action": "hide"})
         assert ModerationAction.objects.count() == 1
@@ -234,9 +230,7 @@ class TestProcessActionModerationActionCreation:
         assert ma.target_id == organizer_flag.organizer.pk
         assert ma.action == "hide"
 
-    def test_suspend_on_organizer_creates_moderation_action(
-        self, staff_client, organizer_flag
-    ):
+    def test_suspend_on_organizer_creates_moderation_action(self, staff_client, organizer_flag):
         url = _action_url(organizer_flag.pk)
         staff_client.post(url, {"action": "suspend"})
         assert ModerationAction.objects.count() == 1
@@ -244,9 +238,7 @@ class TestProcessActionModerationActionCreation:
         assert ma.target_type == "organizer"
         assert ma.action == "suspend"
 
-    def test_delete_on_review_creates_moderation_action(
-        self, staff_client, review_flag
-    ):
+    def test_delete_on_review_creates_moderation_action(self, staff_client, review_flag):
         url = _action_url(review_flag.pk)
         staff_client.post(url, {"action": "delete"})
         assert ModerationAction.objects.count() == 1
@@ -255,9 +247,7 @@ class TestProcessActionModerationActionCreation:
         assert ma.target_id == review_flag.review.pk
         assert ma.action == "delete"
 
-    def test_resolved_on_event_creates_moderation_action(
-        self, staff_client, event_flag
-    ):
+    def test_resolved_on_event_creates_moderation_action(self, staff_client, event_flag):
         url = _action_url(event_flag.pk)
         staff_client.post(url, {"action": "resolved"})
         assert ModerationAction.objects.count() == 1
@@ -378,9 +368,7 @@ class TestProcessActionAllowlist:
         response = staff_client.post(url, {"action": "nuke"})
         assert response.status_code == 400
 
-    def test_invalid_action_creates_no_moderation_action(
-        self, staff_client, event_flag
-    ):
+    def test_invalid_action_creates_no_moderation_action(self, staff_client, event_flag):
         url = _action_url(event_flag.pk)
         staff_client.post(url, {"action": "suspend"})
         assert ModerationAction.objects.count() == 0

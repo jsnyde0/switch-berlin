@@ -1,7 +1,7 @@
 """View tests for events app."""
 
 from django.test import SimpleTestCase
-from django.urls import resolve, reverse
+from django.urls import reverse
 
 
 class EventListURLTest(SimpleTestCase):

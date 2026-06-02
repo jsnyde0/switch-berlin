@@ -23,7 +23,6 @@ import logging as _views_logger_mod
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from events.models import Event
@@ -31,28 +30,26 @@ from syndication.authz import can_edit, can_publish
 from syndication.forms import EventForm, PlatformConnectionForm, PostForm
 from syndication.models import PlatformConnection, PlatformProjection, Post
 from syndication.services import (
+    _get_primary_profile_for_user,
+    _resolve_publishable_for_cv,
+    approve_projection,
+    content_version_consumers_map,
+    copy_from,
+    copy_to,
     create_event,
     create_post,
-    update_event,
-    set_event_cover,
-    _get_primary_profile_for_user,
+    customize,
+    duplicate,
+    edit_version,
     get_publishables_for_profile,
-    approve_projection,
-    publish_projection,
     mark_projection_published,
     publish_all_ready_projections,
     publish_all_ready_projections_for_post,
-    _resolve_projection_event,
-    customize,
-    copy_to,
-    copy_from,
-    duplicate,
+    publish_projection,
     reset_to_canonical,
-    edit_version,
-    content_version_consumers_map,
-    _resolve_publishable_for_cv,
+    set_event_cover,
+    update_event,
 )
-
 
 # ---------------------------------------------------------------------------
 # Studio front door (kb-9f1h.1)
@@ -77,14 +74,11 @@ def studio(request):
     """
     from organizers.models import ProfileClaim
 
-    claim = (
-        ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True)
-        .select_related("profile")
-        .first()
-    )
+    claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
     if claim is None:
         # Zero-claims user — fail loud, never synthesize an empty workspace
         from django.http import HttpResponseForbidden
+
         return HttpResponseForbidden("No organizer profile. Studio access requires an active profile claim.")
 
     primary_profile = claim.profile
@@ -93,18 +87,25 @@ def studio(request):
     # Annotate each item with its kind so templates can distinguish Event vs Post
     # without a template filter (ADR-008 D2 — simplest thing that works).
     from events.models import Event as _Event
+
     publishables = []
     for item in raw_publishables:
-        publishables.append({
-            "kind": "event" if isinstance(item, _Event) else "post",
-            "obj": item,
-        })
+        publishables.append(
+            {
+                "kind": "event" if isinstance(item, _Event) else "post",
+                "obj": item,
+            }
+        )
 
-    return render(request, "syndication/studio.html", {
-        "primary_profile": primary_profile,
-        "publishables": publishables,
-        "current_path": request.path,
-    })
+    return render(
+        request,
+        "syndication/studio.html",
+        {
+            "primary_profile": primary_profile,
+            "publishables": publishables,
+            "current_path": request.path,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -183,11 +184,15 @@ def event_hub_edit(request, pk):
         return render(request, "syndication/403.html", {"event": event}, status=403)
 
     if request.method == "POST":
-        form = EventForm(request.POST, request.FILES, initial={
-            "title": event.title,
-            "slug": event.slug,
-            "start": event.start,
-        })
+        form = EventForm(
+            request.POST,
+            request.FILES,
+            initial={
+                "title": event.title,
+                "slug": event.slug,
+                "start": event.start,
+            },
+        )
         if form.is_valid():
             cd = form.cleaned_data
             cover_file = cd.pop("cover_image", None)
@@ -197,52 +202,60 @@ def event_hub_edit(request, pk):
                     set_event_cover(request.user, event, cover_file)
                 except ValidationError as exc:
                     form.add_error("cover_image", "; ".join(exc.messages))
-                    return render(request, "syndication/event_edit.html", {
-                        "form": form,
-                        "event": event,
-                    })
+                    return render(
+                        request,
+                        "syndication/event_edit.html",
+                        {
+                            "form": form,
+                            "event": event,
+                        },
+                    )
             return redirect("syndication:event-hub", pk=event.pk)
     else:
         # Include ALL editable fields so edit-load round-trips stored values.
         # ADR-008 D3: missing fields here = silent data loss on save (wipe on re-save).
-        form = EventForm(initial={
-            "title": event.title,
-            "slug": event.slug,
-            "start": event.start,
-            "end": event.end,
-            "description": event.description,
-            "venue": event.venue_id,
-            "tags": ", ".join(
-                event.tags.values_list("slug", flat=True)
-            ) if event.pk else "",
-            "dress_code": event.dress_code,
-            "content_warnings": (
-                json.dumps(event.content_warnings)
-                if isinstance(event.content_warnings, list)
-                else event.content_warnings or ""
-            ),
-            "age_restriction": event.age_restriction,
-            "capacity": event.capacity,
-            "visibility": event.visibility,
-            "language": event.language,
-            "is_free": event.is_free,
-            "price_min_cents": event.price_min_cents,
-            "price_max_cents": event.price_max_cents,
-            "currency": event.currency,
-            "sliding_scale": event.sliding_scale,
-            "price_description": event.price_description,
-            "external_url": event.external_url,
-            "tickets_url": event.tickets_url,
-            "registration_required": event.registration_required,
-            "registration_url": event.registration_url,
-            "registration_email": event.registration_email,
-            "category": event.category,
-        })
+        form = EventForm(
+            initial={
+                "title": event.title,
+                "slug": event.slug,
+                "start": event.start,
+                "end": event.end,
+                "description": event.description,
+                "venue": event.venue_id,
+                "tags": ", ".join(event.tags.values_list("slug", flat=True)) if event.pk else "",
+                "dress_code": event.dress_code,
+                "content_warnings": (
+                    json.dumps(event.content_warnings)
+                    if isinstance(event.content_warnings, list)
+                    else event.content_warnings or ""
+                ),
+                "age_restriction": event.age_restriction,
+                "capacity": event.capacity,
+                "visibility": event.visibility,
+                "language": event.language,
+                "is_free": event.is_free,
+                "price_min_cents": event.price_min_cents,
+                "price_max_cents": event.price_max_cents,
+                "currency": event.currency,
+                "sliding_scale": event.sliding_scale,
+                "price_description": event.price_description,
+                "external_url": event.external_url,
+                "tickets_url": event.tickets_url,
+                "registration_required": event.registration_required,
+                "registration_url": event.registration_url,
+                "registration_email": event.registration_email,
+                "category": event.category,
+            }
+        )
 
-    return render(request, "syndication/event_edit.html", {
-        "form": form,
-        "event": event,
-    })
+    return render(
+        request,
+        "syndication/event_edit.html",
+        {
+            "form": form,
+            "event": event,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -259,10 +272,14 @@ def fragment_event_facts(request, pk):
     """
     event = get_object_or_404(Event, pk=pk)
     user_can_edit = can_edit(request.user, event)
-    return render(request, "syndication/fragments/event_facts.html", {
-        "event": event,
-        "can_edit": user_can_edit,
-    })
+    return render(
+        request,
+        "syndication/fragments/event_facts.html",
+        {
+            "event": event,
+            "can_edit": user_can_edit,
+        },
+    )
 
 
 @login_required
@@ -274,12 +291,16 @@ def fragment_event_posts(request, pk):
     event = get_object_or_404(Event, pk=pk)
     posts = Post.objects.filter(event=event).order_by("-created_at")
     user_can_edit = can_edit(request.user, event)
-    return render(request, "syndication/fragments/event_posts.html", {
-        "event": event,
-        "posts": posts,
-        "can_edit": user_can_edit,
-        "post_form": PostForm(),
-    })
+    return render(
+        request,
+        "syndication/fragments/event_posts.html",
+        {
+            "event": event,
+            "posts": posts,
+            "can_edit": user_can_edit,
+            "post_form": PostForm(),
+        },
+    )
 
 
 @login_required
@@ -313,18 +334,18 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     user_can_publish = can_publish(request.user, event)
 
     # Collect all projections: listing (direct event FK) + promotion (via posts)
-    listing_projections = PlatformProjection.objects.filter(
-        source_event=event
-    ).select_related("connection")
+    listing_projections = PlatformProjection.objects.filter(source_event=event).select_related("connection")
 
     post_ids = Post.objects.filter(event=event).values_list("pk", flat=True)
-    promotion_projections = PlatformProjection.objects.filter(
-        source_post_id__in=post_ids
-    ).select_related("connection", "source_post")
+    promotion_projections = PlatformProjection.objects.filter(source_post_id__in=post_ids).select_related(
+        "connection", "source_post"
+    )
 
     # Combine: listing first, then promotion
     from itertools import chain
+
     projections = list(chain(listing_projections, promotion_projections))
+
     # ADR-010 D1: Switch is the canonical anchor for the event workspace — sort it first.
     # Within listing projections the Switch tab leads; all other channels follow alphabetically.
     # Promotion projections (post-owned) trail listing projections.
@@ -337,6 +358,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
             return (1, p.connection.platform, "")
         # Tier 2: promotion channels alphabetically
         return (2, p.connection.platform, p.kind)
+
     projections.sort(key=_event_proj_sort_key)
 
     # Build rendered_rows: attempt render; on ValueError record error flag + error string.
@@ -344,6 +366,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     # projection_rows is a list of dicts for easy template iteration.
     # render_error=True is an explicit structural flag (ADR-008 D3: structural, not magic string).
     import logging as _logging
+
     _logger = _logging.getLogger(__name__)
     rendered_rows = {}
     projection_rows = []
@@ -362,9 +385,8 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     # --- Empty/error state flags ---
     # has_connections: check if any enabled connections exist for this event's organizers
     from events.models import EventOrganizer
-    organizer_profile_ids = EventOrganizer.objects.filter(
-        event=event
-    ).values_list("profile_id", flat=True)
+
+    organizer_profile_ids = EventOrganizer.objects.filter(event=event).values_list("profile_id", flat=True)
     has_connections = PlatformConnection.objects.filter(
         organizer_id__in=organizer_profile_ids,
         enabled=True,
@@ -376,9 +398,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         organizer_id__in=organizer_profile_ids,
         enabled=True,
     )
-    has_promotion_connections = any(
-        "promotion" in (conn.kinds or []) for conn in all_connections
-    )
+    has_promotion_connections = any("promotion" in (conn.kinds or []) for conn in all_connections)
     has_posts = Post.objects.filter(event=event).exists()
     no_promo_posts = has_promotion_connections and not has_posts
 
@@ -387,23 +407,25 @@ def fragment_event_syndication(request, pk, *, action_error=None):
 
     # has_ready_projections: true iff ≥1 projection is in 'ready' status (F3).
     # Guards the "Publish all ready" button — no-op when none are ready (ADR-008 D3).
-    has_ready_projections = any(
-        row["projection"].status == "ready" for row in projection_rows
-    )
+    has_ready_projections = any(row["projection"].status == "ready" for row in projection_rows)
 
-    return render(request, "syndication/fragments/event_syndication.html", {
-        "event": event,
-        "projections": projections,
-        "projection_rows": projection_rows,
-        "rendered_rows": rendered_rows,
-        "has_connections": has_connections,
-        "no_promo_posts": no_promo_posts,
-        "can_edit": user_can_edit,
-        "can_publish": user_can_publish,
-        "action_error": action_error,
-        "consumers_map": consumers_map,
-        "has_ready_projections": has_ready_projections,
-    })
+    return render(
+        request,
+        "syndication/fragments/event_syndication.html",
+        {
+            "event": event,
+            "projections": projections,
+            "projection_rows": projection_rows,
+            "rendered_rows": rendered_rows,
+            "has_connections": has_connections,
+            "no_promo_posts": no_promo_posts,
+            "can_edit": user_can_edit,
+            "can_publish": user_can_publish,
+            "action_error": action_error,
+            "consumers_map": consumers_map,
+            "has_ready_projections": has_ready_projections,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -452,8 +474,9 @@ def fragment_post_syndication(request, pk, *, action_error=None):
 
     Alpine 3.x: each swapped partial must carry its own x-data root.
     """
-    from syndication.engine import render_projection
     import logging as _logging
+
+    from syndication.engine import render_projection
 
     _logger = _logging.getLogger(__name__)
 
@@ -463,9 +486,8 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     user_can_publish = can_publish(request.user, event)
 
     projections = list(
-        PlatformProjection.objects.filter(
-            source_post=post
-        ).select_related("connection", "source_post")
+        PlatformProjection.objects.filter(source_post=post)
+        .select_related("connection", "source_post")
         .order_by("connection__platform")
     )
 
@@ -484,9 +506,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
 
     consumers_map = content_version_consumers_map(post=post)
 
-    has_ready_projections = any(
-        row["projection"].status == "ready" for row in projection_rows
-    )
+    has_ready_projections = any(row["projection"].status == "ready" for row in projection_rows)
 
     # kb-9f1h.7: thread studio context to the template so the "Event hub"
     # cross-link uses HTMX swap attrs only when inside the studio shell.
@@ -494,19 +514,23 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     # reads it and forwards it to post_syndication.html.
     studio_swap = bool(request.GET.get("studio"))
 
-    return render(request, "syndication/fragments/post_syndication.html", {
-        "post": post,
-        "event": event,
-        "projections": projections,
-        "projection_rows": projection_rows,
-        "rendered_rows": rendered_rows,
-        "can_edit": user_can_edit,
-        "can_publish": user_can_publish,
-        "action_error": action_error,
-        "consumers_map": consumers_map,
-        "has_ready_projections": has_ready_projections,
-        "studio_swap": studio_swap,
-    })
+    return render(
+        request,
+        "syndication/fragments/post_syndication.html",
+        {
+            "post": post,
+            "event": event,
+            "projections": projections,
+            "projection_rows": projection_rows,
+            "rendered_rows": rendered_rows,
+            "can_edit": user_can_edit,
+            "can_publish": user_can_publish,
+            "action_error": action_error,
+            "consumers_map": consumers_map,
+            "has_ready_projections": has_ready_projections,
+            "studio_swap": studio_swap,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -533,24 +557,32 @@ def post_create(request, event_pk):
         form = PostForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
-            post = create_post(user=request.user, event=event, **cd)
+            _post = create_post(user=request.user, event=event, **cd)
             # HTMX-aware: if request is HTMX, return event_posts fragment
             if request.headers.get("HX-Request"):
                 posts = Post.objects.filter(event=event).order_by("-created_at")
-                return render(request, "syndication/fragments/event_posts.html", {
-                    "event": event,
-                    "posts": posts,
-                    "can_edit": can_edit(request.user, event),
-                    "post_form": PostForm(),
-                })
+                return render(
+                    request,
+                    "syndication/fragments/event_posts.html",
+                    {
+                        "event": event,
+                        "posts": posts,
+                        "can_edit": can_edit(request.user, event),
+                        "post_form": PostForm(),
+                    },
+                )
             return redirect("syndication:event-hub", pk=event.pk)
     else:
         form = PostForm()
 
-    return render(request, "syndication/post_create.html", {
-        "form": form,
-        "event": event,
-    })
+    return render(
+        request,
+        "syndication/post_create.html",
+        {
+            "form": form,
+            "event": event,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -564,15 +596,22 @@ def connections_list(request):
     List PlatformConnections for the authenticated user's profiles.
     """
     from organizers.models import ProfileClaim
-    profile_ids = ProfileClaim.objects.filter(
-        user=request.user, rejected_at__isnull=True
-    ).values_list("profile_id", flat=True)
-    connections = PlatformConnection.objects.filter(
-        organizer_id__in=profile_ids
-    ).select_related("organizer").order_by("platform", "destination_id")
-    return render(request, "syndication/connections_list.html", {
-        "connections": connections,
-    })
+
+    profile_ids = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
+    connections = (
+        PlatformConnection.objects.filter(organizer_id__in=profile_ids)
+        .select_related("organizer")
+        .order_by("platform", "destination_id")
+    )
+    return render(
+        request,
+        "syndication/connections_list.html",
+        {
+            "connections": connections,
+        },
+    )
 
 
 @login_required
@@ -585,9 +624,9 @@ def connection_create(request):
     try:
         profile = _get_primary_profile_for_user(request.user)
     except ValueError:
-        return render(request, "syndication/403.html", {
-            "detail": "No organizer profile found for your account."
-        }, status=403)
+        return render(
+            request, "syndication/403.html", {"detail": "No organizer profile found for your account."}, status=403
+        )
 
     if request.method == "POST":
         form = PlatformConnectionForm(request.POST)
@@ -615,9 +654,9 @@ def connection_toggle(request, pk):
     """
     from organizers.models import ProfileClaim
 
-    profile_ids = ProfileClaim.objects.filter(
-        user=request.user, rejected_at__isnull=True
-    ).values_list("profile_id", flat=True)
+    profile_ids = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
 
     conn = get_object_or_404(PlatformConnection, pk=pk, organizer_id__in=profile_ids)
 
@@ -625,12 +664,18 @@ def connection_toggle(request, pk):
         conn.enabled = not conn.enabled
         conn.save(update_fields=["enabled"])
         if request.headers.get("HX-Request"):
-            connections = PlatformConnection.objects.filter(
-                organizer_id__in=profile_ids
-            ).select_related("organizer").order_by("platform", "destination_id")
-            return render(request, "syndication/connections_list.html", {
-                "connections": connections,
-            })
+            connections = (
+                PlatformConnection.objects.filter(organizer_id__in=profile_ids)
+                .select_related("organizer")
+                .order_by("platform", "destination_id")
+            )
+            return render(
+                request,
+                "syndication/connections_list.html",
+                {
+                    "connections": connections,
+                },
+            )
         return redirect("syndication:connections-list")
 
     return redirect("syndication:connections-list")
@@ -719,9 +764,7 @@ def _publishable_fragment_response_for_cv(request, content_version, action_error
     """
     event, post = _resolve_publishable_for_cv(content_version)
     if event is not None:
-        return fragment_event_syndication(
-            request, pk=event.pk, action_error=action_error
-        )
+        return fragment_event_syndication(request, pk=event.pk, action_error=action_error)
     return fragment_post_syndication(request, pk=post.pk, action_error=action_error)
 
 
@@ -740,13 +783,9 @@ def _projection_transition_error_response(request, exc, proj):
     """
     _views_logger.warning("Illegal transition for projection %r: %s", proj.pk, exc)
     if proj.kind == PlatformProjection.Kind.LISTING:
-        return fragment_event_syndication(
-            request, pk=proj.source_event.pk, action_error=str(exc)
-        )
+        return fragment_event_syndication(request, pk=proj.source_event.pk, action_error=str(exc))
     if proj.kind == PlatformProjection.Kind.PROMOTION:
-        return fragment_post_syndication(
-            request, pk=proj.source_post.pk, action_error=str(exc)
-        )
+        return fragment_post_syndication(request, pk=proj.source_post.pk, action_error=str(exc))
     raise ValueError(f"Unknown projection kind {proj.kind!r}")
 
 
@@ -927,9 +966,7 @@ def version_copy_to(request, pk):
             return _publishable_fragment_response_for_cv(request, source_version)
         return _publishable_hub_redirect_for_cv(source_version)
 
-    target_projections = list(
-        PlatformProjection.objects.filter(pk__in=target_pks)
-    )
+    target_projections = list(PlatformProjection.objects.filter(pk__in=target_pks))
 
     try:
         copy_to(user=request.user, source_version=source_version, target_projections=target_projections)
@@ -937,9 +974,7 @@ def version_copy_to(request, pk):
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
         if request.headers.get("HX-Request"):
-            return _publishable_fragment_response_for_cv(
-                request, source_version, action_error=str(exc)
-            )
+            return _publishable_fragment_response_for_cv(request, source_version, action_error=str(exc))
         return _publishable_hub_redirect_for_cv(source_version)
 
     if request.headers.get("HX-Request"):
@@ -977,9 +1012,7 @@ def version_edit(request, pk):
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
         if request.headers.get("HX-Request"):
-            return _publishable_fragment_response_for_cv(
-                request, version, action_error=str(exc)
-            )
+            return _publishable_fragment_response_for_cv(request, version, action_error=str(exc))
         return _publishable_hub_redirect_for_cv(version)
 
     if request.headers.get("HX-Request"):
@@ -1010,9 +1043,7 @@ def version_duplicate(request, pk):
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
         if request.headers.get("HX-Request"):
-            return _publishable_fragment_response_for_cv(
-                request, version, action_error=str(exc)
-            )
+            return _publishable_fragment_response_for_cv(request, version, action_error=str(exc))
         return _publishable_hub_redirect_for_cv(version)
 
     if request.headers.get("HX-Request"):
@@ -1082,8 +1113,9 @@ def review_all(request, event_pk):
     ADR-004: on-stack (HTMX + Alpine + Tailwind, no React).
     ADR-008 D3: render errors surface as visible error panels, not blank cells.
     """
-    from itertools import chain
     import logging as _logging
+    from itertools import chain
+
     from syndication.engine import render_projection
 
     _logger = _logging.getLogger(__name__)
@@ -1098,16 +1130,17 @@ def review_all(request, event_pk):
     user_can_publish = can_publish(request.user, event)
 
     # Collect projections — same logic as fragment_event_syndication
-    listing_projections = PlatformProjection.objects.filter(
-        source_event=event
-    ).select_related("connection", "content_version")
+    listing_projections = PlatformProjection.objects.filter(source_event=event).select_related(
+        "connection", "content_version"
+    )
 
     post_ids = Post.objects.filter(event=event).values_list("pk", flat=True)
-    promotion_projections = PlatformProjection.objects.filter(
-        source_post_id__in=post_ids
-    ).select_related("connection", "source_post", "content_version")
+    promotion_projections = PlatformProjection.objects.filter(source_post_id__in=post_ids).select_related(
+        "connection", "source_post", "content_version"
+    )
 
     projections = list(chain(listing_projections, promotion_projections))
+
     # ADR-010 D1: Switch leads (same ordering as fragment_event_syndication)
     def _review_proj_sort_key(p):
         if p.connection.platform == "switch" and p.kind == PlatformProjection.Kind.LISTING:
@@ -1115,6 +1148,7 @@ def review_all(request, event_pk):
         if p.kind == PlatformProjection.Kind.LISTING:
             return (1, p.connection.platform, "")
         return (2, p.connection.platform, p.kind)
+
     projections.sort(key=_review_proj_sort_key)
 
     # Build projection_rows — same fail-loud pattern as fragment_event_syndication
@@ -1129,12 +1163,16 @@ def review_all(request, event_pk):
             _logger.warning("render_projection failed for projection %r: %s", proj.pk, exc)
         projection_rows.append({"projection": proj, "body": body, "render_error": render_error})
 
-    return render(request, "syndication/review_all.html", {
-        "event": event,
-        "projection_rows": projection_rows,
-        "can_edit": user_can_edit,
-        "can_publish": user_can_publish,
-    })
+    return render(
+        request,
+        "syndication/review_all.html",
+        {
+            "event": event,
+            "projection_rows": projection_rows,
+            "can_edit": user_can_edit,
+            "can_publish": user_can_publish,
+        },
+    )
 
 
 @login_required
@@ -1163,9 +1201,13 @@ def agent_pairing_page(request):
     if request.method == "POST":
         _token_record, pairing_token = register_agent_credential(request.user)
 
-    return render(request, "syndication/agent_pairing.html", {
-        "pairing_token": pairing_token,
-    })
+    return render(
+        request,
+        "syndication/agent_pairing.html",
+        {
+            "pairing_token": pairing_token,
+        },
+    )
 
 
 @login_required
@@ -1220,9 +1262,7 @@ def post_projection_batch_publish(request, pk):
         return redirect("syndication:post-hub", pk=post.pk)
 
     try:
-        _published, failures = publish_all_ready_projections_for_post(
-            user=request.user, post=post
-        )
+        _published, failures = publish_all_ready_projections_for_post(user=request.user, post=post)
     except PermissionError:
         return render(request, "syndication/403.html", {}, status=403)
 
@@ -1230,9 +1270,7 @@ def post_projection_batch_publish(request, pk):
         # ADR-008 D3: fail loud — surface per-projection errors as visible error state.
         failed_descs = ", ".join(str(proj.pk) for proj, _ in failures)
         first_exc = failures[0][1]
-        error_msg = (
-            f"Partial publish failure (projections: {failed_descs}): {first_exc}"
-        )
+        error_msg = f"Partial publish failure (projections: {failed_descs}): {first_exc}"
         return fragment_post_syndication(request, pk=post.pk, action_error=error_msg)
 
     if request.headers.get("HX-Request"):

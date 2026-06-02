@@ -16,6 +16,7 @@ canonical_refs: ADR-016 D2/D3/D4, ADR-008 D1/D3, ADR-003.
 
 import unittest
 
+from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TestCase
 from django.utils import timezone
@@ -28,8 +29,6 @@ from syndication.models import (
     PlatformProjection,
     Post,
 )
-
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -88,12 +87,8 @@ class CanonicalVersionSeedTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_user(
-            username="seed_user", email="seed@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="Seed Org", slug="seed-org", user=self.user
-        )
+        self.user = _make_user(username="seed_user", email="seed@test.com", password="pw")
+        self.profile = _make_profile(name="Seed Org", slug="seed-org", user=self.user)
         self.conn = _make_connection(self.profile, destination_id="fl-seed-001")
 
     def test_create_event_seeds_exactly_one_canonical_version(self):
@@ -141,9 +136,7 @@ class CanonicalVersionSeedTest(TestCase):
 
         canonical_cv = ContentVersion.objects.get(event=event, name="canonical")
         projections = PlatformProjection.objects.filter(source_event=event)
-        self.assertGreater(
-            projections.count(), 0, "create_event must produce eager projections"
-        )
+        self.assertGreater(projections.count(), 0, "create_event must produce eager projections")
         for proj in projections:
             self.assertEqual(
                 proj.content_version_id,
@@ -157,9 +150,7 @@ class CanonicalVersionSeedTest(TestCase):
         """
         from syndication.services import create_event
 
-        conn2 = _make_connection(
-            self.profile, platform="switch", destination_id="switch-own-page", kinds=["listing"]
-        )
+        _conn2 = _make_connection(self.profile, platform="switch", destination_id="switch-own-page", kinds=["listing"])
 
         event = create_event(
             user=self.user,
@@ -188,7 +179,7 @@ class CanonicalVersionSeedTest(TestCase):
         from syndication.services import create_post
 
         # Set up a promotion-capable connection
-        promo_conn = _make_connection(
+        _promo_conn = _make_connection(
             self.profile, platform="telegram", destination_id="tg-chan-1", kinds=["promotion"]
         )
         event = _make_event(slug="post-seed-event")
@@ -237,12 +228,8 @@ class DraftTrackingVersionEditTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_user(
-            username="draft_track_user", email="drafttrack@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="DraftTrack Org", slug="drafttrack-org", user=self.user
-        )
+        self.user = _make_user(username="draft_track_user", email="drafttrack@test.com", password="pw")
+        self.profile = _make_profile(name="DraftTrack Org", slug="drafttrack-org", user=self.user)
         self.conn = _make_connection(self.profile, destination_id="fl-drafttrack-001")
 
     def test_null_content_version_fields_derive_from_live_canonical(self):
@@ -329,9 +316,7 @@ class DraftTrackingVersionEditTest(TestCase):
         from syndication.engine import render_projection
         from syndication.services import create_event
 
-        conn2 = _make_connection(
-            self.profile, platform="switch", destination_id="switch-shared", kinds=["listing"]
-        )
+        _conn2 = _make_connection(self.profile, platform="switch", destination_id="switch-shared", kinds=["listing"])
 
         event = create_event(
             user=self.user,
@@ -364,12 +349,8 @@ class FrozenContentStabilityTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_user(
-            username="frozen_stab_user", email="frozen@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="FrozenStab Org", slug="frozenstab-org", user=self.user
-        )
+        self.user = _make_user(username="frozen_stab_user", email="frozen@test.com", password="pw")
+        self.profile = _make_profile(name="FrozenStab Org", slug="frozenstab-org", user=self.user)
         self.conn = _make_connection(self.profile, destination_id="fl-frozen-001")
 
     def test_frozen_content_byte_stable_after_version_body_edit(self):
@@ -498,9 +479,7 @@ class FieldsRemovedTest(TestCase):
         non-null (the FK is mandatory after the A1 seed + migration backfill).
         """
         from syndication.services import create_event
-        from django.contrib.auth import get_user_model
 
-        User = get_user_model()
         user = _make_user(username="nonnull_user", email="nonnull@test.com", password="pw")
         profile = _make_profile(name="NonNull Org", slug="nonnull-org", user=user)
         _make_connection(profile, destination_id="fl-nonnull-001")
@@ -668,7 +647,7 @@ class AgentAssistedDedicatedVersionTest(TestCase):
         )
 
         # Now add an agent_assisted projection for the same event.
-        agent_proj = generate_projection(
+        _agent_proj = generate_projection(
             kind="listing",
             connection=self.conn_b,
             source_event=self.event,
@@ -734,9 +713,7 @@ def _get_0007_migration_context():
     # 0007 is applied — i.e. the state after all 0007 dependencies are applied).
     executor = MigrationExecutor(conn)
     # 0007's dependency is 0006; ask for the state *at the end of* 0006.
-    pre_0007_state = executor.loader.project_state(
-        ("syndication", "0006_contentversion_publishable_scope")
-    )
+    pre_0007_state = executor.loader.project_state(("syndication", "0006_contentversion_publishable_scope"))
     historical_apps = pre_0007_state.apps
 
     return forward_fn, reverse_fn, historical_apps
@@ -867,20 +844,32 @@ class Migration0007BackfillTest(TestCase):
         post2 = Post.objects.create(event=self.event, headline="Post 2", body="Body 2")
 
         conn1 = PlatformConnection.objects.create(
-            organizer=self.profile, platform="telegram", destination_id="tg-mig007-p1",
-            kinds=["promotion"], enabled=True,
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="tg-mig007-p1",
+            kinds=["promotion"],
+            enabled=True,
         )
         conn2 = PlatformConnection.objects.create(
-            organizer=self.profile, platform="fetlife", destination_id="fl-mig007-p2",
-            kinds=["promotion"], enabled=True,
+            organizer=self.profile,
+            platform="fetlife",
+            destination_id="fl-mig007-p2",
+            kinds=["promotion"],
+            enabled=True,
         )
         PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.PROMOTION, status=PlatformProjection.Status.DRAFT,
-            connection=conn1, source_post=post1, content_version=event_canonical,
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            connection=conn1,
+            source_post=post1,
+            content_version=event_canonical,
         )
         PlatformProjection.objects.create(
-            kind=PlatformProjection.Kind.PROMOTION, status=PlatformProjection.Status.DRAFT,
-            connection=conn2, source_post=post2, content_version=event_canonical,
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            connection=conn2,
+            source_post=post2,
+            content_version=event_canonical,
         )
 
         forward_fn, _, historical_apps = _get_0007_migration_context()

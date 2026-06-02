@@ -68,9 +68,7 @@ def test_loginwall_static_path_passes_through_for_anon():
     with patch("accounts.middleware.get_flag", side_effect=make_get_flag(False)):
         response = mw(request)
 
-    assert response.status_code == 200, (
-        f"Static assets must be accessible to anon users, got {response.status_code}"
-    )
+    assert response.status_code == 200, f"Static assets must be accessible to anon users, got {response.status_code}"
 
 
 def test_always_public_prefixes_includes_impressum():
@@ -85,9 +83,7 @@ def test_always_public_prefixes_includes_legal_pages():
     from accounts.middleware import ALWAYS_PUBLIC_PREFIXES
 
     for prefix in ("/privacy", "/terms", "/takedown"):
-        assert prefix in ALWAYS_PUBLIC_PREFIXES, (
-            f"{prefix!r} missing from ALWAYS_PUBLIC_PREFIXES"
-        )
+        assert prefix in ALWAYS_PUBLIC_PREFIXES, f"{prefix!r} missing from ALWAYS_PUBLIC_PREFIXES"
 
 
 def test_public_read_prefixes_includes_events():
@@ -102,12 +98,8 @@ def test_public_read_root_is_covered():
     from accounts.middleware import PUBLIC_READ_EXACT, PUBLIC_READ_PREFIXES
 
     # "/" may be in the exact-match set rather than prefix list
-    covered = (
-        any("/".startswith(p) for p in PUBLIC_READ_PREFIXES) or "/" in PUBLIC_READ_EXACT
-    )
-    assert covered, (
-        "Root path '/' must be covered by PUBLIC_READ_PREFIXES or PUBLIC_READ_EXACT"
-    )
+    covered = any("/".startswith(p) for p in PUBLIC_READ_PREFIXES) or "/" in PUBLIC_READ_EXACT
+    assert covered, "Root path '/' must be covered by PUBLIC_READ_PREFIXES or PUBLIC_READ_EXACT"
 
 
 def test_agegate_middleware_importable():
@@ -396,6 +388,5 @@ def test_agegate_middleware_in_settings():
     loginwall_idx = mw.index("accounts.middleware.LoginWallMiddleware")
     agegate_idx = mw.index("accounts.middleware.AgeGateMiddleware")
     assert agegate_idx == loginwall_idx + 1, (
-        f"AgeGateMiddleware (idx {agegate_idx}) must be immediately after "
-        f"LoginWallMiddleware (idx {loginwall_idx})"
+        f"AgeGateMiddleware (idx {agegate_idx}) must be immediately after LoginWallMiddleware (idx {loginwall_idx})"
     )

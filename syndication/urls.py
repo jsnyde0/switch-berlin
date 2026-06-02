@@ -18,12 +18,10 @@ app_name = "syndication"
 urlpatterns = [
     # --- Agent pairing flow (kb-a4u.6) ---
     path("agents/pair/", views.agent_pairing_page, name="agent-pairing"),
-
     # --- Events ---
     path("events/new/", views.event_create, name="event-create"),
     path("events/<int:pk>/", views.event_hub, name="event-hub"),
     path("events/<int:pk>/edit/", views.event_hub_edit, name="event-edit"),
-
     # --- HTMX fragments (independently addressable per bead design) ---
     path(
         "events/<int:pk>/fragments/event_facts/",
@@ -40,14 +38,12 @@ urlpatterns = [
         views.fragment_event_syndication,
         name="fragment-event-syndication",
     ),
-
     # --- Posts (scoped to Event) ---
     path(
         "events/<int:event_pk>/posts/new/",
         views.post_create,
         name="post-create",
     ),
-
     # --- Post hub + fragment (kb-q4u9.3) ---
     # Post-scoped workspace: analogous to event-hub but for a Post publishable.
     # "Source" tab anchors the canonical (a post has no native-home channel).
@@ -57,12 +53,10 @@ urlpatterns = [
         views.fragment_post_syndication,
         name="fragment-post-syndication",
     ),
-
     # --- PlatformConnections ---
     path("connections/", views.connections_list, name="connections-list"),
     path("connections/new/", views.connection_create, name="connection-create"),
     path("connections/<int:pk>/toggle/", views.connection_toggle, name="connection-toggle"),
-
     # --- Projection lifecycle actions (kb-a4u.5) ---
     # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).
     # Co-equal seam: each view delegates to the matching service function in services.py.
@@ -91,7 +85,6 @@ urlpatterns = [
         views.post_projection_batch_publish,
         name="post-projection-batch-publish",
     ),
-
     # --- Version-op endpoints (kb-wz8m.5) ---
     # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).
     path(
@@ -124,7 +117,6 @@ urlpatterns = [
         views.version_copy_from,
         name="version-copy-from",
     ),
-
     # --- Review-all surface (kb-wz8m.6) ---
     # Side-by-side cross-channel review. Route name + event_pk signature
     # referenced from the board template (event_syndication.html).

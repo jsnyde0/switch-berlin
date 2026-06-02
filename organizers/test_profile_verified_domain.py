@@ -65,9 +65,7 @@ def test_profile_verified_domain_defaults_to_none():
     """Profile.verified_domain defaults to None (not set)."""
     from organizers.models import Profile
 
-    profile = Profile.objects.create(
-        name="Default Domain Org", slug="default-domain-org"
-    )
+    profile = Profile.objects.create(name="Default Domain Org", slug="default-domain-org")
     assert profile.verified_domain is None
 
 
@@ -166,9 +164,7 @@ def test_profile_is_claimed_still_works_after_verified_domain():
     (regression guard)."""
     from organizers.models import Profile, ProfileClaim
 
-    user = User.objects.create_user(
-        username="vd_claimer", email="vd_claimer@example.com", password="x"
-    )
+    user = User.objects.create_user(username="vd_claimer", email="vd_claimer@example.com", password="x")
     profile = Profile.objects.create(
         name="VD Claimed Org",
         slug="vd-claimed-org",

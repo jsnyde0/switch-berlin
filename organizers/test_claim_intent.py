@@ -31,9 +31,7 @@ def test_claim_intent_fields_required():
     """ClaimIntent has user, profile, created_at (required per ADR-014 D2)."""
     from organizers.models import ClaimIntent, Profile
 
-    user = User.objects.create_user(
-        username="ci_user", email="ci_user@example.com", password="x"
-    )
+    user = User.objects.create_user(username="ci_user", email="ci_user@example.com", password="x")
     profile = Profile.objects.create(name="CI Profile", slug="ci-profile")
 
     intent = ClaimIntent.objects.create(user=user, profile=profile)
@@ -51,9 +49,7 @@ def test_claim_intent_cheap_foresight_fields_nullable():
     """
     from organizers.models import ClaimIntent, Profile
 
-    user = User.objects.create_user(
-        username="ci_cf_user", email="ci_cf@example.com", password="x"
-    )
+    user = User.objects.create_user(username="ci_cf_user", email="ci_cf@example.com", password="x")
     profile = Profile.objects.create(name="CF Profile", slug="cf-profile")
 
     intent = ClaimIntent.objects.create(user=user, profile=profile)
@@ -69,12 +65,8 @@ def test_claim_intent_rejected_by_admin_is_user_fk():
     """ClaimIntent.rejected_by_admin is a FK to User (nullable)."""
     from organizers.models import ClaimIntent, Profile
 
-    claimer = User.objects.create_user(
-        username="ci_claimer", email="ci_claimer@example.com", password="x"
-    )
-    admin_user = User.objects.create_user(
-        username="ci_admin", email="ci_admin@example.com", password="x"
-    )
+    claimer = User.objects.create_user(username="ci_claimer", email="ci_claimer@example.com", password="x")
+    admin_user = User.objects.create_user(username="ci_admin", email="ci_admin@example.com", password="x")
     profile = Profile.objects.create(name="Rejected Profile", slug="rejected-profile")
 
     from django.utils import timezone
@@ -97,9 +89,7 @@ def test_claim_intent_str():
     """ClaimIntent __str__ is informative."""
     from organizers.models import ClaimIntent, Profile
 
-    user = User.objects.create_user(
-        username="ci_str_user", email="ci_str@example.com", password="x"
-    )
+    user = User.objects.create_user(username="ci_str_user", email="ci_str@example.com", password="x")
     profile = Profile.objects.create(name="STR Profile", slug="str-ci-profile")
 
     intent = ClaimIntent.objects.create(user=user, profile=profile)

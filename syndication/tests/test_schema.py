@@ -10,8 +10,6 @@ Tests assert:
 No behavioral logic is tested here — schema/migration layer only.
 """
 
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
 
@@ -92,6 +90,7 @@ class PlatformProjectionKindStatusTest(TestCase):
 
     def setUp(self):
         from syndication.models import ContentVersion
+
         self.profile = Profile.objects.create(
             name="Proj Status Test Organizer",
             slug="proj-status-test-organizer",

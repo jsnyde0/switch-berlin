@@ -57,9 +57,7 @@ def unapproved_user(db):
 
 
 @pytest.mark.django_db
-def test_organizer_profile_uses_events_related_name(
-    client, staff_user, approved_organizer, published_event
-):
+def test_organizer_profile_uses_events_related_name(client, staff_user, approved_organizer, published_event):
     """GET /p/<slug>/ returns 200 (not 500) — organizer.events FK works."""
     client.force_login(staff_user)
     response = client.get(f"/p/{approved_organizer.slug}/")
@@ -115,9 +113,7 @@ def test_approved_user_can_access_events(client, approved_user, published_event)
 
 
 @pytest.mark.django_db
-def test_approved_user_not_blocked_by_middleware(
-    client, approved_user, published_event
-):
+def test_approved_user_not_blocked_by_middleware(client, approved_user, published_event):
     """Approved non-staff user is not blocked by the login-wall."""
     client.force_login(approved_user)
     response = client.get("/events/")
@@ -131,9 +127,7 @@ def test_approved_user_not_blocked_by_middleware(
 
 
 @pytest.mark.django_db
-def test_unapproved_user_gets_403_pending_page_in_rollback_mode(
-    client, unapproved_user
-):
+def test_unapproved_user_gets_403_pending_page_in_rollback_mode(client, unapproved_user):
     """Unapproved user sees 403_pending_approval.html when PUBLIC_READ_ENABLED=False."""
     from django.core.cache import cache
 
@@ -141,9 +135,7 @@ def test_unapproved_user_gets_403_pending_page_in_rollback_mode(
 
     # Phase 0.5: PUBLIC_READ_ENABLED=True allows unapproved users on /events/.
     # In rollback mode (PUBLIC_READ_ENABLED=False), they see the 403 pending page.
-    FeatureFlag.objects.update_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
     cache.clear()
     client.force_login(unapproved_user)
     try:
@@ -157,17 +149,13 @@ def test_unapproved_user_gets_403_pending_page_in_rollback_mode(
 
 
 @pytest.mark.django_db
-def test_unapproved_user_gets_full_page_not_bare_text_in_rollback_mode(
-    client, unapproved_user
-):
+def test_unapproved_user_gets_full_page_not_bare_text_in_rollback_mode(client, unapproved_user):
     """Unapproved user sees a real HTML page in rollback mode, not a bare string."""
     from django.core.cache import cache
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
     cache.clear()
     client.force_login(unapproved_user)
     try:
@@ -261,9 +249,7 @@ def test_invites_disabled_hides_register_link(client):
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="INVITES_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="INVITES_ENABLED", defaults={"enabled": False})
     cache.clear()
     try:
         # Anonymous user so we're in the unauthenticated branch of the navbar
@@ -283,9 +269,7 @@ def test_invites_enabled_shows_register_link(client):
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="INVITES_ENABLED", defaults={"enabled": True}
-    )
+    FeatureFlag.objects.update_or_create(key="INVITES_ENABLED", defaults={"enabled": True})
     cache.clear()
     try:
         response = client.get("/accounts/login/")

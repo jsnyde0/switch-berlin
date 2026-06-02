@@ -27,9 +27,7 @@ User = get_user_model()
 
 
 @pytest.mark.django_db
-def test_user_with_went_attendance_creates_attendance(
-    user_with_went_attendance, published_event
-):
+def test_user_with_went_attendance_creates_attendance(user_with_went_attendance, published_event):
     """Fixture creates an approved user + Attendance(status='went')."""
     user, attendance = user_with_went_attendance(published_event)
 
@@ -40,15 +38,11 @@ def test_user_with_went_attendance_creates_attendance(
 
 
 @pytest.mark.django_db
-def test_user_with_went_attendance_persisted(
-    user_with_went_attendance, published_event
-):
+def test_user_with_went_attendance_persisted(user_with_went_attendance, published_event):
     """Attendance row is saved to the database."""
     user, attendance = user_with_went_attendance(published_event)
 
-    assert Attendance.objects.filter(
-        user=user, event=published_event, status="went"
-    ).exists()
+    assert Attendance.objects.filter(user=user, event=published_event, status="went").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -97,9 +91,7 @@ def test_past_event_fixture_different_days_ago(past_event_fixture):
 
 
 @pytest.mark.django_db
-def test_review_for_event_with_count_creates_n_reviews(
-    review_for_event_with_count, published_event
-):
+def test_review_for_event_with_count_creates_n_reviews(review_for_event_with_count, published_event):
     """Fixture creates exactly n Review rows for the given event."""
     reviews = review_for_event_with_count(published_event, 3)
 
@@ -108,9 +100,7 @@ def test_review_for_event_with_count_creates_n_reviews(
 
 
 @pytest.mark.django_db
-def test_review_for_event_with_count_distinct_authors(
-    review_for_event_with_count, published_event
-):
+def test_review_for_event_with_count_distinct_authors(review_for_event_with_count, published_event):
     """Each review has a distinct author user."""
     reviews = review_for_event_with_count(published_event, 4)
 
@@ -119,9 +109,7 @@ def test_review_for_event_with_count_distinct_authors(
 
 
 @pytest.mark.django_db
-def test_review_for_event_with_count_returns_list(
-    review_for_event_with_count, published_event
-):
+def test_review_for_event_with_count_returns_list(review_for_event_with_count, published_event):
     """Fixture returns a list of Review instances."""
     reviews = review_for_event_with_count(published_event, 2)
 

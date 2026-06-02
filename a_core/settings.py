@@ -166,9 +166,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "a_core.wsgi.application"
 
-DATABASE_URL = env.str(
-    "DATABASE_URL", default="postgres://postgres:postgres@db:5432/postgres"
-)
+DATABASE_URL = env.str("DATABASE_URL", default="postgres://postgres:postgres@db:5432/postgres")
 DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -304,12 +302,8 @@ IMPRESSUM_EMAIL = env.str("IMPRESSUM_EMAIL", default="")
 IMPRESSUM_PHONE = env.str("IMPRESSUM_PHONE", default="")
 
 # §18 MStV responsible person (defaults to IMPRESSUM_* if unset).
-RESPONSIBLE_PERSON_NAME = (
-    env.str("RESPONSIBLE_PERSON_NAME", default="") or IMPRESSUM_NAME
-)
-RESPONSIBLE_PERSON_ADDRESS = (
-    env.str("RESPONSIBLE_PERSON_ADDRESS", default="") or IMPRESSUM_ADDRESS
-)
+RESPONSIBLE_PERSON_NAME = env.str("RESPONSIBLE_PERSON_NAME", default="") or IMPRESSUM_NAME
+RESPONSIBLE_PERSON_ADDRESS = env.str("RESPONSIBLE_PERSON_ADDRESS", default="") or IMPRESSUM_ADDRESS
 
 # DSA Art. 11/12 contact point (defaults to IMPRESSUM_EMAIL if unset).
 DSA_CONTACT_EMAIL = env.str("DSA_CONTACT_EMAIL", default="") or IMPRESSUM_EMAIL

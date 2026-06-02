@@ -107,9 +107,7 @@ class PlatformConnectionModelTest(TestCase):
             platform="telegram",
             destination_id="channel-b",
         )
-        connections = PlatformConnection.objects.filter(
-            organizer=self.profile, platform="telegram"
-        )
+        connections = PlatformConnection.objects.filter(organizer=self.profile, platform="telegram")
         self.assertEqual(connections.count(), 2)
 
 
@@ -118,6 +116,7 @@ class PlatformProjectionConnectionFKTest(TestCase):
 
     def setUp(self):
         from syndication.models import ContentVersion
+
         self.profile = Profile.objects.create(
             name="FK Test Organizer",
             slug="fk-test-organizer",
@@ -174,6 +173,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
 
     def setUp(self):
         from syndication.models import ContentVersion
+
         self.profile = Profile.objects.create(
             name="Removed Fields Organizer",
             slug="removed-fields-organizer",
@@ -272,38 +272,42 @@ class ContentVersionCarriesProvenanceFieldsTest(TestCase):
     def test_content_version_provenance_defaults_to_rule_template(self):
         """ContentVersion.provenance defaults to rule_template."""
         from syndication.models import ContentVersion
+
         cv = ContentVersion.objects.create(event=self.event, name="v1")
         self.assertEqual(cv.provenance, "rule_template")
 
     def test_content_version_provenance_choices_are_constrained(self):
         """ContentVersion provenance enum exposes rule_template, agent_supplied, manual."""
         from syndication.models import ContentVersion
+
         allowed = {c[0] for c in ContentVersion.Provenance.choices}
         self.assertEqual(allowed, {"rule_template", "agent_supplied", "manual"})
 
     def test_content_version_generated_by_is_nullable(self):
         """ContentVersion.generated_by is nullable."""
         from syndication.models import ContentVersion
+
         cv = ContentVersion.objects.create(event=self.event, name="v1")
         self.assertIsNone(cv.generated_by)
 
     def test_content_version_generated_by_can_be_set(self):
         """ContentVersion.generated_by can store an agent identity string."""
         from syndication.models import ContentVersion
-        cv = ContentVersion.objects.create(
-            event=self.event, name="v1", generated_by="claude-agent-v1"
-        )
+
+        cv = ContentVersion.objects.create(event=self.event, name="v1", generated_by="claude-agent-v1")
         self.assertEqual(cv.generated_by, "claude-agent-v1")
 
     def test_content_version_last_generated_at_is_nullable(self):
         """ContentVersion.last_generated_at is nullable."""
         from syndication.models import ContentVersion
+
         cv = ContentVersion.objects.create(event=self.event, name="v1")
         self.assertIsNone(cv.last_generated_at)
 
     def test_content_version_last_generated_at_can_be_set(self):
         """ContentVersion.last_generated_at can be set to a datetime."""
         from syndication.models import ContentVersion
+
         now = timezone.now()
         cv = ContentVersion.objects.create(event=self.event, name="v1", last_generated_at=now)
         self.assertIsNotNone(cv.last_generated_at)

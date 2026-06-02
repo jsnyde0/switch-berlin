@@ -46,10 +46,7 @@ class User(AbstractUser):
     # Cheap-foresight fields (ADR-003): ship now, activate logic in F1/F2/F4 beads.
     vouch_score = models.FloatField(
         default=0.0,
-        help_text=(
-            "Proportional trust score accumulated via vouching graph "
-            "(F1 bead activates)."
-        ),
+        help_text=("Proportional trust score accumulated via vouching graph (F1 bead activates)."),
     )
     personal_rating = models.FloatField(
         null=True,
@@ -58,10 +55,7 @@ class User(AbstractUser):
     )
     invite_codes_remaining = models.IntegerField(
         default=0,
-        help_text=(
-            "Admin-granted invite codes available to issue "
-            "(F4 bead activates earning formula)."
-        ),
+        help_text=("Admin-granted invite codes available to issue (F4 bead activates earning formula)."),
     )
 
     class Meta(AbstractUser.Meta):

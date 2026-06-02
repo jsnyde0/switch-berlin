@@ -27,9 +27,7 @@ def can_edit(user, event) -> bool:
     ADR-017 D2: single seam, no scattered is_primary checks.
     """
     # Get all organizer Profile IDs for this event.
-    organizer_profile_ids = EventOrganizer.objects.filter(
-        event=event
-    ).values_list("profile_id", flat=True)
+    organizer_profile_ids = EventOrganizer.objects.filter(event=event).values_list("profile_id", flat=True)
 
     if not organizer_profile_ids:
         return False

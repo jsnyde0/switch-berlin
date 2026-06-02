@@ -44,9 +44,7 @@ class Command(BaseCommand):
 
         self.stdout.write("Seeded smoke accounts (log in with EMAIL + password):\n")
         for email, status, is_staff, is_superuser, first_name in ACCOUNTS:
-            user, _ = User.objects.get_or_create(
-                email=email, defaults={"username": email}
-            )
+            user, _ = User.objects.get_or_create(email=email, defaults={"username": email})
             user.username = email
             user.first_name = first_name
             user.status = status

@@ -225,7 +225,7 @@ class RowHtmxAttributesTest(TestCase):
         """Event row hx-push-url points to the real event hub path."""
         response = self.client.get("/studio/")
         self.assertEqual(response.status_code, 200)
-        expected = f'/syndication/events/{self.event.pk}/'
+        expected = f"/syndication/events/{self.event.pk}/"
         content = response.content.decode()
         self.assertIn(
             f'hx-push-url="{expected}"',
@@ -237,7 +237,7 @@ class RowHtmxAttributesTest(TestCase):
         """Post row hx-push-url points to the real post hub path."""
         response = self.client.get("/studio/")
         self.assertEqual(response.status_code, 200)
-        expected = f'/syndication/posts/{self.post.pk}/'
+        expected = f"/syndication/posts/{self.post.pk}/"
         content = response.content.decode()
         self.assertIn(
             f'hx-push-url="{expected}"',
@@ -249,7 +249,7 @@ class RowHtmxAttributesTest(TestCase):
         """Event row hx-get points to the real event hub path."""
         response = self.client.get("/studio/")
         self.assertEqual(response.status_code, 200)
-        expected = f'/syndication/events/{self.event.pk}/'
+        expected = f"/syndication/events/{self.event.pk}/"
         content = response.content.decode()
         self.assertIn(
             f'hx-get="{expected}"',
@@ -261,7 +261,7 @@ class RowHtmxAttributesTest(TestCase):
         """Post row hx-get points to the real post hub path."""
         response = self.client.get("/studio/")
         self.assertEqual(response.status_code, 200)
-        expected = f'/syndication/posts/{self.post.pk}/'
+        expected = f"/syndication/posts/{self.post.pk}/"
         content = response.content.decode()
         self.assertIn(
             f'hx-get="{expected}"',
@@ -330,7 +330,7 @@ class ActiveRowTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # The event hub path should appear as an hx-push-url attribute
-        expected_path = f'/syndication/events/{self.event.pk}/'
+        expected_path = f"/syndication/events/{self.event.pk}/"
         self.assertIn(expected_path, content)
         # That row should NOT be active on /studio/
         # (active-state class bg-white/\[0.06\] should not appear adjacent

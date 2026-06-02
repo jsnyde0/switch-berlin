@@ -46,11 +46,7 @@ class ProfileAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         # events_organized is the M2M reverse from Event.organizers (kb-n0y)
-        return (
-            super()
-            .get_queryset(request)
-            .annotate(event_count=Count("events_organized", distinct=True))
-        )
+        return super().get_queryset(request).annotate(event_count=Count("events_organized", distinct=True))
 
     def event_count(self, obj):
         return obj.event_count
@@ -166,10 +162,7 @@ class ClaimIntentAdmin(admin.ModelAdmin):
             if intent.resolved_at is not None:
                 self.message_user(
                     request,
-                    _(
-                        f"Intent #{intent.pk} ({intent.user} → {intent.profile}) "
-                        f"is already resolved — skipped."
-                    ),
+                    _(f"Intent #{intent.pk} ({intent.user} → {intent.profile}) is already resolved — skipped."),
                     level="WARNING",
                 )
                 skipped_count += 1
@@ -183,10 +176,7 @@ class ClaimIntentAdmin(admin.ModelAdmin):
             if already_active:
                 self.message_user(
                     request,
-                    _(
-                        f"User {intent.user} is already an active claimant of "
-                        f"{intent.profile} — skipped (ADR-008 D3)."
-                    ),
+                    _(f"User {intent.user} is already an active claimant of {intent.profile} — skipped (ADR-008 D3)."),
                     level="WARNING",
                 )
                 skipped_count += 1
@@ -201,9 +191,7 @@ class ClaimIntentAdmin(admin.ModelAdmin):
                     verified_by_admin=request.user.username,
                     role="admin",
                 )
-                ClaimIntent.objects.filter(pk=intent.pk).update(
-                    resolved_at=timezone.now()
-                )
+                ClaimIntent.objects.filter(pk=intent.pk).update(resolved_at=timezone.now())
             approved_count += 1
 
         if approved_count:
@@ -280,10 +268,7 @@ class ProfileClaimAdmin(admin.ModelAdmin):
             if claim.rejected_at is not None:
                 self.message_user(
                     request,
-                    _(
-                        f"Claim #{claim.pk} ({claim.user} → {claim.profile}) "
-                        f"is already revoked — skipped (ADR-008 D3)."
-                    ),
+                    _(f"Claim #{claim.pk} ({claim.user} → {claim.profile}) is already revoked — skipped (ADR-008 D3)."),
                     level="WARNING",
                 )
                 skipped_count += 1

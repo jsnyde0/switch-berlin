@@ -71,61 +71,53 @@ class AuthorizationSeamTest(TestCase):
     """
 
     def setUp(self):
-        self.user_organizer = _make_vouched_user(
-            username="org_user", email="org@test.com", password="x"
-        )
-        self.user_facilitator = _make_vouched_user(
-            username="fac_user", email="fac@test.com", password="x"
-        )
-        self.user_stranger = _make_vouched_user(
-            username="stranger", email="stranger@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Org Profile", slug="org-profile", user=self.user_organizer
-        )
-        self.fac_profile = _make_profile(
-            name="Fac Profile", slug="fac-profile", user=self.user_facilitator
-        )
+        self.user_organizer = _make_vouched_user(username="org_user", email="org@test.com", password="x")
+        self.user_facilitator = _make_vouched_user(username="fac_user", email="fac@test.com", password="x")
+        self.user_stranger = _make_vouched_user(username="stranger", email="stranger@test.com", password="x")
+        self.profile = _make_profile(name="Org Profile", slug="org-profile", user=self.user_organizer)
+        self.fac_profile = _make_profile(name="Fac Profile", slug="fac-profile", user=self.user_facilitator)
         self.event = Event.objects.create(
             title="Auth Test Event",
             slug="auth-test-event",
             start=timezone.now(),
         )
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        EventFacilitator.objects.create(
-            event=self.event, profile=self.fac_profile
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        EventFacilitator.objects.create(event=self.event, profile=self.fac_profile)
 
     def test_can_edit_returns_true_for_organizer_claimant(self):
         """Organizer Profile claimant may edit."""
         from syndication.authz import can_edit
+
         self.assertTrue(can_edit(self.user_organizer, self.event))
 
     def test_can_edit_returns_false_for_facilitator(self):
         """Facilitator (credited-only) may NOT edit."""
         from syndication.authz import can_edit
+
         self.assertFalse(can_edit(self.user_facilitator, self.event))
 
     def test_can_edit_returns_false_for_stranger(self):
         """User with no relationship to the event may NOT edit."""
         from syndication.authz import can_edit
+
         self.assertFalse(can_edit(self.user_stranger, self.event))
 
     def test_can_publish_returns_true_for_organizer_claimant(self):
         """Organizer Profile claimant may publish."""
         from syndication.authz import can_publish
+
         self.assertTrue(can_publish(self.user_organizer, self.event))
 
     def test_can_publish_returns_false_for_facilitator(self):
         """Facilitator may NOT publish."""
         from syndication.authz import can_publish
+
         self.assertFalse(can_publish(self.user_facilitator, self.event))
 
     def test_can_publish_returns_false_for_stranger(self):
         """Stranger may NOT publish."""
         from syndication.authz import can_publish
+
         self.assertFalse(can_publish(self.user_stranger, self.event))
 
 
@@ -141,15 +133,12 @@ class CreateEventServiceTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="ev_creator", email="ev@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Creator Profile", slug="creator-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="ev_creator", email="ev@test.com", password="x")
+        self.profile = _make_profile(name="Creator Profile", slug="creator-profile", user=self.user)
 
     def test_create_event_returns_event_instance(self):
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Service Event",
@@ -161,6 +150,7 @@ class CreateEventServiceTest(TestCase):
 
     def test_create_event_persists_title(self):
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Unique Title Here",
@@ -181,6 +171,7 @@ class CreateEventServiceTest(TestCase):
         Registration field round-trip: CreateEventServiceAllFieldsTest.
         """
         from syndication.services import create_event
+
         now = timezone.now()
         event = create_event(
             user=self.user,
@@ -222,21 +213,19 @@ class CreateEventServiceTest(TestCase):
     def test_create_event_creates_event_organizer_row(self):
         """Creating an event via the service creates an EventOrganizer through-table row."""
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Organizer Row Event",
             slug="organizer-row-event",
             start=timezone.now(),
         )
-        self.assertTrue(
-            EventOrganizer.objects.filter(
-                event=event, profile=self.profile, is_primary=True
-            ).exists()
-        )
+        self.assertTrue(EventOrganizer.objects.filter(event=event, profile=self.profile, is_primary=True).exists())
 
     def test_create_event_status_defaults_to_draft(self):
         """New events default to draft status (ADR-016 D5 — save-always)."""
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Draft Status Event",
@@ -248,9 +237,8 @@ class CreateEventServiceTest(TestCase):
     def test_create_event_without_organizer_profile_raises(self):
         """Creating an event requires the user to have an associated profile."""
         from syndication.services import create_event
-        no_profile_user = _make_vouched_user(
-            username="no_profile_user", email="noprofile@test.com", password="x"
-        )
+
+        no_profile_user = _make_vouched_user(username="no_profile_user", email="noprofile@test.com", password="x")
         with self.assertRaises(ValueError):
             create_event(
                 user=no_profile_user,
@@ -272,27 +260,21 @@ class EagerProjectionOnEventTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="eager_event_user", email="eager_ev@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Eager Profile", slug="eager-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="eager_event_user", email="eager_ev@test.com", password="x")
+        self.profile = _make_profile(name="Eager Profile", slug="eager-profile", user=self.user)
 
     def test_creating_event_eager_creates_listing_projections(self):
         """
         When an Event is created, each enabled connection that supports 'listing'
         gets a draft PlatformProjection.
         """
-        conn_switch = _make_connection(
-            self.profile, platform="switch", destination_id="own-page", kinds=["listing"]
-        )
+        conn_switch = _make_connection(self.profile, platform="switch", destination_id="own-page", kinds=["listing"])
         conn_fetlife = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user",
-            kinds=["listing", "promotion"]
+            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing", "promotion"]
         )
 
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Eager Test Event",
@@ -312,16 +294,13 @@ class EagerProjectionOnEventTest(TestCase):
 
     def test_disabled_connection_does_not_get_eager_projection(self):
         """Disabled connections are skipped in eager creation."""
+        _make_connection(self.profile, platform="switch", destination_id="own-page", kinds=["listing"], enabled=True)
         _make_connection(
-            self.profile, platform="switch", destination_id="own-page",
-            kinds=["listing"], enabled=True
-        )
-        _make_connection(
-            self.profile, platform="tickettailor", destination_id="tt-acc",
-            kinds=["listing"], enabled=False
+            self.profile, platform="tickettailor", destination_id="tt-acc", kinds=["listing"], enabled=False
         )
 
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Disabled Skip Event",
@@ -338,11 +317,11 @@ class EagerProjectionOnEventTest(TestCase):
     def test_promotion_only_connection_not_included_in_event_eager_creation(self):
         """A promotion-only connection (e.g. Telegram) is not included on Event create."""
         _make_connection(
-            self.profile, platform="telegram", destination_id="channel-1",
-            kinds=["promotion"], enabled=True
+            self.profile, platform="telegram", destination_id="channel-1", kinds=["promotion"], enabled=True
         )
 
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="No Promo Event",
@@ -369,23 +348,18 @@ class CreatePostServiceTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="post_user", email="post@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Post Profile", slug="post-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="post_user", email="post@test.com", password="x")
+        self.profile = _make_profile(name="Post Profile", slug="post-profile", user=self.user)
         self.event = Event.objects.create(
             title="Post Target Event",
             slug="post-target-event",
             start=timezone.now(),
         )
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
 
     def test_create_post_returns_post_instance(self):
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -398,6 +372,7 @@ class CreatePostServiceTest(TestCase):
     def test_create_post_persists_fk_to_event(self):
         """Post has FK to the event it's about."""
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -409,6 +384,7 @@ class CreatePostServiceTest(TestCase):
 
     def test_create_post_persists_headline_and_body(self):
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -425,19 +401,15 @@ class CreatePostServiceTest(TestCase):
         for each enabled promotion-capable connection.
         """
         conn_telegram = _make_connection(
-            self.profile, platform="telegram", destination_id="channel-123",
-            kinds=["promotion"], enabled=True
+            self.profile, platform="telegram", destination_id="channel-123", kinds=["promotion"], enabled=True
         )
         conn_fetlife = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-promo",
-            kinds=["listing", "promotion"], enabled=True
+            self.profile, platform="fetlife", destination_id="fl-promo", kinds=["listing", "promotion"], enabled=True
         )
-        _make_connection(
-            self.profile, platform="switch", destination_id="own-page",
-            kinds=["listing"], enabled=True
-        )
+        _make_connection(self.profile, platform="switch", destination_id="own-page", kinds=["listing"], enabled=True)
 
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -457,10 +429,9 @@ class CreatePostServiceTest(TestCase):
 
     def test_create_post_requires_can_edit_permission(self):
         """Creating a post requires the user to be able to edit the event."""
-        stranger = _make_vouched_user(
-            username="stranger_post", email="stranger_post@test.com", password="x"
-        )
+        stranger = _make_vouched_user(username="stranger_post", email="stranger_post@test.com", password="x")
         from syndication.services import create_post
+
         with self.assertRaises(PermissionError):
             create_post(
                 user=stranger,
@@ -481,16 +452,13 @@ class EventAPICreateTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="api_event_user", email="api_event@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="API Event Profile", slug="api-event-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="api_event_user", email="api_event@test.com", password="x")
+        self.profile = _make_profile(name="API Event Profile", slug="api-event-profile", user=self.user)
 
     def _get_identity_token(self):
         # Full pairing flow (kb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
+
         api_key = _register_and_get_api_key(self.user)
         client = Client()
         ex = client.post(
@@ -543,6 +511,7 @@ class EventAPICreateTest(TestCase):
 
     def test_event_detail_returns_200(self):
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Detail Event",
@@ -559,6 +528,7 @@ class EventAPICreateTest(TestCase):
 
     def test_update_event_returns_200(self):
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Update Me",
@@ -589,13 +559,10 @@ class PostAPICreateTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="api_post_user", email="api_post@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="API Post Profile", slug="api-post-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="api_post_user", email="api_post@test.com", password="x")
+        self.profile = _make_profile(name="API Post Profile", slug="api-post-profile", user=self.user)
         from syndication.services import create_event
+
         self.event = create_event(
             user=self.user,
             title="Post Parent Event",
@@ -606,6 +573,7 @@ class PostAPICreateTest(TestCase):
     def _get_identity_token(self):
         # Full pairing flow (kb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
+
         api_key = _register_and_get_api_key(self.user)
         client = Client()
         ex = client.post(
@@ -644,9 +612,7 @@ class PostAPICreateTest(TestCase):
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
-        self.assertTrue(
-            Post.objects.filter(event=self.event, headline="FK Scoped Post").exists()
-        )
+        self.assertTrue(Post.objects.filter(event=self.event, headline="FK Scoped Post").exists())
 
     def test_list_posts_for_event_returns_200(self):
         token = self._get_identity_token()
@@ -672,12 +638,8 @@ class EventWebFormTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="form_user", email="form@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Form Profile", slug="form-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="form_user", email="form@test.com", password="x")
+        self.profile = _make_profile(name="Form Profile", slug="form-profile", user=self.user)
 
     def test_event_create_form_get_returns_200(self):
         client = Client()
@@ -781,13 +743,10 @@ class PostWebFormTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="post_form_user", email="post_form@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Post Form Profile", slug="post-form-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="post_form_user", email="post_form@test.com", password="x")
+        self.profile = _make_profile(name="Post Form Profile", slug="post-form-profile", user=self.user)
         from syndication.services import create_event
+
         self.event = create_event(
             user=self.user,
             title="Post Form Event",
@@ -827,9 +786,7 @@ class PostWebFormTest(TestCase):
             "headline": "Redirect Post",
             "body": "Body.",
         }
-        response = client.post(
-            f"/syndication/events/{self.event.pk}/posts/new/", data=data
-        )
+        response = client.post(f"/syndication/events/{self.event.pk}/posts/new/", data=data)
         self.assertEqual(response.status_code, 302, "Expected redirect after post form POST")
 
 
@@ -846,13 +803,10 @@ class EventHubFragmentsTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="hub_user", email="hub@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Hub Profile", slug="hub-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="hub_user", email="hub@test.com", password="x")
+        self.profile = _make_profile(name="Hub Profile", slug="hub-profile", user=self.user)
         from syndication.services import create_event
+
         self.event = create_event(
             user=self.user,
             title="Hub Event",
@@ -899,12 +853,8 @@ class PlatformConnectionUITest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="conn_user", email="conn@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Conn Profile", slug="conn-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="conn_user", email="conn@test.com", password="x")
+        self.profile = _make_profile(name="Conn Profile", slug="conn-profile", user=self.user)
 
     def test_connections_list_returns_200(self):
         client = Client()
@@ -928,17 +878,11 @@ class PlatformConnectionUITest(TestCase):
             [201, 302],
             f"Expected 201 or 302, got {response.status_code}",
         )
-        self.assertTrue(
-            PlatformConnection.objects.filter(
-                organizer=self.profile, platform="telegram"
-            ).exists()
-        )
+        self.assertTrue(PlatformConnection.objects.filter(organizer=self.profile, platform="telegram").exists())
 
     def test_toggle_connection_enabled(self):
         """POST to toggle endpoint flips the enabled flag."""
-        conn = _make_connection(
-            self.profile, platform="switch", destination_id="own-page", enabled=True
-        )
+        conn = _make_connection(self.profile, platform="switch", destination_id="own-page", enabled=True)
         client = Client()
         client.force_login(self.user)
         response = client.post(f"/syndication/connections/{conn.pk}/toggle/")
@@ -963,13 +907,10 @@ class EventEditPageTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="edit_user", email="edit@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Edit Profile", slug="edit-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="edit_user", email="edit@test.com", password="x")
+        self.profile = _make_profile(name="Edit Profile", slug="edit-profile", user=self.user)
         from syndication.services import create_event
+
         now = timezone.now()
         self.event = create_event(
             user=self.user,
@@ -1025,9 +966,7 @@ class EventEditPageTest(TestCase):
             "description": "Original description",
             "content_warnings": "[]",
         }
-        response = client.post(
-            f"/syndication/events/{self.event.pk}/edit/", data=data
-        )
+        response = client.post(f"/syndication/events/{self.event.pk}/edit/", data=data)
         self.assertIn(response.status_code, [302, 200])
         self.event.refresh_from_db()
         self.assertEqual(self.event.title, "Edited Title")
@@ -1050,9 +989,7 @@ class EventEditPageTest(TestCase):
             "registration_url": "https://reg.example.com/",
             "registration_email": "reg@example.com",
         }
-        response = client.post(
-            f"/syndication/events/{self.event.pk}/edit/", data=data
-        )
+        response = client.post(f"/syndication/events/{self.event.pk}/edit/", data=data)
         self.assertIn(response.status_code, [302, 200])
         self.event.refresh_from_db()
         self.assertTrue(self.event.registration_required)
@@ -1061,9 +998,7 @@ class EventEditPageTest(TestCase):
 
     def test_event_edit_unauthorized_user_gets_403(self):
         """Non-organizer cannot edit the event (must get 403, not 200 or 500)."""
-        stranger = _make_vouched_user(
-            username="edit_stranger", email="edit_stranger@test.com", password="x"
-        )
+        stranger = _make_vouched_user(username="edit_stranger", email="edit_stranger@test.com", password="x")
         client = Client()
         client.force_login(stranger)
         response = client.get(f"/syndication/events/{self.event.pk}/edit/")
@@ -1083,19 +1018,14 @@ class PermissionErrorTo403Test(TestCase):
     """
 
     def setUp(self):
-        self.owner = _make_vouched_user(
-            username="perm_owner", email="perm_owner@test.com", password="x"
-        )
-        self.owner_profile = _make_profile(
-            name="Perm Owner Profile", slug="perm-owner-profile", user=self.owner
-        )
-        self.stranger = _make_vouched_user(
-            username="perm_stranger", email="perm_stranger@test.com", password="x"
-        )
+        self.owner = _make_vouched_user(username="perm_owner", email="perm_owner@test.com", password="x")
+        self.owner_profile = _make_profile(name="Perm Owner Profile", slug="perm-owner-profile", user=self.owner)
+        self.stranger = _make_vouched_user(username="perm_stranger", email="perm_stranger@test.com", password="x")
         self.stranger_profile = _make_profile(
             name="Perm Stranger Profile", slug="perm-stranger-profile", user=self.stranger
         )
         from syndication.services import create_event
+
         self.event = create_event(
             user=self.owner,
             title="Protected Event",
@@ -1106,6 +1036,7 @@ class PermissionErrorTo403Test(TestCase):
     def _get_identity_token_for(self, user):
         # Full pairing flow (kb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
+
         api_key = _register_and_get_api_key(user)
         client = Client()
         ex = client.post(
@@ -1188,16 +1119,13 @@ class EventAPIRoundTripTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="roundtrip_user", email="roundtrip@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Roundtrip Profile", slug="roundtrip-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="roundtrip_user", email="roundtrip@test.com", password="x")
+        self.profile = _make_profile(name="Roundtrip Profile", slug="roundtrip-profile", user=self.user)
 
     def _get_identity_token(self):
         # Full pairing flow (kb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
+
         api_key = _register_and_get_api_key(self.user)
         client = Client()
         ex = client.post(
@@ -1237,6 +1165,7 @@ class EventAPIRoundTripTest(TestCase):
         # Round-trip equality: returned values must match what was sent.
         # A serialize-as-null bug (or lossy serialization) would fail here.
         from django.utils.dateparse import parse_datetime
+
         returned_start = parse_datetime(data["start"])
         returned_end = parse_datetime(data["end"])
         self.assertIsNotNone(returned_start, f"start field is not a parseable datetime: {data['start']!r}")
@@ -1282,6 +1211,7 @@ class EventAPIRoundTripTest(TestCase):
     def test_api_update_accepts_start_and_slug(self):
         """PATCH /api/events/{id}/ accepts start, end, slug (finding 4 — EventUpdateIn parity)."""
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Update Parity Event",
@@ -1304,6 +1234,7 @@ class EventAPIRoundTripTest(TestCase):
     def test_api_update_accepts_registration_fields(self):
         """PATCH /api/events/{id}/ accepts registration_* fields (finding 4)."""
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Reg Update Event",
@@ -1314,11 +1245,13 @@ class EventAPIRoundTripTest(TestCase):
         client = Client()
         response = client.patch(
             f"/api/events/{event.pk}/",
-            data=json.dumps({
-                "registration_required": True,
-                "registration_url": "https://reg2.example.com/",
-                "registration_email": "reg2@example.com",
-            }),
+            data=json.dumps(
+                {
+                    "registration_required": True,
+                    "registration_url": "https://reg2.example.com/",
+                    "registration_email": "reg2@example.com",
+                }
+            ),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -1340,13 +1273,10 @@ class AuthzSeamBypassTest(TestCase):
     """
 
     def setUp(self):
-        self.owner = _make_vouched_user(
-            username="seam_owner", email="seam_owner@test.com", password="x"
-        )
-        self.owner_profile = _make_profile(
-            name="Seam Owner Profile", slug="seam-owner-profile", user=self.owner
-        )
+        self.owner = _make_vouched_user(username="seam_owner", email="seam_owner@test.com", password="x")
+        self.owner_profile = _make_profile(name="Seam Owner Profile", slug="seam-owner-profile", user=self.owner)
         from syndication.services import create_event
+
         self.event = create_event(
             user=self.owner,
             title="Seam Test Event",
@@ -1406,16 +1336,13 @@ class CreateEventServiceAllFieldsTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="full_fields_user2", email="full_fields2@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Full Fields Profile 2", slug="full-fields-profile-2", user=self.user
-        )
+        self.user = _make_vouched_user(username="full_fields_user2", email="full_fields2@test.com", password="x")
+        self.profile = _make_profile(name="Full Fields Profile 2", slug="full-fields-profile-2", user=self.user)
 
     def test_create_event_persists_registration_required(self):
         """registration_required round-trips through the service layer."""
         from syndication.services import create_event
+
         event = create_event(
             user=self.user,
             title="Reg Required Event",
@@ -1434,6 +1361,7 @@ class CreateEventServiceAllFieldsTest(TestCase):
         """tags M2M round-trips through create_event → Event.tags.set()."""
         from events.models import Tag
         from syndication.services import create_event
+
         tag1 = Tag.objects.create(label="Kink Test Tag 1", slug="kink-test-tag-1", kind="theme")
         tag2 = Tag.objects.create(label="Kink Test Tag 2", slug="kink-test-tag-2", kind="theme")
         event = create_event(
@@ -1452,8 +1380,9 @@ class CreateEventServiceAllFieldsTest(TestCase):
 
     def test_create_event_persists_venue_fk(self):
         """venue FK round-trips through create_event → Event.venue."""
-        from venues.models import Venue
         from syndication.services import create_event
+        from venues.models import Venue
+
         venue = Venue.objects.create(name="Test Venue", slug="test-venue-roundtrip")
         event = create_event(
             user=self.user,

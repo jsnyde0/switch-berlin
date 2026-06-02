@@ -52,18 +52,12 @@ def daily_flag_digest():
 
     lines = [f"Unresolved flags: {count}\n"]
     for (target_type, _target_id, target_label), flags_in_group in groups.items():
-        lines.append(
-            f'\n{target_type.title()} "{target_label}" ({len(flags_in_group)} flags):'
-        )
+        lines.append(f'\n{target_type.title()} "{target_label}" ({len(flags_in_group)} flags):')
         for flag in flags_in_group:
             admin_url = reverse("admin:reviews_flag_change", args=[flag.pk])
             suggested = _suggest_action(target_type, flag.reason)
-            lines.append(
-                f"  - [{flag.reason}] reporter: {flag.reporter or 'anonymous'}"
-            )
-            lines.append(
-                f"    Admin: {settings.SITE_URL}{admin_url}?action={suggested}"
-            )
+            lines.append(f"  - [{flag.reason}] reporter: {flag.reporter or 'anonymous'}")
+            lines.append(f"    Admin: {settings.SITE_URL}{admin_url}?action={suggested}")
     if count > 50:
         lines.append(f"\n… and {count - 50} more. Visit admin to see all.")
 
@@ -116,9 +110,7 @@ def finalize_attendance():
         status="going",
     ).update(status="went")
     duration_ms = int((time.monotonic() - t0) * 1000)
-    logfire.info(
-        "finalize_attendance.done", updated_count=updated, duration_ms=duration_ms
-    )
+    logfire.info("finalize_attendance.done", updated_count=updated, duration_ms=duration_ms)
 
 
 def recompute_aggregates():
@@ -141,9 +133,7 @@ def recompute_aggregates():
 
     for org in Profile.objects.all():
         follower_count = Follow.objects.filter(profile=org).count()
-        agg = Review.objects.filter(organizer=org, hidden=False).aggregate(
-            count=Count("pk"), avg=Avg("rating")
-        )
+        agg = Review.objects.filter(organizer=org, hidden=False).aggregate(count=Count("pk"), avg=Avg("rating"))
         Profile.objects.filter(pk=org.pk).update(
             follower_count=follower_count,
             avg_rating=agg["avg"],
@@ -152,13 +142,9 @@ def recompute_aggregates():
 
     for event in Event.objects.all():
         # Count both 'going' (upcoming) and 'went' (finalized past) attendances
-        going_or_went = Attendance.objects.filter(
-            event=event, status__in=("going", "went")
-        ).count()
+        going_or_went = Attendance.objects.filter(event=event, status__in=("going", "went")).count()
         interested = Attendance.objects.filter(event=event, status="interested").count()
-        agg = Review.objects.filter(event=event, hidden=False).aggregate(
-            count=Count("pk"), avg=Avg("rating")
-        )
+        agg = Review.objects.filter(event=event, hidden=False).aggregate(count=Count("pk"), avg=Avg("rating"))
         rating_count = agg["count"] or 0
         avg = agg["avg"]
         Event.objects.filter(pk=event.pk).update(
@@ -170,6 +156,4 @@ def recompute_aggregates():
 
     event_count = Event.objects.count()
     duration_ms = int((time.monotonic() - t0) * 1000)
-    logfire.info(
-        "recompute_aggregates.done", event_count=event_count, duration_ms=duration_ms
-    )
+    logfire.info("recompute_aggregates.done", event_count=event_count, duration_ms=duration_ms)

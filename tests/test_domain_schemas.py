@@ -18,9 +18,7 @@ def test_domain_apps_in_installed_apps():
     """All 5 domain apps must be in INSTALLED_APPS."""
     required_apps = ["organizers", "venues", "events", "ingestion", "reviews"]
     for app in required_apps:
-        assert app in settings.INSTALLED_APPS, (
-            f"'{app}' not in INSTALLED_APPS: {settings.INSTALLED_APPS}"
-        )
+        assert app in settings.INSTALLED_APPS, f"'{app}' not in INSTALLED_APPS: {settings.INSTALLED_APPS}"
 
 
 # ---------------------------------------------------------------------------
@@ -87,9 +85,7 @@ def test_organizer_approved_by_uses_auth_user_model():
     from organizers.models import Profile
 
     User = get_user_model()
-    admin_user = User.objects.create_user(
-        username="admin_org", email="admin_org@example.com", password="pass"
-    )
+    admin_user = User.objects.create_user(username="admin_org", email="admin_org@example.com", password="pass")
     org = Profile.objects.create(name="Approved Org", slug="approved-org")
     org.approved_by = admin_user
     org.save()
@@ -262,13 +258,9 @@ def test_event_slug_unique_per_organizer(organizer):
     from events.models import Event
 
     start = tz.now()
-    Event.objects.create(
-        title="Event A", slug="shared-slug", organizer=organizer, start=start
-    )
+    Event.objects.create(title="Event A", slug="shared-slug", organizer=organizer, start=start)
     # No longer raises IntegrityError — constraint was intentionally dropped.
-    Event.objects.create(
-        title="Event B", slug="shared-slug-b", organizer=organizer, start=start
-    )
+    Event.objects.create(title="Event B", slug="shared-slug-b", organizer=organizer, start=start)
 
 
 @pytest.mark.django_db
@@ -281,13 +273,9 @@ def test_event_slug_can_repeat_across_organizers(organizer):
 
     other_org = Profile.objects.create(name="Other Org", slug="other-org")
     start = tz.now()
-    Event.objects.create(
-        title="Event A", slug="shared-slug-2", organizer=organizer, start=start
-    )
+    Event.objects.create(title="Event A", slug="shared-slug-2", organizer=organizer, start=start)
     # Should not raise
-    Event.objects.create(
-        title="Event A", slug="shared-slug-2", organizer=other_org, start=start
-    )
+    Event.objects.create(title="Event A", slug="shared-slug-2", organizer=other_org, start=start)
 
 
 @pytest.mark.django_db
@@ -303,13 +291,9 @@ def test_event_dup_guard_org_start_title(organizer):
     from events.models import Event
 
     start = tz.now()
-    Event.objects.create(
-        title="Duplicate Title", slug="slug-a", organizer=organizer, start=start
-    )
+    Event.objects.create(title="Duplicate Title", slug="slug-a", organizer=organizer, start=start)
     # No longer raises IntegrityError — constraint was intentionally dropped.
-    Event.objects.create(
-        title="Duplicate Title", slug="slug-b", organizer=organizer, start=start
-    )
+    Event.objects.create(title="Duplicate Title", slug="slug-b", organizer=organizer, start=start)
 
 
 @pytest.mark.django_db
@@ -456,9 +440,7 @@ def test_review_for_organizer(organizer):
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="reviewer_org", email="rev_org@example.com", password="pass"
-    )
+    user = User.objects.create_user(username="reviewer_org", email="rev_org@example.com", password="pass")
     review = Review.objects.create(
         author=user,
         organizer=organizer,
@@ -480,9 +462,7 @@ def test_review_for_event(organizer):
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="reviewer_evt", email="rev_evt@example.com", password="pass"
-    )
+    user = User.objects.create_user(username="reviewer_evt", email="rev_evt@example.com", password="pass")
     event = Event.objects.create(
         title="Reviewed Event",
         slug="reviewed-event",
@@ -510,9 +490,7 @@ def test_review_constraint_both_targets_rejected(organizer):
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="reviewer_both", email="rev_both@example.com", password="pass"
-    )
+    user = User.objects.create_user(username="reviewer_both", email="rev_both@example.com", password="pass")
     event = Event.objects.create(
         title="Both Event",
         slug="both-event",
@@ -537,9 +515,7 @@ def test_review_constraint_no_targets_rejected(organizer):
     from reviews.models import Review
 
     User = get_user_model()
-    user = User.objects.create_user(
-        username="reviewer_none", email="rev_none@example.com", password="pass"
-    )
+    user = User.objects.create_user(username="reviewer_none", email="rev_none@example.com", password="pass")
     with pytest.raises(IntegrityError):
         Review.objects.create(
             author=user,
@@ -576,14 +552,10 @@ def test_event_unique_constraints_in_db():
     with connection.cursor() as cursor:
         # Partial unique constraints on PostgreSQL are stored as indexes in pg_indexes,
         # not as rows in pg_constraint (pg_constraint only has non-partial uniques).
-        cursor.execute(
-            "SELECT indexname FROM pg_indexes WHERE indexname = "
-            "'event_organizer_one_primary_per_event'"
-        )
+        cursor.execute("SELECT indexname FROM pg_indexes WHERE indexname = 'event_organizer_one_primary_per_event'")
         names = [r[0] for r in cursor.fetchall()]
     assert "event_organizer_one_primary_per_event" in names, (
-        "Partial UniqueConstraint 'event_organizer_one_primary_per_event' "
-        f"not in pg_indexes: {names}"
+        f"Partial UniqueConstraint 'event_organizer_one_primary_per_event' not in pg_indexes: {names}"
     )
 
 
@@ -603,10 +575,7 @@ def test_review_check_constraint_in_db():
     from django.db import connection
 
     with connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT conname FROM pg_constraint "
-            "WHERE conname = 'review_targets_exactly_one'"
-        )
+        cursor.execute("SELECT conname FROM pg_constraint WHERE conname = 'review_targets_exactly_one'")
         names = [r[0] for r in cursor.fetchall()]
     assert "review_targets_exactly_one" in names, (
         f"CheckConstraint 'review_targets_exactly_one' not in pg_constraint: {names}"

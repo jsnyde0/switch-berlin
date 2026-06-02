@@ -102,9 +102,7 @@ def test_event_detail_contains_correct_title(client, staff_user, event_alpha):
 
 
 @pytest.mark.django_db
-def test_event_detail_404_for_wrong_organizer(
-    client, staff_user, event_alpha, organizer_beta
-):
+def test_event_detail_404_for_wrong_organizer(client, staff_user, event_alpha, organizer_beta):
     """GET /events/<wrong-org-slug>/<event-slug>/ returns 404 — organizer mismatch."""
     client.force_login(staff_user)
     response = client.get(f"/events/{organizer_beta.slug}/{event_alpha.slug}/")
@@ -120,9 +118,7 @@ def test_event_detail_404_for_nonexistent_event(client, staff_user, organizer_al
 
 
 @pytest.mark.django_db
-def test_duplicate_slug_different_organizers_both_resolve(
-    client, staff_user, event_alpha, event_beta
-):
+def test_duplicate_slug_different_organizers_both_resolve(client, staff_user, event_alpha, event_beta):
     """Two events with the same slug but different organizers both resolve correctly.
 
     This is the core regression: the old /events/<slug>/ scheme would return the
@@ -132,26 +128,14 @@ def test_duplicate_slug_different_organizers_both_resolve(
     client.force_login(staff_user)
 
     # Alpha org's event
-    response_alpha = client.get(
-        f"/events/{event_alpha.organizer.slug}/{event_alpha.slug}/"
-    )
-    assert response_alpha.status_code == 200, (
-        f"Expected 200 for alpha event, got {response_alpha.status_code}"
-    )
-    assert event_alpha.title.encode() in response_alpha.content, (
-        "Alpha event detail should show Alpha Party title"
-    )
+    response_alpha = client.get(f"/events/{event_alpha.organizer.slug}/{event_alpha.slug}/")
+    assert response_alpha.status_code == 200, f"Expected 200 for alpha event, got {response_alpha.status_code}"
+    assert event_alpha.title.encode() in response_alpha.content, "Alpha event detail should show Alpha Party title"
 
     # Beta org's event — same slug, different organizer
-    response_beta = client.get(
-        f"/events/{event_beta.organizer.slug}/{event_beta.slug}/"
-    )
-    assert response_beta.status_code == 200, (
-        f"Expected 200 for beta event, got {response_beta.status_code}"
-    )
-    assert event_beta.title.encode() in response_beta.content, (
-        "Beta event detail should show Beta Party title"
-    )
+    response_beta = client.get(f"/events/{event_beta.organizer.slug}/{event_beta.slug}/")
+    assert response_beta.status_code == 200, f"Expected 200 for beta event, got {response_beta.status_code}"
+    assert event_beta.title.encode() in response_beta.content, "Beta event detail should show Beta Party title"
 
     # Ensure they returned different content (different events)
     assert response_alpha.content != response_beta.content, (

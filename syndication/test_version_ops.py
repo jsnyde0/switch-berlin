@@ -127,9 +127,7 @@ class ConsumersTest(TestCase):
 
         cv = _make_canonical_cv(self.event)
         proj1 = _make_projection(self.conn, self.event, cv=cv)
-        conn2 = _make_connection(
-            self.profile, platform="switch", destination_id="sw-cons-002", kinds=["listing"]
-        )
+        conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-cons-002", kinds=["listing"])
         proj2 = _make_projection(conn2, self.event, cv=cv)
 
         result = set(consumers(cv))
@@ -149,9 +147,7 @@ class ConsumersTest(TestCase):
             name="variant-b",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        conn2 = _make_connection(
-            self.profile, platform="switch", destination_id="sw-cons-excl", kinds=["listing"]
-        )
+        conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-cons-excl", kinds=["listing"])
         proj_b = _make_projection(conn2, self.event, cv=cv_b)
 
         result_a = set(consumers(cv_a))
@@ -200,7 +196,7 @@ class ContentVersionConsumersMapTest(TestCase):
         from syndication.services import content_version_consumers_map
 
         cv = _make_canonical_cv(self.event)
-        proj = _make_projection(self.conn, self.event, cv=cv)
+        _proj = _make_projection(self.conn, self.event, cv=cv)
 
         mapping = content_version_consumers_map(self.event)
         self.assertIsInstance(mapping, dict)
@@ -221,9 +217,7 @@ class ContentVersionConsumersMapTest(TestCase):
         from syndication.services import content_version_consumers_map
 
         cv_a = _make_canonical_cv(self.event)
-        conn2 = _make_connection(
-            self.profile, platform="switch", destination_id="sw-cvmap-002", kinds=["listing"]
-        )
+        conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-cvmap-002", kinds=["listing"])
         cv_b = ContentVersion.objects.create(
             event=self.event,
             name="variant-b",
@@ -304,7 +298,7 @@ class DuplicateVersionTest(TestCase):
         cv.voice = "playful"
         cv.save()
 
-        proj = _make_projection(self.conn, self.event, cv=cv)
+        _proj = _make_projection(self.conn, self.event, cv=cv)
         new_cv = duplicate(self.user, cv)
 
         self.assertEqual(new_cv.headline, "Test Headline")
@@ -317,7 +311,7 @@ class DuplicateVersionTest(TestCase):
         from syndication.services import duplicate
 
         cv = _make_canonical_cv(self.event)
-        proj = _make_projection(self.conn, self.event, cv=cv)
+        _proj = _make_projection(self.conn, self.event, cv=cv)
         new_cv = duplicate(self.user, cv)
 
         self.assertEqual(new_cv.event_id, self.event.pk)
@@ -333,7 +327,7 @@ class DuplicateVersionTest(TestCase):
         proj = _make_projection(self.conn, self.event, cv=cv)
         original_cv_pk = cv.pk
 
-        new_cv = duplicate(self.user, cv)
+        _new_cv = duplicate(self.user, cv)
 
         proj.refresh_from_db()
         self.assertEqual(proj.content_version_id, original_cv_pk)
@@ -370,9 +364,7 @@ class CustomizeTest(TestCase):
         self.event = _make_event(slug="cust-event", title="Cust Event Title")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn_a = _make_connection(self.profile, platform="fetlife", destination_id="fl-cust-a")
-        self.conn_b = _make_connection(
-            self.profile, platform="switch", destination_id="sw-cust-b", kinds=["listing"]
-        )
+        self.conn_b = _make_connection(self.profile, platform="switch", destination_id="sw-cust-b", kinds=["listing"])
 
     def test_customize_repoints_projection_to_new_version(self):
         """
@@ -457,9 +449,7 @@ class CopyFromTest(TestCase):
         self.event = _make_event(slug="cpfrom-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn_a = _make_connection(self.profile, platform="fetlife", destination_id="fl-cpfrom-a")
-        self.conn_b = _make_connection(
-            self.profile, platform="switch", destination_id="sw-cpfrom-b", kinds=["listing"]
-        )
+        self.conn_b = _make_connection(self.profile, platform="switch", destination_id="sw-cpfrom-b", kinds=["listing"])
 
     def test_copy_from_repoints_projection_to_new_version(self):
         """copy_from repoints the projection to a fresh ContentVersion copy."""
@@ -575,12 +565,8 @@ class CopyToTest(TestCase):
         self.event = _make_event(slug="cpto-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn_a = _make_connection(self.profile, platform="fetlife", destination_id="fl-cpto-a")
-        self.conn_b = _make_connection(
-            self.profile, platform="switch", destination_id="sw-cpto-b", kinds=["listing"]
-        )
-        self.conn_c = _make_connection(
-            self.profile, platform="telegram", destination_id="tg-cpto-c", kinds=["listing"]
-        )
+        self.conn_b = _make_connection(self.profile, platform="switch", destination_id="sw-cpto-b", kinds=["listing"])
+        self.conn_c = _make_connection(self.profile, platform="telegram", destination_id="tg-cpto-c", kinds=["listing"])
 
     def test_copy_to_mints_n_independent_rows(self):
         """copy_to creates exactly N new ContentVersion rows for N target projections."""
@@ -646,7 +632,7 @@ class CopyToTest(TestCase):
         original_b_cv = proj_b.content_version_id
         original_c_cv = proj_c.content_version_id
 
-        new_versions = copy_to(self.user, source_cv, [proj_b, proj_c])
+        _new_versions = copy_to(self.user, source_cv, [proj_b, proj_c])
         proj_b.refresh_from_db()
         proj_c.refresh_from_db()
 
@@ -775,7 +761,7 @@ class ResetToCanonicalTest(TestCase):
 
     def test_reset_repoints_to_canonical(self):
         """reset_to_canonical repoints projection to the canonical ContentVersion."""
-        from syndication.services import reset_to_canonical, customize
+        from syndication.services import customize, reset_to_canonical
 
         canonical_cv = _make_canonical_cv(self.event)
         proj = _make_projection(self.conn, self.event, cv=canonical_cv)
@@ -792,7 +778,7 @@ class ResetToCanonicalTest(TestCase):
 
     def test_reset_creates_no_new_row(self):
         """reset_to_canonical does NOT create a new ContentVersion row."""
-        from syndication.services import reset_to_canonical, customize
+        from syndication.services import customize, reset_to_canonical
 
         canonical_cv = _make_canonical_cv(self.event)
         proj = _make_projection(self.conn, self.event, cv=canonical_cv)
@@ -839,7 +825,7 @@ class ResetToCanonicalTest(TestCase):
 
         This locks the contract: reset is NOT get_or_create; it is fetch-or-raise.
         """
-        from syndication.services import reset_to_canonical, customize
+        from syndication.services import customize, reset_to_canonical
 
         canonical_cv = _make_canonical_cv(self.event)
         proj = _make_projection(self.conn, self.event, cv=canonical_cv)
@@ -910,9 +896,7 @@ class CustomizeResetConsumersMapRoundTripTest(TestCase):
         self.event = _make_event(slug="crmap-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn_a = _make_connection(self.profile, platform="fetlife", destination_id="fl-crmap-a")
-        self.conn_b = _make_connection(
-            self.profile, platform="switch", destination_id="sw-crmap-b", kinds=["listing"]
-        )
+        self.conn_b = _make_connection(self.profile, platform="switch", destination_id="sw-crmap-b", kinds=["listing"])
 
     def test_customize_reset_round_trip_reflected_in_consumers_map(self):
         """
@@ -1044,9 +1028,7 @@ class EditVersionTest(TestCase):
         self.event = _make_event(slug="editv-event", title="EditV Event Title")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn_a = _make_connection(self.profile, platform="fetlife", destination_id="fl-editv-a")
-        self.conn_b = _make_connection(
-            self.profile, platform="switch", destination_id="sw-editv-b", kinds=["listing"]
-        )
+        self.conn_b = _make_connection(self.profile, platform="switch", destination_id="sw-editv-b", kinds=["listing"])
 
     def test_edit_version_mutates_fields(self):
         """edit_version updates the editorial fields on the ContentVersion."""
@@ -1109,7 +1091,7 @@ class EditVersionTest(TestCase):
         edit_version raises ValueError if ALL consumer projections are published
         (ADR-008 D3: fail loud — every consumer is frozen, no live readers).
         """
-        from syndication.services import edit_version, approve_projection
+        from syndication.services import approve_projection, edit_version
 
         cv = _make_canonical_cv(self.event)
         proj = _make_projection(self.conn_a, self.event, cv=cv)
@@ -1117,6 +1099,7 @@ class EditVersionTest(TestCase):
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
         from syndication.engine import transition_status
+
         transition_status(proj, "published")
         proj.refresh_from_db()
 
@@ -1128,7 +1111,7 @@ class EditVersionTest(TestCase):
         edit_version raises ValueError if ALL consumers are ready.
         Every consumer has frozen_content; no draft consumer reads the live row.
         """
-        from syndication.services import edit_version, approve_projection
+        from syndication.services import approve_projection, edit_version
 
         cv = _make_canonical_cv(self.event)
         proj = _make_projection(self.conn_a, self.event, cv=cv)
@@ -1150,7 +1133,7 @@ class EditVersionTest(TestCase):
         never read the live ContentVersion, so editing it cannot corrupt them.
         """
         from syndication.engine import render_projection, transition_status
-        from syndication.services import edit_version, approve_projection
+        from syndication.services import approve_projection, edit_version
 
         cv = _make_canonical_cv(self.event)
         proj_draft = _make_projection(self.conn_a, self.event, cv=cv)
@@ -1183,8 +1166,8 @@ class EditVersionTest(TestCase):
         from syndication.services import edit_version
 
         cv = _make_canonical_cv(self.event)
-        proj_a = _make_projection(self.conn_a, self.event, cv=cv)
-        proj_b = _make_projection(self.conn_b, self.event, cv=cv)
+        _proj_a = _make_projection(self.conn_a, self.event, cv=cv)
+        _proj_b = _make_projection(self.conn_b, self.event, cv=cv)
 
         # Both draft — edit should succeed
         edit_version(self.user, cv, body="Draft edit is OK")
@@ -1292,9 +1275,7 @@ class PostOwnedCanonicalSeedTest(TestCase):
         self.event = _make_event(slug="postseed-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn_tg = _make_promo_connection(self.profile, destination_id="tg-postseed-001")
-        self.conn_fl = _make_promo_connection(
-            self.profile, platform="fetlife", destination_id="fl-postseed-002"
-        )
+        self.conn_fl = _make_promo_connection(self.profile, platform="fetlife", destination_id="fl-postseed-002")
 
     def test_create_post_seeds_post_canonical_not_event_canonical(self):
         """
@@ -1353,12 +1334,8 @@ class PostOwnedCanonicalSeedTest(TestCase):
         """
         from syndication.services import create_post
 
-        post1 = create_post(
-            user=self.user, event=self.event, headline="Post 1", body="Body 1"
-        )
-        post2 = create_post(
-            user=self.user, event=self.event, headline="Post 2", body="Body 2"
-        )
+        post1 = create_post(user=self.user, event=self.event, headline="Post 1", body="Body 1")
+        post2 = create_post(user=self.user, event=self.event, headline="Post 2", body="Body 2")
 
         cv1 = ContentVersion.objects.get(post=post1, name="canonical")
         cv2 = ContentVersion.objects.get(post=post2, name="canonical")
@@ -1379,9 +1356,7 @@ class PostPromotionCustomizeResetTest(TestCase):
         self.event = _make_event(slug="postctrl-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn_tg = _make_promo_connection(self.profile, destination_id="tg-postctrl-001")
-        self.conn_fl = _make_promo_connection(
-            self.profile, platform="fetlife", destination_id="fl-postctrl-002"
-        )
+        self.conn_fl = _make_promo_connection(self.profile, platform="fetlife", destination_id="fl-postctrl-002")
 
     def test_customize_on_post_promotion_creates_post_owned_version(self):
         """
@@ -1390,9 +1365,7 @@ class PostPromotionCustomizeResetTest(TestCase):
         """
         from syndication.services import create_post, customize
 
-        post = create_post(
-            user=self.user, event=self.event, headline="Promo Post", body="Body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="Promo Post", body="Body")
         proj = PlatformProjection.objects.filter(source_post=post).first()
         self.assertIsNotNone(proj)
 
@@ -1405,12 +1378,10 @@ class PostPromotionCustomizeResetTest(TestCase):
         """
         Customizing one promotion channel must not affect the other still-synced channel.
         """
-        from syndication.services import create_post, customize, edit_version
         from syndication.engine import render_projection
+        from syndication.services import create_post, customize, edit_version
 
-        post = create_post(
-            user=self.user, event=self.event, headline="Isolation Post", body="Original body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="Isolation Post", body="Original body")
         projs = list(PlatformProjection.objects.filter(source_post=post))
         self.assertGreaterEqual(len(projs), 2, "Need ≥2 promotion projections")
 
@@ -1434,9 +1405,7 @@ class PostPromotionCustomizeResetTest(TestCase):
         """
         from syndication.services import create_post, customize, reset_to_canonical
 
-        post = create_post(
-            user=self.user, event=self.event, headline="Reset Post", body="Body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="Reset Post", body="Body")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
 
         proj = PlatformProjection.objects.filter(source_post=post).first()
@@ -1459,11 +1428,9 @@ class PostPromotionCustomizeResetTest(TestCase):
         content_version_consumers_map must support post-scoped queries.
         Both synced promotion channels must be listed under the post's canonical.
         """
-        from syndication.services import create_post, content_version_consumers_map
+        from syndication.services import content_version_consumers_map, create_post
 
-        post = create_post(
-            user=self.user, event=self.event, headline="Map Post", body="Body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="Map Post", body="Body")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
         projs = list(PlatformProjection.objects.filter(source_post=post))
         self.assertGreaterEqual(len(projs), 2)
@@ -1479,12 +1446,10 @@ class PostPromotionCustomizeResetTest(TestCase):
         Editing the post's shared canonical propagates to still-synced draft channels
         but NOT to a channel already ready/published (freeze, ADR-016 D2).
         """
-        from syndication.services import create_post, edit_version, approve_projection
-        from syndication.engine import render_projection, transition_status
+        from syndication.engine import render_projection
+        from syndication.services import approve_projection, create_post, edit_version
 
-        post = create_post(
-            user=self.user, event=self.event, headline="Freeze Post", body="Original"
-        )
+        post = create_post(user=self.user, event=self.event, headline="Freeze Post", body="Original")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
         projs = list(PlatformProjection.objects.filter(source_post=post))
         self.assertGreaterEqual(len(projs), 2)
@@ -1526,9 +1491,7 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_promo_connection(self.profile, destination_id="tg-postguard-001")
         # Second promotion connection so tests that need ≥2 projections work
-        self.conn2 = _make_promo_connection(
-            self.profile, platform="fetlife", destination_id="fl-postguard-002"
-        )
+        self.conn2 = _make_promo_connection(self.profile, platform="fetlife", destination_id="fl-postguard-002")
 
     def test_gate_can_edit_for_cv_resolves_event_via_post_not_none(self):
         """
@@ -1540,14 +1503,12 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
         """
         from syndication.services import create_post, edit_version
 
-        post = create_post(
-            user=self.user, event=self.event, headline="Guard Post", body="Body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="Guard Post", body="Body")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
 
         # If _gate_can_edit_for_cv incorrectly passes None to can_edit, this raises.
         # The correct behavior is: can_edit resolves event via post.event → succeeds.
-        proj = PlatformProjection.objects.filter(source_post=post).first()
+        _proj = PlatformProjection.objects.filter(source_post=post).first()
         # edit_version goes through _gate_can_edit_for_cv
         edit_version(self.user, post_canonical, body="Edited via post-owned CV")
         post_canonical.refresh_from_db()
@@ -1559,11 +1520,9 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
         with post FK set (not event=source.event, which would violate check constraint
         since source.event=None → CV with both null → raises DB constraint).
         """
-        from syndication.services import create_post, copy_from
+        from syndication.services import copy_from, create_post
 
-        post = create_post(
-            user=self.user, event=self.event, headline="CopyFrom Post", body="Body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="CopyFrom Post", body="Body")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
         proj = PlatformProjection.objects.filter(source_post=post).first()
 
@@ -1579,9 +1538,7 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
         """
         from syndication.services import create_post, duplicate
 
-        post = create_post(
-            user=self.user, event=self.event, headline="Dup Post", body="Body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="Dup Post", body="Body")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
 
         new_cv = duplicate(self.user, post_canonical)
@@ -1593,11 +1550,9 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
         copy_to when source_version is post-owned must create new CVs with
         post FK set for each target projection.
         """
-        from syndication.services import create_post, copy_to
+        from syndication.services import copy_to, create_post
 
-        post = create_post(
-            user=self.user, event=self.event, headline="CopyTo Post", body="Body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="CopyTo Post", body="Body")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
         projs = list(PlatformProjection.objects.filter(source_post=post))
         self.assertGreaterEqual(len(projs), 2)
@@ -1615,12 +1570,10 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
         Mirrors the event-path test
         test_copy_to_each_projection_gets_truly_independent_row.
         """
-        from syndication.services import create_post, copy_to, edit_version
         from syndication.engine import render_projection
+        from syndication.services import copy_to, create_post, edit_version
 
-        post = create_post(
-            user=self.user, event=self.event, headline="N2 Independence Post", body="Shared body"
-        )
+        post = create_post(user=self.user, event=self.event, headline="N2 Independence Post", body="Shared body")
         post_canonical = ContentVersion.objects.get(post=post, name="canonical")
         projs = list(PlatformProjection.objects.filter(source_post=post))
         self.assertGreaterEqual(len(projs), 2, "Need ≥2 promotion projections for N=2 test")
@@ -1697,10 +1650,10 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
         own customized body, NOT the canonical's or the other channel's.
         """
         from syndication.services import (
+            approve_projection,
             create_post,
             customize,
             edit_version,
-            approve_projection,
             publish_projection,
         )
 
@@ -1773,10 +1726,10 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
         same text — this assertion catches it.
         """
         from syndication.services import (
+            approve_projection,
             create_post,
             customize,
             edit_version,
-            approve_projection,
             publish_all_ready_projections,
         )
 

@@ -21,8 +21,6 @@ ADR-008 D3: fail loud — no silent zero-fill, provenance always explicit.
 ADR-016 D5: lifecycle actions go through transition_status exclusively.
 """
 
-import json
-
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.utils import timezone
@@ -88,6 +86,7 @@ def _make_content_version(event, name="canonical", provenance="rule_template"):
     provenance is stored on ContentVersion now (kb-wz8m.2).
     """
     from syndication.models import ContentVersion
+
     cv, _ = ContentVersion.objects.get_or_create(
         event=event,
         name=name,
@@ -122,6 +121,7 @@ def _make_post_content_version(post, name="canonical", provenance="rule_template
     (kb-q4u9.3 review finding 5)
     """
     from syndication.models import ContentVersion
+
     cv, _ = ContentVersion.objects.get_or_create(
         post=post,
         name=name,
@@ -182,9 +182,7 @@ class BoardFragmentRenderTest(TestCase):
         post = _make_post(self.event)
         proj2 = _make_promotion_projection(self.conn, post)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         # Context must contain both projections
         projections = list(response.context["projections"])
@@ -201,9 +199,7 @@ class BoardFragmentRenderTest(TestCase):
         post = _make_post(self.event)
         promo_proj = _make_promotion_projection(self.conn, post)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
         pk_set = {p.pk for p in projections}
@@ -213,9 +209,7 @@ class BoardFragmentRenderTest(TestCase):
         """Each projection in context has the correct status value."""
         proj = _make_listing_projection(self.conn, self.event, status="draft")
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
         proj_in_ctx = next(p for p in projections if p.pk == proj.pk)
@@ -226,13 +220,9 @@ class BoardFragmentRenderTest(TestCase):
         Each projection's ContentVersion in context has the correct provenance value.
         kb-wz8m.2: provenance lives on ContentVersion, not on PlatformProjection.
         """
-        proj = _make_listing_projection(
-            self.conn, self.event, provenance="agent_supplied"
-        )
+        proj = _make_listing_projection(self.conn, self.event, provenance="agent_supplied")
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
         proj_in_ctx = next(p for p in projections if p.pk == proj.pk)
@@ -243,9 +233,7 @@ class BoardFragmentRenderTest(TestCase):
         """Each projection carries connection (platform, destination_id)."""
         _make_listing_projection(self.conn, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
         self.assertTrue(len(projections) >= 1)
@@ -259,16 +247,14 @@ class BoardFragmentRenderTest(TestCase):
         """
         _make_listing_projection(self.conn, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         # rendered_rows must exist in context, keyed by projection PK
         self.assertIn("rendered_rows", response.context)
         rendered_rows = response.context["rendered_rows"]
         # At least one entry, and each value is a string (rendered body)
         self.assertTrue(len(rendered_rows) >= 1)
-        for pk, body in rendered_rows.items():
+        for _pk, body in rendered_rows.items():
             self.assertIsInstance(body, str)
 
 
@@ -351,9 +337,7 @@ class OverrideEditServiceTest(TestCase):
         """
         from syndication.services import edit_version
 
-        other_user = _make_vouched_user(
-            username="stranger", email="stranger@test.com", password="pw"
-        )
+        other_user = _make_vouched_user(username="stranger", email="stranger@test.com", password="pw")
         proj = _make_listing_projection(self.conn, self.event)
         with self.assertRaises(PermissionError):
             edit_version(user=other_user, version=proj.content_version, body="not allowed")
@@ -371,9 +355,7 @@ class ApproveProjectionServiceTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="approve_user", email="approve@test.com", password="pw"
-        )
+        self.user = _make_vouched_user(username="approve_user", email="approve@test.com", password="pw")
         self.profile = _make_profile(name="Approve Org", slug="approve-org", user=self.user)
         self.event = _make_event(slug="approve-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
@@ -410,9 +392,7 @@ class ApproveProjectionServiceTest(TestCase):
         """
         from syndication.services import approve_projection
 
-        other_user = _make_vouched_user(
-            username="approve_stranger", email="apstrange@test.com", password="pw"
-        )
+        other_user = _make_vouched_user(username="approve_stranger", email="apstrange@test.com", password="pw")
         proj = _make_listing_projection(self.conn, self.event)
         with self.assertRaises(PermissionError):
             approve_projection(user=other_user, projection=proj)
@@ -438,12 +418,8 @@ class ApproveProjectionViewTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="apprvview_user", email="apprvview@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="ApproveView Org", slug="approveview-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="apprvview_user", email="apprvview@test.com", password="pw")
+        self.profile = _make_profile(name="ApproveView Org", slug="approveview-org", user=self.user)
         self.event = _make_event(slug="approveview-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_connection(self.profile, destination_id="fl-approveview")
@@ -474,9 +450,7 @@ class PublishProjectionServiceTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="pub_user", email="pub@test.com", password="pw"
-        )
+        self.user = _make_vouched_user(username="pub_user", email="pub@test.com", password="pw")
         self.profile = _make_profile(name="Pub Org", slug="pub-org", user=self.user)
         self.event = _make_event(slug="pub-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
@@ -522,9 +496,7 @@ class PublishProjectionServiceTest(TestCase):
         from syndication.services import publish_projection
 
         proj = self._make_ready_projection()
-        other_user = _make_vouched_user(
-            username="pub_stranger", email="pubstrange@test.com", password="pw"
-        )
+        other_user = _make_vouched_user(username="pub_stranger", email="pubstrange@test.com", password="pw")
         with self.assertRaises(PermissionError):
             publish_projection(user=other_user, projection=proj)
 
@@ -543,9 +515,7 @@ class PublishProjectionViewTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="pubview_user", email="pubview@test.com", password="pw"
-        )
+        self.user = _make_vouched_user(username="pubview_user", email="pubview@test.com", password="pw")
         self.profile = _make_profile(name="PubView Org", slug="pubview-org", user=self.user)
         self.event = _make_event(slug="pubview-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
@@ -588,9 +558,7 @@ class MarkPublishedServiceTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="markpub_user", email="markpub@test.com", password="pw"
-        )
+        self.user = _make_vouched_user(username="markpub_user", email="markpub@test.com", password="pw")
         self.profile = _make_profile(name="MarkPub Org", slug="markpub-org", user=self.user)
         self.event = _make_event(slug="markpub-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
@@ -618,9 +586,7 @@ class MarkPublishedServiceTest(TestCase):
         from syndication.services import mark_projection_published
 
         proj = self._make_ready_projection()
-        other_user = _make_vouched_user(
-            username="markpub_stranger", email="markpubst@test.com", password="pw"
-        )
+        other_user = _make_vouched_user(username="markpub_stranger", email="markpubst@test.com", password="pw")
         with self.assertRaises(PermissionError):
             mark_projection_published(user=other_user, projection=proj)
 
@@ -647,9 +613,7 @@ class MarkPublishedAPITest(TestCase):
             email="markpub_api@test.com",
             password="pw",
         )
-        self.profile = _make_profile(
-            name="MarkPub API Org", slug="markpub-api-org", user=self.user
-        )
+        self.profile = _make_profile(name="MarkPub API Org", slug="markpub-api-org", user=self.user)
         self.event = _make_event(slug="markpub-api-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_connection(self.profile, destination_id="fl-markpub-api")
@@ -678,7 +642,8 @@ class MarkPublishedAPITest(TestCase):
         self.assertNotEqual(response.status_code, 404, "mark-published API endpoint missing")
         self.assertNotEqual(response.status_code, 405, "mark-published API endpoint not POST")
         self.assertIn(
-            response.status_code, [200, 201, 204],
+            response.status_code,
+            [200, 201, 204],
             f"Expected success status, got {response.status_code}",
         )
 
@@ -693,17 +658,12 @@ class MarkPublishedAPITest(TestCase):
         self.assertEqual(proj.status, "published")
 
 
-
 class MarkPublishedViewTest(TestCase):
     """HTMX view path for mark-published calls mark_projection_published service."""
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="markpub_view_user", email="markpubview@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="MarkPub View Org", slug="markpubview-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="markpub_view_user", email="markpubview@test.com", password="pw")
+        self.profile = _make_profile(name="MarkPub View Org", slug="markpubview-org", user=self.user)
         self.event = _make_event(slug="markpubview-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_connection(self.profile, destination_id="fl-markpubview")
@@ -750,9 +710,7 @@ class EmptyStatesTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="empty_user", email="empty@test.com", password="pw"
-        )
+        self.user = _make_vouched_user(username="empty_user", email="empty@test.com", password="pw")
         self.profile = _make_profile(name="Empty Org", slug="empty-org", user=self.user)
         self.event = _make_event(slug="empty-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
@@ -767,9 +725,7 @@ class EmptyStatesTest(TestCase):
         State 1: No connections configured.
         """
         # Ensure no connections, no projections for this event
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # The board must show something actionable, not a blank panel
@@ -782,9 +738,7 @@ class EmptyStatesTest(TestCase):
 
     def test_no_connections_state_shows_settings_link(self):
         """State 1: The 'connect platforms' state must include a link to settings/connections."""
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         content = response.content.decode()
         # Must have a link to the connections management page
         self.assertIn(
@@ -799,17 +753,13 @@ class EmptyStatesTest(TestCase):
         state 1 (no connections) from state 2 (connections but no posts).
         """
         # No connections
-        response_no_conn = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response_no_conn = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertIn("has_connections", response_no_conn.context)
         self.assertFalse(response_no_conn.context["has_connections"])
 
         # Add a connection
         _make_connection(self.profile, destination_id="fl-has-conn", kinds=["listing"])
-        response_with_conn = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response_with_conn = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertIn("has_connections", response_with_conn.context)
         self.assertTrue(response_with_conn.context["has_connections"])
 
@@ -828,6 +778,7 @@ class MarkPublishedAPIVerbStructureTest(TestCase):
     def test_mark_projection_published_importable_from_services(self):
         """mark_projection_published must exist in syndication.services."""
         from syndication import services
+
         self.assertTrue(
             hasattr(services, "mark_projection_published"),
             "mark_projection_published must be in syndication.services (co-equal seam)",
@@ -836,6 +787,7 @@ class MarkPublishedAPIVerbStructureTest(TestCase):
     def test_approve_projection_importable_from_services(self):
         """approve_projection must exist in syndication.services."""
         from syndication import services
+
         self.assertTrue(
             hasattr(services, "approve_projection"),
             "approve_projection must be in syndication.services",
@@ -844,6 +796,7 @@ class MarkPublishedAPIVerbStructureTest(TestCase):
     def test_publish_projection_importable_from_services(self):
         """publish_projection must exist in syndication.services."""
         from syndication import services
+
         self.assertTrue(
             hasattr(services, "publish_projection"),
             "publish_projection must be in syndication.services",
@@ -855,6 +808,7 @@ class MarkPublishedAPIVerbStructureTest(TestCase):
         kb-wz8m.3: save_projection_override removed; edit_version is the replacement.
         """
         from syndication import services
+
         self.assertTrue(
             hasattr(services, "edit_version"),
             "edit_version must be in syndication.services (replaces save_projection_override, kb-wz8m.3)",
@@ -884,6 +838,7 @@ class IllegalTransitionViewErrorTest(TestCase):
 
     def _make_ready_projection(self):
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, self.event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -959,6 +914,7 @@ class ResolvProjectionEventSingleSourceTest(TestCase):
     def test_views_has_no_private_get_projection_event(self):
         """views.py must not define _get_projection_event (use services version)."""
         import syndication.views as views_mod
+
         self.assertFalse(
             hasattr(views_mod, "_get_projection_event"),
             "_get_projection_event must be removed from views.py; use services._resolve_projection_event",
@@ -967,6 +923,7 @@ class ResolvProjectionEventSingleSourceTest(TestCase):
     def test_api_has_no_private_projection_event(self):
         """api.py must not define _projection_event (use services version)."""
         import syndication.api as api_mod
+
         self.assertFalse(
             hasattr(api_mod, "_projection_event"),
             "_projection_event must be removed from api.py; use services._resolve_projection_event",
@@ -977,8 +934,8 @@ class ResolvProjectionEventSingleSourceTest(TestCase):
         _resolve_projection_event (services) must raise ValueError when a listing
         projection has no source_event (ADR-008 D3 fail-loud).
         """
-        from syndication.services import _resolve_projection_event
         from syndication.models import PlatformProjection
+        from syndication.services import _resolve_projection_event
 
         class FakeListing:
             kind = PlatformProjection.Kind.LISTING
@@ -1016,12 +973,11 @@ class RenderErrorStructuralFlagTest(TestCase):
         carry render_error=True so the template can render a distinct error state.
         """
         from unittest.mock import patch
+
         _make_listing_projection(self.conn, self.event)
 
         with patch("syndication.engine.render_projection", side_effect=ValueError("missing field")):
-            response = self.client.get(
-                f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-            )
+            response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         projection_rows = response.context["projection_rows"]
         self.assertTrue(len(projection_rows) >= 1)
@@ -1035,12 +991,11 @@ class RenderErrorStructuralFlagTest(TestCase):
         distinct error CSS class (not as normal body copy).
         """
         from unittest.mock import patch
+
         _make_listing_projection(self.conn, self.event)
 
         with patch("syndication.engine.render_projection", side_effect=ValueError("missing field")):
-            response = self.client.get(
-                f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-            )
+            response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         content = response.content.decode()
         # Error must use a distinct error class/treatment
         self.assertIn(
@@ -1074,9 +1029,7 @@ class HasPromotionConnectionsFilterTest(TestCase):
         A connection with kinds=["listing"] must NOT set has_promotion_connections=True.
         """
         _make_connection(self.profile, destination_id="fl-listing-only", kinds=["listing"])
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         # has_promotion_connections must be False because no promotion-capable connections
         # The test checks no_promo_posts is False because the connection doesn't support promotion
@@ -1090,9 +1043,7 @@ class HasPromotionConnectionsFilterTest(TestCase):
         A connection with kinds=["promotion"] and no posts must set no_promo_posts=True.
         """
         _make_connection(self.profile, destination_id="fl-promo-only", kinds=["promotion"])
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(
             response.context["no_promo_posts"],
@@ -1120,6 +1071,7 @@ class BatchPublishAllReadyServiceTest(TestCase):
 
     def _make_ready_projection(self, event=None, **kwargs):
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, event or self.event, **kwargs)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -1185,6 +1137,7 @@ class BatchPublishViewTest(TestCase):
 
     def _make_ready_projection(self):
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, self.event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -1219,18 +1172,20 @@ class BatchPublishViewTest(TestCase):
         This verifies the co-equal seam (ADR-016 D6) at import time.
         """
         import syndication.api as api_mod
-        import syndication.views as views_mod
         import syndication.services as services_mod
+        import syndication.views as views_mod
 
         self.assertIs(
             api_mod.publish_all_ready_projections,
             services_mod.publish_all_ready_projections,
-            "syndication.api.publish_all_ready_projections must be the same object as syndication.services.publish_all_ready_projections",
+            "syndication.api.publish_all_ready_projections must be the same object as "
+            "syndication.services.publish_all_ready_projections",
         )
         self.assertIs(
             views_mod.publish_all_ready_projections,
             services_mod.publish_all_ready_projections,
-            "syndication.views.publish_all_ready_projections must be the same object as syndication.services.publish_all_ready_projections",
+            "syndication.views.publish_all_ready_projections must be the same object as "
+            "syndication.services.publish_all_ready_projections",
         )
 
 
@@ -1257,6 +1212,7 @@ class MarkPublishedSharedSourceTest(TestCase):
 
     def _make_ready_projection(self):
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, self.event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -1274,19 +1230,21 @@ class MarkPublishedSharedSourceTest(TestCase):
         that both call-site symbols are identical to the services definition.
         """
         import syndication.api as api_mod
-        import syndication.views as views_mod
         import syndication.services as services_mod
+        import syndication.views as views_mod
 
         # Both modules must reference the same function object from services
         self.assertIs(
             api_mod.mark_projection_published,
             services_mod.mark_projection_published,
-            "syndication.api.mark_projection_published must be the same object as syndication.services.mark_projection_published",
+            "syndication.api.mark_projection_published must be the same object as "
+            "syndication.services.mark_projection_published",
         )
         self.assertIs(
             views_mod.mark_projection_published,
             services_mod.mark_projection_published,
-            "syndication.views.mark_projection_published must be the same object as syndication.services.mark_projection_published",
+            "syndication.views.mark_projection_published must be the same object as "
+            "syndication.services.mark_projection_published",
         )
 
 
@@ -1316,9 +1274,7 @@ class NoPromoPostsRenderedTextTest(TestCase):
         - "Add promo message" CTA
         """
         _make_connection(self.profile, destination_id="fl-nopromo", kinds=["promotion"])
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertIn(
@@ -1359,13 +1315,11 @@ class RenderedBodyContentTest(TestCase):
         non-empty AND contain the event title (proving it's real content).
         """
         _make_listing_projection(self.conn, self.event)
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         rendered_rows = response.context["rendered_rows"]
         self.assertTrue(len(rendered_rows) >= 1)
-        for pk, body in rendered_rows.items():
+        for _pk, body in rendered_rows.items():
             self.assertIsInstance(body, str)
             self.assertTrue(len(body) > 0, "Rendered body must not be empty for a valid projection")
             self.assertNotIn(
@@ -1402,6 +1356,7 @@ class NinjaSessionAuthTest(TestCase):
 
     def _make_ready_projection(self):
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, self.event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -1420,7 +1375,8 @@ class NinjaSessionAuthTest(TestCase):
         self.assertEqual(
             response.status_code,
             200,
-            f"API mark-published with force_login must return 200. Got {response.status_code}: {response.content.decode()[:200]}",
+            f"API mark-published with force_login must return 200. "
+            f"Got {response.status_code}: {response.content.decode()[:200]}",
         )
 
 
@@ -1438,9 +1394,7 @@ class BatchPublishPartialFailureTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="batchfail_user", email="batchfail@test.com", password="pw"
-        )
+        self.user = _make_vouched_user(username="batchfail_user", email="batchfail@test.com", password="pw")
         self.profile = _make_profile(name="BatchFail Org", slug="batchfail-org", user=self.user)
         self.event = _make_event(slug="batchfail-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
@@ -1450,6 +1404,7 @@ class BatchPublishPartialFailureTest(TestCase):
 
     def _make_ready_projection(self, destination_id_suffix=""):
         from syndication.services import approve_projection
+
         conn = _make_connection(
             self.profile,
             destination_id=f"fl-batchfail-{destination_id_suffix}",
@@ -1466,6 +1421,7 @@ class BatchPublishPartialFailureTest(TestCase):
         failure — no unhandled exception propagates.
         """
         from unittest.mock import patch
+
         from syndication.services import publish_all_ready_projections
 
         proj_ok = self._make_ready_projection("ok")
@@ -1479,6 +1435,7 @@ class BatchPublishPartialFailureTest(TestCase):
             original_transition(projection, target_status)
 
         import syndication.engine as engine_mod
+
         original_transition = engine_mod.transition_status
 
         with patch.object(engine_mod, "transition_status", side_effect=failing_transition):
@@ -1507,10 +1464,11 @@ class BatchPublishPartialFailureTest(TestCase):
         """
         from unittest.mock import patch
 
-        proj_ok = self._make_ready_projection("view-ok")
+        _proj_ok = self._make_ready_projection("view-ok")
         proj_fail = self._make_ready_projection("view-fail")
 
         import syndication.engine as engine_mod
+
         original_transition = engine_mod.transition_status
 
         def failing_transition(projection, target_status):
@@ -1564,9 +1522,7 @@ class ComposerRailBoardRenderTest(TestCase):
         post = _make_post(self.event)
         proj2 = _make_promotion_projection(self.conn, post)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
         self.assertEqual(len(projections), 2)
@@ -1579,9 +1535,7 @@ class ComposerRailBoardRenderTest(TestCase):
         Each card must render a status pill (status chip in HTML).
         """
         _make_listing_projection(self.conn, self.event, status="draft")
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # Status chip must be rendered — look for the status display value
@@ -1592,9 +1546,7 @@ class ComposerRailBoardRenderTest(TestCase):
         Each card must render the assigned-version preview (rendered body).
         """
         _make_listing_projection(self.conn, self.event)
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # Rendered body must contain event title (real content)
@@ -1605,12 +1557,11 @@ class ComposerRailBoardRenderTest(TestCase):
         Each ready card must render a per-channel Publish button.
         """
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, self.event)
         approve_projection(user=self.user, projection=proj)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # Publish button must point to the projection-publish URL
@@ -1646,9 +1597,7 @@ class LiveOnChannelsCueTest(TestCase):
         _make_listing_projection(self.conn1, self.event)
         _make_listing_projection(self.conn2, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(
             "consumers_map",
@@ -1664,9 +1613,7 @@ class LiveOnChannelsCueTest(TestCase):
         proj1 = _make_listing_projection(self.conn1, self.event)
         proj2 = _make_listing_projection(self.conn2, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         consumers_map = response.context["consumers_map"]
         # Both projections share the canonical version
         canonical_version = proj1.content_version
@@ -1694,9 +1641,7 @@ class LiveOnChannelsCueTest(TestCase):
         self.assertEqual(proj1.content_version_id, proj2.content_version_id)
 
         # --- BEFORE customize: load the fragment, check live-on cue names both channels ---
-        before_response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        before_response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(before_response.status_code, 200)
         before_content = before_response.content.decode()
         # Both platforms must appear in the shared live-on cue
@@ -1712,6 +1657,7 @@ class LiveOnChannelsCueTest(TestCase):
         )
         # Must use channel names, not a bare count
         import re
+
         bare_count_pattern = r"live on \d+ channels?"
         self.assertIsNone(
             re.search(bare_count_pattern, before_content.lower()),
@@ -1769,11 +1715,9 @@ class LiveOnChannelsCueTest(TestCase):
         # We scan the rendered HTML for the live-on span containing both names
         # side-by-side (which the template builds in a single span).
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(after_content, "html.parser")
-        live_on_spans = soup.find_all(
-            lambda tag: tag.name == "span"
-            and "live on" in (tag.get_text() or "").lower()
-        )
+        live_on_spans = soup.find_all(lambda tag: tag.name == "span" and "live on" in (tag.get_text() or "").lower())
         # None of the live-on spans should contain BOTH 'fetlife' AND 'switch'
         for span in live_on_spans:
             text = span.get_text().lower()
@@ -1831,6 +1775,7 @@ class VersionOpEndpointTest(TestCase):
     def test_reset_to_canonical_endpoint_returns_refreshed_fragment(self):
         """POST reset-to-canonical returns the refreshed syndication fragment."""
         from syndication.services import customize as svc_customize
+
         proj = _make_listing_projection(self.conn, self.event)
         # First customize so we can reset
         svc_customize(user=self.user, projection=proj)
@@ -1845,7 +1790,6 @@ class VersionOpEndpointTest(TestCase):
 
     def test_reset_to_canonical_endpoint_repoints_to_canonical(self):
         """POST reset-to-canonical repoints the projection at the canonical version."""
-        from syndication.models import ContentVersion
         from syndication.services import customize as svc_customize
 
         canonical_cv = _make_content_version(self.event, name="canonical")
@@ -1883,7 +1827,7 @@ class VersionOpEndpointTest(TestCase):
         proj_src = _make_listing_projection(self.conn, self.event)
         proj_tgt = _make_listing_projection(self.conn2, self.event)
         src_cv_pk = proj_src.content_version_id
-        tgt_old_cv_pk = proj_tgt.content_version_id
+        _tgt_old_cv_pk = proj_tgt.content_version_id
 
         self.client.post(
             f"/syndication/versions/{proj_src.content_version_id}/copy-to/",
@@ -1920,6 +1864,7 @@ class VersionOpEndpointTest(TestCase):
         )
 
         from syndication.models import ContentVersion
+
         cv = ContentVersion.objects.get(pk=cv_pk)
         self.assertEqual(cv.body, "New body from view")
 
@@ -1935,6 +1880,7 @@ class VersionOpEndpointTest(TestCase):
         )
 
         from syndication.models import ContentVersion
+
         cv = ContentVersion.objects.get(pk=cv_pk)
         self.assertEqual(cv.provenance, "manual")
 
@@ -1959,9 +1905,7 @@ class NoBoardLLMGenerateAffordanceTest(TestCase):
         D-B: No platform-owned-LLM generate affordance anywhere.
         """
         _make_listing_projection(self.conn, self.event)
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode().lower()
         # Must NOT contain LLM/AI generate affordances
@@ -1990,6 +1934,7 @@ class BoardAuthzTest(TestCase):
         # Co-claimant: second user claiming the same profile
         self.co_claimant = _make_vouched_user(username="authz_co", email="authz_co@test.com", password="pw")
         from organizers.models import ProfileClaim
+
         ProfileClaim.objects.create(
             profile=self.profile,
             user=self.co_claimant,
@@ -2003,18 +1948,14 @@ class BoardAuthzTest(TestCase):
         """Owner (primary claimant) can load the syndication board."""
         client = Client()
         client.force_login(self.owner)
-        response = client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
 
     def test_co_claimant_can_load_board(self):
         """Co-claimant (second profile claimant) can load the syndication board."""
         client = Client()
         client.force_login(self.co_claimant)
-        response = client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
 
     def test_non_claimant_cannot_call_version_ops(self):
@@ -2071,7 +2012,8 @@ class ReviewAllStubTest(TestCase):
         The 'syndication:review-all' named URL must resolve (stub exists).
         kb-wz8m.6 will fill the real view; here we just assert the route exists.
         """
-        from django.urls import reverse, NoReverseMatch
+        from django.urls import NoReverseMatch, reverse
+
         try:
             url = reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
             self.assertIsNotNone(url)
@@ -2084,6 +2026,7 @@ class ReviewAllStubTest(TestCase):
     def test_review_all_stub_returns_acceptable_response(self):
         """The review-all stub URL must return a response (not 404/500)."""
         from django.urls import reverse
+
         url = reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
         response = self.client.get(url)
         self.assertNotIn(
@@ -2127,6 +2070,7 @@ class VersionDuplicateEndpointTest(TestCase):
     def test_duplicate_endpoint_creates_new_version(self):
         """POST version-duplicate creates a new ContentVersion (new independent row)."""
         from syndication.models import ContentVersion
+
         proj = _make_listing_projection(self.conn, self.event)
         initial_count = ContentVersion.objects.filter(event=self.event).count()
 
@@ -2172,7 +2116,9 @@ class VersionCopyFromEndpointTest(TestCase):
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_connection(self.profile, destination_id="fl-copyfrom")
         self.conn2 = _make_connection(self.profile, platform="switch", destination_id="sw-copyfrom-2")
-        self.stranger = _make_vouched_user(username="copyfrom_stranger", email="copyfrom_stranger@test.com", password="pw")
+        self.stranger = _make_vouched_user(
+            username="copyfrom_stranger", email="copyfrom_stranger@test.com", password="pw"
+        )
         self.client = Client()
         self.client.force_login(self.user)
 
@@ -2259,9 +2205,7 @@ class PublishAllReadyVisibilityTest(TestCase):
         """
         _make_listing_projection(self.conn, self.event, status="draft")
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertNotIn(
@@ -2276,12 +2220,11 @@ class PublishAllReadyVisibilityTest(TestCase):
         is in ready status.
         """
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, self.event)
         approve_projection(user=self.user, projection=proj)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertIn(
@@ -2293,12 +2236,11 @@ class PublishAllReadyVisibilityTest(TestCase):
     def test_fragment_context_has_ready_projections_boolean(self):
         """Fragment context must include 'has_ready_projections' boolean."""
         from syndication.services import approve_projection
+
         proj = _make_listing_projection(self.conn, self.event)
         approve_projection(user=self.user, projection=proj)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(
             "has_ready_projections",
@@ -2345,9 +2287,7 @@ class LiveOnChannelNamesTest(TestCase):
             "Both projections must share the same version for the live-on cue to appear",
         )
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode().lower()
 
@@ -2365,6 +2305,7 @@ class LiveOnChannelNamesTest(TestCase):
 
         # Must NOT use a bare count pattern like "live on 2 channels"
         import re
+
         bare_count_pattern = r"live on \d+ channels?"
         self.assertIsNone(
             re.search(bare_count_pattern, content),
@@ -2408,14 +2349,12 @@ class ChannelIconTabsRenderTest(TestCase):
         _make_listing_projection(self.conn_switch, self.event)
         _make_listing_projection(self.conn_tg, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # Must contain tab role or data-channel-tab attribute for the channel tabs
         self.assertTrue(
-            'role="tab"' in content or 'data-channel-tab' in content or 'aria-selected' in content,
+            'role="tab"' in content or "data-channel-tab" in content or "aria-selected" in content,
             "Event workspace must render channel icon-tabs (role='tab' or aria-selected)",
         )
 
@@ -2426,9 +2365,7 @@ class ChannelIconTabsRenderTest(TestCase):
         """
         _make_listing_projection(self.conn_switch, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # Must contain the sync toggle: customize or reset-to-canonical controls
@@ -2453,9 +2390,7 @@ class ChannelIconTabsRenderTest(TestCase):
             "Test precondition: _make_listing_projection must start at the canonical version",
         )
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -2498,9 +2433,7 @@ class ChannelIconTabsRenderTest(TestCase):
             "Test precondition: after svc_customize the version must not be named 'canonical'",
         )
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -2533,9 +2466,7 @@ class ChannelIconTabsRenderTest(TestCase):
         _make_listing_projection(self.conn_switch, self.event)
         _make_listing_projection(self.conn_tg, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         switch_idx = content.lower().find("switch")
@@ -2564,9 +2495,7 @@ class ChannelIconTabsRenderTest(TestCase):
         """
         _make_listing_projection(self.conn_switch, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode().lower()
         # "generate" as a button/label should not appear
@@ -2586,9 +2515,7 @@ class ChannelIconTabsRenderTest(TestCase):
         The event hub page renders event facts as a slim header (D5).
         The hub page must include the HTMX-loaded event-facts section.
         """
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # The hub must include the event-facts HTMX trigger section
@@ -2622,6 +2549,7 @@ class PostHubViewTest(TestCase):
     def _make_post_with_projection(self):
         """Create a post and use the service to get its projection."""
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -2650,9 +2578,7 @@ class PostHubViewTest(TestCase):
         The fragment_post_syndication view must be registered.
         """
         post = self._make_post_with_projection()
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertNotEqual(
             response.status_code,
             404,
@@ -2666,9 +2592,7 @@ class PostHubViewTest(TestCase):
         (not Switch — a post has no native-home channel, kb-q4u9.3 D3).
         """
         post = self._make_post_with_projection()
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertIn(
@@ -2682,9 +2606,7 @@ class PostHubViewTest(TestCase):
         No platform-owned-LLM generate affordance in post workspace either.
         """
         post = self._make_post_with_projection()
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode().lower()
         self.assertNotIn(
@@ -2698,9 +2620,7 @@ class PostHubViewTest(TestCase):
         The post syndication fragment must render horizontal channel icon-tabs.
         """
         post = self._make_post_with_projection()
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # Must contain projections for the post
@@ -2728,14 +2648,13 @@ class VersionOpRedirectDispatchTest(TestCase):
         self.profile = _make_profile(name="Redir Org", slug="redir-org", user=self.user)
         self.event = _make_event(slug="redir-event", title="Redir Test Event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
-        self.conn = _make_connection(
-            self.profile, platform="telegram", destination_id="@redir-ch", kinds=["promotion"]
-        )
+        self.conn = _make_connection(self.profile, platform="telegram", destination_id="@redir-ch", kinds=["promotion"])
         self.client = Client()
         self.client.force_login(self.user)
 
     def _make_post_with_projection(self):
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -2743,6 +2662,7 @@ class VersionOpRedirectDispatchTest(TestCase):
             body="Redir body",
         )
         from syndication.models import PlatformProjection
+
         proj = PlatformProjection.objects.filter(source_post=post).first()
         return post, proj
 
@@ -2863,6 +2783,7 @@ class ProjectionTransitionErrorDispatchTest(TestCase):
 
     def _make_post_with_promotion_projection(self, status="ready"):
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -2870,6 +2791,7 @@ class ProjectionTransitionErrorDispatchTest(TestCase):
             body="TransErr body",
         )
         from syndication.models import PlatformProjection
+
         proj = PlatformProjection.objects.filter(source_post=post).first()
         if proj is not None and proj.status != status:
             proj.status = status
@@ -2958,13 +2880,11 @@ class SwitchFirstCanonicalTabTest(TestCase):
         tab must be the selected/anchor tab (aria-selected="true"), NOT FetLife
         which would sort first alphabetically. This falsifies alphabetical ordering.
         """
-        proj_fl = _make_listing_projection(self.conn_fetlife, self.event)
-        proj_sw = _make_listing_projection(self.conn_switch, self.event)
-        proj_tg = _make_listing_projection(self.conn_tg, self.event)
+        _proj_fl = _make_listing_projection(self.conn_fetlife, self.event)
+        _proj_sw = _make_listing_projection(self.conn_switch, self.event)
+        _proj_tg = _make_listing_projection(self.conn_tg, self.event)
 
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -3013,6 +2933,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
 
     def _make_post_with_projection(self, status="draft"):
         from syndication.services import create_post
+
         post = create_post(
             user=self.user,
             event=self.event,
@@ -3020,6 +2941,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
             body="PostGating body",
         )
         from syndication.models import PlatformProjection
+
         proj = PlatformProjection.objects.filter(source_post=post).first()
         if proj is not None and proj.status != status:
             proj.status = status
@@ -3033,9 +2955,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
         """
         post, proj = self._make_post_with_projection(status="published")
 
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -3060,9 +2980,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
         """
         post, proj = self._make_post_with_projection(status="draft")
 
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -3079,9 +2997,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
         """
         post, proj = self._make_post_with_projection(status="ready")
 
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -3105,9 +3021,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
         """
         post, proj = self._make_post_with_projection(status="published")
 
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -3125,9 +3039,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
         """
         post, proj = self._make_post_with_projection(status="draft")
 
-        response = self.client.get(
-            f"/syndication/posts/{post.pk}/fragments/post_syndication/"
-        )
+        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 

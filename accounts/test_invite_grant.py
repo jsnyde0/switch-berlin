@@ -38,12 +38,8 @@ def test_invite_grant_can_be_created():
     from accounts.models import InviteCode, InviteGrant
 
     User = get_user_model()
-    grantor = User.objects.create_user(
-        username="ig_grantor", email="ig_grantor@example.com", password="pass"
-    )
-    recipient = User.objects.create_user(
-        username="ig_recip", email="ig_recip@example.com", password="pass"
-    )
+    grantor = User.objects.create_user(username="ig_grantor", email="ig_grantor@example.com", password="pass")
+    recipient = User.objects.create_user(username="ig_recip", email="ig_recip@example.com", password="pass")
 
     ic = InviteCode.objects.create(created_by=grantor)
     ig = InviteGrant.objects.create(
@@ -79,9 +75,7 @@ def test_invite_grant_grantor_nullable():
         password="pass",
         is_staff=True,
     )
-    recipient = User.objects.create_user(
-        username="ig_recip2", email="ig_recip2@example.com", password="pass"
-    )
+    recipient = User.objects.create_user(username="ig_recip2", email="ig_recip2@example.com", password="pass")
 
     ic = InviteCode.objects.create(created_by=staff)
     ig = InviteGrant.objects.create(
@@ -107,12 +101,8 @@ def test_invite_grant_granted_at_auto_set():
     from accounts.models import InviteCode, InviteGrant
 
     User = get_user_model()
-    grantor = User.objects.create_user(
-        username="igat_grantor", email="igat_grantor@example.com", password="pass"
-    )
-    recipient = User.objects.create_user(
-        username="igat_recip", email="igat_recip@example.com", password="pass"
-    )
+    grantor = User.objects.create_user(username="igat_grantor", email="igat_grantor@example.com", password="pass")
+    recipient = User.objects.create_user(username="igat_recip", email="igat_recip@example.com", password="pass")
 
     ic = InviteCode.objects.create(created_by=grantor)
     before = timezone.now()
@@ -140,12 +130,8 @@ def test_invite_grant_reason_optional():
     from accounts.models import InviteCode, InviteGrant
 
     User = get_user_model()
-    grantor = User.objects.create_user(
-        username="igr_grantor", email="igr_grantor@example.com", password="pass"
-    )
-    recipient = User.objects.create_user(
-        username="igr_recip", email="igr_recip@example.com", password="pass"
-    )
+    grantor = User.objects.create_user(username="igr_grantor", email="igr_grantor@example.com", password="pass")
+    recipient = User.objects.create_user(username="igr_recip", email="igr_recip@example.com", password="pass")
 
     ic = InviteCode.objects.create(created_by=grantor)
     ig = InviteGrant.objects.create(

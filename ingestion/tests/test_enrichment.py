@@ -25,9 +25,7 @@ class TestIsSafeUrl:
 
     def test_link_local_is_blocked(self):
         """169.254.x.x (AWS metadata etc.) must be rejected."""
-        with patch(
-            "socket.getaddrinfo", return_value=self._make_addrinfo("169.254.169.254")
-        ):
+        with patch("socket.getaddrinfo", return_value=self._make_addrinfo("169.254.169.254")):
             assert _is_safe_url("http://metadata.internal/") is False
 
     def test_rfc1918_172_is_blocked(self):
@@ -38,9 +36,7 @@ class TestIsSafeUrl:
 
     def test_rfc1918_192_is_blocked(self):
         """192.168.x.x must be rejected."""
-        with patch(
-            "socket.getaddrinfo", return_value=self._make_addrinfo("192.168.1.1")
-        ):
+        with patch("socket.getaddrinfo", return_value=self._make_addrinfo("192.168.1.1")):
             assert _is_safe_url("http://192.168.1.1/") is False
 
     def test_ipv6_loopback_is_blocked(self):
@@ -55,9 +51,7 @@ class TestIsSafeUrl:
 
     def test_public_ip_is_allowed(self):
         """A regular public IP must be accepted."""
-        with patch(
-            "socket.getaddrinfo", return_value=self._make_addrinfo("93.184.216.34")
-        ):
+        with patch("socket.getaddrinfo", return_value=self._make_addrinfo("93.184.216.34")):
             assert _is_safe_url("https://example.com/") is True
 
     def test_unresolvable_host_is_blocked(self):
@@ -71,9 +65,7 @@ class TestIsSafeUrl:
 
     def test_https_scheme_is_allowed(self):
         """https scheme passes scheme check (IP check still runs)."""
-        with patch(
-            "socket.getaddrinfo", return_value=self._make_addrinfo("93.184.216.34")
-        ):
+        with patch("socket.getaddrinfo", return_value=self._make_addrinfo("93.184.216.34")):
             assert _is_safe_url("https://example.com/") is True
 
 

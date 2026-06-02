@@ -40,13 +40,11 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from events.models import Event, EventOrganizer
 from organizers.models import Profile, ProfileClaim
 from syndication.models import (
     ContentVersion,
     PlatformConnection,
     PlatformProjection,
-    Post,
 )
 
 User = get_user_model()
@@ -87,6 +85,7 @@ def _make_connection(profile, platform, destination_id, kinds, enabled=True, cre
 # ---------------------------------------------------------------------------
 # Fake httpx response helper (reused across tests)
 # ---------------------------------------------------------------------------
+
 
 def _fake_ok_response():
     """Return a fake httpx.Response-like mock for Telegram Bot API success."""
@@ -194,9 +193,9 @@ class E2EBoardFlowTest(TestCase):
         content_version_consumers_map(event) maps the canonical CV → both.
         """
         from syndication.services import (
-            create_event,
             consumers,
             content_version_consumers_map,
+            create_event,
         )
 
         event = create_event(
@@ -255,8 +254,8 @@ class E2EBoardFlowTest(TestCase):
         proj_1 and proj_2 are selected by their connection platform, not by pk
         order, so the test is stable across Postgres and SQLite.
         """
-        from syndication.services import create_event, customize, edit_version
         from syndication.engine import render_projection
+        from syndication.services import create_event, customize, edit_version
 
         event = create_event(
             user=self.user,
@@ -342,11 +341,11 @@ class E2EBoardFlowTest(TestCase):
              proj_2.status == DRAFT (unaffected).
         """
         from syndication.services import (
+            approve_projection,
             create_event,
             create_post,
             customize,
             edit_version,
-            approve_projection,
             publish_projection,
         )
 
@@ -437,6 +436,7 @@ class E2EBoardFlowTest(TestCase):
 
         # Verify the payload is NOT proj_2's canonical body (explicit routing-swap catch).
         from syndication.engine import render_projection
+
         proj_2_canonical_body = render_projection(proj_2)
         self.assertNotEqual(
             actual_payload["text"],
@@ -492,8 +492,8 @@ class E2EBoardFlowTest(TestCase):
         Selected deterministically by connection, not pk order.
         """
         from syndication.services import (
-            create_event,
             approve_projection,
+            create_event,
             publish_all_ready_projections,
         )
 
@@ -569,18 +569,18 @@ class E2EBoardFlowTest(TestCase):
         the Telegram payload. That body is NOT "COMBINED-CUSTOM-PROJ1", so the
         payload["text"] assertion FAILS, surfacing the routing bug.
         """
+        from syndication.engine import render_projection
         from syndication.services import (
+            approve_projection,
+            consumers,
+            content_version_consumers_map,
             create_event,
             create_post,
             customize,
             edit_version,
-            approve_projection,
-            publish_projection,
             publish_all_ready_projections,
-            consumers,
-            content_version_consumers_map,
+            publish_projection,
         )
-        from syndication.engine import render_projection
 
         # --- Setup ---
         event = create_event(
@@ -826,15 +826,12 @@ class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
         C) Return ([proj_ready_1, proj_ready_2], []) — no failures.
         D) proj_draft, proj_published, proj_failed: status and frozen_content unchanged.
         """
+        from syndication.engine import transition_status
         from syndication.services import (
             create_event,
             create_post,
-            customize,
-            edit_version,
-            approve_projection,
             publish_all_ready_projections,
         )
-        from syndication.engine import transition_status, render_projection
 
         # --- Create the event and post ---
         event = create_event(
@@ -917,7 +914,7 @@ class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
             PlatformProjection.Status.FAILED,
             "Precondition: proj_failed must be FAILED",
         )
-        frozen_failed_before = proj_failed.frozen_content.copy() if proj_failed.frozen_content else None
+        _frozen_failed_before = proj_failed.frozen_content.copy() if proj_failed.frozen_content else None
 
         # --- proj_ready_1: telegram promotion, READY on cv_1, body="READY-BODY-1" ---
         cv_1 = ContentVersion.objects.create(

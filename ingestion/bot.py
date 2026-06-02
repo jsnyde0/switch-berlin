@@ -67,9 +67,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     # 4. Allowlist check
-    exists = await sync_to_async(
-        ApprovedSender.objects.filter(telegram_user_id=sender_id).exists
-    )()
+    exists = await sync_to_async(ApprovedSender.objects.filter(telegram_user_id=sender_id).exists)()
     if not exists:
         message_text = (update.message.text or "")[:500] if update.message else ""
         await sync_to_async(RejectedMessageAttempt.objects.create)(
@@ -80,8 +78,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         if update.message:
             await update.message.reply_text(
-                "This bot only accepts forwards from approved organizers. "
-                "To request access, DM @jsnyde0."
+                "This bot only accepts forwards from approved organizers. To request access, DM @jsnyde0."
             )
         return
 
@@ -97,32 +94,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             extraction_status="skipped",
             extraction_error="non_text_message",
         )
-        await update.message.reply_text(
-            "Only text messages and text forwards are supported."
-        )
+        await update.message.reply_text("Only text messages and text forwards are supported.")
         return
 
     # 6. Rate limit check
     if _is_rate_limited(sender_id):
-        await update.message.reply_text(
-            "Rate limit reached (100 messages/hour). Please try again later."
-        )
+        await update.message.reply_text("Rate limit reached (100 messages/hour). Please try again later.")
         return
 
     # 7. First-interaction consent
-    has_prior = await sync_to_async(
-        RawMessage.objects.filter(sender_id=sender_id).exists
-    )()
+    has_prior = await sync_to_async(RawMessage.objects.filter(sender_id=sender_id).exists)()
     if not has_prior:
         await update.message.reply_text(CONSENT_TEXT_EN + "\n\n" + CONSENT_TEXT_DE)
 
     # 8. Dedup check + RawMessage creation
     message_id = str(update.message.message_id) if update.message else ""
-    channel_id = (
-        str(update.message.forward_from_chat.id)
-        if update.message and update.message.forward_from_chat
-        else ""
-    )
+    channel_id = str(update.message.forward_from_chat.id) if update.message and update.message.forward_from_chat else ""
     raw_payload = update.message.to_dict()
     text = update.message.text or ""
 
@@ -142,9 +129,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     # 9. Enqueue extraction task
-    await sync_to_async(async_task)(
-        "ingestion.tasks.process_raw_message", raw_message.id
-    )
+    await sync_to_async(async_task)("ingestion.tasks.process_raw_message", raw_message.id)
 
     # 10. Acknowledge
     await update.message.reply_text("Received. Will appear in the next review batch.")

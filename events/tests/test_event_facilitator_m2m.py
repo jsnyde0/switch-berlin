@@ -165,13 +165,9 @@ class EventFacilitatorUniquenessTest(TestCase):
     def test_duplicate_event_profile_raises_integrity_error(self):
         from events.models import EventFacilitator
 
-        EventFacilitator.objects.create(
-            event=self.event, profile=self.profile, role="Lead", order=0
-        )
+        EventFacilitator.objects.create(event=self.event, profile=self.profile, role="Lead", order=0)
         with self.assertRaises(IntegrityError):
-            EventFacilitator.objects.create(
-                event=self.event, profile=self.profile, role="Co-facilitator", order=1
-            )
+            EventFacilitator.objects.create(event=self.event, profile=self.profile, role="Co-facilitator", order=1)
 
     def test_different_profiles_same_event_allowed(self):
         from events.models import EventFacilitator
@@ -182,9 +178,7 @@ class EventFacilitatorUniquenessTest(TestCase):
             slug="second-facilitator",
             status="approved",
         )
-        EventFacilitator.objects.create(
-            event=self.event, profile=self.profile, role="Lead"
-        )
+        EventFacilitator.objects.create(event=self.event, profile=self.profile, role="Lead")
         EventFacilitator.objects.create(event=self.event, profile=profile2, role="DJ")
         self.assertEqual(EventFacilitator.objects.filter(event=self.event).count(), 2)
 
@@ -196,15 +190,9 @@ class EventFacilitatorUniquenessTest(TestCase):
             slug="another-event-facilitator",
             start=timezone.now(),
         )
-        EventFacilitator.objects.create(
-            event=self.event, profile=self.profile, role="Lead"
-        )
-        EventFacilitator.objects.create(
-            event=event2, profile=self.profile, role="Co-facilitator"
-        )
-        self.assertEqual(
-            EventFacilitator.objects.filter(profile=self.profile).count(), 2
-        )
+        EventFacilitator.objects.create(event=self.event, profile=self.profile, role="Lead")
+        EventFacilitator.objects.create(event=event2, profile=self.profile, role="Co-facilitator")
+        self.assertEqual(EventFacilitator.objects.filter(profile=self.profile).count(), 2)
 
 
 class ProfileCanBeBothOrganizerAndFacilitatorTest(TestCase):
@@ -226,21 +214,13 @@ class ProfileCanBeBothOrganizerAndFacilitatorTest(TestCase):
         )
 
         # Same profile: organizer
-        EventOrganizer.objects.create(
-            event=event, profile=profile, is_primary=True, order=0
-        )
+        EventOrganizer.objects.create(event=event, profile=profile, is_primary=True, order=0)
         # Same profile: also facilitator
-        EventFacilitator.objects.create(
-            event=event, profile=profile, role="Lead", order=0
-        )
+        EventFacilitator.objects.create(event=event, profile=profile, role="Lead", order=0)
 
         # Both rows exist
-        self.assertTrue(
-            EventOrganizer.objects.filter(event=event, profile=profile).exists()
-        )
-        self.assertTrue(
-            EventFacilitator.objects.filter(event=event, profile=profile).exists()
-        )
+        self.assertTrue(EventOrganizer.objects.filter(event=event, profile=profile).exists())
+        self.assertTrue(EventFacilitator.objects.filter(event=event, profile=profile).exists())
 
         # Reverse accessors both work
         self.assertIn(event, profile.events_organized.all())

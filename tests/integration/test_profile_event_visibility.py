@@ -23,9 +23,7 @@ User = get_user_model()
 
 
 def make_org():
-    return Profile.objects.create(
-        name="Vis Test Org", slug=f"vis-org-{uuid.uuid4().hex[:8]}", status="approved"
-    )
+    return Profile.objects.create(name="Vis Test Org", slug=f"vis-org-{uuid.uuid4().hex[:8]}", status="approved")
 
 
 def make_event(org, visibility, title):
@@ -42,9 +40,7 @@ def make_event(org, visibility, title):
 
 def make_user(status):
     username = f"{status}-{uuid.uuid4().hex[:8]}"
-    user = User.objects.create_user(
-        username=username, email=f"{username}@example.com", password="x"
-    )
+    user = User.objects.create_user(username=username, email=f"{username}@example.com", password="x")
     user.status = status
     user.save(update_fields=["status"])
     return user

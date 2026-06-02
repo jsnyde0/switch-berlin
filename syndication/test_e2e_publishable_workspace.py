@@ -55,9 +55,7 @@ def _make_profile(name, slug, user=None):
     return profile
 
 
-def _make_connection(
-    profile, platform, destination_id, kinds, enabled=True, credentials=None
-):
+def _make_connection(profile, platform, destination_id, kinds, enabled=True, credentials=None):
     return PlatformConnection.objects.create(
         organizer=profile,
         platform=platform,
@@ -224,8 +222,7 @@ class CustomizeSeamViewTest(TestCase):
         self.assertEqual(
             proj_2.content_version_id,
             original_cv_id,
-            "proj_2 must still FK the canonical CV — customize must NOT "
-            "affect siblings.",
+            "proj_2 must still FK the canonical CV — customize must NOT affect siblings.",
         )
 
         # --- Edit-body seam: POST to the version-edit endpoint ---
@@ -295,8 +292,7 @@ class CustomizeSeamViewTest(TestCase):
         self.assertEqual(
             proj_2.content_version_id,
             original_cv_id,
-            "(b) After editing channel 1, proj_2 must still be on the canonical CV. "
-            "The divergence must be isolated.",
+            "(b) After editing channel 1, proj_2 must still be on the canonical CV. The divergence must be isolated.",
         )
 
 
@@ -817,6 +813,7 @@ class PostScopedPublishAllReadyTest(TestCase):
 
         # Create listing projection — must NOT be published by post-scoped endpoint.
         from syndication.models import ContentVersion
+
         cv_listing = ContentVersion.objects.create(
             event=self.event,
             name="listing-cv",
@@ -906,9 +903,7 @@ class PostScopedPublishAllReadyTest(TestCase):
         )
 
         # (a) Each channel was called with its OWN body.
-        called_texts = {
-            call.kwargs["json"]["text"] for call in mock_post.call_args_list
-        }
+        called_texts = {call.kwargs["json"]["text"] for call in mock_post.call_args_list}
         self.assertIn(
             body_1,
             called_texts,
@@ -941,8 +936,7 @@ class PostScopedPublishAllReadyTest(TestCase):
         self.assertIn(
             'id="post-syndication"',
             content,
-            '(c) Response must contain the post-syndication fragment '
-            '(id="post-syndication") — not the event fragment.',
+            '(c) Response must contain the post-syndication fragment (id="post-syndication") — not the event fragment.',
         )
         self.assertNotIn(
             'id="event-syndication"',

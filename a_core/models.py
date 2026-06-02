@@ -51,9 +51,7 @@ class FeatureFlag(models.Model):
     )
     description = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
-    updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
-    )
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return f"{self.key}={self.enabled}"
@@ -74,9 +72,7 @@ class FeatureFlag(models.Model):
 
 class ModerationAction(models.Model):
     moderator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    flag = models.ForeignKey(
-        "reviews.Flag", null=True, blank=True, on_delete=models.SET_NULL
-    )
+    flag = models.ForeignKey("reviews.Flag", null=True, blank=True, on_delete=models.SET_NULL)
     target_type = models.CharField(
         max_length=20,
         choices=[

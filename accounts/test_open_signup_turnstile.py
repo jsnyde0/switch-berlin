@@ -317,12 +317,8 @@ def test_turnstile_settings_present():
     """TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY must be present in settings."""
     from django.conf import settings
 
-    assert hasattr(settings, "TURNSTILE_SITE_KEY"), (
-        "TURNSTILE_SITE_KEY missing from settings"
-    )
-    assert hasattr(settings, "TURNSTILE_SECRET_KEY"), (
-        "TURNSTILE_SECRET_KEY missing from settings"
-    )
+    assert hasattr(settings, "TURNSTILE_SITE_KEY"), "TURNSTILE_SITE_KEY missing from settings"
+    assert hasattr(settings, "TURNSTILE_SECRET_KEY"), "TURNSTILE_SECRET_KEY missing from settings"
 
 
 # ---------------------------------------------------------------------------
@@ -338,18 +334,14 @@ def test_deploy_check_e007_fires_when_public_read_and_turnstile_keys_missing():
     from a_core.models import FeatureFlag
 
     cache.clear()
-    FeatureFlag.objects.update_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": True}
-    )
+    FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": True})
 
     from a_core.checks import check_turnstile_keys
 
     with override_settings(TURNSTILE_SITE_KEY="", TURNSTILE_SECRET_KEY=""):
         errors = check_turnstile_keys(app_configs=None)
 
-    assert any(e.id == "a_core.E007" for e in errors), (
-        f"Expected E007 error, got: {errors}"
-    )
+    assert any(e.id == "a_core.E007" for e in errors), f"Expected E007 error, got: {errors}"
 
 
 @pytest.mark.django_db
@@ -360,9 +352,7 @@ def test_deploy_check_e007_silent_when_turnstile_keys_present():
     from a_core.models import FeatureFlag
 
     cache.clear()
-    FeatureFlag.objects.update_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": True}
-    )
+    FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": True})
 
     from a_core.checks import check_turnstile_keys
 
@@ -383,9 +373,7 @@ def test_deploy_check_e007_silent_when_public_read_disabled():
     from a_core.models import FeatureFlag
 
     cache.clear()
-    FeatureFlag.objects.update_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
 
     from a_core.checks import check_turnstile_keys
 
@@ -432,6 +420,4 @@ def test_open_signup_creates_profile_and_claim():
     user = User.objects.filter(email="withprofile@example.com").first()
     assert user is not None
     assert Profile.objects.filter(claimants=user, kind="person").count() == 1
-    assert (
-        ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
-    )
+    assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1

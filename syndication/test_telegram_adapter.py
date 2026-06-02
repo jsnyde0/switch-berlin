@@ -19,7 +19,7 @@ ADR-008 D4: transport errors retry ≤2 times (3 total attempts); data-integrity
 ADR-016 carried-forward (REVISED): NO visibility gate.
 """
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 from django.test import TestCase, override_settings
@@ -29,7 +29,6 @@ from events.models import Event, EventOrganizer
 from organizers.models import Profile
 from syndication.engine import generate_projection, transition_status
 from syndication.models import PlatformConnection, PlatformProjection, Post
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -75,6 +74,7 @@ def _seed_canonical_cv(event):
     Required by the F1 non-null content_version FK (kb-wz8m.2 A1 invariant).
     """
     from syndication.models import ContentVersion
+
     cv, _ = ContentVersion.objects.get_or_create(
         event=event,
         name="canonical",
@@ -125,9 +125,7 @@ class TelegramPublishHappyPathTest(TestCase):
     def setUp(self):
         self.profile = _make_profile(slug="tg-happy-org")
         self.event = _make_event(slug="tg-happy-event")
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.post = _make_post(self.event)
         self.conn = _make_telegram_connection(self.profile)
         self.proj = _make_ready_promotion_projection(self.conn, self.post)
@@ -316,8 +314,10 @@ class TelegramPublishMissingSourcePostTest(TestCase):
     def test_missing_source_post_transitions_to_failed_and_raises(self):
         """source_post=None → status=failed + ValueError."""
         # Need a ContentVersion even though source_post is None — use a standalone event.
-        from events.models import Event
         from django.utils import timezone as tz
+
+        from events.models import Event
+
         orphan_event = Event.objects.create(
             title="Orphan Event",
             slug="orphan-event-tg-missing-post",

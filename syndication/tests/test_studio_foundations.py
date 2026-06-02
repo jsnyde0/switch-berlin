@@ -106,7 +106,7 @@ class GetPublishablesForProfileTest(TestCase):
         newer_time = timezone.now().replace(microsecond=0) - timezone.timedelta(hours=1)
 
         event = _make_event(self.profile, "Test Event A", "test-event-a", updated_at=older_time)
-        post = _make_post(event, "Test Post A", updated_at=newer_time)
+        _post = _make_post(event, "Test Post A", updated_at=newer_time)
 
         result = get_publishables_for_profile(self.profile)
 
@@ -219,9 +219,7 @@ class UserPrimaryProfileProcessorTest(TestCase):
         """
         from a_core.context_processors import user_primary_profile
 
-        non_claimant = _make_user(
-            username="cp_noclaim", email="cp_noclaim@test.com", password="pw"
-        )
+        non_claimant = _make_user(username="cp_noclaim", email="cp_noclaim@test.com", password="pw")
 
         request = self.factory.get("/")
         request.user = non_claimant
@@ -240,8 +238,9 @@ class UserPrimaryProfileProcessorTest(TestCase):
         Context processor returns None for an anonymous user.
         Anonymous users are never claimants.
         """
-        from a_core.context_processors import user_primary_profile
         from django.contrib.auth.models import AnonymousUser
+
+        from a_core.context_processors import user_primary_profile
 
         request = self.factory.get("/")
         request.user = AnonymousUser()
@@ -301,8 +300,7 @@ class StudioViewAuthzTest(TestCase):
         self.assertIn(
             response.status_code,
             [403, 302, 301],
-            "A zero-claims user must get 403 or a redirect from /studio/ — "
-            "never a synthesized empty 200 (ADR-008 D3).",
+            "A zero-claims user must get 403 or a redirect from /studio/ — never a synthesized empty 200 (ADR-008 D3).",
         )
 
     def test_unauthenticated_user_gets_redirect(self):

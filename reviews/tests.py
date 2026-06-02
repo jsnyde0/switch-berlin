@@ -20,9 +20,7 @@ User = get_user_model()
 @pytest.fixture
 def approved_user(db):
     """Authenticated vouched user (kb-m69.1: status replaces is_approved)."""
-    user = User.objects.create_user(
-        username="tester", email="tester@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="tester", email="tester@example.com", password="testpass123")
     user.status = "vouched"
     user.save()
     return user
@@ -30,9 +28,7 @@ def approved_user(db):
 
 @pytest.fixture
 def unapproved_user(db):
-    user = User.objects.create_user(
-        username="pending", email="pending@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="pending", email="pending@example.com", password="testpass123")
     return user
 
 
@@ -119,9 +115,7 @@ def test_submit_organizer_review_updates_rating_aggregates(client_logged_in, org
 
 
 @pytest.mark.django_db
-def test_submit_organizer_review_second_time_updates_not_creates(
-    client_logged_in, approved_user, organizer
-):
+def test_submit_organizer_review_second_time_updates_not_creates(client_logged_in, approved_user, organizer):
     """Second submission updates existing review — does not create a duplicate."""
     url = reverse("review-submit")
     client_logged_in.post(
@@ -242,9 +236,7 @@ def test_submit_event_review_creates_review(client_logged_in_with_went, past_eve
 
 
 @pytest.mark.django_db
-def test_submit_event_review_updates_rating_count(
-    client_logged_in_with_went, past_event
-):
+def test_submit_event_review_updates_rating_count(client_logged_in_with_went, past_event):
     """After event review, Event.rating_count is updated."""
     url = reverse("review-submit")
     client_logged_in_with_went.post(
@@ -283,17 +275,13 @@ def test_submit_event_review_excludes_hidden_from_aggregates(past_event):
     from events.models import Attendance
 
     # Create a user with went attendance
-    user1 = User.objects.create_user(
-        username="ev_agg_user1", email="ev_agg1@example.com", password="testpass123"
-    )
+    user1 = User.objects.create_user(username="ev_agg_user1", email="ev_agg1@example.com", password="testpass123")
     user1.status = "vouched"
     user1.save()
     Attendance.objects.create(user=user1, event=past_event, status="went")
 
     # Create a hidden review first (rating=1 — should be excluded)
-    user2 = User.objects.create_user(
-        username="ev_agg_user2", email="ev_agg2@example.com", password="testpass123"
-    )
+    user2 = User.objects.create_user(username="ev_agg_user2", email="ev_agg2@example.com", password="testpass123")
     user2.status = "vouched"
     user2.save()
     Review.objects.create(author=user2, event=past_event, rating=1, hidden=True)
@@ -327,9 +315,7 @@ def test_submit_review_ratings_disabled_returns_503(client_logged_in, organizer)
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="RATINGS_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="RATINGS_ENABLED", defaults={"enabled": False})
     cache.clear()
 
     url = reverse("review-submit")
@@ -365,9 +351,7 @@ def test_min_ratings_for_display_constant():
 
 
 @pytest.mark.django_db
-def test_organizer_profile_shows_rating_when_count_meets_threshold(
-    client, organizer, approved_user
-):
+def test_organizer_profile_shows_rating_when_count_meets_threshold(client, organizer, approved_user):
     """When rating_count >= 3, show_rating is True in context."""
     organizer.rating_count = 3
     organizer.avg_rating = 4.0
@@ -395,9 +379,7 @@ def test_organizer_profile_hides_rating_below_threshold(client, organizer):
 
 
 @pytest.mark.django_db
-def test_organizer_profile_includes_user_review_in_context(
-    client_logged_in, approved_user, organizer
-):
+def test_organizer_profile_includes_user_review_in_context(client_logged_in, approved_user, organizer):
     """user_review context key is the user's existing review when present."""
     review = Review.objects.create(
         author=approved_user,
@@ -411,9 +393,7 @@ def test_organizer_profile_includes_user_review_in_context(
 
 
 @pytest.mark.django_db
-def test_organizer_profile_user_review_none_when_not_reviewed(
-    client_logged_in, organizer
-):
+def test_organizer_profile_user_review_none_when_not_reviewed(client_logged_in, organizer):
     """user_review is None when the user has no review."""
     url = reverse("organizer-profile", kwargs={"slug": organizer.slug})
     resp = client_logged_in.get(url)

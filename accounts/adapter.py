@@ -42,15 +42,13 @@ def validate_turnstile_token(token: str, secret_key: str) -> bool:
                 continue
             # Retries exhausted — fail loud (ADR-008 D4)
             raise RuntimeError(
-                f"Turnstile siteverify unreachable after {_TURNSTILE_MAX_RETRIES + 1} "
-                f"attempts: {exc}"
+                f"Turnstile siteverify unreachable after {_TURNSTILE_MAX_RETRIES + 1} attempts: {exc}"
             ) from exc
 
         # ADR-008 D3: 4xx/5xx = data-integrity/infrastructure error → raise immediately
         if response.status_code >= 400:
             raise RuntimeError(
-                f"Turnstile siteverify returned HTTP {response.status_code}; "
-                "signup blocked (ADR-008 D3 fail loud)."
+                f"Turnstile siteverify returned HTTP {response.status_code}; signup blocked (ADR-008 D3 fail loud)."
             )
 
         data = response.json()
@@ -139,9 +137,7 @@ class OpenSignupAdapter(DefaultAccountAdapter):
 
                     # Re-fetch inside the atomic block to lock for update
                     try:
-                        invite = InviteCode.objects.select_for_update().get(
-                            code=invite_code_str
-                        )
+                        invite = InviteCode.objects.select_for_update().get(code=invite_code_str)
                     except InviteCode.DoesNotExist as exc:
                         # Should not reach here — form already validated, but
                         # fail loud per ADR-008 D3 if somehow reached

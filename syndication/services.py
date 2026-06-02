@@ -49,6 +49,7 @@ def get_actor_marker(request: HttpRequest) -> str:
 # Agent registration service
 # ---------------------------------------------------------------------------
 
+
 def register_agent_credential(user):
     """
     Issue a new AgentPairingToken for user (kb-a4u.6 pairing-token mechanic).
@@ -94,6 +95,7 @@ def redeem_pairing_token(raw_pairing_token: str):
     both issue a credential — the row lock serialises the check+mark block.
     """
     from django.db import transaction
+
     from syndication.models import _hash_key  # module-private helper
 
     token_hash = _hash_key(raw_pairing_token)
@@ -104,10 +106,7 @@ def redeem_pairing_token(raw_pairing_token: str):
         # then it will see used_at stamped and raise (finding #1 TOCTOU fix).
         try:
             pairing_token = (
-                AgentPairingToken.objects
-                .select_for_update()
-                .select_related("user")
-                .get(token_hash=token_hash)
+                AgentPairingToken.objects.select_for_update().select_related("user").get(token_hash=token_hash)
             )
         except AgentPairingToken.DoesNotExist as exc:
             raise AgentPairingToken.DoesNotExist("Invalid pairing token.") from exc
@@ -132,6 +131,7 @@ def redeem_pairing_token(raw_pairing_token: str):
 # Identity token exchange service
 # ---------------------------------------------------------------------------
 
+
 def exchange_api_key_for_identity_token(raw_api_key: str):
     """
     Validate the long-lived Bearer API key and issue a short-lived identity token.
@@ -151,6 +151,7 @@ def exchange_api_key_for_identity_token(raw_api_key: str):
 # ---------------------------------------------------------------------------
 # Identity token validation (used by Ninja auth callable)
 # ---------------------------------------------------------------------------
+
 
 def validate_identity_token(raw_token: str):
     """
@@ -176,15 +177,11 @@ def _get_primary_profile_for_user(user):
     Used for associating event creation with an organizer profile.
     """
     from organizers.models import ProfileClaim
-    claim = (
-        ProfileClaim.objects.filter(user=user, rejected_at__isnull=True)
-        .select_related("profile")
-        .first()
-    )
+
+    claim = ProfileClaim.objects.filter(user=user, rejected_at__isnull=True).select_related("profile").first()
     if claim is None:
         raise ValueError(
-            f"User {user} has no active ProfileClaim. "
-            "Cannot create Event without an organizer profile (ADR-017 D1)."
+            f"User {user} has no active ProfileClaim. Cannot create Event without an organizer profile (ADR-017 D1)."
         )
     return claim.profile
 
@@ -280,9 +277,7 @@ def _eager_create_listing_projections(event, canonical_cv=None):
         canonical_cv = _ensure_canonical_content_version(event)
 
     # Get all organizer Profile IDs for this event
-    organizer_profile_ids = EventOrganizer.objects.filter(
-        event=event
-    ).values_list("profile_id", flat=True)
+    organizer_profile_ids = EventOrganizer.objects.filter(event=event).values_list("profile_id", flat=True)
 
     if not organizer_profile_ids:
         return
@@ -324,9 +319,7 @@ def _eager_create_promotion_projections(post, canonical_cv=None):
         canonical_cv = _ensure_canonical_content_version(post=post)
 
     # Get all organizer Profile IDs for this post's event
-    organizer_profile_ids = EventOrganizer.objects.filter(
-        event=post.event
-    ).values_list("profile_id", flat=True)
+    organizer_profile_ids = EventOrganizer.objects.filter(event=post.event).values_list("profile_id", flat=True)
 
     if not organizer_profile_ids:
         return
@@ -455,9 +448,7 @@ def update_event(user, event, **kwargs):
     from syndication.authz import can_edit
 
     if not can_edit(user, event):
-        raise PermissionError(
-            f"User {user} cannot edit event '{event}' (ADR-017 D1/D2)."
-        )
+        raise PermissionError(f"User {user} cannot edit event '{event}' (ADR-017 D1/D2).")
 
     # Extract tags before iterating (M2M — not a model field for setattr)
     tags = kwargs.pop("tags", None)
@@ -493,13 +484,11 @@ def set_event_cover(user, event, uploaded_file):
     Validation: calls full_clean() on the EventImage so validators (validate_image_size,
     FileExtensionValidator) run — fails loud on oversize / wrong extension (ADR-008 D3).
     """
-    from syndication.authz import can_edit
     from events.models import EventImage
+    from syndication.authz import can_edit
 
     if not can_edit(user, event):
-        raise PermissionError(
-            f"User {user} cannot set cover image for event '{event}' (ADR-017 D2)."
-        )
+        raise PermissionError(f"User {user} cannot set cover image for event '{event}' (ADR-017 D2).")
 
     from django.db import transaction
 
@@ -550,9 +539,7 @@ def create_post(user, event, **kwargs):
     from syndication.models import Post
 
     if not can_edit(user, event):
-        raise PermissionError(
-            f"User {user} cannot create a post for event '{event}' (ADR-017 D1/D2)."
-        )
+        raise PermissionError(f"User {user} cannot create a post for event '{event}' (ADR-017 D1/D2).")
 
     post_kwargs = {k: v for k, v in kwargs.items() if k in _POST_FIELDS}
     post = Post.objects.create(event=event, **post_kwargs)
@@ -577,9 +564,7 @@ def update_post(user, post, **kwargs):
     from syndication.authz import can_edit
 
     if not can_edit(user, post.event):
-        raise PermissionError(
-            f"User {user} cannot update post '{post}' (ADR-017 D1/D2)."
-        )
+        raise PermissionError(f"User {user} cannot update post '{post}' (ADR-017 D1/D2).")
 
     update_fields = []
     for field, value in kwargs.items():
@@ -618,21 +603,14 @@ def _resolve_projection_event(projection):
 
     if projection.kind == PlatformProjection.Kind.LISTING:
         if projection.source_event is None:
-            raise ValueError(
-                f"Listing projection {projection.pk!r} has no source_event. "
-                "(ADR-008 D3: fail loud)"
-            )
+            raise ValueError(f"Listing projection {projection.pk!r} has no source_event. (ADR-008 D3: fail loud)")
         return projection.source_event
     if projection.kind == PlatformProjection.Kind.PROMOTION:
         if projection.source_post is None:
-            raise ValueError(
-                f"Promotion projection {projection.pk!r} has no source_post. "
-                "(ADR-008 D3: fail loud)"
-            )
+            raise ValueError(f"Promotion projection {projection.pk!r} has no source_post. (ADR-008 D3: fail loud)")
         return projection.source_post.event
     raise ValueError(
-        f"Unknown projection kind {projection.kind!r} for projection {projection.pk!r}. "
-        "(ADR-008 D3: fail loud)"
+        f"Unknown projection kind {projection.kind!r} for projection {projection.pk!r}. (ADR-008 D3: fail loud)"
     )
 
 
@@ -691,8 +669,7 @@ def _gate_can_edit_for_cv(user, content_version):
 
     if not can_edit(user, event):
         raise PermissionError(
-            f"User {user} cannot edit ContentVersion {content_version.pk!r} "
-            f"(event '{event}'). (ADR-017 D2)"
+            f"User {user} cannot edit ContentVersion {content_version.pk!r} (event '{event}'). (ADR-017 D2)"
         )
 
 
@@ -727,13 +704,9 @@ def content_version_consumers_map(event=None, post=None):
     from syndication.models import ContentVersion
 
     if event is not None and post is None:
-        versions = ContentVersion.objects.filter(event=event).prefetch_related(
-            "projections"
-        )
+        versions = ContentVersion.objects.filter(event=event).prefetch_related("projections")
     elif post is not None and event is None:
-        versions = ContentVersion.objects.filter(post=post).prefetch_related(
-            "projections"
-        )
+        versions = ContentVersion.objects.filter(post=post).prefetch_related("projections")
     else:
         raise ValueError(
             "content_version_consumers_map requires exactly one of event or post, "
@@ -759,6 +732,7 @@ def _unique_copy_name(source_name):
     guarantees uniqueness across both partial constraints.
     """
     import uuid as _uuid
+
     suffix = _uuid.uuid4().hex[:8]
     return f"copy-of-{source_name}-{suffix}"
 
@@ -833,10 +807,7 @@ def copy_from(user, projection, source_version):
 
     event = _resolve_projection_event(projection)
     if not can_edit(user, event):
-        raise PermissionError(
-            f"User {user} cannot edit projection {projection.pk!r} "
-            f"(event '{event}'). (ADR-017 D2)"
-        )
+        raise PermissionError(f"User {user} cannot edit projection {projection.pk!r} (event '{event}'). (ADR-017 D2)")
 
     # Guard: source_version's owning event must match the projection's event.
     # For event-owned source: source.event must equal projection's event.
@@ -979,10 +950,7 @@ def reset_to_canonical(user, projection):
 
     event = _resolve_projection_event(projection)
     if not can_edit(user, event):
-        raise PermissionError(
-            f"User {user} cannot reset projection {projection.pk!r} "
-            f"(event '{event}'). (ADR-017 D2)"
-        )
+        raise PermissionError(f"User {user} cannot reset projection {projection.pk!r} (event '{event}'). (ADR-017 D2)")
 
     if projection.kind == PlatformProjection.Kind.PROMOTION:
         # Promotion: resolve the POST's canonical, not the event's.
@@ -1052,10 +1020,7 @@ def edit_version(user, version, **fields):
     # at least one draft consumer means the live row is still being read.
     all_consumers = list(version.projections.all())
     if all_consumers:
-        draft_consumers = [
-            p for p in all_consumers
-            if p.status == PlatformProjection.Status.DRAFT
-        ]
+        draft_consumers = [p for p in all_consumers if p.status == PlatformProjection.Status.DRAFT]
         if not draft_consumers:
             non_draft_pks = [p.pk for p in all_consumers]
             raise ValueError(
@@ -1097,11 +1062,11 @@ def approve_projection(user, projection):
     event = _resolve_projection_event(projection)
     if not can_edit(user, event):
         raise PermissionError(
-            f"User {user} cannot approve projection {projection.pk!r} "
-            f"(event '{event}'). (ADR-017 D2)"
+            f"User {user} cannot approve projection {projection.pk!r} (event '{event}'). (ADR-017 D2)"
         )
 
     from syndication.engine import transition_status
+
     transition_status(projection, "ready")
     return projection
 
@@ -1138,8 +1103,7 @@ def publish_projection(user, projection):
     event = _resolve_projection_event(projection)
     if not can_publish(user, event):
         raise PermissionError(
-            f"User {user} cannot publish projection {projection.pk!r} "
-            f"(event '{event}'). (ADR-017 D2)"
+            f"User {user} cannot publish projection {projection.pk!r} (event '{event}'). (ADR-017 D2)"
         )
 
     # Precondition: projection must be in ready status before dispatch.
@@ -1147,6 +1111,7 @@ def publish_projection(user, projection):
     # an adapter (the adapter would also raise, but we gate early so the
     # error message is clear and no adapter side-effect occurs).
     from syndication.models import PlatformProjection as _PP
+
     if projection.status != _PP.Status.READY:
         raise ValueError(
             f"publish_projection requires status=ready; "
@@ -1174,6 +1139,7 @@ def publish_projection(user, projection):
         # Same as what mark_projection_published does, but we skip the outer
         # can_publish re-check (already gated above).
         from syndication.engine import transition_status
+
         transition_status(projection, "published")
     # --- Unknown platform: fail loud (ADR-008 D3) ---
     else:
@@ -1209,11 +1175,11 @@ def mark_projection_published(user, projection):
     event = _resolve_projection_event(projection)
     if not can_publish(user, event):
         raise PermissionError(
-            f"User {user} cannot mark projection {projection.pk!r} as published "
-            f"(event '{event}'). (ADR-017 D2)"
+            f"User {user} cannot mark projection {projection.pk!r} as published (event '{event}'). (ADR-017 D2)"
         )
 
     from syndication.engine import transition_status
+
     transition_status(projection, "published")
     return projection
 
@@ -1236,19 +1202,15 @@ def publish_all_ready_projections(user, event):
 
     Co-equal seam (ADR-016 D6): called by both the HTMX view and the Ninja API verb.
     """
-    from syndication.authz import can_publish
-    from syndication.models import PlatformProjection, Post
     from itertools import chain
 
-    if not can_publish(user, event):
-        raise PermissionError(
-            f"User {user} cannot publish projections for event '{event}'. "
-            "(ADR-017 D2)"
-        )
+    from syndication.authz import can_publish
+    from syndication.models import PlatformProjection, Post
 
-    listing_ready = PlatformProjection.objects.filter(
-        source_event=event, status=PlatformProjection.Status.READY
-    )
+    if not can_publish(user, event):
+        raise PermissionError(f"User {user} cannot publish projections for event '{event}'. (ADR-017 D2)")
+
+    listing_ready = PlatformProjection.objects.filter(source_event=event, status=PlatformProjection.Status.READY)
     post_ids = Post.objects.filter(event=event).values_list("pk", flat=True)
     promotion_ready = PlatformProjection.objects.filter(
         source_post_id__in=post_ids, status=PlatformProjection.Status.READY
@@ -1293,14 +1255,11 @@ def publish_all_ready_projections_for_post(user, post):
     event = post.event
     if not can_publish(user, event):
         raise PermissionError(
-            f"User {user} cannot publish projections for post '{post}' "
-            f"(event '{event}'). (ADR-017 D2)"
+            f"User {user} cannot publish projections for post '{post}' (event '{event}'). (ADR-017 D2)"
         )
 
     ready_projections = list(
-        PlatformProjection.objects.filter(
-            source_post=post, status=PlatformProjection.Status.READY
-        )
+        PlatformProjection.objects.filter(source_post=post, status=PlatformProjection.Status.READY)
     )
 
     published = []

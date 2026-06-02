@@ -9,12 +9,8 @@ class Venue(models.Model):
     neighborhood = models.CharField(max_length=100, blank=True)
 
     # F4 — Decimal, migrate to PointField later if needed
-    latitude = models.DecimalField(
-        max_digits=9, decimal_places=6, null=True, blank=True
-    )
-    longitude = models.DecimalField(
-        max_digits=9, decimal_places=6, null=True, blank=True
-    )
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
     # Privacy mode (matches ADR-001 D5; feeds map blur at 0.4)
     privacy_mode = models.CharField(

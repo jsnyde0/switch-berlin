@@ -35,9 +35,7 @@ class Command(BaseCommand):
 
         from organizers.models import MagicLinkToken
 
-        qs = MagicLinkToken.objects.filter(
-            used_at__isnull=True, expires_at__gt=timezone.now()
-        ).order_by("-created_at")
+        qs = MagicLinkToken.objects.filter(used_at__isnull=True, expires_at__gt=timezone.now()).order_by("-created_at")
         if options["email"]:
             qs = qs.filter(user_target__email=options["email"])
 
@@ -46,12 +44,7 @@ class Command(BaseCommand):
             raise CommandError("No live (unused, unexpired) magic-link tokens found.")
 
         for tok in tokens:
-            url = BASE_URL + reverse(
-                "organizer-claim-redeem", kwargs={"token": tok.token}
-            )
+            url = BASE_URL + reverse("organizer-claim-redeem", kwargs={"token": tok.token})
             self.stdout.write(
-                f"{url}\n"
-                f"  profile: {tok.profile.slug}  "
-                f"target: {tok.user_target.email}  "
-                f"route: {tok.intended_method}"
+                f"{url}\n  profile: {tok.profile.slug}  target: {tok.user_target.email}  route: {tok.intended_method}"
             )

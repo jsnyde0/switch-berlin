@@ -519,6 +519,5 @@ class PostSyndicationStudioContextTest(TestCase):
         self.assertIn(
             'hx-target="#studio-main"',
             content,
-            "post_syndication with ?studio=1 MUST have hx-target='#studio-main' "
-            "for the in-studio swap to work.",
+            "post_syndication with ?studio=1 MUST have hx-target='#studio-main' for the in-studio swap to work.",
         )

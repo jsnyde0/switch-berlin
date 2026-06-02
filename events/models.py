@@ -152,9 +152,7 @@ class Event(models.Model):
     # Price (human-readable tiers, supplementing price_min/max_cents)
     price_description = models.TextField(
         blank=True,
-        help_text=(
-            'Free-form price tiers, e.g. "Supporter 250€ / Normal 200€ / Social 150€"'
-        ),
+        help_text=('Free-form price tiers, e.g. "Supporter 250€ / Normal 200€ / Social 150€"'),
     )
 
     # Language
@@ -218,9 +216,7 @@ class Event(models.Model):
         ],
         default="public",
         help_text=(
-            "public: anyone, indexed. "
-            "semi_public: vouched users only, noindex. "
-            "unlisted: URL-keyed only, noindex."
+            "public: anyone, indexed. semi_public: vouched users only, noindex. unlisted: URL-keyed only, noindex."
         ),
     )
 
@@ -317,10 +313,7 @@ class Event(models.Model):
     attendee_questions = models.JSONField(
         default=list,
         blank=True,
-        help_text=(
-            "RESERVED: screening questions asked at event entry / check-in. "
-            "Behavior: RSVP+screening epic."
-        ),
+        help_text=("RESERVED: screening questions asked at event entry / check-in. Behavior: RSVP+screening epic."),
     )
 
     # Provenance (F7)

@@ -134,9 +134,7 @@ def test_organizer_follow_not_importable():
     """OrganizerFollow must no longer exist on organizers.models."""
     import organizers.models as om
 
-    assert not hasattr(om, "OrganizerFollow"), (
-        "OrganizerFollow should no longer exist on organizers.models"
-    )
+    assert not hasattr(om, "OrganizerFollow"), "OrganizerFollow should no longer exist on organizers.models"
 
 
 # ---------------------------------------------------------------------------

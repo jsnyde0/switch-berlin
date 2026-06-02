@@ -100,14 +100,8 @@ class EventListMarkersTest(TestCase):
         )
         self.assertIsNotNone(match, "markers-data script tag not found in response")
         geojson = json.loads(match.group(1))
-        private_features = [
-            f
-            for f in geojson["features"]
-            if f["properties"].get("privacy") == "private"
-        ]
-        self.assertGreater(
-            len(private_features), 0, "Expected at least one private-venue feature"
-        )
+        private_features = [f for f in geojson["features"] if f["properties"].get("privacy") == "private"]
+        self.assertGreater(len(private_features), 0, "Expected at least one private-venue feature")
         real_lat = float(self.venue_private.latitude)
         real_lng = float(self.venue_private.longitude)
         for f in private_features:
@@ -138,9 +132,7 @@ class EventListMarkersTest(TestCase):
     def test_drawer_route_gone(self):
         """event-drawer route must be deleted (ADR-008 D1 — no compat shim)."""
         event = self.events[0]
-        response = self.client.get(
-            f"/events/{event.organizer.slug}/{event.slug}/drawer/"
-        )
+        response = self.client.get(f"/events/{event.organizer.slug}/{event.slug}/drawer/")
         self.assertEqual(response.status_code, 404)
 
     def test_bounds_filter_includes_event_in_bounds(self):
@@ -163,9 +155,7 @@ class EventListMarkersTest(TestCase):
         self.assertIsNotNone(match, "markers-data script tag not found")
         geojson = json.loads(match.group(1))
         public_event_slugs = [
-            f["properties"]["event_slug"]
-            for f in geojson["features"]
-            if f["properties"].get("privacy") == "public"
+            f["properties"]["event_slug"] for f in geojson["features"] if f["properties"].get("privacy") == "public"
         ]
         self.assertIn(self.events[0].slug, public_event_slugs)
 

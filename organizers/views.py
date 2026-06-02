@@ -34,9 +34,7 @@ _EVENT_RATING_SORT_OPTIONS = {"lowest_rated", "most_reviewed"}
 
 
 def organizer_profile(request, slug):
-    organizer = get_object_or_404(
-        Profile.objects.visible(), slug=slug, status="approved"
-    )
+    organizer = get_object_or_404(Profile.objects.visible(), slug=slug, status="approved")
     now = timezone.now()
 
     # Parse ?event_sort query param; fall back to 'date' for unknown values.
@@ -62,13 +60,9 @@ def organizer_profile(request, slug):
         .distinct()
     )
     if event_sort == "lowest_rated":
-        upcoming_events_qs = upcoming_events_qs.order_by(
-            F("avg_rating").asc(nulls_last=True), "start"
-        )
+        upcoming_events_qs = upcoming_events_qs.order_by(F("avg_rating").asc(nulls_last=True), "start")
     elif event_sort == "most_reviewed":
-        upcoming_events_qs = upcoming_events_qs.order_by(
-            F("rating_count").desc(), "start"
-        )
+        upcoming_events_qs = upcoming_events_qs.order_by(F("rating_count").desc(), "start")
     else:
         upcoming_events_qs = upcoming_events_qs.order_by("start")
     upcoming_events = upcoming_events_qs[:50]
@@ -91,14 +85,12 @@ def organizer_profile(request, slug):
     if request.user.is_authenticated:
         following = Follow.objects.filter(user=request.user, profile=organizer).exists()
         going_venue_ids = list(
-            Attendance.objects.filter(
-                user=request.user, status="going", event__venue__isnull=False
-            ).values_list("event__venue_id", flat=True)
+            Attendance.objects.filter(user=request.user, status="going", event__venue__isnull=False).values_list(
+                "event__venue_id", flat=True
+            )
         )
         # CTA state: viewer-IS-claimant → explicit "you manage" (ADR-014 D2, ADR-008 D3)
-        viewer_is_claimant = organizer.active_claimants.filter(
-            pk=request.user.pk
-        ).exists()
+        viewer_is_claimant = organizer.active_claimants.filter(pk=request.user.pk).exists()
         # CTA state: viewer has a pending ClaimIntent (unresolved, not rejected)
         viewer_claim_is_pending = (
             not viewer_is_claimant
@@ -125,11 +117,7 @@ def organizer_profile(request, slug):
     if sort not in _SORT_ORDERINGS:
         sort = "recent"
     ordering = _SORT_ORDERINGS[sort]
-    reviews = (
-        Review.objects.filter(organizer=organizer, hidden=False)
-        .select_related("author")
-        .order_by(*ordering)
-    )
+    reviews = Review.objects.filter(organizer=organizer, hidden=False).select_related("author").order_by(*ordering)
 
     user_review = None
     if request.user.is_authenticated:
@@ -233,10 +221,7 @@ def claim_entry(request, slug):
         email = form.cleaned_data["email"]
         submitted_domain = email.split("@")[1].lower()
 
-        is_fast_path = (
-            profile.verified_domain
-            and submitted_domain == profile.verified_domain.lower()
-        )
+        is_fast_path = profile.verified_domain and submitted_domain == profile.verified_domain.lower()
 
         if is_fast_path:
             # ---- Email-domain fast-path (ADR-014 D2) ----
@@ -247,9 +232,7 @@ def claim_entry(request, slug):
             # ---- Admin-review path (ADR-014 D2) ----
             intended_method = "admin_review"
             message = form.cleaned_data.get("message", "").strip()
-            intent, created = ClaimIntent.objects.get_or_create(
-                user=request.user, profile=profile
-            )
+            intent, created = ClaimIntent.objects.get_or_create(user=request.user, profile=profile)
             # kb-j8u: persist the most recent message so admins see the latest
             # context if the user re-submits with updated info.
             if message and intent.message != message:
@@ -264,9 +247,7 @@ def claim_entry(request, slug):
             intended_method=intended_method,
         )
 
-        redeem_url = request.build_absolute_uri(
-            reverse("organizer-claim-redeem", kwargs={"token": str(token.token)})
-        )
+        redeem_url = request.build_absolute_uri(reverse("organizer-claim-redeem", kwargs={"token": str(token.token)}))
         email_body = render_to_string(
             "email/claim_magic_link.html",
             {
@@ -292,11 +273,7 @@ def claim_entry(request, slug):
     # validate against a localhost origin, so loading the widget renders
     # Cloudflare's "Unable to connect to website" error frame inline. In
     # prod (DEBUG=False) the configured key is used as normal.
-    turnstile_site_key = (
-        ""
-        if django_settings.DEBUG
-        else getattr(django_settings, "TURNSTILE_SITE_KEY", "")
-    )
+    turnstile_site_key = "" if django_settings.DEBUG else getattr(django_settings, "TURNSTILE_SITE_KEY", "")
 
     return render(
         request,
@@ -360,14 +337,12 @@ def magic_link_redeem(request, token):
 
     if magic_token.is_used:
         return HttpResponseBadRequest(
-            "This verification link has already been used. "
-            "Please start the claim process again."
+            "This verification link has already been used. Please start the claim process again."
         )
 
     if magic_token.is_expired:
         return HttpResponseBadRequest(
-            "This verification link has expired (links are valid for 24 hours). "
-            "Please start the claim process again."
+            "This verification link has expired (links are valid for 24 hours). Please start the claim process again."
         )
 
     # Mark token used BEFORE post-confirmation action — single-use invariant
@@ -383,15 +358,13 @@ def magic_link_redeem(request, token):
                 "role": "admin",
             },
         )
-        return redirect(
-            reverse("organizer-profile", kwargs={"slug": magic_token.profile.slug})
-        )
+        return redirect(reverse("organizer-profile", kwargs={"slug": magic_token.profile.slug}))
     else:
         # ---- Admin-review path: stamp submitter_verified_at (ADR-014 D2) ----
         # ProfileClaim is NOT created here; admin must approve the ClaimIntent.
-        ClaimIntent.objects.filter(
-            user=request.user, profile=magic_token.profile
-        ).update(submitter_verified_at=timezone.now())
+        ClaimIntent.objects.filter(user=request.user, profile=magic_token.profile).update(
+            submitter_verified_at=timezone.now()
+        )
         return redirect(
             reverse(
                 "organizer-claim-check-email",

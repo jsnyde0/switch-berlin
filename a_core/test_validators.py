@@ -34,9 +34,7 @@ class ValidateImageSizeTest(SimpleTestCase):
 
     def test_file_extension_validator_rejects_disallowed(self):
         """FileExtensionValidator with jpg/jpeg/png/webp rejects .gif."""
-        validator = FileExtensionValidator(
-            allowed_extensions=["jpg", "jpeg", "png", "webp"]
-        )
+        validator = FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"])
         gif_file = SimpleUploadedFile(
             "anim.gif",
             b"GIF89a",

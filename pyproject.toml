@@ -50,9 +50,14 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 88
+# 120 (not Black's 88): the codebase's test asserts + descriptive docstrings run long;
+# 88 produced ~680 line-too-long errors almost entirely from legitimate test prose. See kb-f17n.
+line-length = 120
 target-version = "py313"
-exclude = [".git", ".venv", "__pycache__", "**/migrations/*", "**/test_migrations/*"]
+# tools/ holds self-contained uv sub-projects (e.g. switch-cli) with their own env;
+# the root lint must not gate on them, mirroring the existing pytest --ignore=tools in addopts.
+# CI strategy for switch-cli is tracked separately (kb-slzj).
+exclude = [".git", ".venv", "__pycache__", "**/migrations/*", "**/test_migrations/*", "tools"]
 
 [tool.ruff.lint]
 select = [

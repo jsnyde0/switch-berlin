@@ -80,9 +80,7 @@ def test_attend_blocked_without_consent(client, approved_user, published_event):
     assert "sexual orientation" in content or "sexuelle orientierung" in content
 
     # No Attendance row should have been created
-    assert not Attendance.objects.filter(
-        user=approved_user, event=published_event
-    ).exists()
+    assert not Attendance.objects.filter(user=approved_user, event=published_event).exists()
 
 
 def test_attend_works_with_consent(client, approved_user_with_consent, published_event):
@@ -100,9 +98,7 @@ def test_attend_works_with_consent(client, approved_user_with_consent, published
     response = client.post(url, data={"status": "going"})
 
     assert response.status_code == 200
-    assert Attendance.objects.filter(
-        user=approved_user_with_consent, event=published_event, status="going"
-    ).exists()
+    assert Attendance.objects.filter(user=approved_user_with_consent, event=published_event, status="going").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -137,17 +133,13 @@ def test_consent_endpoint_requires_login(client):
 # ---------------------------------------------------------------------------
 
 
-def test_revoke_deletes_all_attendance_rows(
-    db, approved_user_with_consent, published_event
-):
+def test_revoke_deletes_all_attendance_rows(db, approved_user_with_consent, published_event):
     """revoke_art9_consent deletes all Attendance rows for the user."""
     from accounts.consent import revoke_art9_consent
     from events.models import Attendance
 
     # Create multiple attendance rows
-    Attendance.objects.create(
-        user=approved_user_with_consent, event=published_event, status="going"
-    )
+    Attendance.objects.create(user=approved_user_with_consent, event=published_event, status="going")
 
     revoke_art9_consent(approved_user_with_consent)
 
@@ -173,15 +165,11 @@ def test_revoke_is_idempotent(db, approved_user):
 # ---------------------------------------------------------------------------
 
 
-def test_withdrawal_endpoint_revokes_and_redirects(
-    client, approved_user_with_consent, published_event
-):
+def test_withdrawal_endpoint_revokes_and_redirects(client, approved_user_with_consent, published_event):
     """POST /accounts/art9-consent/withdraw/ clears consent and attendance rows."""
     from events.models import Attendance
 
-    Attendance.objects.create(
-        user=approved_user_with_consent, event=published_event, status="going"
-    )
+    Attendance.objects.create(user=approved_user_with_consent, event=published_event, status="going")
     client.force_login(approved_user_with_consent)
 
     response = client.post(reverse("art9-consent-withdraw"))
@@ -222,9 +210,7 @@ def test_account_deletion_also_revokes(db, approved_user_with_consent, published
     """Deleting a user clears attendance rows via pre_delete signal."""
     from events.models import Attendance
 
-    Attendance.objects.create(
-        user=approved_user_with_consent, event=published_event, status="going"
-    )
+    Attendance.objects.create(user=approved_user_with_consent, event=published_event, status="going")
     user_pk = approved_user_with_consent.pk
 
     approved_user_with_consent.delete()

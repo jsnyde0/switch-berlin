@@ -31,9 +31,7 @@ def make_update(
     update.effective_user.id = user_id
     update.message.text = text
     update.message.message_id = message_id
-    update.message.forward_from_chat = (
-        MagicMock(id=channel_id) if has_forward_chat else None
-    )
+    update.message.forward_from_chat = MagicMock(id=channel_id) if has_forward_chat else None
     update.message.to_dict.return_value = {"text": text or "", "message_id": message_id}
     update.message.reply_text = AsyncMock()
     return update
@@ -41,9 +39,7 @@ def make_update(
 
 class FullIngestionLoopTest(TestCase):
     def setUp(self):
-        self.superuser = User.objects.create_superuser(
-            username="admin_integ", email="admin@test.com", password="pw"
-        )
+        self.superuser = User.objects.create_superuser(username="admin_integ", email="admin@test.com", password="pw")
         self.client.force_login(self.superuser)
         self.organizer = Profile.objects.create(name="Test Org", slug="test-org-integ")
         self.approved = ApprovedSender.objects.create(telegram_user_id="123456789")
@@ -108,9 +104,7 @@ class FullIngestionLoopTest(TestCase):
         event = Event.objects.get(raw_message=raw)
         self.assertEqual(event.status, "draft")
         self.assertEqual(event.organizer, self.organizer)  # exact match on 'Test Org'
-        self.assertTrue(
-            ExtractionAttempt.objects.filter(event=event, success=True).exists()
-        )
+        self.assertTrue(ExtractionAttempt.objects.filter(event=event, success=True).exists())
 
         # Step 3: Admin publishes via change form POST
         post_data = self._event_post_data(event, status="published")
@@ -146,9 +140,7 @@ class FullIngestionLoopTest(TestCase):
     )
     def test_low_confidence_does_not_create_event(self):
         """Extraction with confidence < 0.4 sets needs_review, no Event created."""
-        raw = RawMessage.objects.create(
-            source_type="telegram_bot_forward", raw_payload={}, sender_id="111"
-        )
+        raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Vague Event",
             organizer_name="Unknown Org",
@@ -166,9 +158,7 @@ class FullIngestionLoopTest(TestCase):
         self.assertEqual(raw.extraction_status, "needs_review")
         self.assertEqual(Event.objects.filter(raw_message=raw).count(), 0)
         self.assertTrue(
-            ExtractionAttempt.objects.filter(
-                raw_message=raw, success=False, error="low_confidence"
-            ).exists()
+            ExtractionAttempt.objects.filter(raw_message=raw, success=False, error="low_confidence").exists()
         )
 
     def test_partial_url_enrichment_proceeds_to_extraction(self):
@@ -203,9 +193,7 @@ class FullIngestionLoopTest(TestCase):
 
     def test_organizer_exact_match_links_event(self):
         """Exact organizer name match links Event.organizer."""
-        raw = RawMessage.objects.create(
-            source_type="telegram_bot_forward", raw_payload={}, sender_id="111"
-        )
+        raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Test",
             organizer_name="Test Org",
@@ -229,9 +217,7 @@ class FullIngestionLoopTest(TestCase):
     )
     def test_organizer_no_match_leaves_event_organizer_null(self):
         """No organizer match -> Event.organizer is NULL (admin resolves later)."""
-        raw = RawMessage.objects.create(
-            source_type="telegram_bot_forward", raw_payload={}, sender_id="111"
-        )
+        raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Test",
             organizer_name="Completely Unknown Org",
@@ -256,9 +242,7 @@ class FullIngestionLoopTest(TestCase):
     def test_tag_matching_splits_into_matched_and_suggested(self):
         """Known tags go to M2M, unknown tags go to suggested_tags JSONField."""
         Tag.objects.create(slug="queer", label="Queer", kind="identity")
-        raw = RawMessage.objects.create(
-            source_type="telegram_bot_forward", raw_payload={}, sender_id="111"
-        )
+        raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Test",
             organizer_name="Nobody",
@@ -342,9 +326,7 @@ class FullIngestionLoopTest(TestCase):
             sender_id="111",
         )
         # Backdate received_at to 91 days ago (auto_now_add prevents direct creation)
-        RawMessage.objects.filter(pk=raw.pk).update(
-            received_at=timezone.now() - timedelta(days=91)
-        )
+        RawMessage.objects.filter(pk=raw.pk).update(received_at=timezone.now() - timedelta(days=91))
         attempt = ExtractionAttempt.objects.create(
             raw_message=raw,
             model_name="claude-opus-4-7",

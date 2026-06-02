@@ -89,9 +89,7 @@ class TestTakedownFormValidation:
                 good_faith_confirmed=True,
             )
             form = TakedownForm(data=data)
-            assert form.is_valid(), (
-                f"Form should be valid for reason={reason!r}, errors: {form.errors}"
-            )
+            assert form.is_valid(), f"Form should be valid for reason={reason!r}, errors: {form.errors}"
 
     def test_illegal_reason_valid_with_all_required_fields(self):
         """reason='illegal' with all required fields passes validation."""

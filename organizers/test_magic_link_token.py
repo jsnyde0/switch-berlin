@@ -39,9 +39,7 @@ def test_magic_link_token_fields():
     """MagicLinkToken has the required fields per ADR-014 D3."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="mlt_user", email="mlt_user@example.com", password="x"
-    )
+    user = User.objects.create_user(username="mlt_user", email="mlt_user@example.com", password="x")
     profile = Profile.objects.create(name="MLT Profile", slug="mlt-profile")
 
     token = MagicLinkToken.objects.create(
@@ -64,9 +62,7 @@ def test_magic_link_token_auto_token_generated():
     """MagicLinkToken.token is auto-generated if not provided."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="mlt_autotok", email="mlt_autotok@example.com", password="x"
-    )
+    user = User.objects.create_user(username="mlt_autotok", email="mlt_autotok@example.com", password="x")
     profile = Profile.objects.create(name="AutoTok Profile", slug="autotok-profile")
 
     token = MagicLinkToken.objects.create(
@@ -118,9 +114,7 @@ def test_magic_link_token_is_expired_when_past():
     """MagicLinkToken is expired when expires_at is in the past."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="expired_user", email="expired@example.com", password="x"
-    )
+    user = User.objects.create_user(username="expired_user", email="expired@example.com", password="x")
     profile = Profile.objects.create(name="Expired Profile", slug="expired-profile")
 
     token = MagicLinkToken.objects.create(
@@ -138,9 +132,7 @@ def test_magic_link_token_is_not_expired_when_future():
     """MagicLinkToken is not expired when expires_at is in the future."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="valid_user_exp", email="valid_exp@example.com", password="x"
-    )
+    user = User.objects.create_user(username="valid_user_exp", email="valid_exp@example.com", password="x")
     profile = Profile.objects.create(name="Valid Profile", slug="valid-profile-exp")
 
     token = MagicLinkToken.objects.create(
@@ -163,9 +155,7 @@ def test_magic_link_token_is_used_false_initially():
     """MagicLinkToken.is_used is False when used_at is None."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="unused_user", email="unused@example.com", password="x"
-    )
+    user = User.objects.create_user(username="unused_user", email="unused@example.com", password="x")
     profile = Profile.objects.create(name="Unused Profile", slug="unused-profile")
 
     token = MagicLinkToken.objects.create(
@@ -183,9 +173,7 @@ def test_magic_link_token_is_used_true_after_marking():
     """MagicLinkToken.is_used is True after marking used."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="used_user", email="used@example.com", password="x"
-    )
+    user = User.objects.create_user(username="used_user", email="used@example.com", password="x")
     profile = Profile.objects.create(name="Used Profile", slug="used-profile")
 
     token = MagicLinkToken.objects.create(
@@ -207,9 +195,7 @@ def test_magic_link_token_is_valid_when_fresh():
     """MagicLinkToken.is_valid is True when not expired and not used."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="fresh_user", email="fresh@example.com", password="x"
-    )
+    user = User.objects.create_user(username="fresh_user", email="fresh@example.com", password="x")
     profile = Profile.objects.create(name="Fresh Profile", slug="fresh-profile")
 
     token = MagicLinkToken.objects.create(
@@ -227,9 +213,7 @@ def test_magic_link_token_is_valid_false_when_expired():
     """MagicLinkToken.is_valid is False when expired."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="exp_valid", email="exp_valid@example.com", password="x"
-    )
+    user = User.objects.create_user(username="exp_valid", email="exp_valid@example.com", password="x")
     profile = Profile.objects.create(name="Exp Valid Profile", slug="exp-valid-profile")
 
     token = MagicLinkToken.objects.create(
@@ -247,12 +231,8 @@ def test_magic_link_token_is_valid_false_when_used():
     """MagicLinkToken.is_valid is False when used."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="used_valid", email="used_valid@example.com", password="x"
-    )
-    profile = Profile.objects.create(
-        name="Used Valid Profile", slug="used-valid-profile"
-    )
+    user = User.objects.create_user(username="used_valid", email="used_valid@example.com", password="x")
+    profile = Profile.objects.create(name="Used Valid Profile", slug="used-valid-profile")
 
     token = MagicLinkToken.objects.create(
         email="used_valid@example.com",
@@ -283,17 +263,13 @@ def test_verified_method_choices_has_exactly_4_values():
 
     choices = dict(ProfileClaim.VERIFIED_METHOD_CHOICES)
     assert len(choices) == 4, (
-        f"Expected exactly 4 VERIFIED_METHOD_CHOICES per ADR-014 D1,"
-        f" got {len(choices)}: {list(choices.keys())}"
+        f"Expected exactly 4 VERIFIED_METHOD_CHOICES per ADR-014 D1, got {len(choices)}: {list(choices.keys())}"
     )
     assert "magic_link" not in choices, (
-        "'magic_link' must NOT be in VERIFIED_METHOD_CHOICES — it is not a valid"
-        " verified_method (ADR-014 D1)"
+        "'magic_link' must NOT be in VERIFIED_METHOD_CHOICES — it is not a valid verified_method (ADR-014 D1)"
     )
     for expected in ("email_domain", "admin_review", "admin_legacy", "auto_self"):
-        assert expected in choices, (
-            f"Expected '{expected}' in VERIFIED_METHOD_CHOICES but it is missing"
-        )
+        assert expected in choices, f"Expected '{expected}' in VERIFIED_METHOD_CHOICES but it is missing"
 
 
 # ---------------------------------------------------------------------------
@@ -307,9 +283,7 @@ def test_magic_link_token_intended_method_field_exists():
     'admin_review'."""
     from organizers.models import MagicLinkToken, Profile
 
-    user = User.objects.create_user(
-        username="intended_user", email="intended@example.com", password="x"
-    )
+    user = User.objects.create_user(username="intended_user", email="intended@example.com", password="x")
     profile = Profile.objects.create(name="Intended Profile", slug="intended-profile")
 
     token = MagicLinkToken.objects.create(

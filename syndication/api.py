@@ -34,8 +34,8 @@ syndication.services functions as the HTMX web views — no parallel implementat
 import json as _json
 import logging
 from datetime import datetime
-from typing import List, Optional
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
 from ninja import File, NinjaAPI, Schema, Status
 from ninja.files import UploadedFile
@@ -46,19 +46,17 @@ from syndication.models import AgentCredential, IdentityToken
 from syndication.services import (
     ACTOR_BEARER,
     ACTOR_SESSION,
+    approve_projection,
     create_event,
     create_post,
     exchange_api_key_for_identity_token,
+    mark_projection_published,
+    publish_all_ready_projections,
+    publish_projection,
     redeem_pairing_token,
     register_agent_credential,
     set_event_cover,
     update_event,
-    update_post,
-    approve_projection,
-    publish_projection,
-    mark_projection_published,
-    publish_all_ready_projections,
-    _resolve_projection_event,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,6 +64,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Auth callables
 # ---------------------------------------------------------------------------
+
 
 def _is_vouched(user) -> bool:
     """
@@ -174,9 +173,6 @@ def handle_permission_error(request, exc):
     )
 
 
-from django.core.exceptions import ValidationError as DjangoValidationError
-
-
 @api.exception_handler(DjangoValidationError)
 def handle_django_validation_error(request, exc):
     """
@@ -201,6 +197,7 @@ def handle_django_validation_error(request, exc):
 # Schemas
 # ---------------------------------------------------------------------------
 
+
 class RegisterResponse(Schema):
     """
     Response for agents/register: returns the one-time pairing token (kb-a4u.6).
@@ -209,6 +206,7 @@ class RegisterResponse(Schema):
     at agents/redeem to receive the long-lived Bearer key. The Bearer key never
     transits the facilitator's clipboard.
     """
+
     pairing_token: str
 
 
@@ -224,6 +222,7 @@ class RedeemResponse(Schema):
     The Bearer key is long-lived and reusable for many identity-token exchanges.
     It is shown once and never stored in plaintext.
     """
+
     api_key: str
 
 
@@ -248,6 +247,7 @@ class VerifyResponse(Schema):
 # ---------------------------------------------------------------------------
 # Agent auth endpoints
 # ---------------------------------------------------------------------------
+
 
 @api.post(
     "/agents/register",
@@ -305,6 +305,7 @@ def agents_redeem(request, body: RedeemRequest):
     - Already-used pairing token → 400
     """
     from syndication.models import AgentPairingToken
+
     try:
         _credential, raw_key = redeem_pairing_token(body.pairing_token)
     except AgentPairingToken.DoesNotExist:
@@ -379,9 +380,7 @@ def agents_verify(request, body: VerifyRequest):
     """
     return {
         "stub": True,
-        "detail": (
-            "verify-identity is stubbed at v0 (ADR-008 D2). No external consumer yet."
-        ),
+        "detail": ("verify-identity is stubbed at v0 (ADR-008 D2). No external consumer yet."),
     }
 
 
@@ -407,21 +406,22 @@ def _actor_marker_response(request, data: dict, status: int = 200) -> HttpRespon
 
 # --- Event schemas ---
 
+
 class EventCreateIn(Schema):
     title: str
     slug: str
     start: datetime
-    end: Optional[datetime] = None
+    end: datetime | None = None
     description: str = ""
     dress_code: str = ""
-    content_warnings: List[str] = []
-    age_restriction: Optional[int] = None
-    capacity: Optional[int] = None
+    content_warnings: list[str] = []
+    age_restriction: int | None = None
+    capacity: int | None = None
     visibility: str = "public"
     language: str = ""
     is_free: bool = False
-    price_min_cents: Optional[int] = None
-    price_max_cents: Optional[int] = None
+    price_min_cents: int | None = None
+    price_max_cents: int | None = None
     currency: str = "EUR"
     sliding_scale: bool = False
     price_description: str = ""
@@ -441,29 +441,30 @@ class EventUpdateIn(Schema):
     Kept at parity with EventCreateIn for the full updatable set (ADR-016 D3:
     co-equal API — an agent must be able to read back what it wrote).
     """
-    title: Optional[str] = None
-    slug: Optional[str] = None
-    start: Optional[datetime] = None
-    end: Optional[datetime] = None
-    description: Optional[str] = None
-    dress_code: Optional[str] = None
-    content_warnings: Optional[List[str]] = None
-    age_restriction: Optional[int] = None
-    capacity: Optional[int] = None
-    visibility: Optional[str] = None
-    language: Optional[str] = None
-    is_free: Optional[bool] = None
-    price_min_cents: Optional[int] = None
-    price_max_cents: Optional[int] = None
-    currency: Optional[str] = None
-    sliding_scale: Optional[bool] = None
-    price_description: Optional[str] = None
-    external_url: Optional[str] = None
-    tickets_url: Optional[str] = None
-    registration_required: Optional[bool] = None
-    registration_url: Optional[str] = None
-    registration_email: Optional[str] = None
-    category: Optional[str] = None
+
+    title: str | None = None
+    slug: str | None = None
+    start: datetime | None = None
+    end: datetime | None = None
+    description: str | None = None
+    dress_code: str | None = None
+    content_warnings: list[str] | None = None
+    age_restriction: int | None = None
+    capacity: int | None = None
+    visibility: str | None = None
+    language: str | None = None
+    is_free: bool | None = None
+    price_min_cents: int | None = None
+    price_max_cents: int | None = None
+    currency: str | None = None
+    sliding_scale: bool | None = None
+    price_description: str | None = None
+    external_url: str | None = None
+    tickets_url: str | None = None
+    registration_required: bool | None = None
+    registration_url: str | None = None
+    registration_email: str | None = None
+    category: str | None = None
 
 
 class EventOut(Schema):
@@ -473,22 +474,23 @@ class EventOut(Schema):
     Includes the full v0 readable field set so an agent can read back what
     it wrote (start, end, slug, registration_* were previously missing).
     """
+
     id: int
     title: str
     slug: str
-    start: Optional[datetime]
-    end: Optional[datetime]
+    start: datetime | None
+    end: datetime | None
     description: str
     status: str
     visibility: str
     dress_code: str
-    content_warnings: List[str]
-    age_restriction: Optional[int]
-    capacity: Optional[int]
+    content_warnings: list[str]
+    age_restriction: int | None
+    capacity: int | None
     language: str
     is_free: bool
-    price_min_cents: Optional[int]
-    price_max_cents: Optional[int]
+    price_min_cents: int | None
+    price_max_cents: int | None
     currency: str
     sliding_scale: bool
     price_description: str
@@ -502,19 +504,20 @@ class EventOut(Schema):
 
 # --- Post schemas ---
 
+
 class PostCreateIn(Schema):
     headline: str
     body: str
     cta: str = ""
     voice: str = ""
-    imagery: Optional[List[str]] = None
+    imagery: list[str] | None = None
 
 
 class PostUpdateIn(Schema):
-    headline: Optional[str] = None
-    body: Optional[str] = None
-    cta: Optional[str] = None
-    voice: Optional[str] = None
+    headline: str | None = None
+    body: str | None = None
+    cta: str | None = None
+    voice: str | None = None
 
 
 class PostOut(Schema):
@@ -528,6 +531,7 @@ class PostOut(Schema):
 
 # --- Stub schema preserved for projections list (C4) ---
 
+
 class StubListResponse(Schema):
     stub: bool
     detail: str
@@ -537,19 +541,18 @@ def _stub_response_with_marker(request, detail: str) -> HttpResponse:
     """
     Build a JSON stub response and attach X-Actor-Marker header (audit-only).
     """
-    return _actor_marker_response(
-        request, {"stub": True, "detail": detail}, status=200
-    )
+    return _actor_marker_response(request, {"stub": True, "detail": detail}, status=200)
 
 
 # ---------------------------------------------------------------------------
 # Event CRUD endpoints
 # ---------------------------------------------------------------------------
 
+
 @api.get(
     "/events/",
     auth=_RESOURCE_AUTH,
-    response=List[EventOut],
+    response=list[EventOut],
     summary="List events for authenticated user",
 )
 def events_list(request):
@@ -561,14 +564,12 @@ def events_list(request):
     from organizers.models import ProfileClaim
 
     # Get profile IDs this user has active claims on
-    profile_ids = ProfileClaim.objects.filter(
-        user=request.auth, rejected_at__isnull=True
-    ).values_list("profile_id", flat=True)
+    profile_ids = ProfileClaim.objects.filter(user=request.auth, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
 
     # Get event IDs where those profiles are organizers
-    event_ids = EventOrganizer.objects.filter(
-        profile_id__in=profile_ids
-    ).values_list("event_id", flat=True)
+    event_ids = EventOrganizer.objects.filter(profile_id__in=profile_ids).values_list("event_id", flat=True)
 
     events = Event.objects.filter(pk__in=event_ids).order_by("-start")
     data = [
@@ -658,8 +659,10 @@ def events_create(request, body: EventCreateIn):
 def events_detail(request, event_id: int):
     """Get a single Event by ID (ownership-gated, finding #2 — same authz as PATCH)."""
     from django.shortcuts import get_object_or_404
+
     from events.models import Event
     from syndication.authz import can_edit
+
     event = get_object_or_404(Event, pk=event_id)
     if not can_edit(request.auth, event):
         # Raises PermissionError → handled by @api.exception_handler(PermissionError) → 403.
@@ -707,7 +710,9 @@ def events_update(request, event_id: int, body: EventUpdateIn):
     Only non-None fields are applied.
     """
     from django.shortcuts import get_object_or_404
+
     from events.models import Event
+
     event = get_object_or_404(Event, pk=event_id)
     # Only pass non-None fields so unset optional fields don't zero-out existing values
     patch_kwargs = {k: v for k, v in body.dict().items() if v is not None}
@@ -759,7 +764,7 @@ class CoverUploadOut(Schema):
     response={200: CoverUploadOut},
     summary="Upload cover image for an Event",
 )
-def events_cover_upload(request, event_id: int, file: UploadedFile = File(...)):
+def events_cover_upload(request, event_id: int, file: UploadedFile = File(...)):  # noqa: B008
     """
     Upload (or replace) the cover image for an Event.
 
@@ -770,6 +775,7 @@ def events_cover_upload(request, event_id: int, file: UploadedFile = File(...)):
     OUT OF SCOPE at v0: projection/adapter rendering of the cover image.
     """
     from django.shortcuts import get_object_or_404
+
     from events.models import Event
 
     event = get_object_or_404(Event, pk=event_id)
@@ -781,18 +787,21 @@ def events_cover_upload(request, event_id: int, file: UploadedFile = File(...)):
 # Post CRUD endpoints (scoped to Event)
 # ---------------------------------------------------------------------------
 
+
 @api.get(
     "/events/{event_id}/posts/",
     auth=_RESOURCE_AUTH,
-    response=List[PostOut],
+    response=list[PostOut],
     summary="List Posts for an Event",
 )
 def event_posts_list(request, event_id: int):
     """List all Posts for a given Event (ownership-gated, finding #2 — same authz as PATCH)."""
     from django.shortcuts import get_object_or_404
+
     from events.models import Event
-    from syndication.models import Post
     from syndication.authz import can_edit
+    from syndication.models import Post
+
     event = get_object_or_404(Event, pk=event_id)
     if not can_edit(request.auth, event):
         # Raises PermissionError → handled by @api.exception_handler(PermissionError) → 403.
@@ -826,7 +835,9 @@ def event_posts_create(request, event_id: int, body: PostCreateIn):
     (ADR-016 D4).
     """
     from django.shortcuts import get_object_or_404
+
     from events.models import Event
+
     event = get_object_or_404(Event, pk=event_id)
     kwargs = body.dict(exclude_none=False)
     post = create_post(user=request.auth, event=event, **kwargs)
@@ -844,7 +855,7 @@ def event_posts_create(request, event_id: int, body: PostCreateIn):
 @api.get(
     "/posts/",
     auth=_RESOURCE_AUTH,
-    response=List[PostOut],
+    response=list[PostOut],
     summary="List all Posts for authenticated user's events",
 )
 def posts_list(request):
@@ -852,17 +863,15 @@ def posts_list(request):
     List all Posts across all Events where the user is an organizer.
     Returns HttpResponse directly so X-Actor-Marker header is preserved.
     """
-    from events.models import Event, EventOrganizer
+    from events.models import EventOrganizer
     from organizers.models import ProfileClaim
     from syndication.models import Post
 
-    profile_ids = ProfileClaim.objects.filter(
-        user=request.auth, rejected_at__isnull=True
-    ).values_list("profile_id", flat=True)
+    profile_ids = ProfileClaim.objects.filter(user=request.auth, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
 
-    event_ids = EventOrganizer.objects.filter(
-        profile_id__in=profile_ids
-    ).values_list("event_id", flat=True)
+    event_ids = EventOrganizer.objects.filter(profile_id__in=profile_ids).values_list("event_id", flat=True)
 
     posts = Post.objects.filter(event_id__in=event_ids).order_by("-created_at")
     data = [
@@ -903,6 +912,7 @@ def projections_list(request):
 
 class ProjectionActionOut(Schema):
     """Response for projection lifecycle actions."""
+
     id: int
     status: str
     provenance: str
@@ -930,6 +940,7 @@ def api_projection_mark_published(request, projection_id: int):
     Returns 403 on permission error, 400 on illegal transition.
     """
     from django.shortcuts import get_object_or_404
+
     from syndication.models import PlatformProjection
 
     projection = get_object_or_404(PlatformProjection, pk=projection_id)
@@ -971,6 +982,7 @@ def api_projection_approve(request, projection_id: int):
     Gate: user must have edit authority (can_edit seam, ADR-017 D2).
     """
     from django.shortcuts import get_object_or_404
+
     from syndication.models import PlatformProjection
 
     projection = get_object_or_404(PlatformProjection, pk=projection_id)
@@ -1012,6 +1024,7 @@ def api_projection_publish(request, projection_id: int):
     Gate: user must have publish authority (can_publish seam, ADR-017 D2).
     """
     from django.shortcuts import get_object_or_404
+
     from syndication.models import PlatformProjection
 
     projection = get_object_or_404(PlatformProjection, pk=projection_id)
@@ -1038,15 +1051,17 @@ def api_projection_publish(request, projection_id: int):
 
 class BatchPublishFailureOut(Schema):
     """Details of a single per-projection publish failure."""
+
     projection_id: int
     error: str
 
 
 class BatchPublishOut(Schema):
     """Response for batch publish-all-ready action."""
+
     published_count: int
-    published_ids: List[int]
-    failures: List[BatchPublishFailureOut] = []
+    published_ids: list[int]
+    failures: list[BatchPublishFailureOut] = []
 
 
 @api.post(
@@ -1068,6 +1083,7 @@ def api_batch_publish_ready(request, event_id: int):
     Returns 403 on permission error.
     """
     from django.shortcuts import get_object_or_404
+
     from events.models import Event
 
     event = get_object_or_404(Event, pk=event_id)
@@ -1079,10 +1095,7 @@ def api_batch_publish_ready(request, event_id: int):
         return api.create_response(request, {"detail": "Permission denied."}, status=403)
 
     # ADR-008 D3: fail loud — surface partial failures in the API response body.
-    failure_details = [
-        {"projection_id": proj.pk, "error": str(exc)}
-        for proj, exc in failures
-    ]
+    failure_details = [{"projection_id": proj.pk, "error": str(exc)} for proj, exc in failures]
 
     return _actor_marker_response(
         request,

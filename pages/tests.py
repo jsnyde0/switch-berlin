@@ -276,9 +276,7 @@ def test_base_html_has_og_meta_block():
     base_html = settings.BASE_DIR / "templates" / "_base.html"
     content = base_html.read_text()
     assert "og_meta" in content, "_base.html must define og_meta block"
-    assert "PUBLIC_READ_ENABLED" in content, (
-        "_base.html og_meta must be wrapped in PUBLIC_READ_ENABLED check"
-    )
+    assert "PUBLIC_READ_ENABLED" in content, "_base.html og_meta must be wrapped in PUBLIC_READ_ENABLED check"
 
 
 # ---------------------------------------------------------------------------
@@ -438,9 +436,7 @@ def test_footer_does_not_contain_placeholder_links():
     footer_path = settings.BASE_DIR / "templates" / "cotton" / "footer.html"
     content = footer_path.read_text()
     for placeholder in ("About us", "Jobs", "Contact", "Press kit"):
-        assert placeholder not in content, (
-            f"footer.html must not contain placeholder link: {placeholder}"
-        )
+        assert placeholder not in content, f"footer.html must not contain placeholder link: {placeholder}"
 
 
 def test_footer_contains_takedown_link():

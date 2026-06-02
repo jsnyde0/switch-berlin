@@ -26,9 +26,7 @@ class ClaimForm(forms.Form):
 
     email = forms.EmailField(
         label="Your email address",
-        widget=forms.EmailInput(
-            attrs={"autocomplete": "email", "placeholder": "you@example.com"}
-        ),
+        widget=forms.EmailInput(attrs={"autocomplete": "email", "placeholder": "you@example.com"}),
         help_text="We'll send a verification link to this address.",
     )
 
@@ -80,16 +78,11 @@ class ClaimForm(forms.Form):
         if not secret_key:
             # Misconfiguration: no secret key — fail loud (ADR-008 D3)
             raise forms.ValidationError(
-                _(
-                    "Claim submission is temporarily unavailable"
-                    " (server misconfiguration). Please try again later."
-                )
+                _("Claim submission is temporarily unavailable (server misconfiguration). Please try again later.")
             )
 
         is_valid = validate_turnstile_token(token, secret_key)
         if not is_valid:
-            raise forms.ValidationError(
-                _("Human verification failed. Please complete the CAPTCHA.")
-            )
+            raise forms.ValidationError(_("Human verification failed. Please complete the CAPTCHA."))
 
         return token

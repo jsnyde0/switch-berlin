@@ -300,12 +300,8 @@ class EventOrganizerMultipleOrganizersTest(TestCase):
             slug="multi-org-event",
             start=timezone.now(),
         )
-        EventOrganizer.objects.create(
-            event=event, profile=primary, is_primary=True, order=0
-        )
-        EventOrganizer.objects.create(
-            event=event, profile=co, is_primary=False, order=1
-        )
+        EventOrganizer.objects.create(event=event, profile=primary, is_primary=True, order=0)
+        EventOrganizer.objects.create(event=event, profile=co, is_primary=False, order=1)
 
         # event.organizers queryset has both
         organizer_pks = set(event.organizers.values_list("pk", flat=True))
@@ -329,9 +325,7 @@ class EventOrganizerMultipleOrganizersTest(TestCase):
             slug="reverse-test-event",
             start=timezone.now(),
         )
-        EventOrganizer.objects.create(
-            event=event, profile=profile, is_primary=True, order=0
-        )
+        EventOrganizer.objects.create(event=event, profile=profile, is_primary=True, order=0)
 
         # events_organized is the M2M reverse
         self.assertIn(event, profile.events_organized.all())

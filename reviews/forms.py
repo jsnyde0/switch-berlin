@@ -17,10 +17,7 @@ class TakedownForm(forms.ModelForm):
 
     good_faith_confirmed = forms.BooleanField(
         required=True,
-        label=_(
-            "I confirm the information above is accurate to the best of my"
-            " knowledge (DSA Art. 16(2))."
-        ),
+        label=_("I confirm the information above is accurate to the best of my knowledge (DSA Art. 16(2))."),
     )
 
     class Meta:

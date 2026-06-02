@@ -41,6 +41,7 @@ def _make_vouched_user(**kwargs):
 def _make_profile(name, slug, user=None):
     """Create a Profile; optionally create a ProfileClaim for user."""
     from organizers.models import Profile, ProfileClaim
+
     profile = Profile.objects.create(name=name, slug=slug)
     if user is not None:
         ProfileClaim.objects.create(
@@ -54,6 +55,7 @@ def _make_profile(name, slug, user=None):
 def _make_event(title, slug, profile):
     """Create an Event organized by profile."""
     from events.models import Event, EventOrganizer
+
     event = Event.objects.create(title=title, slug=slug, start=timezone.now())
     EventOrganizer.objects.create(event=event, profile=profile, is_primary=True)
     return event
@@ -77,6 +79,7 @@ class PairingTokenModelTest(TestCase):
     def test_pairing_token_can_be_minted_for_user(self):
         """AgentPairingToken.issue(user) creates a token record."""
         from syndication.models import AgentPairingToken
+
         token, raw = AgentPairingToken.issue(self.user)
         self.assertIsNotNone(token.pk)
         self.assertIsNotNone(raw)
@@ -84,12 +87,14 @@ class PairingTokenModelTest(TestCase):
     def test_raw_pairing_token_is_not_stored(self):
         """The raw token must not be stored in token_hash."""
         from syndication.models import AgentPairingToken
+
         token, raw = AgentPairingToken.issue(self.user)
         self.assertNotEqual(token.token_hash, raw)
 
     def test_pairing_token_is_short_lived(self):
         """Issued token has expires_at set to ~15 minutes in the future."""
         from syndication.models import AgentPairingToken
+
         token, _raw = AgentPairingToken.issue(self.user)
         delta = token.expires_at - timezone.now()
         # Should expire within 0–20 minutes
@@ -99,18 +104,21 @@ class PairingTokenModelTest(TestCase):
     def test_pairing_token_starts_unused(self):
         """Newly issued token has used_at=None (single-use, not yet redeemed)."""
         from syndication.models import AgentPairingToken
+
         token, _raw = AgentPairingToken.issue(self.user)
         self.assertIsNone(token.used_at)
 
     def test_pairing_token_is_valid_on_issue(self):
         """Freshly issued token is valid (not expired, not used)."""
         from syndication.models import AgentPairingToken
+
         token, _raw = AgentPairingToken.issue(self.user)
         self.assertTrue(token.is_valid)
 
     def test_pairing_token_is_expired_when_past_expires_at(self):
         """Token with expires_at in the past is expired."""
         from syndication.models import AgentPairingToken
+
         token, _raw = AgentPairingToken.issue(self.user)
         token.expires_at = timezone.now() - timezone.timedelta(seconds=1)
         token.save(update_fields=["expires_at"])
@@ -120,6 +128,7 @@ class PairingTokenModelTest(TestCase):
     def test_pairing_token_mark_used(self):
         """mark_used() stamps used_at; token becomes invalid."""
         from syndication.models import AgentPairingToken
+
         token, _raw = AgentPairingToken.issue(self.user)
         token.mark_used()
         self.assertIsNotNone(token.used_at)
@@ -129,6 +138,7 @@ class PairingTokenModelTest(TestCase):
     def test_pairing_token_validate_returns_token_and_user(self):
         """validate(raw) returns (token, user) for a valid token."""
         from syndication.models import AgentPairingToken
+
         token, raw = AgentPairingToken.issue(self.user)
         validated_token, validated_user = AgentPairingToken.validate(raw)
         self.assertEqual(validated_token.pk, token.pk)
@@ -137,24 +147,27 @@ class PairingTokenModelTest(TestCase):
     def test_pairing_token_validate_rejects_unknown_token(self):
         """validate() raises on an unknown raw token (ADR-008 D3: fail loud)."""
         from syndication.models import AgentPairingToken
-        with self.assertRaises(Exception):
+
+        with self.assertRaises(AgentPairingToken.DoesNotExist):
             AgentPairingToken.validate("completely-unknown-token")
 
     def test_pairing_token_validate_rejects_expired_token(self):
         """validate() raises on expired token (ADR-008 D3)."""
         from syndication.models import AgentPairingToken
+
         token, raw = AgentPairingToken.issue(self.user)
         token.expires_at = timezone.now() - timezone.timedelta(seconds=1)
         token.save(update_fields=["expires_at"])
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             AgentPairingToken.validate(raw)
 
     def test_pairing_token_validate_rejects_used_token(self):
         """validate() raises on already-used token (single-use ADR-008 D3)."""
         from syndication.models import AgentPairingToken
+
         token, raw = AgentPairingToken.issue(self.user)
         token.mark_used()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             AgentPairingToken.validate(raw)
 
 
@@ -193,6 +206,7 @@ class RegisterEndpointPairingMechanicTest(TestCase):
         The Bearer key is only issued after redemption.
         """
         from syndication.models import AgentCredential
+
         client = Client()
         client.force_login(self.user)
         client.post("/api/agents/register")
@@ -205,6 +219,7 @@ class RegisterEndpointPairingMechanicTest(TestCase):
     def test_register_creates_pairing_token_record(self):
         """Calling agents/register creates an AgentPairingToken record."""
         from syndication.models import AgentPairingToken
+
         client = Client()
         client.force_login(self.user)
         client.post("/api/agents/register")
@@ -261,6 +276,7 @@ class RedeemEndpointTest(TestCase):
     def test_redeem_creates_agent_credential(self):
         """Redemption creates an AgentCredential record bound to the registering user."""
         from syndication.models import AgentCredential
+
         pairing_token = self._register_and_get_pairing_token()
         client = Client()
         client.post(
@@ -280,6 +296,7 @@ class RedeemEndpointTest(TestCase):
         (ADR-017 D1 — credential→User binding for authz resolution).
         """
         from syndication.models import AgentCredential
+
         pairing_token = self._register_and_get_pairing_token()
         client = Client()
         response = client.post(
@@ -323,6 +340,7 @@ class RedeemEndpointTest(TestCase):
         An expired pairing token must be rejected at redemption (ADR-008 D3).
         """
         from syndication.models import AgentPairingToken
+
         # Issue a pairing token directly and expire it
         token, raw = AgentPairingToken.issue(self.user)
         token.expires_at = timezone.now() - timezone.timedelta(seconds=1)
@@ -518,7 +536,7 @@ class FullPairingChainTest(TestCase):
             self.assertEqual(
                 token_resp.status_code,
                 200,
-                f"Bearer key exchange {i+1} must succeed (long-lived)",
+                f"Bearer key exchange {i + 1} must succeed (long-lived)",
             )
 
 
@@ -560,8 +578,9 @@ class AgentPairingWebPageTest(TestCase):
         response = client.post("/syndication/agents/pair/")
         self.assertEqual(response.status_code, 200)
         # The pairing token should appear in the response body
-        content = response.content.decode()
+        _content = response.content.decode()  # decoded for debugging; assertion uses DB
         from syndication.models import AgentPairingToken
+
         token = AgentPairingToken.objects.filter(user=self.user).first()
         self.assertIsNotNone(token, "A pairing token must be created on POST")
 
@@ -571,6 +590,7 @@ class AgentPairingWebPageTest(TestCase):
         HTML body so the facilitator can copy it to their agent.
         """
         from syndication.models import AgentPairingToken
+
         client = Client()
         client.force_login(self.user)
         response = client.post("/syndication/agents/pair/")
@@ -586,14 +606,13 @@ class AgentPairingWebPageTest(TestCase):
         client2 = Client()
         client2.force_login(self.user)
         reg_resp = client2.post("/api/agents/register")
-        raw_token = reg_resp.json()["pairing_token"]
+        _raw_token = reg_resp.json()["pairing_token"]  # captured for future assertion extension
 
         # Fresh POST with a known raw token is tricky — instead verify the
         # page POST path returns the raw token by confirming the DB hash is NOT
         # in the body and the body contains a non-empty pairing-token section.
         # This test checks the template conditional renders the token block.
-        self.assertIn("pairing-token-value", content,
-                      "Rendered body must include the pairing-token element")
+        self.assertIn("pairing-token-value", content, "Rendered body must include the pairing-token element")
 
     def test_agent_pairing_page_post_does_not_show_bearer_key(self):
         """
@@ -602,6 +621,7 @@ class AgentPairingWebPageTest(TestCase):
         The Bearer key only issues at redemption.
         """
         from syndication.models import AgentCredential
+
         client = Client()
         client.force_login(self.user)
         response = client.post("/syndication/agents/pair/")
@@ -619,6 +639,7 @@ class AgentPairingWebPageTest(TestCase):
         a pairing token via the web page (ADR-016 D3 uniform vouching gate).
         """
         from syndication.models import AgentPairingToken
+
         non_vouched = User.objects.create_user(
             username="non_vouched_web",
             email="non_vouched_web@example.com",
@@ -752,6 +773,7 @@ class SecurityFindingsTest(TestCase):
         message — not a message distinguishing 'used' from 'expired'.
         """
         from syndication.models import AgentPairingToken
+
         token, raw = AgentPairingToken.issue(self.user)
         token.mark_used()
         client = Client()
@@ -763,10 +785,8 @@ class SecurityFindingsTest(TestCase):
         self.assertIn(response.status_code, [400, 401, 403])
         body = response.json()
         detail = body.get("detail", "")
-        self.assertNotIn("redeemed", detail.lower(),
-                         "Error detail must not reveal 'redeemed' (enumeration oracle)")
-        self.assertNotIn("already", detail.lower(),
-                         "Error detail must not reveal 'already' (enumeration oracle)")
+        self.assertNotIn("redeemed", detail.lower(), "Error detail must not reveal 'redeemed' (enumeration oracle)")
+        self.assertNotIn("already", detail.lower(), "Error detail must not reveal 'already' (enumeration oracle)")
 
     def test_redeem_expired_token_gives_generic_error(self):
         """
@@ -774,6 +794,7 @@ class SecurityFindingsTest(TestCase):
         generic error message as a used token.
         """
         from syndication.models import AgentPairingToken
+
         token, raw = AgentPairingToken.issue(self.user)
         token.expires_at = timezone.now() - timezone.timedelta(seconds=1)
         token.save(update_fields=["expires_at"])
@@ -786,8 +807,7 @@ class SecurityFindingsTest(TestCase):
         self.assertIn(response.status_code, [400, 401, 403])
         body = response.json()
         detail = body.get("detail", "")
-        self.assertNotIn("expired", detail.lower(),
-                         "Error detail must not reveal 'expired' (enumeration oracle)")
+        self.assertNotIn("expired", detail.lower(), "Error detail must not reveal 'expired' (enumeration oracle)")
 
     def test_redeem_used_and_expired_give_identical_message(self):
         """
@@ -832,6 +852,7 @@ class SecurityFindingsTest(TestCase):
         one AgentCredential must exist — never two (guards the TOCTOU fix).
         """
         from syndication.models import AgentCredential
+
         client = Client()
         client.force_login(self.user)
         reg_resp = client.post("/api/agents/register")
@@ -863,6 +884,7 @@ class SecurityFindingsTest(TestCase):
         Finding #6: full chain single-use test also guards exactly-one-credential.
         """
         from syndication.models import AgentCredential
+
         client = Client()
         client.force_login(self.user)
         reg_resp = client.post("/api/agents/register")

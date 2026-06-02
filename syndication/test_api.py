@@ -189,7 +189,7 @@ class AgentRegisterTest(TestCase):
                 data=json.dumps({"api_key": api_key}),
                 content_type="application/json",
             )
-            self.assertEqual(ex_response.status_code, 200, f"Exchange {i+1} must succeed")
+            self.assertEqual(ex_response.status_code, 200, f"Exchange {i + 1} must succeed")
 
 
 class IdentityTokenExchangeTest(TestCase):
@@ -654,7 +654,6 @@ class NonVouchedChainTest(TestCase):
         register, then un-vouched) must be rejected at agents/token exchange — the
         exchange endpoint checks vouching on the credential's owning user.
         """
-        from syndication.models import AgentCredential
 
         # Full pairing flow while vouched (register → redeem)
         api_key = _register_and_get_api_key(self.vouched_user)

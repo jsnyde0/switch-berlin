@@ -24,9 +24,7 @@ def make_profile(slug, **kwargs):
 
 def make_user(username, email=None):
     email = email or f"{username}@example.com"
-    return User.objects.create_user(
-        username=username, email=email, password="testpass123"
-    )
+    return User.objects.create_user(username=username, email=email, password="testpass123")
 
 
 @pytest.mark.django_db
@@ -102,9 +100,7 @@ def test_profile_claim_button_resolved_intent_not_pending(client):
     profile = make_profile("org-resolved-intent")
 
     # resolved_at is set → not pending
-    ClaimIntent.objects.create(
-        user=user, profile=profile, resolved_at=timezone.now()
-    )
+    ClaimIntent.objects.create(user=user, profile=profile, resolved_at=timezone.now())
 
     client.force_login(user)
     url = reverse("organizer-profile", kwargs={"slug": profile.slug})
@@ -126,9 +122,7 @@ def test_profile_claim_button_rejected_intent_not_pending(client):
     profile = make_profile("org-rejected-intent")
 
     # rejected_at is set → not pending
-    ClaimIntent.objects.create(
-        user=user, profile=profile, rejected_at=timezone.now()
-    )
+    ClaimIntent.objects.create(user=user, profile=profile, rejected_at=timezone.now())
 
     client.force_login(user)
     url = reverse("organizer-profile", kwargs={"slug": profile.slug})

@@ -106,15 +106,11 @@ class FlagAdmin(admin.ModelAdmin):
 
     @admin.action(description=_("Mark selected flags resolved — approved"))
     def resolve_approved(self, request, queryset):
-        self._bulk_resolve(
-            request, queryset, resolution_notes="Bulk approved via admin shortcut"
-        )
+        self._bulk_resolve(request, queryset, resolution_notes="Bulk approved via admin shortcut")
 
     @admin.action(description=_("Mark selected flags resolved — rejected"))
     def resolve_rejected(self, request, queryset):
-        self._bulk_resolve(
-            request, queryset, resolution_notes="Bulk rejected via admin shortcut"
-        )
+        self._bulk_resolve(request, queryset, resolution_notes="Bulk rejected via admin shortcut")
 
     def get_urls(self):
         urls = super().get_urls()
@@ -140,9 +136,7 @@ class FlagAdmin(admin.ModelAdmin):
         extra_context["allowed_actions"] = allowed
         extra_context["pre_selected_action"] = pre_selected
         extra_context["flag_action_url"] = flag_action_url
-        return super().change_view(
-            request, object_id, form_url=form_url, extra_context=extra_context
-        )
+        return super().change_view(request, object_id, form_url=form_url, extra_context=extra_context)
 
     @method_decorator(require_POST)
     def process_action(self, request, flag_id):

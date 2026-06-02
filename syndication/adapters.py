@@ -149,7 +149,7 @@ def publish_switch_own_page(projection: PlatformProjection) -> None:
 
 # ADR-008 D4: transport retry policy constants
 _TELEGRAM_MAX_TRANSPORT_RETRIES = 2  # up to 2 retries → 3 total attempts
-_TELEGRAM_RETRY_SLEEP_SECONDS = 1    # linear backoff between attempts
+_TELEGRAM_RETRY_SLEEP_SECONDS = 1  # linear backoff between attempts
 
 
 def publish_telegram_promotion(projection: PlatformProjection) -> None:
@@ -238,9 +238,7 @@ def publish_telegram_promotion(projection: PlatformProjection) -> None:
 
     # ---- Precondition 5: resolve bot token ----
     # Per-channel override takes priority; fallback to settings.TELEGRAM_BOT_TOKEN.
-    token = projection.connection.credentials.get("bot_token") or getattr(
-        settings, "TELEGRAM_BOT_TOKEN", ""
-    )
+    token = projection.connection.credentials.get("bot_token") or getattr(settings, "TELEGRAM_BOT_TOKEN", "")
     if not token:
         transition_status(projection, PlatformProjection.Status.FAILED)
         raise ValueError(

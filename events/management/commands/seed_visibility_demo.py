@@ -27,8 +27,7 @@ _TIERS = [
             ),
             (
                 "Public Workshop — Consent 101",
-                "Drop-in workshop covering consent vocabulary, negotiation, and"
-                " aftercare. All audiences welcome.",
+                "Drop-in workshop covering consent vocabulary, negotiation, and aftercare. All audiences welcome.",
             ),
         ],
     ),
@@ -37,13 +36,11 @@ _TIERS = [
         [
             (
                 "Members Mixer — Berlin Chapter",
-                "Casual mixer for vouched members. Bring a friend (must be vouched"
-                " too).",
+                "Casual mixer for vouched members. Bring a friend (must be vouched too).",
             ),
             (
                 "Skillshare Salon — Rope Fundamentals",
-                "Hands-on session for vouched members. No spectators; pair up to"
-                " learn.",
+                "Hands-on session for vouched members. No spectators; pair up to learn.",
             ),
         ],
     ),
@@ -116,6 +113,4 @@ class Command(BaseCommand):
                 offset_days += 2
 
         self.stdout.write("")
-        self.stdout.write(
-            self.style.SUCCESS(f"Done: created {created}, skipped {skipped}.")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Done: created {created}, skipped {skipped}."))

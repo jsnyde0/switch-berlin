@@ -107,9 +107,7 @@ class TestLegalCheckNoErrors(TestCase):
         from a_core.models import FeatureFlag
 
         cache.clear()
-        FeatureFlag.objects.update_or_create(
-            key="PUBLIC_READ_ENABLED", defaults={"enabled": True}
-        )
+        FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": True})
         errors = run_check(DEBUG=False, **FULL_LEGAL_SETTINGS)
         self.assertEqual(errors, [])
 
@@ -121,9 +119,7 @@ class TestLegalCheckNoErrors(TestCase):
         from a_core.models import FeatureFlag
 
         cache.clear()
-        FeatureFlag.objects.update_or_create(
-            key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-        )
+        FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
         errors = run_check(DEBUG=False, **FULL_LEGAL_SETTINGS)
         self.assertEqual(errors, [])
 
@@ -137,9 +133,7 @@ class TestLegalCheckW006(TestCase):
         cache.clear()
         from a_core.models import FeatureFlag
 
-        FeatureFlag.objects.update_or_create(
-            key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-        )
+        FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
 
     def test_w006_missing_name_debug_true(self):
         """W006 warning fires when IMPRESSUM_NAME is empty and DEBUG=True."""
@@ -177,9 +171,7 @@ class TestLegalCheckE006(TestCase):
         cache.clear()
         from a_core.models import FeatureFlag
 
-        FeatureFlag.objects.update_or_create(
-            key="PUBLIC_READ_ENABLED", defaults={"enabled": True}
-        )
+        FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": True})
 
     def test_e006_missing_name_public_read(self):
         """E006 error fires when IMPRESSUM_NAME is empty and
@@ -226,9 +218,7 @@ class TestLegalCheckNoFireWhenBothFalse(TestCase):
         cache.clear()
         from a_core.models import FeatureFlag
 
-        FeatureFlag.objects.update_or_create(
-            key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-        )
+        FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
 
     def test_no_check_fires_when_debug_false_and_public_read_false(self):
         """No warning or error when DEBUG=False and PUBLIC_READ_ENABLED=False, even

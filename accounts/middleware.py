@@ -57,8 +57,7 @@ class LoginWallMiddleware:
         public_read = get_flag("PUBLIC_READ_ENABLED", default=True)
 
         read_public = public_read and (
-            any(path.startswith(p) for p in PUBLIC_READ_PREFIXES)
-            or path in PUBLIC_READ_EXACT
+            any(path.startswith(p) for p in PUBLIC_READ_PREFIXES) or path in PUBLIC_READ_EXACT
         )
 
         if read_public:

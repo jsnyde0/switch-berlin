@@ -247,9 +247,7 @@ def staff_user(db):
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    return User.objects.create_user(
-        username="staff", email="staff@example.com", password="x", is_staff=True
-    )
+    return User.objects.create_user(username="staff", email="staff@example.com", password="x", is_staff=True)
 
 
 @pytest.fixture
@@ -258,9 +256,7 @@ def regular_user(db):
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    return User.objects.create_user(
-        username="regular", email="regular@example.com", password="x", is_staff=False
-    )
+    return User.objects.create_user(username="regular", email="regular@example.com", password="x", is_staff=False)
 
 
 @pytest.fixture

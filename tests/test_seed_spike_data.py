@@ -26,11 +26,7 @@ def test_seed_creates_8_plus_organizers():
 def test_seed_venues_have_both_privacy_modes():
     """seed_spike_data creates venues with both public and private privacy modes."""
     call_command("seed_spike_data", force=True)
-    privacy_modes = set(
-        Venue.objects.filter(name__startswith="SpikeSeed-").values_list(
-            "privacy_mode", flat=True
-        )
-    )
+    privacy_modes = set(Venue.objects.filter(name__startswith="SpikeSeed-").values_list("privacy_mode", flat=True))
     assert "public" in privacy_modes
     assert len(privacy_modes) >= 2  # at least public + one non-public
 

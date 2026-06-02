@@ -81,9 +81,7 @@ def vouched_user(db):
 
 @pytest.fixture
 def open_user(db):
-    user = User.objects.create_user(
-        username="openuser", email="open@example.com", password="Pass!123"
-    )
+    user = User.objects.create_user(username="openuser", email="open@example.com", password="Pass!123")
     # status defaults to 'open'
     return user
 
@@ -172,9 +170,7 @@ def test_flow_a_open_signup_creates_open_user_with_auto_profile():
     # Auto-Profile created (kind=person)
     claim = ProfileClaim.objects.filter(user=user, verified_method="auto_self").first()
     assert claim is not None, "auto_self ProfileClaim was not created"
-    assert claim.profile.kind == "person", (
-        f"Expected kind='person', got '{claim.profile.kind}'"
-    )
+    assert claim.profile.kind == "person", f"Expected kind='person', got '{claim.profile.kind}'"
 
     # Verification email sent
     assert len(mail.outbox) >= 1, "Expected email-verification email in outbox"
@@ -215,14 +211,10 @@ def test_flow_b_vouched_signup_with_valid_invite(grantor, invite_code):
     assert user.status == "vouched", f"Expected status='vouched', got '{user.status}'"
 
     # Vouch row
-    assert Vouch.objects.filter(voucher=grantor, vouchee=user).exists(), (
-        "Vouch row missing"
-    )
+    assert Vouch.objects.filter(voucher=grantor, vouchee=user).exists(), "Vouch row missing"
 
     # InviteGrant audit row
-    assert InviteGrant.objects.filter(
-        recipient=user, invite_code=invite_code
-    ).exists(), "InviteGrant audit row missing"
+    assert InviteGrant.objects.filter(recipient=user, invite_code=invite_code).exists(), "InviteGrant audit row missing"
 
     # InviteCode marked used
     invite_code.refresh_from_db()
@@ -258,9 +250,7 @@ def test_flow_c_vouched_signup_with_bad_code_fails_loud():
         )
 
     # 200 = form re-rendered with error (NOT 302 redirect = success)
-    assert response.status_code == 200, (
-        f"Expected 200 (form-invalid), got {response.status_code}"
-    )
+    assert response.status_code == 200, f"Expected 200 (form-invalid), got {response.status_code}"
     assert not User.objects.filter(email="flow_c1@example.com").exists(), (
         "User created despite invalid invite code (ADR-008 D3 violation)"
     )
@@ -274,9 +264,7 @@ def test_flow_c_vouched_signup_with_used_code_fails_loud(grantor):
     """
     from accounts.models import InviteCode
 
-    existing = User.objects.create_user(
-        username="prior_recipient", email="prior@example.com", password="x"
-    )
+    existing = User.objects.create_user(username="prior_recipient", email="prior@example.com", password="x")
     ic = InviteCode.objects.create(
         created_by=grantor,
         used_by=existing,
@@ -296,9 +284,7 @@ def test_flow_c_vouched_signup_with_used_code_fails_loud(grantor):
             },
         )
 
-    assert response.status_code == 200, (
-        f"Expected 200 (form-invalid), got {response.status_code}"
-    )
+    assert response.status_code == 200, f"Expected 200 (form-invalid), got {response.status_code}"
     assert not User.objects.filter(email="flow_c2@example.com").exists(), (
         "User created despite used invite code (ADR-008 D3 violation)"
     )
@@ -336,31 +322,22 @@ def test_flow_d_email_domain_fastpath_claim(vouched_user):
 
     url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(
-            url, {"email": vouched_user.email, "turnstile_token": "VALID"}
-        )
+        response = client.post(url, {"email": vouched_user.email, "turnstile_token": "VALID"})
 
     # Should redirect to check-email page (NOT directly to profile)
     assert response.status_code == 302
-    assert (
-        "check" in response["Location"].lower()
-        or "email" in response["Location"].lower()
-    ), f"Expected check-email redirect on fast-path, got: {response['Location']}"
+    assert "check" in response["Location"].lower() or "email" in response["Location"].lower(), (
+        f"Expected check-email redirect on fast-path, got: {response['Location']}"
+    )
 
     # No ProfileClaim created at POST time (magic-link required)
-    assert not ProfileClaim.objects.filter(
-        profile=profile, user=vouched_user
-    ).exists(), (
+    assert not ProfileClaim.objects.filter(profile=profile, user=vouched_user).exists(), (
         "ProfileClaim must NOT be created at POST time on fast-path (ADR-014 D2)"
     )
 
     # MagicLinkToken issued with intended_method='email_domain'
-    token = MagicLinkToken.objects.filter(
-        profile=profile, user_target=vouched_user
-    ).first()
-    assert token is not None, (
-        "MagicLinkToken should be created on email-domain fast-path"
-    )
+    token = MagicLinkToken.objects.filter(profile=profile, user_target=vouched_user).first()
+    assert token is not None, "MagicLinkToken should be created on email-domain fast-path"
     assert token.intended_method == "email_domain", (
         f"Expected intended_method='email_domain', got '{token.intended_method}'"
     )
@@ -375,9 +352,7 @@ def test_flow_d_email_domain_fastpath_claim(vouched_user):
     assert redeem_response.status_code == 302
 
     claim = ProfileClaim.objects.filter(profile=profile, user=vouched_user).first()
-    assert claim is not None, (
-        "ProfileClaim was not created after fast-path magic-link redemption"
-    )
+    assert claim is not None, "ProfileClaim was not created after fast-path magic-link redemption"
     assert claim.verified_method == "email_domain", (
         f"Expected verified_method='email_domain', got '{claim.verified_method}'"
     )
@@ -413,9 +388,7 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     # POST claim form — triggers admin-review path (email domain mismatch)
     url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(
-            url, {"email": vouched_user.email, "turnstile_token": "VALID"}
-        )
+        response = client.post(url, {"email": vouched_user.email, "turnstile_token": "VALID"})
 
     # Should redirect to check-email page
     assert response.status_code == 302
@@ -425,9 +398,7 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     assert intent is not None, "ClaimIntent was not created on admin-review path"
 
     # MagicLinkToken issued with intended_method='admin_review'
-    token = MagicLinkToken.objects.filter(
-        profile=profile, user_target=vouched_user
-    ).first()
+    token = MagicLinkToken.objects.filter(profile=profile, user_target=vouched_user).first()
     assert token is not None, "MagicLinkToken was not created on admin-review path"
     assert token.is_valid, "MagicLinkToken should be valid (not expired, not used)"
     assert token.intended_method == "admin_review", (
@@ -447,16 +418,12 @@ def test_flow_e_magic_link_claim_admin_review_path(vouched_user):
     # ClaimIntent.submitter_verified_at stamped (email confirmed)
     intent.refresh_from_db()
     assert intent.submitter_verified_at is not None, (
-        "ClaimIntent.submitter_verified_at should be stamped after magic-link"
-        " redemption"
+        "ClaimIntent.submitter_verified_at should be stamped after magic-link redemption"
     )
 
     # No ProfileClaim created yet (admin approval required per ADR-014 D2)
-    assert not ProfileClaim.objects.filter(
-        profile=profile, user=vouched_user
-    ).exists(), (
-        "ProfileClaim must NOT be created on admin-review path until admin approves"
-        " (ADR-014 D2)"
+    assert not ProfileClaim.objects.filter(profile=profile, user=vouched_user).exists(), (
+        "ProfileClaim must NOT be created on admin-review path until admin approves (ADR-014 D2)"
     )
 
     # Token marked as used
@@ -500,8 +467,7 @@ def test_flow_f_magic_link_tamper_wrong_user_fails_loud(vouched_user):
 
     # Must fail loud — 403
     assert response.status_code == 403, (
-        f"Expected 403 for wrong-user redemption (ADR-008 D3),"
-        f" got {response.status_code}"
+        f"Expected 403 for wrong-user redemption (ADR-008 D3), got {response.status_code}"
     )
 
     # No ProfileClaim created
@@ -611,8 +577,7 @@ def test_flow_g_access_matrix(
     response = client.get(url)
 
     assert response.status_code == expected_status, (
-        f"Access matrix cell ({viewer_type} × {visibility}): "
-        f"expected {expected_status}, got {response.status_code}"
+        f"Access matrix cell ({viewer_type} × {visibility}): expected {expected_status}, got {response.status_code}"
     )
 
 
@@ -638,9 +603,7 @@ def test_flow_h_public_event_has_no_xrobots_header(vouched_user, public_event):
     )
     response = client.get(url)
     assert response.status_code == 200
-    assert "X-Robots-Tag" not in response, (
-        "Public event should NOT have X-Robots-Tag header"
-    )
+    assert "X-Robots-Tag" not in response, "Public event should NOT have X-Robots-Tag header"
 
 
 @pytest.mark.django_db
@@ -695,9 +658,7 @@ def test_flow_h_unlisted_event_has_noindex_header(vouched_user, unlisted_event):
 
 
 @pytest.mark.django_db
-def test_flow_i_default_open_user_blocked_from_semi_public(
-    open_user, semi_public_event
-):
+def test_flow_i_default_open_user_blocked_from_semi_public(open_user, semi_public_event):
     """
     Flow I default: with EVENT_VISIBILITY_TRUSTED_STATUSES=("vouched",), an
     open-status user does NOT qualify as a trusted viewer and gets 404 on
@@ -718,9 +679,7 @@ def test_flow_i_default_open_user_blocked_from_semi_public(
 
 @pytest.mark.django_db
 @override_settings(EVENT_VISIBILITY_TRUSTED_STATUSES=("open", "vouched"))
-def test_flow_i_knob_flip_grants_open_user_semi_public_access(
-    open_user, semi_public_event
-):
+def test_flow_i_knob_flip_grants_open_user_semi_public_access(open_user, semi_public_event):
     """
     Flow I knob: appending "open" to EVENT_VISIBILITY_TRUSTED_STATUSES grants
     open-status users access to semi_public events (and the URL surface for
@@ -772,9 +731,7 @@ def test_admin_review_claim_persists_message_for_admin_queue(vouched_user):
     assert response.status_code == 302
 
     intent = ClaimIntent.objects.get(user=vouched_user, profile=profile)
-    assert intent.message == message, (
-        f"Expected ClaimIntent.message to equal submitted text; got '{intent.message}'"
-    )
+    assert intent.message == message, f"Expected ClaimIntent.message to equal submitted text; got '{intent.message}'"
 
 
 @pytest.mark.django_db
@@ -796,9 +753,7 @@ def test_admin_review_claim_without_message_leaves_field_blank(vouched_user):
     client.force_login(vouched_user)
     url = reverse("organizer-claim-entry", kwargs={"slug": profile.slug})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(
-            url, {"email": vouched_user.email, "turnstile_token": "VALID"}
-        )
+        response = client.post(url, {"email": vouched_user.email, "turnstile_token": "VALID"})
 
     assert response.status_code == 302
     intent = ClaimIntent.objects.get(user=vouched_user, profile=profile)

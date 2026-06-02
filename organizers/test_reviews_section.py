@@ -312,9 +312,7 @@ def test_anonymous_user_same_visibility_as_authenticated(org, db):
     anon_resp = Client().get(url)
 
     # Create an approved user and log in
-    auth_user = User.objects.create_user(
-        username="auth_test", email="auth@example.com", password="testpass"
-    )
+    auth_user = User.objects.create_user(username="auth_test", email="auth@example.com", password="testpass")
     auth_user.status = "vouched"
     auth_user.save()
     auth_client = Client()

@@ -164,9 +164,7 @@ def test_profile_preserves_status_field():
     """Profile has status field with candidate/approved/suspended choices."""
     from organizers.models import Profile
 
-    p = Profile.objects.create(
-        name="Status Test", slug="status-test", status="approved"
-    )
+    p = Profile.objects.create(name="Status Test", slug="status-test", status="approved")
     assert p.status == "approved"
 
 
@@ -175,9 +173,7 @@ def test_profile_preserves_verified_badge_field():
     """Profile has verified_badge BooleanField."""
     from organizers.models import Profile
 
-    p = Profile.objects.create(
-        name="Badge Test", slug="badge-test", verified_badge=True
-    )
+    p = Profile.objects.create(name="Badge Test", slug="badge-test", verified_badge=True)
     assert p.verified_badge is True
 
 
@@ -251,9 +247,7 @@ def test_event_organizer_fk_targets_profile():
     # organizer_id no longer exists (FK removed); verify via EventOrganizer
     from events.models import EventOrganizer
 
-    assert EventOrganizer.objects.filter(
-        event=event, profile=p, is_primary=True
-    ).exists()
+    assert EventOrganizer.objects.filter(event=event, profile=p, is_primary=True).exists()
 
 
 @pytest.mark.django_db
@@ -264,9 +258,7 @@ def test_profile_reverse_events_queryset():
     from events.models import Event
     from organizers.models import Profile
 
-    p = Profile.objects.create(
-        name="Reverse Org", slug="reverse-org", status="approved"
-    )
+    p = Profile.objects.create(name="Reverse Org", slug="reverse-org", status="approved")
     event = Event.objects.create(
         title="Reverse Event",
         slug="reverse-event",
@@ -286,8 +278,6 @@ def test_follow_model_works_with_profile():
         email="ft2@example.com",
         password="x",
     )
-    p = Profile.objects.create(
-        name="Follow Target", slug="follow-target", status="approved"
-    )
+    p = Profile.objects.create(name="Follow Target", slug="follow-target", status="approved")
     follow = Follow.objects.create(user=user, profile=p)
     assert follow.profile == p

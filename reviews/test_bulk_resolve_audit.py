@@ -23,13 +23,9 @@ User = get_user_model()
 
 class BulkResolveAuditTest(TestCase):
     def setUp(self):
-        self.moderator = User.objects.create_user(
-            username="mod", password="x", is_staff=True, is_superuser=True
-        )
+        self.moderator = User.objects.create_user(username="mod", password="x", is_staff=True, is_superuser=True)
         self.reporter = User.objects.create_user(username="rep", password="x")
-        self.organizer = Profile.objects.create(
-            name="Org", slug="org", status="approved"
-        )
+        self.organizer = Profile.objects.create(name="Org", slug="org", status="approved")
         self.event = Event.objects.create(
             title="E",
             slug="e",
@@ -37,12 +33,8 @@ class BulkResolveAuditTest(TestCase):
             status="published",
             start=timezone.now() + timedelta(days=1),
         )
-        self.flag1 = Flag.objects.create(
-            reporter=self.reporter, event=self.event, reason="other", body="b1"
-        )
-        self.flag2 = Flag.objects.create(
-            reporter=self.reporter, organizer=self.organizer, reason="other", body="b2"
-        )
+        self.flag1 = Flag.objects.create(reporter=self.reporter, event=self.event, reason="other", body="b1")
+        self.flag2 = Flag.objects.create(reporter=self.reporter, organizer=self.organizer, reason="other", body="b2")
         self.admin = FlagAdmin(Flag, AdminSite())
         self.request = HttpRequest()
         self.request.user = self.moderator
@@ -56,9 +48,7 @@ class BulkResolveAuditTest(TestCase):
         self.assertTrue(self.flag1.resolved)
         self.assertTrue(self.flag2.resolved)
         self.assertEqual(self.flag1.resolved_by, self.moderator)
-        self.assertEqual(
-            self.flag1.resolution_notes, "Bulk approved via admin shortcut"
-        )
+        self.assertEqual(self.flag1.resolution_notes, "Bulk approved via admin shortcut")
         # ModerationAction has the moderator, flag link, target repr.
         ma1 = ModerationAction.objects.get(flag=self.flag1)
         self.assertEqual(ma1.moderator, self.moderator)
@@ -71,6 +61,4 @@ class BulkResolveAuditTest(TestCase):
         self.admin.resolve_rejected(self.request, qs)
         self.assertEqual(ModerationAction.objects.count(), 1)
         self.flag1.refresh_from_db()
-        self.assertEqual(
-            self.flag1.resolution_notes, "Bulk rejected via admin shortcut"
-        )
+        self.assertEqual(self.flag1.resolution_notes, "Bulk rejected via admin shortcut")

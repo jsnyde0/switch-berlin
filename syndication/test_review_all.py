@@ -21,7 +21,7 @@ from django.utils import timezone
 
 from events.models import Event, EventOrganizer
 from organizers.models import Profile, ProfileClaim
-from syndication.models import ContentVersion, PlatformConnection, PlatformProjection, Post
+from syndication.models import ContentVersion, PlatformConnection, PlatformProjection
 
 User = get_user_model()
 
@@ -29,6 +29,7 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 # Helpers (mirror the pattern from test_projection_board.py)
 # ---------------------------------------------------------------------------
+
 
 def _make_vouched_user(**kwargs):
     kwargs.setdefault("status", "vouched")
@@ -95,6 +96,7 @@ def _make_listing_projection(connection, event, status="draft", content_version=
 # RA1/RA2. Access control
 # ---------------------------------------------------------------------------
 
+
 class ReviewAllAccessTest(TestCase):
     """
     RA1. Co-claimant gets 200.
@@ -119,6 +121,7 @@ class ReviewAllAccessTest(TestCase):
 
     def _url(self):
         from django.urls import reverse
+
         return reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
 
     def test_co_claimant_gets_200(self):
@@ -129,13 +132,15 @@ class ReviewAllAccessTest(TestCase):
     def test_non_claimant_is_gated(self):
         """RA2: a logged-in user with no claim on the event must get 403."""
         response = self.stranger_client.get(self._url())
-        self.assertEqual(response.status_code, 403,
-            "Non-claimant must be rejected with 403, not silently redirected or let through")
+        self.assertEqual(
+            response.status_code, 403, "Non-claimant must be rejected with 403, not silently redirected or let through"
+        )
 
 
 # ---------------------------------------------------------------------------
 # RA3. One preview per projection
 # ---------------------------------------------------------------------------
+
 
 class ReviewAllOnePreviewPerProjectionTest(TestCase):
     """
@@ -157,6 +162,7 @@ class ReviewAllOnePreviewPerProjectionTest(TestCase):
 
     def _url(self):
         from django.urls import reverse
+
         return reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
 
     def test_renders_one_preview_per_projection(self):
@@ -175,13 +181,15 @@ class ReviewAllOnePreviewPerProjectionTest(TestCase):
         # review_all.html emits one <article …> per projection row (the platform-tinted card panel).
         # Count opening <article tags as the per-preview sentinel.
         article_count = html.count("<article")
-        self.assertEqual(article_count, 2,
-            f"Expected 2 <article> panels in rendered HTML (one per projection), got {article_count}")
+        self.assertEqual(
+            article_count, 2, f"Expected 2 <article> panels in rendered HTML (one per projection), got {article_count}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # RA4. Divergent variants both visible
 # ---------------------------------------------------------------------------
+
 
 class ReviewAllDivergentVariantsTest(TestCase):
     """
@@ -206,6 +214,7 @@ class ReviewAllDivergentVariantsTest(TestCase):
 
     def _url(self):
         from django.urls import reverse
+
         return reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
 
     def test_both_canonical_and_custom_body_in_html(self):
@@ -213,30 +222,25 @@ class ReviewAllDivergentVariantsTest(TestCase):
         RA4: canonical body and custom body are both rendered in the HTML.
         """
         # Projection 1: canonical body
-        canonical_cv = _make_content_version(
-            self.event, name="canonical", body=self.CANONICAL_BODY
-        )
+        canonical_cv = _make_content_version(self.event, name="canonical", body=self.CANONICAL_BODY)
         _make_listing_projection(self.conn_tg, self.event, content_version=canonical_cv)
 
         # Projection 2: separate content version with custom body
-        custom_cv = _make_content_version(
-            self.event, name="custom-fl", body=self.CUSTOM_BODY
-        )
+        custom_cv = _make_content_version(self.event, name="custom-fl", body=self.CUSTOM_BODY)
         _make_listing_projection(self.conn_fl, self.event, content_version=custom_cv)
 
         response = self.client.get(self._url())
         self.assertEqual(response.status_code, 200)
 
         html = response.content.decode()
-        self.assertIn(self.CANONICAL_BODY, html,
-            "Canonical body must appear in the rendered HTML")
-        self.assertIn(self.CUSTOM_BODY, html,
-            "Custom/divergent body must appear in the rendered HTML")
+        self.assertIn(self.CANONICAL_BODY, html, "Canonical body must appear in the rendered HTML")
+        self.assertIn(self.CUSTOM_BODY, html, "Custom/divergent body must appear in the rendered HTML")
 
 
 # ---------------------------------------------------------------------------
 # RA6. Render errors surface visibly (fail-loud ADR-008 D3)
 # ---------------------------------------------------------------------------
+
 
 class ReviewAllRenderErrorTest(TestCase):
     """
@@ -255,6 +259,7 @@ class ReviewAllRenderErrorTest(TestCase):
 
     def _url(self):
         from django.urls import reverse
+
         return reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
 
     def test_render_error_is_visible_in_html(self):
@@ -275,13 +280,17 @@ class ReviewAllRenderErrorTest(TestCase):
         html = response.content.decode()
         # _channel_preview.html emits `kb-tag-error` inside the error panel branch.
         # Asserting on rendered HTML ensures the error is actually visible, not just stored in context.
-        self.assertIn("kb-tag-error", html,
-            "Error panel markup (kb-tag-error) must appear in rendered HTML when render fails (ADR-008 D3)")
+        self.assertIn(
+            "kb-tag-error",
+            html,
+            "Error panel markup (kb-tag-error) must appear in rendered HTML when render fails (ADR-008 D3)",
+        )
 
 
 # ---------------------------------------------------------------------------
 # RA5. Back-link to board is present in the HTML
 # ---------------------------------------------------------------------------
+
 
 class ReviewAllBackLinkTest(TestCase):
     """
@@ -298,6 +307,7 @@ class ReviewAllBackLinkTest(TestCase):
 
     def _url(self):
         from django.urls import reverse
+
         return reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
 
     def test_back_link_to_board_present(self):
@@ -305,9 +315,9 @@ class ReviewAllBackLinkTest(TestCase):
         The rendered HTML must include a link back to the event hub (board).
         """
         from django.urls import reverse
+
         hub_url = reverse("syndication:event-hub", kwargs={"pk": self.event.pk})
         response = self.client.get(self._url())
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
-        self.assertIn(hub_url, html,
-            f"Expected hub URL {hub_url!r} to appear in the review-all HTML (back-link)")
+        self.assertIn(hub_url, html, f"Expected hub URL {hub_url!r} to appear in the review-all HTML (back-link)")

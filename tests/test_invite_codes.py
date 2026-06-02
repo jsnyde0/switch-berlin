@@ -57,9 +57,7 @@ def expired_invite(creator):
 def used_invite(creator, db):
     from accounts.models import InviteCode
 
-    redeemer = User.objects.create_user(
-        username="redeemer", email="redeemer@example.com", password="x"
-    )
+    redeemer = User.objects.create_user(username="redeemer", email="redeemer@example.com", password="x")
     invite = InviteCode.objects.create(
         created_by=creator,
         used_by=redeemer,

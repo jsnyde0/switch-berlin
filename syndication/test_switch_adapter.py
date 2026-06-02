@@ -26,10 +26,10 @@ from organizers.models import Profile
 from syndication.engine import generate_projection, transition_status
 from syndication.models import PlatformConnection, PlatformProjection
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_organizer_profile(slug="test-org-switch"):
     return Profile.objects.create(name="Switch Test Organizer", slug=slug)
@@ -65,6 +65,7 @@ def _seed_canonical_cv(event):
     Required by the F1 non-null content_version FK (kb-wz8m.2 A1 invariant).
     """
     from syndication.models import ContentVersion
+
     cv, _ = ContentVersion.objects.get_or_create(
         event=event,
         name="canonical",
@@ -76,6 +77,7 @@ def _seed_canonical_cv(event):
 # ---------------------------------------------------------------------------
 # 1. Successful publish: status=published + external_url resolved
 # ---------------------------------------------------------------------------
+
 
 class SwitchOwnPagePublishTest(TestCase):
     """
@@ -103,6 +105,7 @@ class SwitchOwnPagePublishTest(TestCase):
         Harness item (primary): publish sets projection status=published.
         """
         from syndication.adapters import publish_switch_own_page
+
         publish_switch_own_page(self.proj)
         self.proj.refresh_from_db()
         self.assertEqual(self.proj.status, PlatformProjection.Status.PUBLISHED)
@@ -113,6 +116,7 @@ class SwitchOwnPagePublishTest(TestCase):
         Resolved via reverse('event-detail'), not hardcoded.
         """
         from syndication.adapters import publish_switch_own_page
+
         publish_switch_own_page(self.proj)
         self.proj.refresh_from_db()
 
@@ -135,6 +139,7 @@ class SwitchOwnPagePublishTest(TestCase):
         URL-to-event binding is covered by test_publish_external_url_matches_reverse.
         """
         from django.test import Client
+
         from syndication.adapters import publish_switch_own_page
 
         # Confirm the event is public (explicit — don't rely on setUp default)
@@ -152,6 +157,7 @@ class SwitchOwnPagePublishTest(TestCase):
     def test_publish_sets_syndicated_at(self):
         """syndicated_at is stamped on successful publish."""
         from syndication.adapters import publish_switch_own_page
+
         before = timezone.now()
         publish_switch_own_page(self.proj)
         self.proj.refresh_from_db()
@@ -163,6 +169,7 @@ class SwitchOwnPagePublishTest(TestCase):
         Explicit: external_url equals reverse('event-detail') — not a hardcoded path.
         """
         from syndication.adapters import publish_switch_own_page
+
         publish_switch_own_page(self.proj)
         self.proj.refresh_from_db()
 
@@ -179,6 +186,7 @@ class SwitchOwnPagePublishTest(TestCase):
 # ---------------------------------------------------------------------------
 # 2. Fail-loud: event has no primary organizer → status=failed
 # ---------------------------------------------------------------------------
+
 
 class SwitchPublishFailLoudTest(TestCase):
     """
@@ -214,6 +222,7 @@ class SwitchPublishFailLoudTest(TestCase):
         )
 
         from syndication.adapters import publish_switch_own_page
+
         with self.assertRaises(ValueError):
             publish_switch_own_page(proj)
 
@@ -226,8 +235,10 @@ class SwitchPublishFailLoudTest(TestCase):
         publish_switch_own_page must set status=failed.
         """
         # Need a ContentVersion even though source_event is None — use a standalone event.
-        from events.models import Event as EventModel
         from django.utils import timezone as tz
+
+        from events.models import Event as EventModel
+
         orphan_event = EventModel.objects.create(
             title="Orphan Event SW",
             slug="orphan-event-sw-no-source",
@@ -244,6 +255,7 @@ class SwitchPublishFailLoudTest(TestCase):
         )
 
         from syndication.adapters import publish_switch_own_page
+
         with self.assertRaises(ValueError):
             publish_switch_own_page(proj)
 
@@ -254,6 +266,7 @@ class SwitchPublishFailLoudTest(TestCase):
 # ---------------------------------------------------------------------------
 # 3. Only accepts kind=listing; promotion is not Switch own-page's domain
 # ---------------------------------------------------------------------------
+
 
 class SwitchPublishKindGuardTest(TestCase):
     """
@@ -272,6 +285,7 @@ class SwitchPublishKindGuardTest(TestCase):
         Must raise ValueError (fail loud).
         """
         from syndication.models import Post
+
         post = Post.objects.create(
             event=self.event,
             headline="Promo for Switch",
@@ -289,6 +303,7 @@ class SwitchPublishKindGuardTest(TestCase):
         )
 
         from syndication.adapters import publish_switch_own_page
+
         with self.assertRaises(ValueError):
             publish_switch_own_page(proj)
 
@@ -296,6 +311,7 @@ class SwitchPublishKindGuardTest(TestCase):
 # ---------------------------------------------------------------------------
 # 4. Draft-precondition guard (Fix 1+2 — kb-a4u.10 review)
 # ---------------------------------------------------------------------------
+
 
 class SwitchPublishDraftPreconditionTest(TestCase):
     """
@@ -331,6 +347,7 @@ class SwitchPublishDraftPreconditionTest(TestCase):
         )
 
         from syndication.adapters import publish_switch_own_page
+
         with self.assertRaises(ValueError) as ctx:
             publish_switch_own_page(proj)
 
@@ -345,6 +362,7 @@ class SwitchPublishDraftPreconditionTest(TestCase):
 # ---------------------------------------------------------------------------
 # 5. Missing-slug fail-loud (Fix 3 — kb-a4u.10 review)
 # ---------------------------------------------------------------------------
+
 
 class SwitchPublishMissingSlugTest(TestCase):
     """
@@ -387,6 +405,7 @@ class SwitchPublishMissingSlugTest(TestCase):
         )
 
         from syndication.adapters import publish_switch_own_page
+
         with self.assertRaises(ValueError) as ctx:
             publish_switch_own_page(proj)
 
@@ -429,6 +448,7 @@ class SwitchPublishMissingSlugTest(TestCase):
         )
 
         from syndication.adapters import publish_switch_own_page
+
         with self.assertRaises(ValueError) as ctx:
             publish_switch_own_page(proj)
 
@@ -440,6 +460,7 @@ class SwitchPublishMissingSlugTest(TestCase):
 # ---------------------------------------------------------------------------
 # 6. Double-publish contract (Fix 7 — kb-a4u.10 review)
 # ---------------------------------------------------------------------------
+
 
 class SwitchPublishDoublePublishTest(TestCase):
     """
@@ -471,6 +492,7 @@ class SwitchPublishDoublePublishTest(TestCase):
         proj.refresh_from_db()
 
         from syndication.adapters import publish_switch_own_page
+
         # First publish succeeds
         publish_switch_own_page(proj)
         proj.refresh_from_db()

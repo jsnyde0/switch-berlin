@@ -78,9 +78,7 @@ def test_save_user_creates_profile_and_claim():
     adapter._create_owned_profile(user)
 
     assert Profile.objects.filter(claimants=user, kind="person").count() == 1
-    assert (
-        ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
-    )
+    assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -95,9 +93,7 @@ def test_auto_profile_claim_has_verified_at():
     from organizers.models import ProfileClaim
 
     adapter = OpenSignupAdapter()
-    user = User.objects.create_user(
-        username="vat_user", email="vat@example.com", password="x"
-    )
+    user = User.objects.create_user(username="vat_user", email="vat@example.com", password="x")
     adapter._create_owned_profile(user)
 
     claim = ProfileClaim.objects.get(user=user, verified_method="auto_self")
@@ -121,9 +117,7 @@ def test_auto_profile_creation_is_atomic():
     from organizers.models import Profile
 
     adapter = OpenSignupAdapter()
-    user = User.objects.create_user(
-        username="atomic_user", email="atomic@example.com", password="x"
-    )
+    user = User.objects.create_user(username="atomic_user", email="atomic@example.com", password="x")
 
     with pytest.raises(RuntimeError):
         with patch(
@@ -151,17 +145,13 @@ def test_auto_profile_creation_is_idempotent():
     from organizers.models import Profile, ProfileClaim
 
     adapter = OpenSignupAdapter()
-    user = User.objects.create_user(
-        username="idempotent_user", email="idempotent@example.com", password="x"
-    )
+    user = User.objects.create_user(username="idempotent_user", email="idempotent@example.com", password="x")
 
     adapter._create_owned_profile(user)
     adapter._create_owned_profile(user)  # second call should be a no-op
 
     assert Profile.objects.filter(claimants=user).count() == 1
-    assert (
-        ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
-    )
+    assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +238,5 @@ def test_auto_profile_has_status_approved():
 
     profile = Profile.objects.get(claimants=user, kind="person")
     assert profile.status == "approved", (
-        f"Auto-created Profile must have status='approved' so owner can view it;"
-        f" got '{profile.status}'"
+        f"Auto-created Profile must have status='approved' so owner can view it; got '{profile.status}'"
     )

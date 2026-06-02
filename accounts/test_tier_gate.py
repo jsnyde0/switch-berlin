@@ -52,9 +52,7 @@ def make_user(status="open"):
     import uuid
 
     username = f"user-{uuid.uuid4().hex[:8]}"
-    user = User.objects.create_user(
-        username=username, email=f"{username}@example.com", password="testpass"
-    )
+    user = User.objects.create_user(username=username, email=f"{username}@example.com", password="testpass")
     user.status = status
     user.save(update_fields=["status"])
     return user

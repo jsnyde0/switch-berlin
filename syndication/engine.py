@@ -60,7 +60,7 @@ _LEGAL_TRANSITIONS = frozenset(
         ("draft", "ready"),
         ("ready", "published"),
         ("ready", "failed"),
-        ("ready", "draft"),   # re-open for re-approval (kb-a4u.20 hybrid model)
+        ("ready", "draft"),  # re-open for re-approval (kb-a4u.20 hybrid model)
         ("published", "failed"),
         ("failed", "draft"),  # reset for retry
     ]
@@ -77,9 +77,7 @@ def transition_status(projection: PlatformProjection, new_status: str) -> None:
     """
     known_statuses = {s for s, _ in PlatformProjection.Status.choices}
     if new_status not in known_statuses:
-        raise ValueError(
-            f"Unknown status {new_status!r}. Valid statuses: {sorted(known_statuses)}"
-        )
+        raise ValueError(f"Unknown status {new_status!r}. Valid statuses: {sorted(known_statuses)}")
 
     from_status = projection.status
     if (from_status, new_status) not in _LEGAL_TRANSITIONS:
@@ -122,6 +120,7 @@ DATA_INTEGRITY_MAX_RETRIES = 0
 # ---------------------------------------------------------------------------
 # Template body composition (rule_based)
 # ---------------------------------------------------------------------------
+
 
 def _compose_listing_body(event, platform: str) -> str:
     """
@@ -179,6 +178,7 @@ def _compose_promotion_body(post, platform: str) -> str:
 # ---------------------------------------------------------------------------
 # generate_projection — public entry point
 # ---------------------------------------------------------------------------
+
 
 def generate_projection(
     kind: str,
@@ -262,8 +262,7 @@ def generate_projection(
     elif mode == "agent_assisted":
         if body is None:
             raise ValueError(
-                "mode='agent_assisted' requires a body argument. "
-                "The external agent must supply the finished copy."
+                "mode='agent_assisted' requires a body argument. The external agent must supply the finished copy."
             )
         # F6 (adversarial review): agent-supplied copy for one target is divergence.
         # Create a DEDICATED new ContentVersion — NEVER mutate the shared canonical.
@@ -278,9 +277,7 @@ def generate_projection(
             body=body,
         )
     else:
-        raise ValueError(
-            f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'"
-        )
+        raise ValueError(f"Unknown mode {mode!r}. Valid: 'rule_based', 'agent_assisted'")
 
     # --- Persist the projection ---
     proj = PlatformProjection.objects.create(
@@ -297,6 +294,7 @@ def generate_projection(
 # ---------------------------------------------------------------------------
 # Full-field materialization helpers (Fix 1, kb-a4u.20 adversarial review)
 # ---------------------------------------------------------------------------
+
 
 def _isoformat_or_none(dt) -> str | None:
     """Return ISO 8601 string for a datetime, or None if dt is None."""
@@ -385,10 +383,10 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
         body = _compose_promotion_body(post, platform)
 
     # For structured fields: ContentVersion explicit value overrides canonical.
-    headline = (cv.headline if cv.headline is not None else post.headline)
-    cta = (cv.cta if cv.cta is not None else post.cta)
-    imagery = (cv.imagery if cv.imagery is not None else post.imagery)
-    voice = (cv.voice if cv.voice is not None else post.voice)
+    headline = cv.headline if cv.headline is not None else post.headline
+    cta = cv.cta if cv.cta is not None else post.cta
+    imagery = cv.imagery if cv.imagery is not None else post.imagery
+    voice = cv.voice if cv.voice is not None else post.voice
 
     return {
         "body": body,
@@ -420,6 +418,7 @@ def _materialize_effective_fields(projection: PlatformProjection) -> dict:
 # ---------------------------------------------------------------------------
 # render_projection — produce the final output string
 # ---------------------------------------------------------------------------
+
 
 def _render_draft_body(projection: PlatformProjection) -> str:
     """

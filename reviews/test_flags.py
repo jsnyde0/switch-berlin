@@ -31,9 +31,7 @@ User = get_user_model()
 
 @pytest.fixture
 def approved_user(db):
-    user = User.objects.create_user(
-        username="tester", email="tester@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="tester", email="tester@example.com", password="testpass123")
     user.status = "vouched"
     user.save()
     return user
@@ -41,9 +39,7 @@ def approved_user(db):
 
 @pytest.fixture
 def approved_user2(db):
-    user = User.objects.create_user(
-        username="tester2", email="tester2@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="tester2", email="tester2@example.com", password="testpass123")
     user.status = "vouched"
     user.save()
     return user
@@ -51,9 +47,7 @@ def approved_user2(db):
 
 @pytest.fixture
 def approved_user3(db):
-    user = User.objects.create_user(
-        username="tester3", email="tester3@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="tester3", email="tester3@example.com", password="testpass123")
     user.status = "vouched"
     user.save()
     return user
@@ -215,9 +209,7 @@ def test_anonymous_flags_do_not_count_toward_auto_hide(published_event):
 
 
 @pytest.mark.django_db
-def test_auto_hide_organizer_after_threshold_flags(
-    client_approved, approved_user2, approved_user3, organizer
-):
+def test_auto_hide_organizer_after_threshold_flags(client_approved, approved_user2, approved_user3, organizer):
     """3 authenticated flags on same organizer -> Organizer.hidden becomes True."""
     url = reverse("flag-target")
     client_approved.post(
@@ -506,7 +498,6 @@ def test_visible_organizer_profile_returns_200(client, organizer):
     assert resp.status_code == 200
 
 
-
 @pytest.mark.django_db
 def test_organizer_profile_upcoming_events_excludes_hidden(client, organizer):
     """Upcoming events on organizer profile exclude hidden events."""
@@ -541,9 +532,7 @@ def test_organizer_profile_upcoming_events_excludes_hidden(client, organizer):
 
 
 @pytest.mark.django_db
-def test_recompute_aggregates_runs_without_exception(
-    organizer, published_event, approved_user
-):
+def test_recompute_aggregates_runs_without_exception(organizer, published_event, approved_user):
     """recompute_aggregates runs without exception and updates counts."""
     from ingestion.tasks_flags import recompute_aggregates
 
@@ -599,9 +588,7 @@ def test_daily_flag_digest_with_flags_sends_email(mock_send, published_event):
 
 @pytest.mark.django_db
 @patch("ingestion.tasks_flags.send_mail", side_effect=Exception("SMTP error"))
-def test_daily_flag_digest_email_failure_creates_email_failure_record(
-    mock_send, published_event
-):
+def test_daily_flag_digest_email_failure_creates_email_failure_record(mock_send, published_event):
     """daily_flag_digest logs EmailFailure on send exception."""
     from a_core.models import EmailFailure
     from ingestion.tasks_flags import daily_flag_digest
@@ -702,12 +689,8 @@ def test_organizer_opt_out_cannot_suspend_unrelated_organizer():
     """ApprovedSender linked to org-A cannot opt out org-B (IDOR prevention)."""
     from ingestion.models import ApprovedSender
 
-    organizer_a = Profile.objects.create(
-        name="Organizer A", slug="org-a", status="approved"
-    )
-    organizer_b = Profile.objects.create(
-        name="Organizer B", slug="org-b", status="approved"
-    )
+    organizer_a = Profile.objects.create(name="Organizer A", slug="org-a", status="approved")
+    organizer_b = Profile.objects.create(name="Organizer B", slug="org-b", status="approved")
     # Sender is linked to org-A only
     ApprovedSender.objects.create(
         telegram_user_id="sender-idor-test",
@@ -788,9 +771,7 @@ def test_feature_flag_save_invalidates_cache():
     from a_core.models import FeatureFlag, get_flag
 
     # Prime the cache with True
-    flag, _ = FeatureFlag.objects.get_or_create(
-        key="TEST_CACHE_INVALIDATION_FLAG", defaults={"enabled": True}
-    )
+    flag, _ = FeatureFlag.objects.get_or_create(key="TEST_CACHE_INVALIDATION_FLAG", defaults={"enabled": True})
     val = get_flag("TEST_CACHE_INVALIDATION_FLAG", default=False)
     assert val is True
 
@@ -812,9 +793,7 @@ def test_feature_flag_delete_invalidates_cache():
 
     from a_core.models import FeatureFlag, get_flag
 
-    flag, _ = FeatureFlag.objects.get_or_create(
-        key="TEST_CACHE_DELETE_FLAG", defaults={"enabled": False}
-    )
+    flag, _ = FeatureFlag.objects.get_or_create(key="TEST_CACHE_DELETE_FLAG", defaults={"enabled": False})
     # Prime cache
     val = get_flag("TEST_CACHE_DELETE_FLAG", default=True)
     assert val is False
@@ -834,9 +813,7 @@ def test_feature_flag_delete_invalidates_cache():
 @pytest.mark.django_db
 def test_review_hidden_field_exists_and_defaults_false(approved_user, published_event):
     """Review.hidden field exists and defaults to False."""
-    review = Review.objects.create(
-        author=approved_user, event=published_event, rating=4
-    )
+    review = Review.objects.create(author=approved_user, event=published_event, rating=4)
     review.refresh_from_db()
     assert review.hidden is False
 
@@ -844,9 +821,7 @@ def test_review_hidden_field_exists_and_defaults_false(approved_user, published_
 @pytest.mark.django_db
 def test_review_hidden_can_be_set_true(approved_user, published_event):
     """Review.hidden can be set to True (soft-delete)."""
-    review = Review.objects.create(
-        author=approved_user, event=published_event, rating=4
-    )
+    review = Review.objects.create(author=approved_user, event=published_event, rating=4)
     review.hidden = True
     review.save(update_fields=["hidden"])
     review.refresh_from_db()
@@ -928,14 +903,8 @@ def test_reviews_views_has_no_auto_hide_flag_threshold_constant():
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for target in node.targets:
-                if (
-                    isinstance(target, ast.Name)
-                    and target.id == "AUTO_HIDE_FLAG_THRESHOLD"
-                ):
-                    raise AssertionError(
-                        "AUTO_HIDE_FLAG_THRESHOLD constant still present in"
-                        " reviews/views.py"
-                    )
+                if isinstance(target, ast.Name) and target.id == "AUTO_HIDE_FLAG_THRESHOLD":
+                    raise AssertionError("AUTO_HIDE_FLAG_THRESHOLD constant still present in reviews/views.py")
 
 
 @pytest.mark.django_db
@@ -946,8 +915,7 @@ def test_reviews_views_uses_get_numeric_for_auto_hide():
 
     source = (pathlib.Path(__file__).parent / "views.py").read_text()
     assert 'get_numeric("threshold.auto_hide_flag"' in source, (
-        "reviews/views.py must call get_numeric('threshold.auto_hide_flag', ...) "
-        "but the call was not found"
+        "reviews/views.py must call get_numeric('threshold.auto_hide_flag', ...) but the call was not found"
     )
 
 
@@ -965,9 +933,7 @@ def test_event_avg_rating_field_exists(published_event):
 
 
 @pytest.mark.django_db
-def test_recompute_aggregates_populates_event_avg_rating(
-    approved_user, approved_user2, published_event
-):
+def test_recompute_aggregates_populates_event_avg_rating(approved_user, approved_user2, published_event):
     """recompute_aggregates updates Event.avg_rating from Review ratings."""
     from ingestion.tasks_flags import recompute_aggregates
 
@@ -992,17 +958,13 @@ def test_recompute_aggregates_event_avg_rating_none_when_no_reviews(published_ev
 
 
 @pytest.mark.django_db
-def test_recompute_aggregates_excludes_hidden_reviews_from_event(
-    approved_user, approved_user2, published_event
-):
+def test_recompute_aggregates_excludes_hidden_reviews_from_event(approved_user, approved_user2, published_event):
     """recompute_aggregates must exclude hidden=True reviews from event aggregates."""
     from ingestion.tasks_flags import recompute_aggregates
 
     # One visible review (rating=4), one hidden review (rating=1)
     Review.objects.create(author=approved_user, event=published_event, rating=4)
-    Review.objects.create(
-        author=approved_user2, event=published_event, rating=1, hidden=True
-    )
+    Review.objects.create(author=approved_user2, event=published_event, rating=1, hidden=True)
 
     recompute_aggregates()
 
@@ -1013,9 +975,7 @@ def test_recompute_aggregates_excludes_hidden_reviews_from_event(
 
 
 @pytest.mark.django_db
-def test_recompute_aggregates_excludes_hidden_reviews_from_organizer(
-    approved_user, approved_user2, published_event
-):
+def test_recompute_aggregates_excludes_hidden_reviews_from_organizer(approved_user, approved_user2, published_event):
     """recompute_aggregates must exclude hidden=True reviews from organizer
     aggregates."""
     from ingestion.tasks_flags import recompute_aggregates
@@ -1023,9 +983,7 @@ def test_recompute_aggregates_excludes_hidden_reviews_from_organizer(
     organizer = published_event.organizer
     # One visible review (rating=5), one hidden review (rating=1)
     Review.objects.create(author=approved_user, organizer=organizer, rating=5)
-    Review.objects.create(
-        author=approved_user2, organizer=organizer, rating=1, hidden=True
-    )
+    Review.objects.create(author=approved_user2, organizer=organizer, rating=1, hidden=True)
 
     recompute_aggregates()
 
@@ -1041,23 +999,17 @@ def test_recompute_aggregates_excludes_hidden_reviews_from_organizer(
 
 
 @pytest.mark.django_db
-def test_flag_unique_constraint_rejects_duplicate_reporter_event(
-    approved_user, published_event
-):
+def test_flag_unique_constraint_rejects_duplicate_reporter_event(approved_user, published_event):
     """Second flag from same reporter on same event is rejected by UniqueConstraint."""
     from django.db import IntegrityError
 
     Flag.objects.create(reporter=approved_user, event=published_event, reason="spam")
     with pytest.raises(IntegrityError):
-        Flag.objects.create(
-            reporter=approved_user, event=published_event, reason="harmful"
-        )
+        Flag.objects.create(reporter=approved_user, event=published_event, reason="harmful")
 
 
 @pytest.mark.django_db
-def test_flag_unique_constraint_rejects_duplicate_reporter_organizer(
-    approved_user, published_event
-):
+def test_flag_unique_constraint_rejects_duplicate_reporter_organizer(approved_user, published_event):
     """Second flag from same reporter on same organizer is rejected by
     UniqueConstraint."""
     from django.db import IntegrityError
@@ -1065,15 +1017,11 @@ def test_flag_unique_constraint_rejects_duplicate_reporter_organizer(
     organizer = published_event.organizer
     Flag.objects.create(reporter=approved_user, organizer=organizer, reason="spam")
     with pytest.raises(IntegrityError):
-        Flag.objects.create(
-            reporter=approved_user, organizer=organizer, reason="harmful"
-        )
+        Flag.objects.create(reporter=approved_user, organizer=organizer, reason="harmful")
 
 
 @pytest.mark.django_db
-def test_flag_get_or_create_handles_duplicate_gracefully(
-    client_approved, approved_user, published_event
-):
+def test_flag_get_or_create_handles_duplicate_gracefully(client_approved, approved_user, published_event):
     """Second flag POST from same user on same event returns 200 without error."""
     url = reverse("flag-target")
     payload = {
@@ -1087,9 +1035,7 @@ def test_flag_get_or_create_handles_duplicate_gracefully(
     resp2 = client_approved.post(url, payload)
     assert resp2.status_code == 200
     # Only one flag should exist
-    assert (
-        Flag.objects.filter(reporter=approved_user, event=published_event).count() == 1
-    )
+    assert Flag.objects.filter(reporter=approved_user, event=published_event).count() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -1103,12 +1049,8 @@ def test_auto_hide_excludes_resolved_flags(
 ):
     """Resolved flags do not count toward auto-hide threshold."""
     # Create 2 resolved flags (should not count toward threshold of 3)
-    Flag.objects.create(
-        reporter=approved_user2, event=published_event, reason="spam", resolved=True
-    )
-    Flag.objects.create(
-        reporter=approved_user3, event=published_event, reason="spam", resolved=True
-    )
+    Flag.objects.create(reporter=approved_user2, event=published_event, reason="spam", resolved=True)
+    Flag.objects.create(reporter=approved_user3, event=published_event, reason="spam", resolved=True)
     # Now post one live flag from approved_user; with threshold=3, only 1 unresolved
     url = reverse("flag-target")
     client_approved.post(
@@ -1149,6 +1091,4 @@ def test_daily_flag_digest_appends_overflow_footer(approved_user, published_even
     with patch("ingestion.tasks_flags.send_mail", side_effect=fake_send_mail):
         daily_flag_digest()
 
-    assert "more" in captured.get("message", ""), (
-        "Overflow footer not found in digest body"
-    )
+    assert "more" in captured.get("message", ""), "Overflow footer not found in digest body"

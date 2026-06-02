@@ -84,9 +84,7 @@ class HeartbeatLog(models.Model):
 
 
 class ExtractionAttempt(models.Model):
-    raw_message = models.ForeignKey(
-        RawMessage, on_delete=models.CASCADE, related_name="attempts"
-    )
+    raw_message = models.ForeignKey(RawMessage, on_delete=models.CASCADE, related_name="attempts")
     event = models.ForeignKey(
         "events.Event",
         null=True,

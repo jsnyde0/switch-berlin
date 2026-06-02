@@ -111,9 +111,7 @@ def test_unapproved_user_sees_pending_page_when_login_wall_active(client, regula
     # In Phase 0.5 with PUBLIC_READ_ENABLED=True, unapproved users CAN access /events/.
     # With PUBLIC_READ_ENABLED=False (rollback mode), unapproved authenticated users
     # are shown the pending-approval page.
-    FeatureFlag.objects.update_or_create(
-        key="PUBLIC_READ_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="PUBLIC_READ_ENABLED", defaults={"enabled": False})
     cache.clear()
     client.force_login(regular_user)
     try:
@@ -169,9 +167,7 @@ def test_signup_open_without_code(client):
     response = client.get("/accounts/signup/")
     assert response.status_code == 200
     content = response.content.decode()
-    assert 'type="password"' in content, (
-        "Signup form was NOT rendered — signup must be open in phase 0.5+"
-    )
+    assert 'type="password"' in content, "Signup form was NOT rendered — signup must be open in phase 0.5+"
 
 
 @pytest.mark.django_db
@@ -222,9 +218,7 @@ def test_redeemed_code_rejected(client, staff_user):
     """GET /accounts/signup/?code=<used> does not render a signup form."""
     # NOTE: This test is skipped. The canonical field is used_by (redeemed_by was
     # deleted in kb-m69.12 per ADR-008 D1).
-    already_used = InviteCode.objects.create(
-        created_by=staff_user, used_by=staff_user, used_at=tz.now()
-    )
+    already_used = InviteCode.objects.create(created_by=staff_user, used_by=staff_user, used_at=tz.now())
     response = client.get(f"/accounts/signup/?code={already_used.code}")
     content = response.content.decode()
     assert 'type="password"' not in content
@@ -254,9 +248,7 @@ def test_expired_code_rejected(client, staff_user):
 
 
 @pytest.mark.django_db
-def test_private_venue_blurred_without_going(
-    client, approved_user, event_with_private_venue
-):
+def test_private_venue_blurred_without_going(client, approved_user, event_with_private_venue):
     """Approved user without Attendance(going) sees blurred coords in GeoJSON."""
     client.force_login(approved_user)
     response = client.get("/events/")
@@ -273,9 +265,7 @@ def test_private_venue_blurred_without_going(
         None,
     )
     assert feature is not None, "Event feature not found in markers_geojson"
-    assert "event_id" not in feature["properties"], (
-        "event_id must not be in GeoJSON properties"
-    )
+    assert "event_id" not in feature["properties"], "event_id must not be in GeoJSON properties"
 
     # Blurred: coords must NOT be exactly [13.4, 52.5]
     coords = feature["geometry"]["coordinates"]
@@ -284,13 +274,9 @@ def test_private_venue_blurred_without_going(
 
 
 @pytest.mark.django_db
-def test_private_venue_exact_with_going(
-    client, approved_user, event_with_private_venue, private_venue
-):
+def test_private_venue_exact_with_going(client, approved_user, event_with_private_venue, private_venue):
     """Approved user with Attendance(going) sees exact coords in GeoJSON."""
-    Attendance.objects.create(
-        user=approved_user, event=event_with_private_venue, status="going"
-    )
+    Attendance.objects.create(user=approved_user, event=event_with_private_venue, status="going")
     client.force_login(approved_user)
     response = client.get("/events/")
     assert response.status_code == 200
@@ -306,9 +292,7 @@ def test_private_venue_exact_with_going(
         None,
     )
     assert feature is not None, "Event feature not found in markers_geojson"
-    assert "event_id" not in feature["properties"], (
-        "event_id must not be in GeoJSON properties"
-    )
+    assert "event_id" not in feature["properties"], "event_id must not be in GeoJSON properties"
 
     coords = feature["geometry"]["coordinates"]
     # Exact coords: longitude first, then latitude (GeoJSON convention)
@@ -323,9 +307,7 @@ def test_private_venue_exact_with_going(
 
 
 @pytest.mark.django_db
-def test_private_venue_name_hidden_in_card(
-    client, approved_user, event_with_private_venue
-):
+def test_private_venue_name_hidden_in_card(client, approved_user, event_with_private_venue):
     """Event list card shows 'Private venue' not the actual name for private venues."""
     client.force_login(approved_user)
     response = client.get("/events/")
@@ -335,13 +317,9 @@ def test_private_venue_name_hidden_in_card(
 
 
 @pytest.mark.django_db
-def test_private_venue_name_shown_with_going(
-    client, approved_user, event_with_private_venue
-):
+def test_private_venue_name_shown_with_going(client, approved_user, event_with_private_venue):
     """Event list card shows actual venue name when user has Attendance(going)."""
-    Attendance.objects.create(
-        user=approved_user, event=event_with_private_venue, status="going"
-    )
+    Attendance.objects.create(user=approved_user, event=event_with_private_venue, status="going")
     client.force_login(approved_user)
     response = client.get("/events/")
     assert response.status_code == 200
@@ -349,9 +327,7 @@ def test_private_venue_name_shown_with_going(
 
 
 @pytest.mark.django_db
-def test_private_venue_name_hidden_in_detail(
-    client, approved_user, event_with_private_venue, approved_organizer
-):
+def test_private_venue_name_hidden_in_detail(client, approved_user, event_with_private_venue, approved_organizer):
     """Event detail page shows 'Private venue' for users without going Attendance."""
     client.force_login(approved_user)
     response = client.get(f"/events/{approved_organizer.slug}/private-event/")
@@ -359,21 +335,17 @@ def test_private_venue_name_hidden_in_detail(
     assert b"Private venue" in response.content
 
 
-
 @pytest.mark.django_db
 def test_private_venue_name_shown_in_detail_for_going_user(
     client, approved_user, event_with_private_venue, approved_organizer
 ):
     """Event detail page shows actual venue name for users WITH going Attendance."""
-    Attendance.objects.create(
-        user=approved_user, event=event_with_private_venue, status="going"
-    )
+    Attendance.objects.create(user=approved_user, event=event_with_private_venue, status="going")
     client.force_login(approved_user)
     response = client.get(f"/events/{approved_organizer.slug}/private-event/")
     assert response.status_code == 200
     assert b"Secret Place" in response.content
     assert b"Private venue" not in response.content
-
 
 
 # ---------------------------------------------------------------------------
@@ -386,9 +358,7 @@ def test_attend_requires_login(client, published_event):
     """Unauthenticated POST to attend endpoint redirects to login."""
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 302
     assert "/accounts/login/" in response["Location"]
 
@@ -399,9 +369,7 @@ def test_attend_requires_approved(client, regular_user, published_event):
     client.force_login(regular_user)
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 403
 
 
@@ -411,13 +379,9 @@ def test_attend_creates_row(client, approved_user, published_event):
     client.force_login(approved_user)
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 200
-    assert Attendance.objects.filter(
-        user=approved_user, event=published_event, status="going"
-    ).exists()
+    assert Attendance.objects.filter(user=approved_user, event=published_event, status="going").exists()
 
 
 @pytest.mark.django_db
@@ -426,32 +390,23 @@ def test_attend_returns_hx_trigger(client, approved_user, published_event):
     client.force_login(approved_user)
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 200
     assert response["HX-Trigger"] == "events:attendance-changed"
 
 
 @pytest.mark.django_db
-def test_attend_went_before_event_clamped_to_going(
-    client, approved_user, published_event
-):
+def test_attend_went_before_event_clamped_to_going(client, approved_user, published_event):
     """POST with status='went' on a future event is clamped to status='going'."""
     client.force_login(approved_user)
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "went"})
-    assert (
-        Attendance.objects.get(user=approved_user, event=published_event).status
-        == "going"
-    )
+    assert Attendance.objects.get(user=approved_user, event=published_event).status == "going"
 
 
 @pytest.mark.django_db
-def test_attend_nonexistent_event_returns_404(
-    client, approved_user, approved_organizer
-):
+def test_attend_nonexistent_event_returns_404(client, approved_user, approved_organizer):
     """POST to non-existent event slug returns 404."""
     client.force_login(approved_user)
     response = client.post(
@@ -469,14 +424,8 @@ def test_attend_idempotent(client, approved_user, published_event):
     event_slug = published_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
-    assert (
-        Attendance.objects.filter(user=approved_user, event=published_event).count()
-        == 1
-    )
-    assert (
-        Attendance.objects.get(user=approved_user, event=published_event).status
-        == "going"
-    )
+    assert Attendance.objects.filter(user=approved_user, event=published_event).count() == 1
+    assert Attendance.objects.get(user=approved_user, event=published_event).status == "going"
 
 
 @pytest.mark.django_db
@@ -486,16 +435,10 @@ def test_attend_state_transition(client, approved_user, published_event):
     org_slug = published_event.organizer.slug
     event_slug = published_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "interested"})
-    assert (
-        Attendance.objects.get(user=approved_user, event=published_event).status
-        == "interested"
-    )
+    assert Attendance.objects.get(user=approved_user, event=published_event).status == "interested"
 
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
-    assert (
-        Attendance.objects.get(user=approved_user, event=published_event).status
-        == "going"
-    )
+    assert Attendance.objects.get(user=approved_user, event=published_event).status == "going"
 
 
 # ---------------------------------------------------------------------------
@@ -517,9 +460,7 @@ def test_follow_creates_row(client, approved_user, approved_organizer):
     client.force_login(approved_user)
     response = client.post(f"/o/{approved_organizer.slug}/follow/")
     assert response.status_code == 200
-    assert Follow.objects.filter(
-        user=approved_user, profile=approved_organizer
-    ).exists()
+    assert Follow.objects.filter(user=approved_user, profile=approved_organizer).exists()
 
 
 @pytest.mark.django_db
@@ -527,13 +468,9 @@ def test_follow_toggle_unfollow(client, approved_user, approved_organizer):
     """Two POSTs to follow endpoint: first follows, second unfollows."""
     client.force_login(approved_user)
     client.post(f"/o/{approved_organizer.slug}/follow/")
-    assert Follow.objects.filter(
-        user=approved_user, profile=approved_organizer
-    ).exists()
+    assert Follow.objects.filter(user=approved_user, profile=approved_organizer).exists()
     client.post(f"/o/{approved_organizer.slug}/follow/")
-    assert not Follow.objects.filter(
-        user=approved_user, profile=approved_organizer
-    ).exists()
+    assert not Follow.objects.filter(user=approved_user, profile=approved_organizer).exists()
 
 
 @pytest.mark.django_db
@@ -605,9 +542,7 @@ def test_invites_enabled_false_rejects_signup(client, valid_invite_code):
 
     from a_core.models import FeatureFlag
 
-    FeatureFlag.objects.update_or_create(
-        key="INVITES_ENABLED", defaults={"enabled": False}
-    )
+    FeatureFlag.objects.update_or_create(key="INVITES_ENABLED", defaults={"enabled": False})
     cache.clear()
     try:
         response = client.get(f"/accounts/signup/?code={valid_invite_code.code}")

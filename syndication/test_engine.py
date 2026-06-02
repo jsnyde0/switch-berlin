@@ -20,10 +20,10 @@ from organizers.models import Profile
 from syndication.engine import generate_projection
 from syndication.models import PlatformConnection, PlatformProjection, Post
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_event(**kwargs):
     """Create a minimal Event with sensible defaults."""
@@ -64,11 +64,13 @@ def _make_connection(platform="fetlife", destination_id="fl-user-001", **kwargs)
 # 1. State-machine: legal transitions succeed, illegal transitions raise
 # ---------------------------------------------------------------------------
 
+
 class StateMachineTest(TestCase):
     """PlatformProjection status state-machine: draft→ready→published→failed."""
 
     def setUp(self):
         from syndication.models import ContentVersion
+
         self.event = _make_event()
         self.conn = _make_connection()
         cv, _ = ContentVersion.objects.get_or_create(
@@ -86,12 +88,14 @@ class StateMachineTest(TestCase):
 
     def test_draft_to_ready_is_legal(self):
         from syndication.engine import transition_status
+
         transition_status(self.proj, "ready")
         self.proj.refresh_from_db()
         self.assertEqual(self.proj.status, "ready")
 
     def test_ready_to_published_is_legal(self):
         from syndication.engine import transition_status
+
         transition_status(self.proj, "ready")
         transition_status(self.proj, "published")
         self.proj.refresh_from_db()
@@ -99,6 +103,7 @@ class StateMachineTest(TestCase):
 
     def test_ready_to_failed_is_legal(self):
         from syndication.engine import transition_status
+
         transition_status(self.proj, "ready")
         transition_status(self.proj, "failed")
         self.proj.refresh_from_db()
@@ -106,6 +111,7 @@ class StateMachineTest(TestCase):
 
     def test_published_to_failed_is_legal(self):
         from syndication.engine import transition_status
+
         transition_status(self.proj, "ready")
         transition_status(self.proj, "published")
         transition_status(self.proj, "failed")
@@ -115,18 +121,21 @@ class StateMachineTest(TestCase):
     def test_draft_to_published_is_illegal(self):
         """Cannot skip the ready step."""
         from syndication.engine import transition_status
+
         with self.assertRaises(ValueError):
             transition_status(self.proj, "published")
 
     def test_draft_to_failed_is_illegal(self):
         """Cannot fail a draft that was never attempted."""
         from syndication.engine import transition_status
+
         with self.assertRaises(ValueError):
             transition_status(self.proj, "failed")
 
     def test_published_to_draft_is_illegal(self):
         """No backward transition allowed."""
         from syndication.engine import transition_status
+
         transition_status(self.proj, "ready")
         transition_status(self.proj, "published")
         with self.assertRaises(ValueError):
@@ -135,6 +144,7 @@ class StateMachineTest(TestCase):
     def test_published_to_ready_is_illegal(self):
         """No backward transition."""
         from syndication.engine import transition_status
+
         transition_status(self.proj, "ready")
         transition_status(self.proj, "published")
         with self.assertRaises(ValueError):
@@ -143,6 +153,7 @@ class StateMachineTest(TestCase):
     def test_failed_to_draft_is_legal(self):
         """Failed projections can be reset to draft for retry."""
         from syndication.engine import transition_status
+
         transition_status(self.proj, "ready")
         transition_status(self.proj, "failed")
         transition_status(self.proj, "draft")
@@ -152,6 +163,7 @@ class StateMachineTest(TestCase):
     def test_transition_to_unknown_status_raises(self):
         """Unknown target status raises ValueError."""
         from syndication.engine import transition_status
+
         with self.assertRaises(ValueError):
             transition_status(self.proj, "nonexistent")
 
@@ -159,6 +171,7 @@ class StateMachineTest(TestCase):
 # ---------------------------------------------------------------------------
 # 2. Override-independence: body stable after canonical mutation post-generation
 # ---------------------------------------------------------------------------
+
 
 class OverrideIndependenceTest(TestCase):
     """
@@ -200,6 +213,7 @@ class OverrideIndependenceTest(TestCase):
 
         # Draft projection MUST reflect the mutation (live canonical tracking)
         from syndication.engine import render_projection
+
         body = render_projection(proj)
         self.assertIn("Mutated Title", body)
         self.assertNotIn("Original Title", body)
@@ -224,6 +238,7 @@ class OverrideIndependenceTest(TestCase):
 
         # Transition to ready: freeze the snapshot
         from syndication.engine import transition_status
+
         transition_status(proj, "ready")
         proj.refresh_from_db()
 
@@ -233,6 +248,7 @@ class OverrideIndependenceTest(TestCase):
 
         # Ready projection must return the frozen (pre-mutation) snapshot
         from syndication.engine import render_projection
+
         body = render_projection(proj)
         self.assertIn("Original Title", body)
         self.assertNotIn("Mutated Title", body)
@@ -257,6 +273,7 @@ class OverrideIndependenceTest(TestCase):
         event.save()
 
         from syndication.engine import render_projection
+
         body = render_projection(proj)
         # Override is stable — the agent-supplied body is unchanged
         self.assertEqual(body, "Agent-crafted copy for Party Night")
@@ -265,6 +282,7 @@ class OverrideIndependenceTest(TestCase):
 # ---------------------------------------------------------------------------
 # 3. mode=rule_based: deterministic template body from canonical fields
 # ---------------------------------------------------------------------------
+
 
 class RuleBasedGenerationTest(TestCase):
     """mode=rule_based generates a deterministic body from Event fields."""
@@ -279,6 +297,7 @@ class RuleBasedGenerationTest(TestCase):
             mode="rule_based",
         )
         from syndication.engine import render_projection
+
         body = render_projection(proj)
         self.assertIn("Kinky Bubbles Party", body)
 
@@ -300,6 +319,7 @@ class RuleBasedGenerationTest(TestCase):
             mode="rule_based",
         )
         from syndication.engine import render_projection
+
         self.assertEqual(render_projection(proj1), render_projection(proj2))
 
     def test_rule_based_requires_no_agent_body(self):
@@ -326,6 +346,7 @@ class RuleBasedGenerationTest(TestCase):
         )
         self.assertIsNotNone(proj)
         from syndication.engine import render_projection
+
         body = render_projection(proj)
         self.assertIn("Default Mode Event", body)
 
@@ -341,6 +362,7 @@ class RuleBasedGenerationTest(TestCase):
             mode="rule_based",
         )
         from syndication.engine import render_projection
+
         body = render_projection(proj)
         self.assertIn("Save the Date: Bubble Night!", body)
 
@@ -370,6 +392,7 @@ class RuleBasedGenerationTest(TestCase):
 # 4. mode=agent_assisted: accepts and stores agent-supplied body
 # ---------------------------------------------------------------------------
 
+
 class AgentAssistedGenerationTest(TestCase):
     """mode=agent_assisted accepts and stores a pre-authored body."""
 
@@ -385,6 +408,7 @@ class AgentAssistedGenerationTest(TestCase):
             body=agent_body,
         )
         from syndication.engine import render_projection
+
         self.assertEqual(render_projection(proj), agent_body)
 
     def test_agent_assisted_without_body_raises(self):
@@ -444,6 +468,7 @@ class AgentAssistedGenerationTest(TestCase):
 # ---------------------------------------------------------------------------
 # 5. Eager creation is visibility-tier-AGNOSTIC (harness item 5)
 # ---------------------------------------------------------------------------
+
 
 class VisibilityTierAgnosticTest(TestCase):
     """
@@ -542,6 +567,7 @@ class VisibilityTierAgnosticTest(TestCase):
 # 6. clean_for_platform seam is wired (identity stub at v0)
 # ---------------------------------------------------------------------------
 
+
 class CleaningSeamTest(TestCase):
     """
     The clean_for_platform seam must exist and be an identity at v0.
@@ -551,6 +577,7 @@ class CleaningSeamTest(TestCase):
     def test_clean_for_platform_identity_stub(self):
         """clean_for_platform returns text unchanged at v0."""
         from syndication.cleaning import clean_for_platform
+
         text = "Some raw content with BDSM vocabulary"
         result = clean_for_platform(text, "fetlife")
         self.assertEqual(result, text)
@@ -566,6 +593,7 @@ class CleaningSeamTest(TestCase):
         (draft→ready materialization). Test covers the render path.
         """
         from unittest.mock import patch
+
         event = _make_event(title="Seam Test Event")
         conn = _make_connection(destination_id="fl-seam-test")
         proj = generate_projection(
@@ -575,6 +603,7 @@ class CleaningSeamTest(TestCase):
             mode="rule_based",
         )
         from syndication.engine import render_projection
+
         with patch("syndication.engine.clean_for_platform", wraps=lambda text, platform: text) as mock_clean:
             render_projection(proj)
             self.assertTrue(mock_clean.called, "clean_for_platform was not called during render")

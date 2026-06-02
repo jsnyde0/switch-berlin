@@ -38,9 +38,7 @@ class RateLimitedSignupView(SignupView):
         # validate against a localhost origin, so loading the widget renders
         # Cloudflare's "Unable to connect to website" error frame inline. In
         # prod (DEBUG=False) the configured key is used as normal.
-        ctx["turnstile_site_key"] = (
-            "" if settings.DEBUG else getattr(settings, "TURNSTILE_SITE_KEY", "")
-        )
+        ctx["turnstile_site_key"] = "" if settings.DEBUG else getattr(settings, "TURNSTILE_SITE_KEY", "")
         return ctx
 
 
@@ -141,9 +139,7 @@ def art9_consent_view(request):
         request.user.art9_consent_given_at = timezone.now()
         request.user.save(update_fields=["art9_consent_given_at"])
     next_url = request.POST.get("next", "/")
-    if not url_has_allowed_host_and_scheme(
-        next_url, allowed_hosts={request.get_host()}
-    ):
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         next_url = "/"
     response = HttpResponse()
     response["HX-Redirect"] = next_url

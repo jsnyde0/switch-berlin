@@ -91,21 +91,12 @@ def submit_review(request):
     with transaction.atomic():
         if target_type == "organizer":
             organizer = get_object_or_404(Profile, pk=target_id, status="approved")
-            existing = (
-                Review.objects.filter(author=request.user, organizer=organizer)
-                .only("hidden", "id")
-                .first()
-            )
+            existing = Review.objects.filter(author=request.user, organizer=organizer).only("hidden", "id").first()
             if existing and existing.hidden:
                 return render(
                     request,
                     "reviews/_rating_form.html",
-                    {
-                        "error": _(
-                            "This review was hidden by a moderator."
-                            " Contact support to appeal."
-                        )
-                    },
+                    {"error": _("This review was hidden by a moderator. Contact support to appeal.")},
                     status=403,
                 )
             review, created = Review.objects.update_or_create(
@@ -113,9 +104,7 @@ def submit_review(request):
                 organizer=organizer,
                 defaults={"rating": rating, "body": body, "event": None},
             )
-            agg = Review.objects.filter(organizer=organizer).aggregate(
-                count=Count("pk"), avg=Avg("rating")
-            )
+            agg = Review.objects.filter(organizer=organizer).aggregate(count=Count("pk"), avg=Avg("rating"))
             Profile.objects.filter(pk=organizer.pk).update(
                 rating_count=agg["count"] or 0,
                 avg_rating=agg["avg"],
@@ -135,30 +124,19 @@ def submit_review(request):
 
         elif target_type == "event":
             event = get_object_or_404(Event, pk=target_id, status="published")
-            if not Attendance.objects.filter(
-                user=request.user, event=event, status="went"
-            ).exists():
+            if not Attendance.objects.filter(user=request.user, event=event, status="went").exists():
                 return render(
                     request,
                     "reviews/_rating_form.html",
                     {"error": _("You can review this event after attending.")},
                     status=429,
                 )
-            existing_event = (
-                Review.objects.filter(author=request.user, event=event)
-                .only("hidden", "id")
-                .first()
-            )
+            existing_event = Review.objects.filter(author=request.user, event=event).only("hidden", "id").first()
             if existing_event and existing_event.hidden:
                 return render(
                     request,
                     "reviews/_rating_form.html",
-                    {
-                        "error": _(
-                            "This review was hidden by a moderator."
-                            " Contact support to appeal."
-                        )
-                    },
+                    {"error": _("This review was hidden by a moderator. Contact support to appeal.")},
                     status=403,
                 )
             review, created = Review.objects.update_or_create(
@@ -166,9 +144,7 @@ def submit_review(request):
                 event=event,
                 defaults={"rating": rating, "body": body, "organizer": None},
             )
-            agg = Review.objects.filter(event=event, hidden=False).aggregate(
-                count=Count("pk"), avg=Avg("rating")
-            )
+            agg = Review.objects.filter(event=event, hidden=False).aggregate(count=Count("pk"), avg=Avg("rating"))
             Event.objects.filter(pk=event.pk).update(
                 rating_count=agg["count"] or 0,
                 avg_rating=agg["avg"],
@@ -226,9 +202,7 @@ def flag_target(request):
             )
             if not created:
                 return render(request, "reviews/_flag_button.html", {"flagged": True})
-            auth_flag_count = Flag.objects.filter(
-                event=event, reporter__isnull=False, resolved=False
-            ).count()
+            auth_flag_count = Flag.objects.filter(event=event, reporter__isnull=False, resolved=False).count()
             if auth_flag_count >= get_numeric("threshold.auto_hide_flag", default=3):
                 Event.objects.filter(pk=event.pk).update(hidden=True)
 
@@ -241,9 +215,7 @@ def flag_target(request):
             )
             if not created:
                 return render(request, "reviews/_flag_button.html", {"flagged": True})
-            auth_flag_count = Flag.objects.filter(
-                organizer=organizer, reporter__isnull=False, resolved=False
-            ).count()
+            auth_flag_count = Flag.objects.filter(organizer=organizer, reporter__isnull=False, resolved=False).count()
             if auth_flag_count >= get_numeric("threshold.auto_hide_flag", default=3):
                 Profile.objects.filter(pk=organizer.pk).update(hidden=True)
         else:
@@ -266,9 +238,7 @@ def takedown_view(request):
             increment=True,
         )
         if is_limited:
-            return HttpResponse(
-                "Rate limit exceeded. Please try again later.", status=429
-            )
+            return HttpResponse("Rate limit exceeded. Please try again later.", status=429)
 
         event_url = request.POST.get("event_url", "").strip()
         form = TakedownForm(data=request.POST)
@@ -320,10 +290,7 @@ def takedown_view(request):
                     "reviews/takedown.html",
                     {
                         "form": form,
-                        "error": (
-                            "The URL you provided is not a valid site URL. "
-                            "Please check the URL and try again."
-                        ),
+                        "error": ("The URL you provided is not a valid site URL. Please check the URL and try again."),
                         "values": request.POST,
                     },
                 )
@@ -384,9 +351,7 @@ def organizer_opt_out_view(request):
 
     if request.method == "POST":
         if getattr(request, "limited", False):
-            return HttpResponse(
-                "Rate limit exceeded. Please try again later.", status=429
-            )
+            return HttpResponse("Rate limit exceeded. Please try again later.", status=429)
 
         telegram_user_id = request.POST.get("telegram_user_id", "").strip()
         organizer_slug = request.POST.get("organizer_slug", "").strip()
@@ -402,18 +367,12 @@ def organizer_opt_out_view(request):
             )
             organizer.status = "suspended"
             organizer.save(update_fields=["status"])
-            return render(
-                request, "reviews/organizer_opt_out.html", {"submitted": True}
-            )
+            return render(request, "reviews/organizer_opt_out.html", {"submitted": True})
         except (ApprovedSender.DoesNotExist, Profile.DoesNotExist):
             return render(
                 request,
                 "reviews/organizer_opt_out.html",
-                {
-                    "error": (
-                        "Verification failed. Please contact us via the takedown form."
-                    )
-                },
+                {"error": ("Verification failed. Please contact us via the takedown form.")},
             )
 
     return render(request, "reviews/organizer_opt_out.html", {})

@@ -29,10 +29,10 @@ from organizers.models import Profile
 from syndication.engine import generate_projection, render_projection, transition_status
 from syndication.models import PlatformConnection, PlatformProjection
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_event(**kwargs):
     defaults = {
@@ -61,6 +61,7 @@ def _make_connection(destination_id="fl-hybrid-001", **kwargs):
 # ---------------------------------------------------------------------------
 # Core stability test: two-part hybrid rule
 # ---------------------------------------------------------------------------
+
 
 class HybridContentModelStabilityTest(TestCase):
     """
@@ -162,6 +163,7 @@ class HybridContentModelStabilityTest(TestCase):
 # Draft manual-projection: live-fallback follows the same draft rule
 # ---------------------------------------------------------------------------
 
+
 class DraftManualProjectionLiveFallbackTest(TestCase):
     """
     Manually-created projections with a null-body ContentVersion in draft status
@@ -232,6 +234,7 @@ class DraftManualProjectionLiveFallbackTest(TestCase):
 # Frozen snapshot survives even if canonical source is unavailable
 # ---------------------------------------------------------------------------
 
+
 class FrozenSnapshotIndependenceTest(TestCase):
     """
     The frozen snapshot must be self-contained: render_projection on a ready/
@@ -293,6 +296,7 @@ class FrozenSnapshotIndependenceTest(TestCase):
 # Fail loud: non-draft projection with no frozen snapshot
 # ---------------------------------------------------------------------------
 
+
 class FrozenContentFailLoudTest(TestCase):
     """
     ADR-008 D3: fail loud.
@@ -337,6 +341,7 @@ class FrozenContentFailLoudTest(TestCase):
 # ---------------------------------------------------------------------------
 # Re-open transition: ready→draft is a legal edge
 # ---------------------------------------------------------------------------
+
 
 class ReOpenTransitionTest(TestCase):
     """
@@ -419,6 +424,7 @@ class ReOpenTransitionTest(TestCase):
 # Fix 1: Full-field structured freeze — title + start are frozen, not just body
 # ---------------------------------------------------------------------------
 
+
 class StructuredFieldFreezeTest(TestCase):
     """
     Fix 1: The freeze at draft→ready must capture the FULL effective structured
@@ -498,6 +504,7 @@ class StructuredFieldFreezeTest(TestCase):
         # Now mutate canonical event
         event.title = "Post-Freeze New Title"
         import datetime
+
         event.start = start_time + datetime.timedelta(days=7)
         event.save()
 
@@ -557,6 +564,7 @@ class StructuredFieldFreezeTest(TestCase):
 # ---------------------------------------------------------------------------
 # Fix 4: agent_assisted freeze at ready — body frozen into snapshot correctly
 # ---------------------------------------------------------------------------
+
 
 class AgentAssistedFreezeTest(TestCase):
     """
@@ -651,6 +659,7 @@ class AgentAssistedFreezeTest(TestCase):
 # ---------------------------------------------------------------------------
 # Fix 5: Full re-open cycle clears a previously-frozen snapshot
 # ---------------------------------------------------------------------------
+
 
 class FullReOpenCycleTest(TestCase):
     """

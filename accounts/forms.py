@@ -34,10 +34,7 @@ class OpenSignupForm(SignupForm):
         required=False,
         max_length=48,
         label=_("Invite code"),
-        help_text=_(
-            "Optional. If you have an invite code, enter it here to join as a vouched"
-            " member."
-        ),
+        help_text=_("Optional. If you have an invite code, enter it here to join as a vouched member."),
     )
 
     def clean_turnstile_token(self):
@@ -62,17 +59,12 @@ class OpenSignupForm(SignupForm):
         if not secret_key:
             # Misconfiguration: no secret key — fail loud (ADR-008 D3)
             raise forms.ValidationError(
-                _(
-                    "Signup is temporarily unavailable (server misconfiguration). "
-                    "Please try again later."
-                )
+                _("Signup is temporarily unavailable (server misconfiguration). Please try again later.")
             )
 
         is_valid = validate_turnstile_token(token, secret_key)
         if not is_valid:
-            raise forms.ValidationError(
-                _("Human verification failed. Please complete the CAPTCHA.")
-            )
+            raise forms.ValidationError(_("Human verification failed. Please complete the CAPTCHA."))
 
         return token
 
@@ -92,13 +84,9 @@ class OpenSignupForm(SignupForm):
         try:
             invite = InviteCode.objects.get(code=code)
         except InviteCode.DoesNotExist as exc:
-            raise forms.ValidationError(
-                _("This invite code is not valid. Please check and try again.")
-            ) from exc
+            raise forms.ValidationError(_("This invite code is not valid. Please check and try again.")) from exc
 
         if not invite.usable():
-            raise forms.ValidationError(
-                _("This invite code has already been used or has expired.")
-            )
+            raise forms.ValidationError(_("This invite code has already been used or has expired."))
 
         return code

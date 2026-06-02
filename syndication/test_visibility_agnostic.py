@@ -34,7 +34,6 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from events.models import EventOrganizer
 from organizers.models import Profile, ProfileClaim
 from syndication.models import PlatformConnection, PlatformProjection
 
@@ -90,12 +89,8 @@ class VisibilityAgnosticEagerCreateTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="vis_eager_user", email="vis_eager@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Vis Eager Profile", slug="vis-eager-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="vis_eager_user", email="vis_eager@test.com", password="x")
+        self.profile = _make_profile(name="Vis Eager Profile", slug="vis-eager-profile", user=self.user)
         # Two enabled listing-capable connections — the expected eager count is 2.
         self.conn_switch = _make_connection(
             self.profile,
@@ -114,6 +109,7 @@ class VisibilityAgnosticEagerCreateTest(TestCase):
 
     def _create_event_for_tier(self, visibility, slug_suffix):
         from syndication.services import create_event
+
         return create_event(
             user=self.user,
             title=f"Visibility Test Event ({visibility})",
@@ -247,12 +243,8 @@ class VisibilityAgnosticLifecycleTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="vis_lifecycle_user", email="vis_lifecycle@test.com", password="x"
-        )
-        self.profile = _make_profile(
-            name="Vis Lifecycle Profile", slug="vis-lifecycle-profile", user=self.user
-        )
+        self.user = _make_vouched_user(username="vis_lifecycle_user", email="vis_lifecycle@test.com", password="x")
+        self.profile = _make_profile(name="Vis Lifecycle Profile", slug="vis-lifecycle-profile", user=self.user)
         self.conn = _make_connection(
             self.profile,
             platform="switch",
@@ -262,6 +254,7 @@ class VisibilityAgnosticLifecycleTest(TestCase):
 
     def _create_event_for_tier(self, visibility, slug_suffix):
         from syndication.services import create_event
+
         return create_event(
             user=self.user,
             title=f"Lifecycle Test Event ({visibility})",
@@ -290,6 +283,7 @@ class VisibilityAgnosticLifecycleTest(TestCase):
     def _advance_lifecycle(self, proj):
         """Drive projection through draft→ready→published, return final status."""
         from syndication.engine import transition_status
+
         # draft → ready (freezes content)
         transition_status(proj, "ready")
         proj.refresh_from_db()
@@ -378,6 +372,7 @@ class VisibilityAgnosticLifecycleTest(TestCase):
             proj = self._get_listing_projection(event)
 
             from syndication.engine import transition_status
+
             transition_status(proj, "ready")
             proj.refresh_from_db()
 

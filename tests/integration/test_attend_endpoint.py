@@ -136,13 +136,9 @@ def test_attend_post_going_creates_row(client, staff_user, future_event):
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 200
-    assert Attendance.objects.filter(
-        user=staff_user, event=future_event, status="going"
-    ).exists()
+    assert Attendance.objects.filter(user=staff_user, event=future_event, status="going").exists()
 
 
 @pytest.mark.django_db
@@ -154,13 +150,9 @@ def test_attend_post_interested_creates_row(client, staff_user, future_event):
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "interested"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "interested"})
     assert response.status_code == 200
-    assert Attendance.objects.filter(
-        user=staff_user, event=future_event, status="interested"
-    ).exists()
+    assert Attendance.objects.filter(user=staff_user, event=future_event, status="interested").exists()
 
 
 @pytest.mark.django_db
@@ -194,9 +186,7 @@ def test_attend_response_has_hx_trigger_header(client, staff_user, future_event)
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 200
     assert response["HX-Trigger"] == "events:attendance-changed"
 
@@ -212,9 +202,7 @@ def test_attend_button_no_went_for_future_event(client, staff_user, future_event
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 200
     content = response.content.decode()
     # 'Went' button should NOT be in the partial for a future event
@@ -227,9 +215,7 @@ def test_attend_button_shows_went_for_past_event(client, staff_user, past_event)
     client.force_login(staff_user)
     org_slug = past_event.organizer.slug
     event_slug = past_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "went"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "went"})
     assert response.status_code == 200
     content = response.content.decode()
     # 'Went' button SHOULD be in the partial for a past event
@@ -280,9 +266,7 @@ def test_attend_unauthenticated_redirects_to_login(client, future_event):
     login page."""
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 302
     assert "/accounts/login/" in response["Location"]
 
@@ -304,9 +288,7 @@ def test_attend_unpublished_event_returns_404(client, staff_user, draft_event):
     client.force_login(staff_user)
     org_slug = draft_event.organizer.slug
     event_slug = draft_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     assert response.status_code == 404
 
 
@@ -334,9 +316,7 @@ def test_attend_idempotent_same_status(client, staff_user, future_event):
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
     client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
 
     assert response.status_code == 200
     assert Attendance.objects.filter(user=staff_user, event=future_event).count() == 1
@@ -356,9 +336,7 @@ def test_attend_invalid_status_clamped_to_interested(client, staff_user, future_
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "invalid_value"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "invalid_value"})
     assert response.status_code == 200
     attendance = Attendance.objects.get(user=staff_user, event=future_event)
     assert attendance.status == "interested"
@@ -370,32 +348,24 @@ def test_attend_invalid_status_clamped_to_interested(client, staff_user, future_
 
 
 @pytest.mark.django_db
-def test_attend_response_contains_attend_button_partial(
-    client, staff_user, future_event
-):
+def test_attend_response_contains_attend_button_partial(client, staff_user, future_event):
     """Response body contains the attend button partial HTML."""
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     content = response.content.decode()
     # The partial should have the attend div wrapper
     assert f'id="attend-{future_event.pk}"' in content
 
 
 @pytest.mark.django_db
-def test_attend_response_shows_active_button_for_current_status(
-    client, staff_user, future_event
-):
+def test_attend_response_shows_active_button_for_current_status(client, staff_user, future_event):
     """Response partial shows active styling on the button matching current status."""
     client.force_login(staff_user)
     org_slug = future_event.organizer.slug
     event_slug = future_event.slug
-    response = client.post(
-        f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"}
-    )
+    response = client.post(f"/events/{org_slug}/{event_slug}/attend/", {"status": "going"})
     content = response.content.decode()
     assert "bg-fuchsia-300/8" in content
 
@@ -431,9 +401,7 @@ def test_event_detail_attendance_is_none_when_no_row(client, staff_user, future_
 
 
 @pytest.mark.django_db
-def test_event_detail_includes_attend_button_when_authenticated(
-    client, staff_user, future_event
-):
+def test_event_detail_includes_attend_button_when_authenticated(client, staff_user, future_event):
     """event_detail includes attend button for authenticated user."""
     client.force_login(staff_user)
     response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
@@ -443,9 +411,7 @@ def test_event_detail_includes_attend_button_when_authenticated(
 
 
 @pytest.mark.django_db
-def test_event_detail_excludes_attend_button_when_not_authenticated(
-    client, future_event
-):
+def test_event_detail_excludes_attend_button_when_not_authenticated(client, future_event):
     """event_detail hides attend button for anonymous user."""
     response = client.get(f"/events/{future_event.organizer.slug}/{future_event.slug}/")
     assert response.status_code == 200

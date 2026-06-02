@@ -53,9 +53,7 @@ def make_vouched_user():
     import uuid
 
     username = f"vouched-{uuid.uuid4().hex[:8]}"
-    user = User.objects.create_user(
-        username=username, email=f"{username}@example.com", password="testpass"
-    )
+    user = User.objects.create_user(username=username, email=f"{username}@example.com", password="testpass")
     user.status = "vouched"
     user.save(update_fields=["status"])
     return user

@@ -66,9 +66,7 @@ def client_approved(approved_user):
 
 @pytest.fixture
 def went_attendance(db, approved_user, past_event):
-    return Attendance.objects.create(
-        user=approved_user, event=past_event, status="went"
-    )
+    return Attendance.objects.create(user=approved_user, event=past_event, status="went")
 
 
 # ---------------------------------------------------------------------------
@@ -77,9 +75,7 @@ def went_attendance(db, approved_user, past_event):
 
 
 @pytest.mark.django_db
-def test_organizer_hidden_review_resubmit_returns_403(
-    client_approved, approved_user, organizer
-):
+def test_organizer_hidden_review_resubmit_returns_403(client_approved, approved_user, organizer):
     """POST submit_review for an organizer when user has a hidden review returns 403."""
     # Create a hidden review for this user/organizer
     Review.objects.create(
@@ -104,9 +100,7 @@ def test_organizer_hidden_review_resubmit_returns_403(
 
 
 @pytest.mark.django_db
-def test_organizer_hidden_review_resubmit_renders_error_partial(
-    client_approved, approved_user, organizer
-):
+def test_organizer_hidden_review_resubmit_renders_error_partial(client_approved, approved_user, organizer):
     """403 response uses _rating_form.html partial with error text."""
     Review.objects.create(
         author=approved_user,
@@ -132,9 +126,7 @@ def test_organizer_hidden_review_resubmit_renders_error_partial(
 
 
 @pytest.mark.django_db
-def test_organizer_hidden_review_resubmit_does_not_modify_row(
-    client_approved, approved_user, organizer
-):
+def test_organizer_hidden_review_resubmit_does_not_modify_row(client_approved, approved_user, organizer):
     """Hidden review row is NOT modified when re-submission is blocked."""
     original_review = Review.objects.create(
         author=approved_user,
@@ -163,9 +155,7 @@ def test_organizer_hidden_review_resubmit_does_not_modify_row(
 
 
 @pytest.mark.django_db
-def test_organizer_hidden_review_resubmit_does_not_create_new_row(
-    client_approved, approved_user, organizer
-):
+def test_organizer_hidden_review_resubmit_does_not_create_new_row(client_approved, approved_user, organizer):
     """No new Review row is created when blocked by hidden-review check."""
     Review.objects.create(
         author=approved_user,
@@ -195,9 +185,7 @@ def test_organizer_hidden_review_resubmit_does_not_create_new_row(
 
 
 @pytest.mark.django_db
-def test_event_hidden_review_resubmit_returns_403(
-    client_approved, approved_user, past_event, went_attendance
-):
+def test_event_hidden_review_resubmit_returns_403(client_approved, approved_user, past_event, went_attendance):
     """POST submit_review for an event when user has a hidden review returns 403."""
     Review.objects.create(
         author=approved_user,
@@ -249,9 +237,7 @@ def test_event_hidden_review_resubmit_renders_error_partial(
 
 
 @pytest.mark.django_db
-def test_event_hidden_review_resubmit_does_not_modify_row(
-    client_approved, approved_user, past_event, went_attendance
-):
+def test_event_hidden_review_resubmit_does_not_modify_row(client_approved, approved_user, past_event, went_attendance):
     """Hidden event review row is NOT modified when re-submission is blocked."""
     original_review = Review.objects.create(
         author=approved_user,
@@ -311,9 +297,7 @@ def test_event_hidden_review_resubmit_does_not_create_new_row(
 
 
 @pytest.mark.django_db
-def test_organizer_non_hidden_review_resubmit_returns_200(
-    client_approved, approved_user, organizer
-):
+def test_organizer_non_hidden_review_resubmit_returns_200(client_approved, approved_user, organizer):
     """User with non-hidden organizer review can re-submit normally (200)."""
     Review.objects.create(
         author=approved_user,
@@ -337,9 +321,7 @@ def test_organizer_non_hidden_review_resubmit_returns_200(
 
 
 @pytest.mark.django_db
-def test_organizer_non_hidden_review_resubmit_updates_row(
-    client_approved, approved_user, organizer
-):
+def test_organizer_non_hidden_review_resubmit_updates_row(client_approved, approved_user, organizer):
     """Non-hidden organizer review row is updated via update_or_create."""
     Review.objects.create(
         author=approved_user,
@@ -367,9 +349,7 @@ def test_organizer_non_hidden_review_resubmit_updates_row(
 
 
 @pytest.mark.django_db
-def test_event_non_hidden_review_resubmit_returns_200(
-    client_approved, approved_user, past_event, went_attendance
-):
+def test_event_non_hidden_review_resubmit_returns_200(client_approved, approved_user, past_event, went_attendance):
     """User with non-hidden event review can re-submit normally (200)."""
     Review.objects.create(
         author=approved_user,
@@ -393,9 +373,7 @@ def test_event_non_hidden_review_resubmit_returns_200(
 
 
 @pytest.mark.django_db
-def test_event_non_hidden_review_resubmit_updates_row(
-    client_approved, approved_user, past_event, went_attendance
-):
+def test_event_non_hidden_review_resubmit_updates_row(client_approved, approved_user, past_event, went_attendance):
     """Non-hidden event review row is updated via update_or_create."""
     Review.objects.create(
         author=approved_user,
@@ -428,9 +406,7 @@ def test_event_non_hidden_review_resubmit_updates_row(
 
 
 @pytest.mark.django_db
-def test_organizer_no_prior_review_creates_new_row(
-    client_approved, approved_user, organizer
-):
+def test_organizer_no_prior_review_creates_new_row(client_approved, approved_user, organizer):
     """User with no prior organizer review: POST creates a new Review row."""
     url = reverse("review-submit")
     resp = client_approved.post(
@@ -451,9 +427,7 @@ def test_organizer_no_prior_review_creates_new_row(
 
 
 @pytest.mark.django_db
-def test_event_no_prior_review_creates_new_row(
-    client_approved, approved_user, past_event, went_attendance
-):
+def test_event_no_prior_review_creates_new_row(client_approved, approved_user, past_event, went_attendance):
     """User with no prior event review: POST creates a new Review row."""
     url = reverse("review-submit")
     resp = client_approved.post(

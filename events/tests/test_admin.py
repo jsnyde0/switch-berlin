@@ -13,9 +13,7 @@ User = get_user_model()
 
 class EventAdminTest(TestCase):
     def setUp(self):
-        self.superuser = User.objects.create_superuser(
-            username="admin", email="admin@example.com", password="password"
-        )
+        self.superuser = User.objects.create_superuser(username="admin", email="admin@example.com", password="password")
         self.client.force_login(self.superuser)
         self.organizer = Profile.objects.create(name="Test Org", slug="test-org-admin")
 
@@ -60,9 +58,7 @@ class EventAdminTest(TestCase):
 
     def test_event_changelist_defaults_to_draft_filter(self):
         draft_event = self._make_event(status="draft")
-        published_event = self._make_event(
-            status="published", slug="pub-event-admin", title="Published Event Only"
-        )
+        published_event = self._make_event(status="published", slug="pub-event-admin", title="Published Event Only")
         response = self.client.get("/admin/events/event/")
         self.assertEqual(response.status_code, 200)
         # Draft event should be in results; published should not
@@ -70,9 +66,7 @@ class EventAdminTest(TestCase):
         self.assertNotContains(response, published_event.title)
 
     def test_change_form_includes_extraction_data(self):
-        raw = RawMessage.objects.create(
-            source_type="telegram_bot_forward", raw_payload={}, sender_id="123"
-        )
+        raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="123")
         event = self._make_event(raw_message=raw)
         ExtractionAttempt.objects.create(
             raw_message=raw,
@@ -166,7 +160,5 @@ class EventAdminTest(TestCase):
         )
         self.organizer.refresh_from_db()
         # consent_recorded_at should not have changed (already set)
-        self.assertEqual(
-            self.organizer.consent_recorded_at.date(), original_time.date()
-        )
+        self.assertEqual(self.organizer.consent_recorded_at.date(), original_time.date())
         self.assertEqual(self.organizer.consent_method, "explicit_opt_in")

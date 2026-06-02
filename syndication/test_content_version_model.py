@@ -147,9 +147,7 @@ class ContentVersionModelExistsTest(TestCase):
     def test_content_version_has_cta_field(self):
         """ContentVersion carries cta (call to action)."""
         event = _make_event()
-        cv = ContentVersion.objects.create(
-            event=event, name="v1", cta="https://example.com"
-        )
+        cv = ContentVersion.objects.create(event=event, name="v1", cta="https://example.com")
         self.assertEqual(cv.cta, "https://example.com")
 
     def test_content_version_cta_optional(self):
@@ -367,9 +365,7 @@ class PlatformProjectionContentVersionFKTest(TestCase):
         event = _make_event()
         profile = _make_profile()
         conn1 = _make_connection(profile, destination_id="own-page", kinds=["listing"])
-        conn2 = _make_connection(
-            profile, platform="fetlife", destination_id="user123", kinds=["listing"]
-        )
+        conn2 = _make_connection(profile, platform="fetlife", destination_id="user123", kinds=["listing"])
         cv = ContentVersion.objects.create(event=event, name="shared")
         pp1 = PlatformProjection.objects.create(
             connection=conn1,
@@ -439,15 +435,10 @@ class ContentVersionPublishableScopeCheckConstraintTest(TestCase):
         from django.db.models import CheckConstraint
 
         constraint_names = [c.name for c in ContentVersion._meta.constraints]
-        check_constraints = [
-            c
-            for c in ContentVersion._meta.constraints
-            if isinstance(c, CheckConstraint)
-        ]
+        check_constraints = [c for c in ContentVersion._meta.constraints if isinstance(c, CheckConstraint)]
         self.assertTrue(
             len(check_constraints) >= 1,
-            f"Expected at least one CheckConstraint in "
-            f"ContentVersion.Meta.constraints; found: {constraint_names}",
+            f"Expected at least one CheckConstraint in ContentVersion.Meta.constraints; found: {constraint_names}",
         )
 
 
@@ -525,9 +516,7 @@ class ContentVersionPartialUniqueConstraintTest(TestCase):
         from django.db.models import UniqueConstraint
 
         partial_uniq = [
-            c
-            for c in ContentVersion._meta.constraints
-            if isinstance(c, UniqueConstraint) and c.condition is not None
+            c for c in ContentVersion._meta.constraints if isinstance(c, UniqueConstraint) and c.condition is not None
         ]
         event_constraint = next(
             (c for c in partial_uniq if "event" in c.fields),
@@ -535,8 +524,7 @@ class ContentVersionPartialUniqueConstraintTest(TestCase):
         )
         self.assertIsNotNone(
             event_constraint,
-            "Expected partial UniqueConstraint on (event, name) "
-            "in ContentVersion.Meta.constraints",
+            "Expected partial UniqueConstraint on (event, name) in ContentVersion.Meta.constraints",
         )
 
     def test_post_partial_unique_constraint_present(self):
@@ -544,9 +532,7 @@ class ContentVersionPartialUniqueConstraintTest(TestCase):
         from django.db.models import UniqueConstraint
 
         partial_uniq = [
-            c
-            for c in ContentVersion._meta.constraints
-            if isinstance(c, UniqueConstraint) and c.condition is not None
+            c for c in ContentVersion._meta.constraints if isinstance(c, UniqueConstraint) and c.condition is not None
         ]
         post_constraint = next(
             (c for c in partial_uniq if "post" in c.fields),
@@ -554,8 +540,7 @@ class ContentVersionPartialUniqueConstraintTest(TestCase):
         )
         self.assertIsNotNone(
             post_constraint,
-            "Expected partial UniqueConstraint on (post, name) "
-            "in ContentVersion.Meta.constraints",
+            "Expected partial UniqueConstraint on (post, name) in ContentVersion.Meta.constraints",
         )
 
 

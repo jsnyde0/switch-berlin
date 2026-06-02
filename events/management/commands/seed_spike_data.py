@@ -163,10 +163,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Guard: refuse on production unless --force
         if not getattr(settings, "DEBUG", False) and not options["force"]:
-            raise CommandError(
-                "Refusing to seed data with DEBUG=False. "
-                "Pass --force to override (e.g. on staging)."
-            )
+            raise CommandError("Refusing to seed data with DEBUG=False. Pass --force to override (e.g. on staging).")
 
         wipe = options["wipe"]
         verbosity = options["verbosity"]
@@ -174,9 +171,7 @@ class Command(BaseCommand):
         seed_data_exists = Profile.objects.filter(name__startswith=SEED_PREFIX).exists()
 
         if seed_data_exists and not wipe:
-            raise CommandError(
-                "Seed data already present. Run with --wipe to clear and reseed."
-            )
+            raise CommandError("Seed data already present. Run with --wipe to clear and reseed.")
 
         if seed_data_exists and wipe:
             if verbosity >= 1:
@@ -219,9 +214,7 @@ class Command(BaseCommand):
         venues = []
         for i, org in enumerate(organizers):
             for j in range(NUM_VENUES_PER_ORGANIZER):
-                neighborhood = _NEIGHBORHOODS[
-                    (i * NUM_VENUES_PER_ORGANIZER + j) % len(_NEIGHBORHOODS)
-                ]
+                neighborhood = _NEIGHBORHOODS[(i * NUM_VENUES_PER_ORGANIZER + j) % len(_NEIGHBORHOODS)]
                 lat = round(rng.uniform(_LAT_MIN, _LAT_MAX), 6)
                 lng = round(rng.uniform(_LNG_MIN, _LNG_MAX), 6)
                 privacy = _pick(rng, _PRIVACY_MODES, _PRIVACY_PROBS)
@@ -282,9 +275,5 @@ class Command(BaseCommand):
 
         if verbosity >= 1:
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"Seeded {len(organizers)} organizers, "
-                    f"{len(venues)} venues, "
-                    f"{event_count} events."
-                )
+                self.style.SUCCESS(f"Seeded {len(organizers)} organizers, {len(venues)} venues, {event_count} events.")
             )

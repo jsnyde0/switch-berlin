@@ -85,16 +85,12 @@ class TestOrganizerLIAMigrationForward(TestCase):
 
         # Create test organizers with telegram_forward_implied
         org1 = _make_organizer("org-forward-1", "telegram_forward_implied", "")
-        org2 = _make_organizer(
-            "org-forward-2", "telegram_forward_implied", "some notes"
-        )
+        org2 = _make_organizer("org-forward-2", "telegram_forward_implied", "some notes")
         # One that should NOT be touched
         org3 = _make_organizer("org-forward-3", "explicit_opt_in", "unchanged")
 
         with connection.schema_editor() as schema_editor:
-            _apply_migration_forward(
-                "0006_backfill_consent_method", apps, schema_editor
-            )
+            _apply_migration_forward("0006_backfill_consent_method", apps, schema_editor)
 
         org1.refresh_from_db()
         org2.refresh_from_db()
@@ -119,9 +115,7 @@ class TestOrganizerLIAMigrationForward(TestCase):
         org = _make_organizer("org-idempotent", "telegram_forward_implied", "")
 
         with connection.schema_editor() as schema_editor:
-            _apply_migration_forward(
-                "0006_backfill_consent_method", apps, schema_editor
-            )
+            _apply_migration_forward("0006_backfill_consent_method", apps, schema_editor)
 
         org.refresh_from_db()
         first_notes = org.consent_notes
@@ -129,16 +123,12 @@ class TestOrganizerLIAMigrationForward(TestCase):
         # Run again — the row is now legitimate_interest, not telegram_forward_implied
         # so it won't be touched a second time
         with connection.schema_editor() as schema_editor:
-            _apply_migration_forward(
-                "0006_backfill_consent_method", apps, schema_editor
-            )
+            _apply_migration_forward("0006_backfill_consent_method", apps, schema_editor)
 
         org.refresh_from_db()
         second_notes = org.consent_notes
 
-        assert first_notes == second_notes, (
-            f"Note was appended twice:\n{second_notes!r}"
-        )
+        assert first_notes == second_notes, f"Note was appended twice:\n{second_notes!r}"
         assert second_notes.count("ADR-006") == 1
 
     def test_migration_reversible(self):
@@ -146,22 +136,16 @@ class TestOrganizerLIAMigrationForward(TestCase):
         from django.apps import apps
         from django.db import connection
 
-        org = _make_organizer(
-            "org-reversible", "telegram_forward_implied", "original notes"
-        )
+        org = _make_organizer("org-reversible", "telegram_forward_implied", "original notes")
 
         with connection.schema_editor() as schema_editor:
-            _apply_migration_forward(
-                "0006_backfill_consent_method", apps, schema_editor
-            )
+            _apply_migration_forward("0006_backfill_consent_method", apps, schema_editor)
 
         org.refresh_from_db()
         assert org.consent_method == "legitimate_interest"
 
         with connection.schema_editor() as schema_editor:
-            _apply_migration_reverse(
-                "0006_backfill_consent_method", apps, schema_editor
-            )
+            _apply_migration_reverse("0006_backfill_consent_method", apps, schema_editor)
 
         org.refresh_from_db()
         assert org.consent_method == "telegram_forward_implied"
@@ -180,9 +164,7 @@ class TestAdminDropdown(TestCase):
         assert "legitimate_interest" in choices_dict, (
             f"'legitimate_interest' not in choices: {list(choices_dict.keys())}"
         )
-        assert (
-            choices_dict["legitimate_interest"] == "Legitimate interest (Art. 6(1)(f))"
-        )
+        assert choices_dict["legitimate_interest"] == "Legitimate interest (Art. 6(1)(f))"
 
     def test_legitimate_interest_is_first_choice(self):
         """legitimate_interest must appear first in the choices list."""
@@ -190,9 +172,7 @@ class TestAdminDropdown(TestCase):
 
         field = Profile._meta.get_field("consent_method")
         first_key, first_label = field.choices[0]
-        assert first_key == "legitimate_interest", (
-            f"Expected legitimate_interest first, got {first_key!r}"
-        )
+        assert first_key == "legitimate_interest", f"Expected legitimate_interest first, got {first_key!r}"
 
 
 class TestLIADocExists(TestCase):

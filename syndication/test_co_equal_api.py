@@ -26,13 +26,13 @@ Shared service seam functions instrumented:
 """
 
 import json
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.utils import timezone
 
-from events.models import Event, EventOrganizer
+from events.models import Event
 from organizers.models import Profile, ProfileClaim
 from syndication.models import Post
 
@@ -379,8 +379,7 @@ class EventCreateCoEqualTest(TestCase):
         self.assertNotEqual(
             response.status_code,
             302,
-            "Web UI allowed event creation for a user with no profile — "
-            "authz gate bypassed (ADR-016 D3 / ADR-017 D1).",
+            "Web UI allowed event creation for a user with no profile — authz gate bypassed (ADR-016 D3 / ADR-017 D1).",
         )
         # The event must NOT have been created in the DB.
         self.assertFalse(
@@ -428,8 +427,7 @@ class EventCreateCoEqualTest(TestCase):
         self.assertNotEqual(
             response.status_code,
             201,
-            "API allowed event creation for a user with no profile — "
-            "authz gate bypassed (ADR-016 D3 / ADR-017 D1).",
+            "API allowed event creation for a user with no profile — authz gate bypassed (ADR-016 D3 / ADR-017 D1).",
         )
         # Event must not exist in DB
         self.assertFalse(
@@ -462,6 +460,7 @@ class EventCreateCoEqualTest(TestCase):
         # both the module-level import in views.py AND the local import inside
         # services.update_event. Both must flow through the same authoritative gate.
         from syndication.authz import can_edit as canonical_can_edit
+
         with patch("syndication.authz.can_edit", wraps=canonical_can_edit) as authz_spy:
             patch_response = client.patch(
                 f"/api/events/{event.pk}/",
@@ -728,9 +727,7 @@ class PostCreateCoEqualTest(TestCase):
             [200, 302],
             f"Web post form responded with unexpected status: {web_response.status_code}",
         )
-        web_post = Post.objects.filter(
-            event=self.event, headline="Web Post Co-Equal"
-        ).first()
+        web_post = Post.objects.filter(event=self.event, headline="Web Post Co-Equal").first()
         self.assertIsNotNone(web_post, "Web UI did not create a Post — check form validation")
 
         # --- Create via API ---
@@ -749,9 +746,7 @@ class PostCreateCoEqualTest(TestCase):
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
         self.assertEqual(api_response.status_code, 201, api_response.content)
-        api_post = Post.objects.filter(
-            event=self.event, headline="API Post Co-Equal"
-        ).first()
+        api_post = Post.objects.filter(event=self.event, headline="API Post Co-Equal").first()
         self.assertIsNotNone(api_post, "API did not create a Post")
 
         # --- Assert field-for-field equivalence ---

@@ -15,9 +15,7 @@ class Command(BaseCommand):
                 repeats=-1,  # repeat forever
             ),
         )
-        self.stdout.write(
-            self.style.SUCCESS("Schedule seeded: heartbeat every 5 minutes")
-        )
+        self.stdout.write(self.style.SUCCESS("Schedule seeded: heartbeat every 5 minutes"))
         Schedule.objects.update_or_create(
             name="archive_past_events",
             defaults=dict(
@@ -34,9 +32,5 @@ class Command(BaseCommand):
                 repeats=-1,
             ),
         )
-        self.stdout.write(
-            self.style.SUCCESS("Schedule seeded: archive_past_events daily")
-        )
-        self.stdout.write(
-            self.style.SUCCESS("Schedule seeded: soft_purge_rawmessages daily")
-        )
+        self.stdout.write(self.style.SUCCESS("Schedule seeded: archive_past_events daily"))
+        self.stdout.write(self.style.SUCCESS("Schedule seeded: soft_purge_rawmessages daily"))

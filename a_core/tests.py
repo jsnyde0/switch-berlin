@@ -86,9 +86,7 @@ class FeatureFlagNumericValueTest(TestCase):
         """FeatureFlag.numeric_value field exists and accepts integers."""
         from a_core.models import FeatureFlag
 
-        flag = FeatureFlag.objects.create(
-            key="THRESHOLD_TEST", enabled=True, numeric_value=5
-        )
+        flag = FeatureFlag.objects.create(key="THRESHOLD_TEST", enabled=True, numeric_value=5)
         flag.refresh_from_db()
         self.assertEqual(flag.numeric_value, 5)
 
@@ -104,9 +102,7 @@ class FeatureFlagNumericValueTest(TestCase):
         """get_numeric returns numeric_value from DB row."""
         from a_core.models import FeatureFlag, get_numeric
 
-        FeatureFlag.objects.create(
-            key="threshold.test_threshold", enabled=True, numeric_value=7
-        )
+        FeatureFlag.objects.create(key="threshold.test_threshold", enabled=True, numeric_value=7)
         result = get_numeric("threshold.test_threshold", default=3)
         self.assertEqual(result, 7)
 
@@ -140,9 +136,7 @@ class FeatureFlagNumericValueTest(TestCase):
         """get_numeric returns default when numeric_value is None."""
         from a_core.models import FeatureFlag, get_numeric
 
-        FeatureFlag.objects.create(
-            key="BOOL_ONLY_NO_NUMERIC", enabled=True, numeric_value=None
-        )
+        FeatureFlag.objects.create(key="BOOL_ONLY_NO_NUMERIC", enabled=True, numeric_value=None)
         result = get_numeric("BOOL_ONLY_NO_NUMERIC", default=10)
         self.assertEqual(result, 10)
 
@@ -168,9 +162,7 @@ class FeatureFlagNumericValueTest(TestCase):
         it."""
         from a_core.models import FeatureFlag, get_numeric
 
-        FeatureFlag.objects.create(
-            key="threshold.cached_test", enabled=True, numeric_value=8
-        )
+        FeatureFlag.objects.create(key="threshold.cached_test", enabled=True, numeric_value=8)
         # Warm cache
         get_numeric("threshold.cached_test", default=0)
         # Delete DB row
@@ -183,9 +175,7 @@ class FeatureFlagNumericValueTest(TestCase):
         """FeatureFlag.save() invalidates the feature_flag_row: cache key."""
         from a_core.models import FeatureFlag, get_numeric
 
-        flag = FeatureFlag.objects.create(
-            key="threshold.save_test", enabled=True, numeric_value=3
-        )
+        flag = FeatureFlag.objects.create(key="threshold.save_test", enabled=True, numeric_value=3)
         # Warm cache
         get_numeric("threshold.save_test", default=0)
         # Update via save() — must bust cache
@@ -199,9 +189,7 @@ class FeatureFlagNumericValueTest(TestCase):
         """FeatureFlag.delete() invalidates the feature_flag_row: cache key."""
         from a_core.models import FeatureFlag, get_numeric
 
-        flag = FeatureFlag.objects.create(
-            key="threshold.delete_test", enabled=True, numeric_value=5
-        )
+        flag = FeatureFlag.objects.create(key="threshold.delete_test", enabled=True, numeric_value=5)
         # Warm cache
         get_numeric("threshold.delete_test", default=0)
         # Delete — must bust cache
@@ -237,9 +225,7 @@ class ModerationActionModelTest(TestCase):
         from a_core.models import ModerationAction
 
         User = get_user_model()
-        moderator = User.objects.create_user(
-            username="mod", email="mod@example.com", password="pass"
-        )
+        moderator = User.objects.create_user(username="mod", email="mod@example.com", password="pass")
         action = ModerationAction.objects.create(
             moderator=moderator,
             target_type="event",
@@ -268,9 +254,7 @@ class ModerationActionModelTest(TestCase):
         from a_core.models import ModerationAction
 
         User = get_user_model()
-        moderator = User.objects.create_user(
-            username="mod2", email="mod2@example.com", password="pass"
-        )
+        moderator = User.objects.create_user(username="mod2", email="mod2@example.com", password="pass")
         action = ModerationAction.objects.create(
             moderator=moderator,
             target_type="organizer",
@@ -295,9 +279,7 @@ class ModerationActionModelTest(TestCase):
         from a_core.models import ModerationAction
 
         User = get_user_model()
-        moderator = User.objects.create_user(
-            username="mod3", email="mod3@example.com", password="pass"
-        )
+        moderator = User.objects.create_user(username="mod3", email="mod3@example.com", password="pass")
         before = timezone.now()
         action = ModerationAction.objects.create(
             moderator=moderator,

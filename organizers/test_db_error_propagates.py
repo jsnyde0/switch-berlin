@@ -53,9 +53,7 @@ def test_review_does_not_exist_sets_user_review_none(organizer, auth_user):
 
 
 @pytest.mark.django_db
-def test_non_does_not_exist_exception_propagates_from_user_review_lookup(
-    organizer, auth_user
-):
+def test_non_does_not_exist_exception_propagates_from_user_review_lookup(organizer, auth_user):
     """A non-DoesNotExist exception raised by organizer.reviews.get() propagates
     out of the view (is NOT silently swallowed by broad except Exception)."""
     client = Client()

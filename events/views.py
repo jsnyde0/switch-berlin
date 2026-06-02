@@ -65,8 +65,7 @@ def event_list(request):
             )
             .annotate(
                 trending_score=ExpressionWrapper(
-                    F("interested_count") * (1.0 / F("days_until_start"))
-                    + F("attendance_count") * 2.0,
+                    F("interested_count") * (1.0 / F("days_until_start")) + F("attendance_count") * 2.0,
                     output_field=FloatField(),
                 )
             )
@@ -85,9 +84,7 @@ def event_list(request):
     tag_slugs = [s.strip() for s in tags_param.split(",") if s.strip()]
     valid_slugs: list[str] = []
     if tag_slugs:
-        valid_slugs = list(
-            Tag.objects.filter(slug__in=tag_slugs).values_list("slug", flat=True)
-        )
+        valid_slugs = list(Tag.objects.filter(slug__in=tag_slugs).values_list("slug", flat=True))
         if valid_slugs:
             qs = qs.filter(tags__slug__in=valid_slugs).distinct()
 
@@ -121,9 +118,7 @@ def event_list(request):
     # Filter: ?filter=following — only events from organizers the user follows
     filter_param = request.GET.get("filter", "")
     if filter_param == "following" and request.user.is_authenticated:
-        followed_org_ids = Follow.objects.filter(user=request.user).values_list(
-            "profile_id", flat=True
-        )
+        followed_org_ids = Follow.objects.filter(user=request.user).values_list("profile_id", flat=True)
         qs = qs.filter(
             event_organizer_set__profile_id__in=followed_org_ids,
             event_organizer_set__is_primary=True,
@@ -197,9 +192,9 @@ def event_list(request):
     # Pre-compute venue PKs where requesting user has Attendance(status='going')
     if request.user.is_authenticated:
         going_venue_ids = frozenset(
-            Attendance.objects.filter(
-                user=request.user, status="going", event__venue__isnull=False
-            ).values_list("event__venue_id", flat=True)
+            Attendance.objects.filter(user=request.user, status="going", event__venue__isnull=False).values_list(
+                "event__venue_id", flat=True
+            )
         )
     else:
         going_venue_ids = frozenset()
@@ -243,9 +238,7 @@ def event_list(request):
         "bounds_param": bounds_param,
         "going_venue_id_list": going_venue_id_list,
         "EVENT_REVIEWS_DISPLAYED": event_reviews_displayed,
-        "EVENT_RATING_THRESHOLD": get_numeric(
-            "threshold.event_ratings_display", default=3
-        ),
+        "EVENT_RATING_THRESHOLD": get_numeric("threshold.event_ratings_display", default=3),
         "filter_param": filter_param,
         "sort": sort,
         "trending_enabled": trending_enabled,
@@ -291,16 +284,10 @@ def event_detail(request, org_slug, event_slug):
         user_going = False
     event_past = event.start < timezone.now()
     if request.user.is_authenticated:
-        user_has_went_attendance = Attendance.objects.filter(
-            user=request.user, event=event, status="went"
-        ).exists()
+        user_has_went_attendance = Attendance.objects.filter(user=request.user, event=event, status="went").exists()
     else:
         user_has_went_attendance = False
-    event_reviews = (
-        Review.objects.filter(event=event, hidden=False)
-        .select_related("author")
-        .order_by("-created_at")
-    )
+    event_reviews = Review.objects.filter(event=event, hidden=False).select_related("author").order_by("-created_at")
     context = {
         "event": event,
         "cover_image": cover_image,
@@ -310,9 +297,7 @@ def event_detail(request, org_slug, event_slug):
         "user_has_went_attendance": user_has_went_attendance,
         "event_reviews": event_reviews,
         "EVENT_REVIEWS_DISPLAYED": get_flag("EVENT_REVIEWS_DISPLAYED", default=False),
-        "EVENT_RATING_THRESHOLD": get_numeric(
-            "threshold.event_ratings_display", default=3
-        ),
+        "EVENT_RATING_THRESHOLD": get_numeric("threshold.event_ratings_display", default=3),
     }
     return render(request, "events/detail.html", context)
 

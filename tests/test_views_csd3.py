@@ -145,9 +145,7 @@ def test_organizer_profile_returns_404_for_nonexistent(approved_user):
 
 
 @pytest.mark.django_db
-def test_organizer_profile_returns_404_for_candidate(
-    approved_user, candidate_organizer
-):
+def test_organizer_profile_returns_404_for_candidate(approved_user, candidate_organizer):
     """GET /p/<candidate-slug>/ returns 404 (not approved)."""
     client = Client()
     client.force_login(approved_user)

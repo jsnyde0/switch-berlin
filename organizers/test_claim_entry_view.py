@@ -38,9 +38,7 @@ def make_profile(slug, **kwargs):
 
 def make_user(username, email=None):
     email = email or f"{username}@example.com"
-    return User.objects.create_user(
-        username=username, email=email, password="testpass123"
-    )
+    return User.objects.create_user(username=username, email=email, password="testpass123")
 
 
 # ---------------------------------------------------------------------------
@@ -76,11 +74,7 @@ def test_profile_detail_anonymous_sees_sign_in_cta(client):
     assert response.status_code == 200
     content = response.content.decode()
     # Should contain some reference to sign in or login for claim
-    assert (
-        "sign" in content.lower()
-        or "login" in content.lower()
-        or "claim" in content.lower()
-    )
+    assert "sign" in content.lower() or "login" in content.lower() or "claim" in content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -150,11 +144,7 @@ def test_claim_entry_already_claimant_shows_explicit_branch(client):
     assert response.status_code == 200
     content = response.content.decode()
     # ADR-008 D3: explicit branch, not silent omission
-    assert (
-        "manage" in content.lower()
-        or "already" in content.lower()
-        or "claimant" in content.lower()
-    )
+    assert "manage" in content.lower() or "already" in content.lower() or "claimant" in content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -168,9 +158,7 @@ def test_profile_detail_auth_non_claimant_sees_claim_cta(client):
     make_profile("claim-cta-profile")
     user = make_user("non_claimant_viewer")
     client.force_login(user)
-    response = client.get(
-        reverse("organizer-profile", kwargs={"slug": "claim-cta-profile"})
-    )
+    response = client.get(reverse("organizer-profile", kwargs={"slug": "claim-cta-profile"}))
     assert response.status_code == 200
     content = response.content.decode()
     assert "claim" in content.lower()
@@ -197,17 +185,11 @@ def test_profile_detail_auth_claimant_sees_manage_badge(client):
     )
 
     client.force_login(user)
-    response = client.get(
-        reverse("organizer-profile", kwargs={"slug": "manage-badge-profile"})
-    )
+    response = client.get(reverse("organizer-profile", kwargs={"slug": "manage-badge-profile"}))
     assert response.status_code == 200
     content = response.content.decode()
     # Must be explicit (ADR-008 D3) — not absent
-    assert (
-        "manage" in content.lower()
-        or "claimant" in content.lower()
-        or "your profile" in content.lower()
-    )
+    assert "manage" in content.lower() or "claimant" in content.lower() or "your profile" in content.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -238,16 +220,13 @@ def test_claim_entry_email_domain_fastpath_redirects_to_check_email(client):
 
     url = reverse("organizer-claim-entry", kwargs={"slug": "fastpath-org"})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(
-            url, {"email": "user@fastpath.org", "turnstile_token": "VALID"}
-        )
+        response = client.post(url, {"email": "user@fastpath.org", "turnstile_token": "VALID"})
 
     # Must redirect to check-email, NOT directly to profile
     assert response.status_code == 302
-    assert (
-        "check" in response["Location"].lower()
-        or "email" in response["Location"].lower()
-    ), f"Expected check-email redirect, got: {response['Location']}"
+    assert "check" in response["Location"].lower() or "email" in response["Location"].lower(), (
+        f"Expected check-email redirect, got: {response['Location']}"
+    )
 
     # No ProfileClaim created at POST time
     assert not ProfileClaim.objects.filter(profile=profile, user=user).exists(), (
@@ -309,16 +288,11 @@ def test_claim_entry_admin_review_path_creates_claim_intent(client, mailoutbox):
 
     url = reverse("organizer-claim-entry", kwargs={"slug": "review-org"})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(
-            url, {"email": "user@gmail.com", "turnstile_token": "VALID"}
-        )
+        response = client.post(url, {"email": "user@gmail.com", "turnstile_token": "VALID"})
 
     # Should redirect to check-email page
     assert response.status_code == 302
-    assert (
-        "check" in response["Location"].lower()
-        or "email" in response["Location"].lower()
-    )
+    assert "check" in response["Location"].lower() or "email" in response["Location"].lower()
 
     # ClaimIntent created
     intent = ClaimIntent.objects.filter(user=user, profile=profile).first()
@@ -360,13 +334,9 @@ def test_claim_form_turnstile_invalid_raises_validation_error():
         from django.test import override_settings
 
         with override_settings(TURNSTILE_SECRET_KEY="test-secret"):
-            form2 = ClaimForm(
-                data={"email": "test@example.com", "turnstile_token": "BAD"}
-            )
+            form2 = ClaimForm(data={"email": "test@example.com", "turnstile_token": "BAD"})
             with patch("accounts.adapter.validate_turnstile_token", return_value=False):
-                assert not form2.is_valid(), (
-                    "Form with bad Turnstile token should be invalid"
-                )
+                assert not form2.is_valid(), "Form with bad Turnstile token should be invalid"
                 assert "turnstile_token" in form2.errors
 
 
@@ -413,9 +383,7 @@ def test_claim_entry_admin_review_path_email_domain_mismatch(client, mailoutbox)
 
     url = reverse("organizer-claim-entry", kwargs={"slug": "mismatch-org"})
     with patch("accounts.adapter.validate_turnstile_token", return_value=True):
-        response = client.post(
-            url, {"email": "user@other.com", "turnstile_token": "VALID"}
-        )
+        response = client.post(url, {"email": "user@other.com", "turnstile_token": "VALID"})
 
     # Should redirect (not to claim success, but check-email)
     assert response.status_code == 302

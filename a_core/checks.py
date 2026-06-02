@@ -41,8 +41,7 @@ def check_legal_contact(app_configs, **kwargs):
     if public_read:
         errors.append(
             Error(
-                "PUBLIC_READ_ENABLED=True but required legal env vars are empty: "
-                + ", ".join(missing),
+                "PUBLIC_READ_ENABLED=True but required legal env vars are empty: " + ", ".join(missing),
                 hint=(
                     "Set IMPRESSUM_NAME, IMPRESSUM_ADDRESS, IMPRESSUM_EMAIL "
                     "in your environment before enabling public read access."
@@ -54,11 +53,9 @@ def check_legal_contact(app_configs, **kwargs):
     elif settings.DEBUG:
         errors.append(
             Warning(
-                "Legal env vars are empty (OK for DEBUG=True internal use): "
-                + ", ".join(missing),
+                "Legal env vars are empty (OK for DEBUG=True internal use): " + ", ".join(missing),
                 hint=(
-                    "Fill IMPRESSUM_NAME, IMPRESSUM_ADDRESS, IMPRESSUM_EMAIL "
-                    "before setting PUBLIC_READ_ENABLED=True."
+                    "Fill IMPRESSUM_NAME, IMPRESSUM_ADDRESS, IMPRESSUM_EMAIL before setting PUBLIC_READ_ENABLED=True."
                 ),
                 obj=settings,
                 id="a_core.W006",
@@ -97,8 +94,7 @@ def check_turnstile_keys(app_configs, **kwargs):
     if missing:
         errors.append(
             Error(
-                "PUBLIC_READ_ENABLED=True but Turnstile env vars are missing: "
-                + ", ".join(missing),
+                "PUBLIC_READ_ENABLED=True but Turnstile env vars are missing: " + ", ".join(missing),
                 hint=(
                     "Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY "
                     "before enabling public read access. "

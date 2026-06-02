@@ -41,6 +41,7 @@ from syndication.models import PlatformConnection, PlatformProjection
 
 def _make_vouched_user(**kwargs):
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
     kwargs.setdefault("status", "vouched")
     return User.objects.create_user(**kwargs)
@@ -86,6 +87,7 @@ def _make_listing_projection(connection, event, status="draft"):
     kb-wz8m.2: provenance is on ContentVersion, not PlatformProjection.
     """
     from syndication.models import ContentVersion
+
     cv, _ = ContentVersion.objects.get_or_create(
         event=event,
         name="canonical",
@@ -202,9 +204,7 @@ class FetLifeListingBodyTest(TestCase):
     """
 
     def setUp(self):
-        self.profile = Profile.objects.create(
-            name="FL Listing Org", slug="fl-listing-org"
-        )
+        self.profile = Profile.objects.create(name="FL Listing Org", slug="fl-listing-org")
         self.conn = _make_fetlife_connection(self.profile)
 
     def test_fetlife_listing_body_includes_dress_code(self):
@@ -249,9 +249,7 @@ class FetLifeListingBodyTest(TestCase):
         """The body must include event.description."""
         from syndication.engine import generate_projection, render_projection
 
-        event = _make_event(
-            slug="fl-desc-test", description="A fabulous BDSM party."
-        )
+        event = _make_event(slug="fl-desc-test", description="A fabulous BDSM party.")
         proj = generate_projection(
             kind="listing",
             connection=self.conn,
@@ -341,23 +339,15 @@ class FetLifeCopyAffordanceTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="fl_copy_user", email="fl_copy@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="FL Copy Org", slug="fl-copy-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="fl_copy_user", email="fl_copy@test.com", password="pw")
+        self.profile = _make_profile(name="FL Copy Org", slug="fl-copy-org", user=self.user)
         self.event = _make_event(
             slug="fl-copy-event",
             dress_code="Fetish attire required",
             description="FetLife copy test event.",
         )
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        self.conn = _make_fetlife_connection(
-            self.profile, destination_id="fl-copy-conn"
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_fetlife_connection(self.profile, destination_id="fl-copy-conn")
         self.client = Client()
         self.client.force_login(self.user)
 
@@ -379,10 +369,8 @@ class FetLifeCopyAffordanceTest(TestCase):
         (data-copy-body attribute or recognizable copy button text).
         Browser-only: the actual clipboard copy operation via Alpine/JS.
         """
-        proj = self._make_ready_fetlife_projection()
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        _proj = self._make_ready_fetlife_projection()
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
@@ -405,10 +393,8 @@ class FetLifeCopyAffordanceTest(TestCase):
         pytest-verifiable: the projection body (frozen_content) is rendered in
         the affordance. dress_code must appear since it's a required harness assertion.
         """
-        proj = self._make_ready_fetlife_projection()
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        _proj = self._make_ready_fetlife_projection()
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         content = response.content.decode()
 
         # The frozen body content must appear in the HTML
@@ -424,10 +410,8 @@ class FetLifeCopyAffordanceTest(TestCase):
         The board must show the mark-published action for FetLife ready projections.
         This is the actor-attestation path after out-of-band posting.
         """
-        proj = self._make_ready_fetlife_projection()
-        response = self.client.get(
-            f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        )
+        _proj = self._make_ready_fetlife_projection()
+        response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         content = response.content.decode()
         self.assertIn(
             "Mark published",
@@ -451,23 +435,15 @@ class FetLifeLifecycleTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="fl_lifecycle_user", email="fl_lifecycle@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="FL Lifecycle Org", slug="fl-lifecycle-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="fl_lifecycle_user", email="fl_lifecycle@test.com", password="pw")
+        self.profile = _make_profile(name="FL Lifecycle Org", slug="fl-lifecycle-org", user=self.user)
         self.event = _make_event(
             slug="fl-lifecycle-event",
             dress_code="Fetish encouraged",
             description="FetLife lifecycle test.",
         )
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        self.conn = _make_fetlife_connection(
-            self.profile, destination_id="fl-lifecycle-conn"
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_fetlife_connection(self.profile, destination_id="fl-lifecycle-conn")
 
     def test_fetlife_listing_eager_creates_as_draft(self):
         """FetLife listing projection is created in draft status."""
@@ -530,9 +506,7 @@ class FetLifeLifecycleTest(TestCase):
 
         start = dt.datetime(2026, 11, 5, 20, 0, tzinfo=dt.UTC)
         event = _make_event(slug="fl-frozen-date", start=start)
-        EventOrganizer.objects.create(
-            event=event, profile=self.profile, is_primary=True
-        )
+        EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
         proj = _make_listing_projection(self.conn, event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -620,8 +594,8 @@ class FetLifeLifecycleTest(TestCase):
         the live canonical' — but location is only embedded in the body string
         unless a structured key is added here.
         """
-        from venues.models import Venue
         from syndication.services import approve_projection
+        from venues.models import Venue
 
         venue = Venue.objects.create(name="The Dungeon", address="Dark Alley 1")
         event = _make_event(
@@ -630,9 +604,7 @@ class FetLifeLifecycleTest(TestCase):
             description="Venue snapshot test.",
             venue=venue,
         )
-        EventOrganizer.objects.create(
-            event=event, profile=self.profile, is_primary=True
-        )
+        EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
         proj = _make_listing_projection(self.conn, event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -663,9 +635,7 @@ class FetLifeLifecycleTest(TestCase):
             description="No venue snapshot test.",
         )
         # event.venue is None by default
-        EventOrganizer.objects.create(
-            event=event, profile=self.profile, is_primary=True
-        )
+        EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
         proj = _make_listing_projection(self.conn, event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -699,12 +669,8 @@ class FetLifeVisibilityAgnosticTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="fl_vis_user", email="fl_vis@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="FL Vis Org", slug="fl-vis-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="fl_vis_user", email="fl_vis@test.com", password="pw")
+        self.profile = _make_profile(name="FL Vis Org", slug="fl-vis-org", user=self.user)
         self.conn = _make_fetlife_connection(self.profile, destination_id="fl-vis-conn")
 
     def _create_and_advance_to_ready(self, visibility, slug_suffix):
@@ -720,9 +686,7 @@ class FetLifeVisibilityAgnosticTest(TestCase):
             dress_code="Fetish attire",
             description="Visibility test event.",
         )
-        EventOrganizer.objects.create(
-            event=event, profile=self.profile, is_primary=True
-        )
+        EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
         proj = _make_listing_projection(self.conn, event)
         approve_projection(user=self.user, projection=proj)
         proj.refresh_from_db()
@@ -805,9 +769,7 @@ class FetLifeVisibilityAgnosticTest(TestCase):
                 title="Kinky Bubbles Party",
                 start=fixed_start,
             )
-            EventOrganizer.objects.create(
-                event=event, profile=self.profile, is_primary=True
-            )
+            EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
             proj = _make_listing_projection(self.conn, event)
             approve_projection(user=self.user, projection=proj)
             proj.refresh_from_db()

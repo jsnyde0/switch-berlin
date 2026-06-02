@@ -23,9 +23,7 @@ def debug_smoketest_view(request):
 def test_partial_view(request):
     if request.htmx:
         return render(request, "pages/home.html#test-partial")
-    return HttpResponse(
-        "HTMX not working; it should have replaced the button with a partial."
-    )
+    return HttpResponse("HTMX not working; it should have replaced the button with a partial.")
 
 
 @staff_member_required
@@ -46,9 +44,7 @@ def age_check_view(request):
             next_url = "/"
         response = redirect(next_url)
         max_age = 365 * 24 * 3600 if request.POST.get("remember") else None
-        response.set_cookie(
-            "age_gate", "ok", max_age=max_age, httponly=True, samesite="Lax"
-        )
+        response.set_cookie("age_gate", "ok", max_age=max_age, httponly=True, samesite="Lax")
         return response
     next_url = request.GET.get("next", "/")
     return render(request, "age_check.html", {"next_url": next_url})

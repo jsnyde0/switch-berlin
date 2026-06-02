@@ -36,9 +36,7 @@ def make_event(title="Test", slug=None, visibility="public", **kwargs):
 
 def make_user(username, status="open"):
     """Create a user with the given status (User.status field from kb-m69.1)."""
-    user = User.objects.create_user(
-        username=username, email=f"{username}@example.com", password="x"
-    )
+    user = User.objects.create_user(username=username, email=f"{username}@example.com", password="x")
     user.status = status
     user.save(update_fields=["status"])
     return user
@@ -278,18 +276,14 @@ class TestSourceDerivedBackfill:
         """max(public) wins: telegram_private + scraped_public → public."""
         from events.backfill_visibility import derive_visibility_from_sources
 
-        result = derive_visibility_from_sources(
-            ["telegram_private_group", "scraped_public_website"]
-        )
+        result = derive_visibility_from_sources(["telegram_private_group", "scraped_public_website"])
         assert result == "public"
 
     def test_backfill_helper_max_public_resolution_all_semi(self, db):
         """All semi_public sources → semi_public."""
         from events.backfill_visibility import derive_visibility_from_sources
 
-        result = derive_visibility_from_sources(
-            ["telegram_private_group", "user_submitted_web_form"]
-        )
+        result = derive_visibility_from_sources(["telegram_private_group", "user_submitted_web_form"])
         assert result == "semi_public"
 
     def test_backfill_helper_unknown_source_raises(self, db):

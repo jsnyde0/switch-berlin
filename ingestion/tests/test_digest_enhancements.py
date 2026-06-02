@@ -171,9 +171,7 @@ class TestDailyFlagDigestGrouping:
 
         # Count lines that look like group headers: contain ' flags):'
         header_lines = [line for line in body.splitlines() if "flags):" in line]
-        assert len(header_lines) == 3, (
-            f"Expected 3 headers, got {len(header_lines)}. Body:\n{body}"
-        )
+        assert len(header_lines) == 3, f"Expected 3 headers, got {len(header_lines)}. Body:\n{body}"
 
     def test_event_a_header_shows_count_2(self, five_flags, event_a):
         """Event A has 2 flags so its header shows (2 flags):."""
@@ -196,9 +194,7 @@ class TestDailyFlagDigestGrouping:
         # Find all admin URL lines (lines containing '?action=')
         action_lines = [line for line in body.splitlines() if "?action=" in line]
         # We have 5 flags, each should get an admin URL line
-        assert len(action_lines) == 5, (
-            f"Expected 5 action URL lines, got {len(action_lines)}. Body:\n{body}"
-        )
+        assert len(action_lines) == 5, f"Expected 5 action URL lines, got {len(action_lines)}. Body:\n{body}"
 
     def test_site_url_appears_in_admin_url(self, five_flags):
         """SITE_URL is prepended to the admin URL in the email body."""
@@ -256,6 +252,4 @@ class TestDailyFlagDigestGrouping:
 
         body = _get_body(mock_send)
         action_lines = [line for line in body.splitlines() if "?action=" in line]
-        assert len(action_lines) <= 50, (
-            f"Expected at most 50 flag lines, got {len(action_lines)}"
-        )
+        assert len(action_lines) <= 50, f"Expected at most 50 flag lines, got {len(action_lines)}"

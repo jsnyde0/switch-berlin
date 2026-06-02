@@ -40,9 +40,7 @@ def org(db):
 def enable_event_reviews(db):
     """Enable EVENT_REVIEWS_DISPLAYED flag so rating-based sorts are active."""
     cache.clear()
-    FeatureFlag.objects.update_or_create(
-        key="EVENT_REVIEWS_DISPLAYED", defaults={"enabled": True}
-    )
+    FeatureFlag.objects.update_or_create(key="EVENT_REVIEWS_DISPLAYED", defaults={"enabled": True})
 
 
 def _make_event(org, slug, days_from_now=1, rating_count=0, avg_rating=None):

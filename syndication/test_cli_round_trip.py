@@ -92,8 +92,10 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         uv_bin = shutil.which("uv") or "uv"
         result = subprocess.run(
             [
-                uv_bin, "run",
-                "--directory", str(SWITCH_CLI_DIR),
+                uv_bin,
+                "run",
+                "--directory",
+                str(SWITCH_CLI_DIR),
                 "switch-cli",
                 *args,
             ],
@@ -109,6 +111,7 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         facilitator's browser action). Returns the raw pairing_token string.
         """
         from django.test import Client as DjangoClient
+
         client = DjangoClient()
         client.force_login(self.user)
         response = client.post("/api/agents/register")
@@ -121,12 +124,14 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         This exercises leg 2 of the auth chain (ADR-016 D3).
         """
         import httpx
+
         response = httpx.post(
             f"{self.live_server_url}/api/agents/token",
             json={"api_key": raw_api_key},
         )
         self.assertEqual(
-            response.status_code, 200,
+            response.status_code,
+            200,
             f"Token exchange failed: {response.text}",
         )
         return response.json()["identity_token"]
@@ -142,9 +147,7 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         6. Assert API GET: /api/events/{event_id}/ returns the event.
         7. Assert web: /syndication/events/{event_id}/ returns 200 with title.
         """
-        with tempfile.NamedTemporaryFile(
-            suffix=".toml", mode="w", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".toml", mode="w", delete=False) as f:
             config_path = f.name
             # Start with an empty file — configure and pair will populate it
 
@@ -156,7 +159,8 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
         # Step 2: configure (stores base_url only — no api_key paste)
         rc, out, err = self._invoke_cli(
             "configure",
-            "--base-url", self.live_server_url,
+            "--base-url",
+            self.live_server_url,
             config_file=config_path,
         )
         self.assertEqual(rc, 0, f"configure failed.\nstdout: {out}\nstderr: {err}")
@@ -178,17 +182,18 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
 
         rc, stdout, stderr = self._invoke_cli(
             "create-event",
-            "--title", event_title,
-            "--slug", event_slug,
-            "--start", start_dt,
-            "--description", "Created by CLI round-trip test.",
+            "--title",
+            event_title,
+            "--slug",
+            event_slug,
+            "--start",
+            start_dt,
+            "--description",
+            "Created by CLI round-trip test.",
             config_file=config_path,
         )
 
-        self.assertEqual(
-            rc, 0,
-            f"CLI exited non-zero.\nstdout: {stdout}\nstderr: {stderr}"
-        )
+        self.assertEqual(rc, 0, f"CLI exited non-zero.\nstdout: {stdout}\nstderr: {stderr}")
 
         # Parse machine-readable JSON output from CLI
         try:
@@ -210,18 +215,19 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
 
         # --- Assertion 2: API GET (read back the api_key from config to get identity token) ---
         import tomllib
+
         with open(config_path, "rb") as fh:
             stored_cfg = tomllib.load(fh)
         identity_token = self._get_identity_token_from_key(stored_cfg["api_key"])
 
         import httpx
+
         api_response = httpx.get(
             f"{self.live_server_url}/api/events/{event_id}/",
             headers={"Authorization": f"Bearer {identity_token}"},
         )
         self.assertEqual(
-            api_response.status_code, 200,
-            f"API GET returned {api_response.status_code}: {api_response.text}"
+            api_response.status_code, 200, f"API GET returned {api_response.status_code}: {api_response.text}"
         )
         api_data = api_response.json()
         self.assertEqual(api_data["title"], event_title)
@@ -229,12 +235,10 @@ class CLICreateEventRoundTripTest(LiveServerTestCase):
 
         # --- Assertion 3: Web event-hub view ---
         from django.test import Client
+
         web_client = Client()
         web_client.force_login(self.user)
         web_response = web_client.get(f"/syndication/events/{event_id}/")
-        self.assertEqual(
-            web_response.status_code, 200,
-            f"Web hub returned {web_response.status_code}"
-        )
+        self.assertEqual(web_response.status_code, 200, f"Web hub returned {web_response.status_code}")
         # Title must appear somewhere in the HTML body
         self.assertContains(web_response, event_title)

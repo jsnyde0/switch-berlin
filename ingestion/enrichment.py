@@ -37,13 +37,7 @@ def _is_safe_url(url: str) -> bool:
         except ValueError:
             return False
 
-        if (
-            addr.is_private
-            or addr.is_loopback
-            or addr.is_link_local
-            or addr.is_reserved
-            or addr.is_multicast
-        ):
+        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast:
             logfire.warning("enrichment.url_blocked_ssrf", url=url, ip=ip_str)
             return False
 

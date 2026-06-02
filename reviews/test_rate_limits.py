@@ -30,9 +30,7 @@ User = get_user_model()
 
 @pytest.fixture
 def approved_user(db):
-    user = User.objects.create_user(
-        username="rl_tester", email="rl_tester@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="rl_tester", email="rl_tester@example.com", password="testpass123")
     user.status = "vouched"
     user.save()
     return user
@@ -40,9 +38,7 @@ def approved_user(db):
 
 @pytest.fixture
 def staff_user(db):
-    user = User.objects.create_user(
-        username="rl_staff", email="rl_staff@example.com", password="testpass123"
-    )
+    user = User.objects.create_user(username="rl_staff", email="rl_staff@example.com", password="testpass123")
     user.is_staff = True
     user.save()
     return user
@@ -92,9 +88,7 @@ def went_attendance_for_rl_event(db, approved_user, published_event):
     """Went attendance so the authorship gate doesn't block the rate-limit test."""
     from events.models import Attendance
 
-    return Attendance.objects.create(
-        user=approved_user, event=published_event, status="went"
-    )
+    return Attendance.objects.create(user=approved_user, event=published_event, status="went")
 
 
 # ---------------------------------------------------------------------------
@@ -240,9 +234,7 @@ def test_flag_target_staff_never_rate_limited(staff_client, published_event):
     RATELIMIT_ENABLE=False,
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
-def test_flag_target_ratelimit_disabled_allows_many_posts(
-    approved_client, published_event
-):
+def test_flag_target_ratelimit_disabled_allows_many_posts(approved_client, published_event):
     """RATELIMIT_ENABLE=False means no rate limit is enforced."""
     from django.core.cache import cache
 
@@ -275,9 +267,7 @@ def test_flag_target_ratelimit_disabled_allows_many_posts(
     RATINGS_ENABLED=True,
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
 )
-def test_submit_review_11th_post_returns_429(
-    approved_client, published_event, went_attendance_for_rl_event
-):
+def test_submit_review_11th_post_returns_429(approved_client, published_event, went_attendance_for_rl_event):
     """11th review POST in same day -> 429 with _rating_form.html."""
     from django.core.cache import cache
 

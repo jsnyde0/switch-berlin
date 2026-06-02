@@ -58,37 +58,23 @@ class TestDockerfileSha256Pins:
         # Skip internal stage aliases
         external_refs = [r for r in refs if r.lower() not in stage_aliases]
         unpinned = [r for r in external_refs if not DIGEST_RE.search(r)]
-        assert unpinned == [], (
-            f"These image refs are not pinned to a sha256 digest: {unpinned}"
-        )
+        assert unpinned == [], f"These image refs are not pinned to a sha256 digest: {unpinned}"
 
     def test_node_image_pinned(self):
         """node:22-slim must be pinned."""
         content = DOCKERFILE.read_text()
-        node_lines = [
-            ln.strip()
-            for ln in content.splitlines()
-            if ln.strip().startswith("FROM") and "node" in ln
-        ]
+        node_lines = [ln.strip() for ln in content.splitlines() if ln.strip().startswith("FROM") and "node" in ln]
         assert node_lines, "No node FROM line found"
         for line in node_lines:
-            assert DIGEST_RE.search(line), (
-                f"node FROM line is not digest-pinned: {line!r}"
-            )
+            assert DIGEST_RE.search(line), f"node FROM line is not digest-pinned: {line!r}"
 
     def test_python_image_pinned(self):
         """python:3.13-slim-bookworm must be pinned."""
         content = DOCKERFILE.read_text()
-        python_lines = [
-            ln.strip()
-            for ln in content.splitlines()
-            if ln.strip().startswith("FROM") and "python" in ln
-        ]
+        python_lines = [ln.strip() for ln in content.splitlines() if ln.strip().startswith("FROM") and "python" in ln]
         assert python_lines, "No python FROM line found"
         for line in python_lines:
-            assert DIGEST_RE.search(line), (
-                f"python FROM line is not digest-pinned: {line!r}"
-            )
+            assert DIGEST_RE.search(line), f"python FROM line is not digest-pinned: {line!r}"
 
     def test_uv_image_pinned(self):
         """ghcr.io/astral-sh/uv must be pinned and not use :latest."""
@@ -98,12 +84,8 @@ class TestDockerfileSha256Pins:
         for line in uv_lines:
             # Strip inline comment before checking for :latest in the image ref
             code_part = line.split("#")[0].rstrip()
-            assert DIGEST_RE.search(code_part), (
-                f"uv COPY --from line is not digest-pinned: {line!r}"
-            )
-            assert ":latest" not in code_part, (
-                f"uv image still uses :latest tag: {line!r}"
-            )
+            assert DIGEST_RE.search(code_part), f"uv COPY --from line is not digest-pinned: {line!r}"
+            assert ":latest" not in code_part, f"uv image still uses :latest tag: {line!r}"
 
     def test_uv_uses_explicit_version_not_latest(self):
         """uv image must use an explicit version tag, not :latest."""
@@ -115,6 +97,4 @@ class TestDockerfileSha256Pins:
             code_part = line.split("#")[0].rstrip()
             assert ":latest" not in code_part, f"uv image still uses :latest: {line!r}"
             # Must have a version tag like :0.X.Y
-            assert re.search(r"uv:\d+\.\d+\.\d+", code_part), (
-                f"uv image does not have an explicit semver tag: {line!r}"
-            )
+            assert re.search(r"uv:\d+\.\d+\.\d+", code_part), f"uv image does not have an explicit semver tag: {line!r}"

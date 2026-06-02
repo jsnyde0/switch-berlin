@@ -25,7 +25,7 @@ Design notes:
   ADR-008 D2).
 """
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -38,7 +38,6 @@ from syndication.models import (
     PlatformProjection,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -46,6 +45,7 @@ from syndication.models import (
 
 def _make_vouched_user(**kwargs):
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
     kwargs.setdefault("status", "vouched")
     return User.objects.create_user(**kwargs)
@@ -104,12 +104,14 @@ def _make_listing_projection(connection, event, status="ready"):
     if status == "ready":
         # Transition to ready via engine (freezes content)
         from syndication.engine import transition_status
+
         transition_status(proj, "ready")
     return proj
 
 
 def _make_promotion_projection(connection, event, status="ready"):
     from syndication.models import Post
+
     cv = _make_content_version(event, name="promo-canonical")
     post = Post.objects.create(
         event=event,
@@ -125,6 +127,7 @@ def _make_promotion_projection(connection, event, status="ready"):
     )
     if status == "ready":
         from syndication.engine import transition_status
+
         transition_status(proj, "ready")
     return proj
 
@@ -143,19 +146,11 @@ class PublishProjectionSwitchDispatchTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="switch_pub_user", email="switch_pub@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="Switch Pub Org", slug="switch-pub-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="switch_pub_user", email="switch_pub@test.com", password="pw")
+        self.profile = _make_profile(name="Switch Pub Org", slug="switch-pub-org", user=self.user)
         self.event = _make_event(slug="switch-pub-event")
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        self.conn = _make_connection(
-            self.profile, platform="switch", destination_id="own-page"
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, platform="switch", destination_id="own-page")
 
     def test_publish_projection_switch_calls_adapter_exactly_once(self):
         """
@@ -167,9 +162,7 @@ class PublishProjectionSwitchDispatchTest(TestCase):
         proj = _make_listing_projection(self.conn, self.event)
         self.assertEqual(proj.status, PlatformProjection.Status.READY)
 
-        with patch(
-            "syndication.services.publish_switch_own_page"
-        ) as mock_adapter:
+        with patch("syndication.services.publish_switch_own_page") as mock_adapter:
             publish_projection(self.user, proj)
 
         mock_adapter.assert_called_once_with(proj)
@@ -183,9 +176,7 @@ class PublishProjectionSwitchDispatchTest(TestCase):
         proj = _make_listing_projection(self.conn, self.event)
 
         with patch("syndication.services.publish_switch_own_page") as mock_switch:
-            with patch(
-                "syndication.services.publish_telegram_promotion"
-            ) as mock_telegram:
+            with patch("syndication.services.publish_telegram_promotion") as mock_telegram:
                 publish_projection(self.user, proj)
 
         mock_switch.assert_called_once()
@@ -200,8 +191,8 @@ class PublishProjectionSwitchDispatchTest(TestCase):
         We verify by asserting transition_status is NOT called in the
         service's own body after the adapter is already handling it.
         """
-        from syndication.services import publish_projection
         import syndication.engine as engine_mod
+        from syndication.services import publish_projection
 
         proj = _make_listing_projection(self.conn, self.event)
 
@@ -242,9 +233,8 @@ class PublishProjectionSwitchDispatchTest(TestCase):
           5. Spy: publish proj_1, assert body == "CUSTOM-FOR-1".
           6. Spy: publish proj_2, assert body != "CUSTOM-FOR-1".
         """
+        from syndication.engine import render_projection, transition_status
         from syndication.services import customize, edit_version, publish_projection
-        from syndication.engine import transition_status, render_projection
-        from syndication.models import ContentVersion
 
         # proj_1: will be customized
         proj_1 = PlatformProjection.objects.create(
@@ -256,9 +246,7 @@ class PublishProjectionSwitchDispatchTest(TestCase):
         )
 
         # proj_2: second connection to have a second destination (same platform)
-        conn_2 = _make_connection(
-            self.profile, platform="switch", destination_id="own-page-2"
-        )
+        conn_2 = _make_connection(self.profile, platform="switch", destination_id="own-page-2")
         proj_2 = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
@@ -281,10 +269,12 @@ class PublishProjectionSwitchDispatchTest(TestCase):
         proj_1.refresh_from_db()
         proj_2.refresh_from_db()
 
-        self.assertEqual(proj_1.frozen_content["body"], "CUSTOM-FOR-1",
-                         "Precondition: proj_1 must have its custom body frozen")
-        self.assertEqual(proj_2.frozen_content["body"], "CONTENT-FOR-2",
-                         "Precondition: proj_2 must have its distinct body frozen")
+        self.assertEqual(
+            proj_1.frozen_content["body"], "CUSTOM-FOR-1", "Precondition: proj_1 must have its custom body frozen"
+        )
+        self.assertEqual(
+            proj_2.frozen_content["body"], "CONTENT-FOR-2", "Precondition: proj_2 must have its distinct body frozen"
+        )
 
         # Publish proj_1: adapter must receive proj_1 with "CUSTOM-FOR-1" body
         received_1 = []
@@ -296,8 +286,7 @@ class PublishProjectionSwitchDispatchTest(TestCase):
             publish_projection(self.user, proj_1)
 
         self.assertEqual(len(received_1), 1)
-        self.assertEqual(received_1[0].pk, proj_1.pk,
-                         "Adapter must receive proj_1 (not proj_2 — routing swap)")
+        self.assertEqual(received_1[0].pk, proj_1.pk, "Adapter must receive proj_1 (not proj_2 — routing swap)")
         self.assertEqual(
             render_projection(received_1[0]),
             "CUSTOM-FOR-1",
@@ -320,8 +309,7 @@ class PublishProjectionSwitchDispatchTest(TestCase):
             publish_projection(self.user, proj_2)
 
         self.assertEqual(len(received_2), 1)
-        self.assertEqual(received_2[0].pk, proj_2.pk,
-                         "Adapter must receive proj_2 (routing-swap catch)")
+        self.assertEqual(received_2[0].pk, proj_2.pk, "Adapter must receive proj_2 (routing-swap catch)")
         self.assertEqual(
             render_projection(received_2[0]),
             "CONTENT-FOR-2",
@@ -341,19 +329,11 @@ class PublishProjectionTelegramDispatchTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="tg_pub_user", email="tg_pub@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="TG Pub Org", slug="tg-pub-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="tg_pub_user", email="tg_pub@test.com", password="pw")
+        self.profile = _make_profile(name="TG Pub Org", slug="tg-pub-org", user=self.user)
         self.event = _make_event(slug="tg-pub-event")
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        self.conn = _make_connection(
-            self.profile, platform="telegram", destination_id="@my-channel"
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, platform="telegram", destination_id="@my-channel")
 
     def test_publish_projection_telegram_calls_adapter_exactly_once(self):
         """
@@ -365,9 +345,7 @@ class PublishProjectionTelegramDispatchTest(TestCase):
         proj = _make_promotion_projection(self.conn, self.event)
         self.assertEqual(proj.status, PlatformProjection.Status.READY)
 
-        with patch(
-            "syndication.services.publish_telegram_promotion"
-        ) as mock_adapter:
+        with patch("syndication.services.publish_telegram_promotion") as mock_adapter:
             publish_projection(self.user, proj)
 
         mock_adapter.assert_called_once_with(proj)
@@ -381,9 +359,7 @@ class PublishProjectionTelegramDispatchTest(TestCase):
         proj = _make_promotion_projection(self.conn, self.event)
 
         with patch("syndication.services.publish_switch_own_page") as mock_switch:
-            with patch(
-                "syndication.services.publish_telegram_promotion"
-            ) as mock_telegram:
+            with patch("syndication.services.publish_telegram_promotion") as mock_telegram:
                 publish_projection(self.user, proj)
 
         mock_telegram.assert_called_once()
@@ -394,8 +370,8 @@ class PublishProjectionTelegramDispatchTest(TestCase):
         publish_projection for telegram must NOT call transition_status directly.
         The adapter owns the transition.
         """
-        from syndication.services import publish_projection
         import syndication.engine as engine_mod
+        from syndication.services import publish_projection
 
         proj = _make_promotion_projection(self.conn, self.event)
 
@@ -425,9 +401,9 @@ class PublishProjectionTelegramDispatchTest(TestCase):
 
         Uses customize + edit_version (kb-wz8m.3 ops) to diverge proj_1.
         """
+        from syndication.engine import render_projection, transition_status
+        from syndication.models import ContentVersion, Post
         from syndication.services import customize, edit_version, publish_projection
-        from syndication.engine import transition_status, render_projection
-        from syndication.models import Post, ContentVersion
 
         # Set up proj_1 on self.conn (promotion)
         cv_1 = ContentVersion.objects.create(
@@ -435,9 +411,7 @@ class PublishProjectionTelegramDispatchTest(TestCase):
             name="promo-canonical-1",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        post_1 = Post.objects.create(
-            event=self.event, headline="Post 1", body="orig-body-1"
-        )
+        post_1 = Post.objects.create(event=self.event, headline="Post 1", body="orig-body-1")
         proj_1 = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.PROMOTION,
             status=PlatformProjection.Status.DRAFT,
@@ -447,17 +421,13 @@ class PublishProjectionTelegramDispatchTest(TestCase):
         )
 
         # Set up proj_2 on a second telegram connection
-        conn_2 = _make_connection(
-            self.profile, platform="telegram", destination_id="@channel-2"
-        )
+        conn_2 = _make_connection(self.profile, platform="telegram", destination_id="@channel-2")
         cv_2 = ContentVersion.objects.create(
             event=self.event,
             name="promo-canonical-2",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        post_2 = Post.objects.create(
-            event=self.event, headline="Post 2", body="orig-body-2"
-        )
+        post_2 = Post.objects.create(event=self.event, headline="Post 2", body="orig-body-2")
         proj_2 = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.PROMOTION,
             status=PlatformProjection.Status.DRAFT,
@@ -480,10 +450,12 @@ class PublishProjectionTelegramDispatchTest(TestCase):
         proj_1.refresh_from_db()
         proj_2.refresh_from_db()
 
-        self.assertEqual(proj_1.frozen_content["body"], "CUSTOM-FOR-1",
-                         "Precondition: proj_1 must have custom body frozen")
-        self.assertEqual(proj_2.frozen_content["body"], "CONTENT-FOR-2",
-                         "Precondition: proj_2 must have distinct body frozen")
+        self.assertEqual(
+            proj_1.frozen_content["body"], "CUSTOM-FOR-1", "Precondition: proj_1 must have custom body frozen"
+        )
+        self.assertEqual(
+            proj_2.frozen_content["body"], "CONTENT-FOR-2", "Precondition: proj_2 must have distinct body frozen"
+        )
 
         # Publish proj_1: adapter must receive proj_1 with "CUSTOM-FOR-1"
         received_1 = []
@@ -495,8 +467,7 @@ class PublishProjectionTelegramDispatchTest(TestCase):
             publish_projection(self.user, proj_1)
 
         self.assertEqual(len(received_1), 1)
-        self.assertEqual(received_1[0].pk, proj_1.pk,
-                         "Adapter must receive proj_1 (routing-swap catch)")
+        self.assertEqual(received_1[0].pk, proj_1.pk, "Adapter must receive proj_1 (routing-swap catch)")
         self.assertEqual(
             render_projection(received_1[0]),
             "CUSTOM-FOR-1",
@@ -519,8 +490,7 @@ class PublishProjectionTelegramDispatchTest(TestCase):
             publish_projection(self.user, proj_2)
 
         self.assertEqual(len(received_2), 1)
-        self.assertEqual(received_2[0].pk, proj_2.pk,
-                         "Adapter must receive proj_2 (routing-swap catch)")
+        self.assertEqual(received_2[0].pk, proj_2.pk, "Adapter must receive proj_2 (routing-swap catch)")
         self.assertEqual(
             render_projection(received_2[0]),
             "CONTENT-FOR-2",
@@ -540,19 +510,11 @@ class PublishProjectionFetlifeDispatchTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="fl_pub_user", email="fl_pub@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="FL Pub Org", slug="fl-pub-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="fl_pub_user", email="fl_pub@test.com", password="pw")
+        self.profile = _make_profile(name="FL Pub Org", slug="fl-pub-org", user=self.user)
         self.event = _make_event(slug="fl-pub-event")
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        self.conn = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user-001"
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, platform="fetlife", destination_id="fl-user-001")
 
     def test_publish_projection_fetlife_does_not_call_switch_adapter(self):
         """FetLife publish must NOT call publish_switch_own_page."""
@@ -561,9 +523,7 @@ class PublishProjectionFetlifeDispatchTest(TestCase):
         proj = _make_listing_projection(self.conn, self.event)
 
         with patch("syndication.services.publish_switch_own_page") as mock_switch:
-            with patch(
-                "syndication.services.publish_telegram_promotion"
-            ) as mock_telegram:
+            with patch("syndication.services.publish_telegram_promotion") as mock_telegram:
                 publish_projection(self.user, proj)
 
         mock_switch.assert_not_called()
@@ -627,19 +587,11 @@ class PublishProjectionUnknownPlatformTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="unk_pub_user", email="unk_pub@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="Unk Pub Org", slug="unk-pub-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="unk_pub_user", email="unk_pub@test.com", password="pw")
+        self.profile = _make_profile(name="Unk Pub Org", slug="unk-pub-org", user=self.user)
         self.event = _make_event(slug="unk-pub-event")
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        self.conn = _make_connection(
-            self.profile, platform="unsupported_platform", destination_id="dest-x"
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, platform="unsupported_platform", destination_id="dest-x")
 
     def test_publish_projection_unknown_platform_raises_value_error(self):
         """
@@ -673,19 +625,11 @@ class PublishProjectionNonReadyTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="draft_pub_user", email="draft_pub@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="Draft Pub Org", slug="draft-pub-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="draft_pub_user", email="draft_pub@test.com", password="pw")
+        self.profile = _make_profile(name="Draft Pub Org", slug="draft-pub-org", user=self.user)
         self.event = _make_event(slug="draft-pub-event")
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
-        self.conn = _make_connection(
-            self.profile, platform="switch", destination_id="own-page"
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.conn = _make_connection(self.profile, platform="switch", destination_id="own-page")
 
     def test_publish_projection_draft_raises_before_adapter(self):
         """
@@ -697,9 +641,7 @@ class PublishProjectionNonReadyTest(TestCase):
         proj = _make_listing_projection(self.conn, self.event, status="draft")
         self.assertEqual(proj.status, PlatformProjection.Status.DRAFT)
 
-        with patch(
-            "syndication.services.publish_switch_own_page"
-        ) as mock_adapter:
+        with patch("syndication.services.publish_switch_own_page") as mock_adapter:
             with self.assertRaises((ValueError, Exception)):
                 publish_projection(self.user, proj)
 
@@ -718,16 +660,10 @@ class PublishAllReadyProjectionsDispatchTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="all_ready_user", email="all_ready@test.com", password="pw"
-        )
-        self.profile = _make_profile(
-            name="All Ready Org", slug="all-ready-org", user=self.user
-        )
+        self.user = _make_vouched_user(username="all_ready_user", email="all_ready@test.com", password="pw")
+        self.profile = _make_profile(name="All Ready Org", slug="all-ready-org", user=self.user)
         self.event = _make_event(slug="all-ready-event")
-        EventOrganizer.objects.create(
-            event=self.event, profile=self.profile, is_primary=True
-        )
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.switch_conn = _make_connection(
             self.profile,
             platform="switch",
@@ -751,9 +687,7 @@ class PublishAllReadyProjectionsDispatchTest(TestCase):
         tg_proj = _make_promotion_projection(self.tg_conn, self.event)
 
         with patch("syndication.services.publish_switch_own_page") as mock_switch:
-            with patch(
-                "syndication.services.publish_telegram_promotion"
-            ) as mock_telegram:
+            with patch("syndication.services.publish_telegram_promotion") as mock_telegram:
                 published, failures = publish_all_ready_projections(self.user, self.event)
 
         mock_switch.assert_called_once_with(switch_proj)
@@ -778,9 +712,7 @@ class PublishAllReadyProjectionsDispatchTest(TestCase):
             "syndication.services.publish_switch_own_page",
             side_effect=switch_fails,
         ):
-            with patch(
-                "syndication.services.publish_telegram_promotion"
-            ) as mock_tg:
+            with patch("syndication.services.publish_telegram_promotion") as mock_tg:
                 published, failures = publish_all_ready_projections(self.user, self.event)
 
         mock_tg.assert_called_once_with(tg_proj)

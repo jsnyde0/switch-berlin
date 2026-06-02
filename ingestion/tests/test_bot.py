@@ -227,9 +227,7 @@ class RunBotTokenRedactionTest(unittest.TestCase):
         run_bot must re-raise without the full token verbatim."""
         import telegram.error
 
-        original_exc = telegram.error.InvalidToken(
-            f"The token `{self.FAKE_TOKEN}` was rejected by the server."
-        )
+        original_exc = telegram.error.InvalidToken(f"The token `{self.FAKE_TOKEN}` was rejected by the server.")
 
         mock_app = MagicMock()
         mock_app.add_handler = MagicMock()
@@ -250,8 +248,7 @@ class RunBotTokenRedactionTest(unittest.TestCase):
         self.assertIn(
             "<redacted>",
             raised_msg,
-            f"Redacted placeholder must appear in exception message."
-            f" Got: {raised_msg!r}",
+            f"Redacted placeholder must appear in exception message. Got: {raised_msg!r}",
         )
         # __context__ must be cleared so structured telemetry frameworks (logfire,
         # Sentry, structlog) that walk __context__ regardless of __suppress_context__

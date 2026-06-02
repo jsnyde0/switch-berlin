@@ -13,7 +13,6 @@ Acceptance criteria tested:
   (f) invalid image (oversize or bad extension) raises (fails loud).
 """
 
-import io
 import struct
 import zlib
 
@@ -22,9 +21,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.utils import timezone
 
-from events.models import Event, EventImage, EventOrganizer
+from events.models import Event, EventImage
 from organizers.models import Profile, ProfileClaim
-from syndication.models import AgentCredential, IdentityToken, PlatformConnection
 
 User = get_user_model()
 
@@ -32,6 +30,7 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_vouched_user(**kwargs):
     kwargs.setdefault("status", "vouched")
@@ -52,6 +51,7 @@ def _make_profile(name, slug, user=None):
 def _make_event(user, **kwargs):
     """Create event via service (grants user organizer rights)."""
     from syndication.services import create_event
+
     kwargs.setdefault("title", "Test Event")
     kwargs.setdefault("slug", "test-event")
     kwargs.setdefault("start", timezone.now())
@@ -63,6 +63,7 @@ def _tiny_png():
     Return bytes of a minimal valid 1x1 red PNG.
     Pure byte-construction — no Pillow dependency.
     """
+
     def _png_chunk(chunk_type, data):
         crc = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
         return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", crc)
@@ -92,8 +93,9 @@ def _uploaded_png(filename="cover.png", size=None):
 
 def _get_identity_token_for(user):
     """Full pairing flow → identity token."""
-    from syndication.test_api import _register_and_get_api_key
     import json
+
+    from syndication.test_api import _register_and_get_api_key
 
     api_key = _register_and_get_api_key(user)
     c = Client()
@@ -123,7 +125,13 @@ class EventCategoryFieldTest(TestCase):
         user = _make_vouched_user(username="cat_u2", email="cat_u2@test.com", password="x")
         _make_profile("Cat Profile 2", "cat-profile-2", user=user)
         v0_values = [
-            "play_party", "workshop", "munch", "performance", "social", "festival", "other",
+            "play_party",
+            "workshop",
+            "munch",
+            "performance",
+            "social",
+            "festival",
+            "other",
         ]
         for i, val in enumerate(v0_values):
             event = _make_event(user, slug=f"cat-event-{i}")
@@ -134,6 +142,7 @@ class EventCategoryFieldTest(TestCase):
 
     def test_category_field_has_choices(self):
         from events.models import Event
+
         field = Event._meta.get_field("category")
         choices_keys = [c[0] for c in field.choices]
         self.assertIn("play_party", choices_keys)
@@ -146,6 +155,7 @@ class EventCategoryFieldTest(TestCase):
 
     def test_category_blank_is_true(self):
         from events.models import Event
+
         field = Event._meta.get_field("category")
         self.assertTrue(field.blank)
 
@@ -165,12 +175,15 @@ class EventCategoryWebFormTest(TestCase):
         self.client.force_login(self.user)
 
     def test_create_event_via_form_persists_category(self):
-        resp = self.client.post("/syndication/events/new/", {
-            "title": "Cat Create Test",
-            "slug": "cat-create-test",
-            "start": "2026-06-01T20:00",
-            "category": "workshop",
-        })
+        resp = self.client.post(
+            "/syndication/events/new/",
+            {
+                "title": "Cat Create Test",
+                "slug": "cat-create-test",
+                "start": "2026-06-01T20:00",
+                "category": "workshop",
+            },
+        )
         # Expect redirect (302) on success
         self.assertEqual(resp.status_code, 302)
         event = Event.objects.get(slug="cat-create-test")
@@ -178,18 +191,22 @@ class EventCategoryWebFormTest(TestCase):
 
     def test_edit_event_via_form_persists_category(self):
         event = _make_event(self.user, slug="cat-edit-test", title="Cat Edit")
-        resp = self.client.post(f"/syndication/events/{event.pk}/edit/", {
-            "title": event.title,
-            "slug": event.slug,
-            "start": "2026-06-01T20:00",
-            "category": "social",
-        })
+        resp = self.client.post(
+            f"/syndication/events/{event.pk}/edit/",
+            {
+                "title": event.title,
+                "slug": event.slug,
+                "start": "2026-06-01T20:00",
+                "category": "social",
+            },
+        )
         self.assertEqual(resp.status_code, 302)
         event.refresh_from_db()
         self.assertEqual(event.category, "social")
 
     def test_category_field_in_event_form(self):
         from syndication.forms import EventForm
+
         form = EventForm()
         self.assertIn("category", form.fields)
 
@@ -213,14 +230,17 @@ class EventCategoryAPITest(TestCase):
 
     def test_create_event_via_api_with_category(self):
         import json
+
         resp = self.client.post(
             "/api/events/",
-            data=json.dumps({
-                "title": "Cat API Create",
-                "slug": "cat-api-create",
-                "start": "2026-06-01T20:00:00",
-                "category": "festival",
-            }),
+            data=json.dumps(
+                {
+                    "title": "Cat API Create",
+                    "slug": "cat-api-create",
+                    "start": "2026-06-01T20:00:00",
+                    "category": "festival",
+                }
+            ),
             content_type="application/json",
             **self._auth_header(),
         )
@@ -232,6 +252,7 @@ class EventCategoryAPITest(TestCase):
 
     def test_patch_event_via_api_updates_category(self):
         import json
+
         event = _make_event(self.user, slug="cat-api-patch")
         resp = self.client.patch(
             f"/api/events/{event.pk}/",
@@ -247,6 +268,7 @@ class EventCategoryAPITest(TestCase):
 
     def test_get_event_via_api_includes_category(self):
         import json
+
         event = _make_event(self.user, slug="cat-api-get")
         event.category = "play_party"
         event.save(update_fields=["category"])
@@ -275,6 +297,7 @@ class SetEventCoverServiceTest(TestCase):
 
     def test_set_cover_creates_event_image(self):
         from syndication.services import set_event_cover
+
         f = _uploaded_png()
         set_event_cover(self.user, self.event, f)
         covers = EventImage.objects.filter(event=self.event, is_cover=True)
@@ -283,6 +306,7 @@ class SetEventCoverServiceTest(TestCase):
     def test_set_cover_single_invariant(self):
         """Second upload replaces first — never more than one is_cover=True row."""
         from syndication.services import set_event_cover
+
         f1 = _uploaded_png("first.png")
         set_event_cover(self.user, self.event, f1)
         f2 = _uploaded_png("second.png")
@@ -292,6 +316,7 @@ class SetEventCoverServiceTest(TestCase):
 
     def test_set_cover_raises_permission_error_for_non_claimant(self):
         from syndication.services import set_event_cover
+
         other_user = _make_vouched_user(username="cover_other", email="cover_other@test.com", password="x")
         _make_profile("Other Profile", "other-profile", user=other_user)
         f = _uploaded_png()
@@ -299,16 +324,20 @@ class SetEventCoverServiceTest(TestCase):
             set_event_cover(other_user, self.event, f)
 
     def test_set_cover_rejects_oversize_image(self):
-        from syndication.services import set_event_cover
         from django.core.exceptions import ValidationError
+
         from a_core.validators import MAX_IMAGE_SIZE
+        from syndication.services import set_event_cover
+
         oversize = _uploaded_png(size=MAX_IMAGE_SIZE + 1)
         with self.assertRaises(ValidationError):
             set_event_cover(self.user, self.event, oversize)
 
     def test_set_cover_rejects_bad_extension(self):
-        from syndication.services import set_event_cover
         from django.core.exceptions import ValidationError
+
+        from syndication.services import set_event_cover
+
         bad_file = SimpleUploadedFile("cover.gif", b"GIF89a fake", content_type="image/gif")
         with self.assertRaises(ValidationError):
             set_event_cover(self.user, self.event, bad_file)
@@ -330,17 +359,21 @@ class CoverImageWebFormTest(TestCase):
 
     def test_create_event_form_has_cover_image_field(self):
         from syndication.forms import EventForm
+
         form = EventForm()
         self.assertIn("cover_image", form.fields)
 
     def test_create_event_with_cover_stores_image(self):
         f = _uploaded_png()
-        resp = self.client.post("/syndication/events/new/", {
-            "title": "Cover Create Test",
-            "slug": "cover-create-test",
-            "start": "2026-06-01T20:00",
-            "cover_image": f,
-        })
+        resp = self.client.post(
+            "/syndication/events/new/",
+            {
+                "title": "Cover Create Test",
+                "slug": "cover-create-test",
+                "start": "2026-06-01T20:00",
+                "cover_image": f,
+            },
+        )
         self.assertEqual(resp.status_code, 302)
         event = Event.objects.get(slug="cover-create-test")
         covers = EventImage.objects.filter(event=event, is_cover=True)
@@ -350,15 +383,19 @@ class CoverImageWebFormTest(TestCase):
         event = _make_event(self.user, slug="cover-edit-test", title="Cover Edit")
         # Upload first cover via service
         from syndication.services import set_event_cover
+
         set_event_cover(self.user, event, _uploaded_png("first.png"))
         # Now edit via form with a new cover
         f2 = _uploaded_png("second.png")
-        resp = self.client.post(f"/syndication/events/{event.pk}/edit/", {
-            "title": event.title,
-            "slug": event.slug,
-            "start": "2026-06-01T20:00",
-            "cover_image": f2,
-        })
+        resp = self.client.post(
+            f"/syndication/events/{event.pk}/edit/",
+            {
+                "title": event.title,
+                "slug": event.slug,
+                "start": "2026-06-01T20:00",
+                "cover_image": f2,
+            },
+        )
         self.assertEqual(resp.status_code, 302)
         covers = EventImage.objects.filter(event=event, is_cover=True)
         self.assertEqual(covers.count(), 1)
@@ -432,6 +469,7 @@ class CoverImageAPITest(TestCase):
 
     def test_upload_cover_rejects_oversize_via_api(self):
         from a_core.validators import MAX_IMAGE_SIZE
+
         oversize = _uploaded_png(size=MAX_IMAGE_SIZE + 1)
         resp = self.client.post(
             f"/api/events/{self.event.pk}/cover",
@@ -462,13 +500,17 @@ class CoverImageWebFormOversizeTest(TestCase):
     def test_event_create_oversize_cover_returns_form_with_error_not_500(self):
         """POST oversize cover to event_create must not 500; must re-render form with cover error."""
         from a_core.validators import MAX_IMAGE_SIZE
+
         oversize = _uploaded_png(size=MAX_IMAGE_SIZE + 1)
-        resp = self.client.post("/syndication/events/new/", {
-            "title": "Oversize Cover Create",
-            "slug": "oversize-cover-create",
-            "start": "2026-06-01T20:00",
-            "cover_image": oversize,
-        })
+        resp = self.client.post(
+            "/syndication/events/new/",
+            {
+                "title": "Oversize Cover Create",
+                "slug": "oversize-cover-create",
+                "start": "2026-06-01T20:00",
+                "cover_image": oversize,
+            },
+        )
         # Must NOT be a 500
         self.assertNotEqual(resp.status_code, 500)
         # Must re-render (200) — the form with an error, not a redirect
@@ -490,14 +532,18 @@ class CoverImageWebFormOversizeTest(TestCase):
     def test_event_hub_edit_oversize_cover_returns_form_with_error_not_500(self):
         """POST oversize cover to event_hub_edit must not 500; must re-render form with cover error."""
         from a_core.validators import MAX_IMAGE_SIZE
+
         event = _make_event(self.user, slug="oversize-cover-edit", title="Oversize Cover Edit")
         oversize = _uploaded_png(size=MAX_IMAGE_SIZE + 1)
-        resp = self.client.post(f"/syndication/events/{event.pk}/edit/", {
-            "title": event.title,
-            "slug": event.slug,
-            "start": "2026-06-01T20:00",
-            "cover_image": oversize,
-        })
+        resp = self.client.post(
+            f"/syndication/events/{event.pk}/edit/",
+            {
+                "title": event.title,
+                "slug": event.slug,
+                "start": "2026-06-01T20:00",
+                "cover_image": oversize,
+            },
+        )
         # Must NOT be a 500
         self.assertNotEqual(resp.status_code, 500)
         # Must re-render (200) — the form with an error, not a redirect
@@ -529,7 +575,8 @@ class EventListAPIIncludesCategoryTest(TestCase):
 
     def test_list_endpoint_includes_category_for_event_with_category_set(self):
         import json
-        event = _make_event(self.user, slug="cat-list-test", category="workshop")
+
+        _event = _make_event(self.user, slug="cat-list-test", category="workshop")
         resp = self.client.get("/api/events/", **self._auth_header())
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.content)

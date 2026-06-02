@@ -52,9 +52,7 @@ class EnrichUrlsTest(TestCase):
             patch("ingestion.enrichment.httpx.get", side_effect=selective_get),
             patch("ingestion.enrichment._is_safe_url", return_value=True),
         ):
-            result = enrich_urls(
-                "Visit https://site1.com and https://site2.com and https://site3.com"
-            )
+            result = enrich_urls("Visit https://site1.com and https://site2.com and https://site3.com")
         self.assertIn("site1", result["url_content"])
         self.assertIn("site3", result["url_content"])
         # Timed-out site2 should not appear
@@ -79,9 +77,7 @@ class EnrichUrlsTest(TestCase):
             patch("ingestion.enrichment._is_safe_url", return_value=True),
         ):
             result = enrich_urls("https://big.com")
-        self.assertLessEqual(
-            len(result["url_content"]), 20_100
-        )  # small tolerance for markers
+        self.assertLessEqual(len(result["url_content"]), 20_100)  # small tolerance for markers
         self.assertIn("[truncated at 20KB]", result["url_content"])
 
 
@@ -153,9 +149,7 @@ class EntityMatchingTest(TestCase):
     def test_organizer_fuzzy_match(self):
         from ingestion.extraction import match_entities
 
-        organizer = Profile.objects.create(
-            name="Queer Collective", slug="queer-collective"
-        )
+        organizer = Profile.objects.create(name="Queer Collective", slug="queer-collective")
         draft = EventDraft(
             title="T",
             organizer_name="Queer Colective",  # typo -- close enough
@@ -253,9 +247,7 @@ class ProcessRawMessageTest(TestCase):
         self.assertEqual(raw.extraction_status, "needs_review")
         self.assertEqual(Event.objects.filter(raw_message=raw).count(), 0)
         self.assertTrue(
-            ExtractionAttempt.objects.filter(
-                raw_message=raw, success=False, error="low_confidence"
-            ).exists()
+            ExtractionAttempt.objects.filter(raw_message=raw, success=False, error="low_confidence").exists()
         )
 
     @unittest.skipIf(
@@ -281,9 +273,7 @@ class ProcessRawMessageTest(TestCase):
         event = Event.objects.get(raw_message=raw)
         self.assertEqual(event.status, "draft")
         self.assertIsNone(event.organizer)  # no organizer in DB
-        self.assertTrue(
-            ExtractionAttempt.objects.filter(raw_message=raw, success=True).exists()
-        )
+        self.assertTrue(ExtractionAttempt.objects.filter(raw_message=raw, success=True).exists())
 
     def test_extraction_failure_sets_failed_status(self):
         from ingestion.tasks import process_raw_message
@@ -306,9 +296,7 @@ class ProcessRawMessageTest(TestCase):
             MockAgent.return_value.run_sync.side_effect = Exception("LLM boom")
             with patch("ingestion.enrichment.httpx.get", side_effect=Exception("skip")):
                 process_raw_message(raw.id)
-        self.assertTrue(
-            SourceFailure.objects.filter(raw_message=raw, stage="extraction").exists()
-        )
+        self.assertTrue(SourceFailure.objects.filter(raw_message=raw, stage="extraction").exists())
         sf = SourceFailure.objects.get(raw_message=raw, stage="extraction")
         self.assertIn("LLM boom", sf.error_message)
         self.assertEqual(sf.source_type, raw.source_type)
@@ -343,9 +331,7 @@ class ProcessRawMessageTest(TestCase):
                 side_effect=Exception("unexpected enrichment error"),
             ):
                 process_raw_message(raw.id)
-        self.assertTrue(
-            SourceFailure.objects.filter(raw_message=raw, stage="enrichment").exists()
-        )
+        self.assertTrue(SourceFailure.objects.filter(raw_message=raw, stage="enrichment").exists())
 
     def test_rawmessage_does_not_exist_logs_and_returns(self):
         from ingestion.tasks import process_raw_message
@@ -412,9 +398,7 @@ class ScheduledTaskTest(TestCase):
             enriched_payload={"url_content": "scraped"},
             sender_id="111",
         )
-        RawMessage.objects.filter(pk=raw.pk).update(
-            received_at=timezone.now() - timedelta(days=91)
-        )
+        RawMessage.objects.filter(pk=raw.pk).update(received_at=timezone.now() - timedelta(days=91))
         attempt = ExtractionAttempt.objects.create(
             raw_message=raw,
             model_name="claude-opus-4-7",

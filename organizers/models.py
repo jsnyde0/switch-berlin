@@ -400,10 +400,7 @@ class ClaimIntent(models.Model):
     # to approve directly or reach out via user.email for more info.
     message = models.TextField(
         blank=True,
-        help_text=(
-            "Optional message from the claimant explaining who they are. "
-            "Shown to admins in the review queue."
-        ),
+        help_text=("Optional message from the claimant explaining who they are. Shown to admins in the review queue."),
     )
 
     class Meta:

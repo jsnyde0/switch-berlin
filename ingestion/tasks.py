@@ -93,9 +93,7 @@ def process_raw_message(raw_message_id: int) -> None:
     if draft.confidence < LOW_CONFIDENCE_THRESHOLD:
         raw_message.extraction_status = "needs_review"
         raw_message.save(update_fields=["extraction_status"])
-        ExtractionAttempt.objects.create(
-            **attempt_kwargs, success=False, error="low_confidence"
-        )
+        ExtractionAttempt.objects.create(**attempt_kwargs, success=False, error="low_confidence")
         logfire.info(
             "pipeline.skipped_low_confidence",
             raw_message_id=raw_message_id,
@@ -168,7 +166,5 @@ def soft_purge_rawmessages() -> None:
     from .models import RawMessage
 
     cutoff = timezone.now() - timedelta(days=90)
-    count = RawMessage.objects.filter(received_at__lt=cutoff).update(
-        text="", raw_payload={}, enriched_payload={}
-    )
+    count = RawMessage.objects.filter(received_at__lt=cutoff).update(text="", raw_payload={}, enriched_payload={})
     logfire.info("scheduled.soft_purge_rawmessages", purged_count=count)

@@ -1,4 +1,5 @@
 """Dev settings for local SQLite-based server (no Postgres required)."""
+
 from a_core.settings import *  # noqa: F401, F403
 
 DATABASES = {
