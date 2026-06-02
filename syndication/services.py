@@ -207,10 +207,13 @@ def get_publishables_for_profile(profile):
     from events.models import Event
     from syndication.models import Post
 
-    # Fetch full Event objects for the profile (no visibility filter — ADR-012)
-    event_qs = list(Event.objects.filter(organizers=profile))
-    # Fetch Posts for all events belonging to this profile
-    post_qs = list(Post.objects.filter(event__organizers=profile))
+    # Fetch full Event objects for the profile (no visibility filter — ADR-012).
+    # .distinct() guards against duplicate rows from the organizers M2M join
+    # (EventOrganizer has no (event, profile) unique constraint).
+    event_qs = list(Event.objects.filter(organizers=profile).distinct())
+    # Posts for all events belonging to this profile; .distinct() because the
+    # event__organizers M2M join can otherwise repeat a Post.
+    post_qs = list(Post.objects.filter(event__organizers=profile).distinct())
 
     merged = event_qs + post_qs
     merged.sort(key=lambda p: p.updated_at, reverse=True)

@@ -52,24 +52,22 @@ publishables is a list of {"kind": "event"|"post", "obj": <instance>} dicts.
                aria-label="{% trans "Your publishables" %}">
             {% for item in publishables %}
               {% if item.kind == "event" %}
-                {% with obj=item.obj url_path=item.obj.pk|stringformat:"d" %}
-                  {% with composer_url="/syndication/events/"|add:url_path|add:"/" %}
-                    {% if current_path == composer_url %}
-                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="event" title="{{ obj.title }}" is_active="true" />
-                    {% else %}
-                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="event" title="{{ obj.title }}" is_active="" />
-                    {% endif %}
-                  {% endwith %}
+                {% with obj=item.obj %}
+                  {% url 'syndication:event-hub' pk=obj.pk as composer_url %}
+                  {% if current_path == composer_url %}
+                    <c-kb.studio-rail-row url="{{ composer_url }}" kind="event" title="{{ obj.title }}" is_active="true" />
+                  {% else %}
+                    <c-kb.studio-rail-row url="{{ composer_url }}" kind="event" title="{{ obj.title }}" is_active="" />
+                  {% endif %}
                 {% endwith %}
               {% else %}
-                {% with obj=item.obj url_path=item.obj.pk|stringformat:"d" %}
-                  {% with composer_url="/syndication/posts/"|add:url_path|add:"/" %}
-                    {% if current_path == composer_url %}
-                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="post" title="{{ obj.headline }}" subtitle="{{ obj.headline }} · ↳ {{ obj.event.title }}" is_active="true" />
-                    {% else %}
-                      <c-kb.studio-rail-row url="{{ composer_url }}" kind="post" title="{{ obj.headline }}" subtitle="{{ obj.headline }} · ↳ {{ obj.event.title }}" is_active="" />
-                    {% endif %}
-                  {% endwith %}
+                {% with obj=item.obj %}
+                  {% url 'syndication:post-hub' pk=obj.pk as composer_url %}
+                  {% if current_path == composer_url %}
+                    <c-kb.studio-rail-row url="{{ composer_url }}" kind="post" title="{{ obj.headline }}" subtitle="{{ obj.headline }} · ↳ {{ obj.event.title }}" is_active="true" />
+                  {% else %}
+                    <c-kb.studio-rail-row url="{{ composer_url }}" kind="post" title="{{ obj.headline }}" subtitle="{{ obj.headline }} · ↳ {{ obj.event.title }}" is_active="" />
+                  {% endif %}
                 {% endwith %}
               {% endif %}
             {% endfor %}
