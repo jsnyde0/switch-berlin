@@ -78,4 +78,8 @@ markers = [
     "agentic: marks tests that hit an LLM (deselect with '-m \"not agentic\"')",
     "slow: marks tests as slow (e.g. makemessages, heavy DB operations)",
 ]
-addopts = "-m 'not agentic and not slow'"
+# --ignore=tools: tools/ holds self-contained uv sub-projects (e.g. switch-cli)
+# with their own .venv/pyproject; the root Django suite must not collect them
+# (they'd fail at import — switch_cli isn't installed in the root env). They run
+# in their own context. See kb-33do.6.
+addopts = "-m 'not agentic and not slow' --ignore=tools"
