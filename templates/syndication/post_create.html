@@ -1,64 +1,61 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
-
-{% block title %}{% trans "Add Post" %} — {{ event.title }} — Switch{% endblock %}
-
+{% block title %}
+  {% trans "Add Post" %} — {{ event.title }} — Switch
+{% endblock %}
 {% block content %}
-<div class="max-w-2xl mx-auto pt-10" x-data="{ submitting: false }">
-  <a href="{% url 'syndication:event-hub' pk=event.pk %}"
-     class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-base-content/45 hover:text-base-content transition-colors mb-6">
-    <span aria-hidden="true">←</span>
-    <span>{% trans "Back to event" %}</span>
-  </a>
-  <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-2">
-    {% trans "Post for" %}: {{ event.title }}
-  </p>
-  <h1 class="kb-display text-[36px] font-light leading-tight mb-8">{% trans "New promo post" %}</h1>
-
-  <form method="post" action="" @submit="submitting = true">
-    {% csrf_token %}
-
-    {% if form.non_field_errors %}
-    <div class="mb-6 p-4 border border-red-500/50 bg-red-500/10 text-red-300 text-sm rounded">
-      {% for error in form.non_field_errors %}
-        <p>{{ error }}</p>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="flex flex-col gap-4 mb-8">
-      <div class="flex flex-col gap-1">
-        <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.headline.id_for_label }}">{{ form.headline.label }}</label>
-        {{ form.headline }}
-        {% if form.headline.errors %}<p class="text-red-400 text-xs mt-1">{{ form.headline.errors|join:", " }}</p>{% endif %}
+  <div class="max-w-2xl mx-auto pt-10" x-data="{ submitting: false }">
+    <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+       class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-base-content/45 hover:text-base-content transition-colors mb-6">
+      <span aria-hidden="true">←</span>
+      <span>{% trans "Back to event" %}</span>
+    </a>
+    <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-2">
+      {% trans "Post for" %}: {{ event.title }}
+    </p>
+    <h1 class="kb-display text-[36px] font-light leading-tight mb-8">{% trans "New promo post" %}</h1>
+    <form method="post" action="" @submit="submitting = true">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="mb-6 p-4 border border-red-500/50 bg-red-500/10 text-red-300 text-sm rounded">
+          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+      <div class="flex flex-col gap-4 mb-8">
+        <div class="flex flex-col gap-1">
+          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+                 for="{{ form.headline.id_for_label }}">{{ form.headline.label }}</label>
+          {{ form.headline }}
+          {% if form.headline.errors %}<p class="text-red-400 text-xs mt-1">{{ form.headline.errors|join:", " }}</p>{% endif %}
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+                 for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>
+          <span class="text-base-content/40 text-xs">{{ form.body.help_text }}</span>
+          {{ form.body }}
+          {% if form.body.errors %}<p class="text-red-400 text-xs mt-1">{{ form.body.errors|join:", " }}</p>{% endif %}
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+                 for="{{ form.cta.id_for_label }}">{{ form.cta.label }}</label>
+          <span class="text-base-content/40 text-xs">{{ form.cta.help_text }}</span>
+          {{ form.cta }}
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+                 for="{{ form.voice.id_for_label }}">{{ form.voice.label }}</label>
+          <span class="text-base-content/40 text-xs">{{ form.voice.help_text }}</span>
+          {{ form.voice }}
+        </div>
       </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>
-        <span class="text-base-content/40 text-xs">{{ form.body.help_text }}</span>
-        {{ form.body }}
-        {% if form.body.errors %}<p class="text-red-400 text-xs mt-1">{{ form.body.errors|join:", " }}</p>{% endif %}
+      <div class="flex gap-3 pt-4 border-t border-white/10">
+        <button type="submit"
+                class="kb-btn"
+                :disabled="submitting"
+                x-text="submitting ? '{% trans "Saving..." %}' : '{% trans "Create post" %}'">
+          {% trans "Create post" %}
+        </button>
       </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.cta.id_for_label }}">{{ form.cta.label }}</label>
-        <span class="text-base-content/40 text-xs">{{ form.cta.help_text }}</span>
-        {{ form.cta }}
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.voice.id_for_label }}">{{ form.voice.label }}</label>
-        <span class="text-base-content/40 text-xs">{{ form.voice.help_text }}</span>
-        {{ form.voice }}
-      </div>
-    </div>
-
-    <div class="flex gap-3 pt-4 border-t border-white/10">
-      <button type="submit" class="kb-btn" :disabled="submitting"
-              x-text="submitting ? '{% trans "Saving..." %}' : '{% trans "Create post" %}'">
-        {% trans "Create post" %}
-      </button>
-    </div>
-  </form>
-</div>
+    </form>
+  </div>
 {% endblock content %}

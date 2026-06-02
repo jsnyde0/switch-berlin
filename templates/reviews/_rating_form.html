@@ -12,9 +12,7 @@
     {% csrf_token %}
     <input type="hidden" name="target_type" value="{{ target_type }}">
     <input type="hidden" name="target_id" value="{{ target_id }}">
-    {% if error %}
-      <p class="kb-field-error">{{ error }}</p>
-    {% endif %}
+    {% if error %}<p class="kb-field-error">{{ error }}</p>{% endif %}
     <fieldset class="flex flex-col gap-3">
       <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40">{% trans "Rate this" %}</legend>
       <div class="flex items-center gap-1"

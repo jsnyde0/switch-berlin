@@ -5,184 +5,200 @@
 {# content_warnings, age_restriction, capacity, visibility, language, #}
 {# is_free, price_min_cents, price_max_cents, currency, sliding_scale, price_description, #}
 {# external_url, tickets_url, registration_required, registration_url, registration_email. #}
-
 {# Core #}
 <fieldset class="mb-8 flex flex-col gap-4">
   <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Core" %}</legend>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
     {{ form.title }}
     {% if form.title.errors %}<p class="text-red-400 text-xs mt-1">{{ form.title.errors|join:", " }}</p>{% endif %}
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.slug.id_for_label }}">{{ form.slug.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.slug.id_for_label }}">{{ form.slug.label }}</label>
     {{ form.slug }}
     {% if form.slug.errors %}<p class="text-red-400 text-xs mt-1">{{ form.slug.errors|join:", " }}</p>{% endif %}
   </div>
-
   <div class="grid grid-cols-2 gap-4">
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.start.id_for_label }}">{{ form.start.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.start.id_for_label }}">{{ form.start.label }}</label>
       {{ form.start }}
       {% if form.start.errors %}<p class="text-red-400 text-xs mt-1">{{ form.start.errors|join:", " }}</p>{% endif %}
     </div>
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.end.id_for_label }}">{{ form.end.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.end.id_for_label }}">{{ form.end.label }}</label>
       {{ form.end }}
     </div>
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
     {{ form.description }}
   </div>
 </fieldset>
-
 {# Category + Cover image #}
 <fieldset class="mb-8 flex flex-col gap-4">
-  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Category & Cover" %}</legend>
-
+  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">
+    {% trans "Category & Cover" %}
+  </legend>
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
     {{ form.category }}
     {% if form.category.errors %}<p class="text-red-400 text-xs mt-1">{{ form.category.errors|join:", " }}</p>{% endif %}
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.cover_image.id_for_label }}">{{ form.cover_image.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.cover_image.id_for_label }}">{{ form.cover_image.label }}</label>
     <span class="text-base-content/40 text-xs">{{ form.cover_image.help_text }}</span>
     {{ form.cover_image }}
-    {% if form.cover_image.errors %}<p class="text-red-400 text-xs mt-1">{{ form.cover_image.errors|join:", " }}</p>{% endif %}
+    {% if form.cover_image.errors %}
+      <p class="text-red-400 text-xs mt-1">{{ form.cover_image.errors|join:", " }}</p>
+    {% endif %}
   </div>
 </fieldset>
-
 {# Location + Tags #}
 <fieldset class="mb-8 flex flex-col gap-4">
-  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Location & Tags" %}</legend>
-
+  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">
+    {% trans "Location & Tags" %}
+  </legend>
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.venue.id_for_label }}">{{ form.venue.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.venue.id_for_label }}">{{ form.venue.label }}</label>
     {{ form.venue }}
     {% if form.venue.errors %}<p class="text-red-400 text-xs mt-1">{{ form.venue.errors|join:", " }}</p>{% endif %}
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.tags.id_for_label }}">{{ form.tags.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.tags.id_for_label }}">{{ form.tags.label }}</label>
     {{ form.tags }}
     {% if form.tags.errors %}<p class="text-red-400 text-xs mt-1">{{ form.tags.errors|join:", " }}</p>{% endif %}
   </div>
 </fieldset>
-
 {# Details #}
 <fieldset class="mb-8 flex flex-col gap-4">
-  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Details" %}</legend>
-
+  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">
+    {% trans "Details" %}
+  </legend>
   <div class="grid grid-cols-2 gap-4">
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.visibility.id_for_label }}">{{ form.visibility.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.visibility.id_for_label }}">{{ form.visibility.label }}</label>
       {{ form.visibility }}
     </div>
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.language.id_for_label }}">{{ form.language.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.language.id_for_label }}">{{ form.language.label }}</label>
       {{ form.language }}
     </div>
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.dress_code.id_for_label }}">{{ form.dress_code.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.dress_code.id_for_label }}">{{ form.dress_code.label }}</label>
     {{ form.dress_code }}
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.content_warnings.id_for_label }}">{{ form.content_warnings.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.content_warnings.id_for_label }}">{{ form.content_warnings.label }}</label>
     <span class="text-base-content/40 text-xs">{{ form.content_warnings.help_text }}</span>
     {{ form.content_warnings }}
-    {% if form.content_warnings.errors %}<p class="text-red-400 text-xs mt-1">{{ form.content_warnings.errors|join:", " }}</p>{% endif %}
+    {% if form.content_warnings.errors %}
+      <p class="text-red-400 text-xs mt-1">{{ form.content_warnings.errors|join:", " }}</p>
+    {% endif %}
   </div>
-
   <div class="grid grid-cols-2 gap-4">
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.age_restriction.id_for_label }}">{{ form.age_restriction.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.age_restriction.id_for_label }}">{{ form.age_restriction.label }}</label>
       {{ form.age_restriction }}
     </div>
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.capacity.id_for_label }}">{{ form.capacity.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.capacity.id_for_label }}">{{ form.capacity.label }}</label>
       {{ form.capacity }}
     </div>
   </div>
 </fieldset>
-
 {# Pricing #}
 <fieldset class="mb-8 flex flex-col gap-4">
-  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Pricing" %}</legend>
-
+  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">
+    {% trans "Pricing" %}
+  </legend>
   <div class="flex items-center gap-3">
     {{ form.is_free }}
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.is_free.id_for_label }}">{{ form.is_free.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.is_free.id_for_label }}">{{ form.is_free.label }}</label>
   </div>
-
   <div class="flex items-center gap-3">
     {{ form.sliding_scale }}
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.sliding_scale.id_for_label }}">{{ form.sliding_scale.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.sliding_scale.id_for_label }}">{{ form.sliding_scale.label }}</label>
   </div>
-
   <div class="grid grid-cols-2 gap-4">
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.price_min_cents.id_for_label }}">{{ form.price_min_cents.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.price_min_cents.id_for_label }}">{{ form.price_min_cents.label }}</label>
       {{ form.price_min_cents }}
     </div>
     <div class="flex flex-col gap-1">
-      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.price_max_cents.id_for_label }}">{{ form.price_max_cents.label }}</label>
+      <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+             for="{{ form.price_max_cents.id_for_label }}">{{ form.price_max_cents.label }}</label>
       {{ form.price_max_cents }}
     </div>
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.currency.id_for_label }}">{{ form.currency.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.currency.id_for_label }}">{{ form.currency.label }}</label>
     {{ form.currency }}
     {% if form.currency.errors %}<p class="text-red-400 text-xs mt-1">{{ form.currency.errors|join:", " }}</p>{% endif %}
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.price_description.id_for_label }}">{{ form.price_description.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.price_description.id_for_label }}">{{ form.price_description.label }}</label>
     {{ form.price_description }}
   </div>
 </fieldset>
-
 {# External links #}
 <fieldset class="mb-8 flex flex-col gap-4">
-  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "External links" %}</legend>
-
+  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">
+    {% trans "External links" %}
+  </legend>
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.external_url.id_for_label }}">{{ form.external_url.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.external_url.id_for_label }}">{{ form.external_url.label }}</label>
     {{ form.external_url }}
   </div>
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.tickets_url.id_for_label }}">{{ form.tickets_url.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.tickets_url.id_for_label }}">{{ form.tickets_url.label }}</label>
     {{ form.tickets_url }}
   </div>
 </fieldset>
-
 {# Registration #}
 <fieldset class="mb-8 flex flex-col gap-4">
-  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">{% trans "Registration" %}</legend>
-
+  <legend class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/45 mb-4">
+    {% trans "Registration" %}
+  </legend>
   <div class="flex items-center gap-3">
     {{ form.registration_required }}
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.registration_required.id_for_label }}">{{ form.registration_required.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.registration_required.id_for_label }}">{{ form.registration_required.label }}</label>
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.registration_url.id_for_label }}">{{ form.registration_url.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.registration_url.id_for_label }}">{{ form.registration_url.label }}</label>
     {{ form.registration_url }}
   </div>
-
   <div class="flex flex-col gap-1">
-    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60" for="{{ form.registration_email.id_for_label }}">{{ form.registration_email.label }}</label>
+    <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
+           for="{{ form.registration_email.id_for_label }}">{{ form.registration_email.label }}</label>
     <span class="text-base-content/40 text-xs">{{ form.registration_email.help_text }}</span>
     {{ form.registration_email }}
-    {% if form.registration_email.errors %}<p class="text-red-400 text-xs mt-1">{{ form.registration_email.errors|join:", " }}</p>{% endif %}
+    {% if form.registration_email.errors %}
+      <p class="text-red-400 text-xs mt-1">{{ form.registration_email.errors|join:", " }}</p>
+    {% endif %}
   </div>
 </fieldset>

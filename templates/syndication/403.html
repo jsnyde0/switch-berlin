@@ -1,14 +1,18 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
-
-{% block title %}{% trans "Access denied" %} — Switch{% endblock %}
-
+{% block title %}
+  {% trans "Access denied" %} — Switch
+{% endblock %}
 {% block content %}
-<div class="max-w-xl mx-auto pt-20 text-center" x-data="{}">
-  <h1 class="kb-display text-[64px] font-light leading-none text-base-content/20 mb-4">403</h1>
-  <p class="kb-mono text-[12px] uppercase tracking-[0.22em] text-base-content/60 mb-8">
-    {% if detail %}{{ detail }}{% else %}{% trans "You don't have permission to edit this." %}{% endif %}
-  </p>
-  <a href="javascript:history.back()" class="kb-btn-secondary">{% trans "Go back" %}</a>
-</div>
+  <div class="max-w-xl mx-auto pt-20 text-center" x-data="{}">
+    <h1 class="kb-display text-[64px] font-light leading-none text-base-content/20 mb-4">403</h1>
+    <p class="kb-mono text-[12px] uppercase tracking-[0.22em] text-base-content/60 mb-8">
+      {% if detail %}
+        {{ detail }}
+      {% else %}
+        {% trans "You don't have permission to edit this." %}
+      {% endif %}
+    </p>
+    <a href="javascript:history.back()" class="kb-btn-secondary">{% trans "Go back" %}</a>
+  </div>
 {% endblock content %}
