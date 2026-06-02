@@ -1,0 +1,29 @@
+# gitleaks configuration for switch.
+#
+# IMPORTANT: this EXTENDS the default ruleset (useDefault = true) — it does not
+# replace it. Without [extend], a custom config silently disables every default
+# secret rule, turning the CI security gate into a no-op.
+#
+# Allowlist rationale (kb-9wk5, confirmed 2026-06-02): gitleaks' generic-api-key
+# heuristic misfires on Django ORM filter syntax of the form
+#   .filter(user=request.auth, <field>__<lookup>=...)
+# It sees the literal "auth" immediately followed by a long underscore-laden
+# token (the ORM lookup keyword, e.g. rejected_at__isnull) and scores it as a
+# high-entropy API key. These are query keyword arguments, not credentials.
+#
+# The two pre-existing findings were both this identical pattern in
+# syndication/api.py (the `request.auth, rejected_at__isnull=True` filter,
+# repeated at two endpoints). Verified by reading the redacted match context;
+# no real secret was ever committed, so nothing to rotate or scrub from history.
+
+title = "switch gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Django ORM filter kwargs (request.auth, <field>__<lookup>) misfire generic-api-key — query syntax, not credentials"
+regexTarget = "line"
+regexes = [
+  '''request\.auth,\s+\w+__\w+''',
+]
