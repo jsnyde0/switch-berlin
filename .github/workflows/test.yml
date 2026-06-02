@@ -91,6 +91,18 @@ jobs:
       DEBUG: "True"
       ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
       LOGFIRE_TOKEN: ""
+      # PUBLIC_READ_ENABLED is a DB-backed FeatureFlag, seeded True by migration
+      # 0003 — NOT an env var — so the system checks fire once `migrate` runs.
+      # E006/E007 (a_core/checks.py) are deliberate fail-loud public-read guards
+      # (ADR-008 D3); the correct fix is to satisfy them with dummy non-prod
+      # values, NOT to weaken the checks. Real operator identity is set from GH
+      # secrets in prod. Turnstile values are Cloudflare's documented always-pass
+      # test keys (https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
+      IMPRESSUM_NAME: "CI Test Operator"
+      IMPRESSUM_ADDRESS: "Test Street 1, 10000 Test City"
+      IMPRESSUM_EMAIL: "ci-test@example.com"
+      TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
+      TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA"
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
