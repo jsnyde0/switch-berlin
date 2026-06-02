@@ -145,9 +145,10 @@ jobs:
           SECRET_KEY: "ci-only-deploy-check-secret-key-with-enough-entropy-for-w009"
           # This fast pre-merge gate runs without a frontend build, so the Vite
           # manifest is absent and django_vite.W001 would trip --fail-level
-          # WARNING. The authoritative manifest check is deploy.yml's check
-          # --deploy (runs inside the built image where the manifest exists),
-          # so silencing W001 here only — never in prod — keeps that gate whole.
+          # WARNING — a false positive here, since this gate exists to catch
+          # settings regressions, not missing build artifacts. Prod can't hit a
+          # missing manifest: the Dockerfile frontend stage builds it into the
+          # image. Silencing W001 here only (never in prod) keeps that real.
           CI_SKIP_VITE_MANIFEST_CHECK: "True"
         run: uv run python manage.py check --deploy --fail-level WARNING
 
