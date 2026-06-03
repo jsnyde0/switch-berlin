@@ -863,14 +863,18 @@ class PlatformConnectionUITest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_create_connection_returns_201_or_redirect(self):
-        """POST to connections create creates a PlatformConnection."""
+        """POST to connections create creates a PlatformConnection.
+
+        kinds is now a MultipleChoiceField rendered as checkboxes — POST data
+        uses repeated keys (one per checked value), not a JSON string.
+        """
         client = Client()
         client.force_login(self.user)
         data = {
             "platform": "telegram",
             "destination_id": "my-channel-123",
-            "kinds": '["promotion"]',
-            "enabled": "true",
+            "kinds": "promotion",  # checkbox value; Django test client handles repeated keys via lists
+            "enabled": "on",
         }
         response = client.post("/syndication/connections/new/", data=data)
         self.assertIn(
@@ -878,7 +882,9 @@ class PlatformConnectionUITest(TestCase):
             [201, 302],
             f"Expected 201 or 302, got {response.status_code}",
         )
-        self.assertTrue(PlatformConnection.objects.filter(organizer=self.profile, platform="telegram").exists())
+        conn = PlatformConnection.objects.filter(organizer=self.profile, platform="telegram").first()
+        self.assertIsNotNone(conn, "PlatformConnection was not created")
+        self.assertEqual(conn.kinds, ["promotion"], f"kinds should be ['promotion'], got {conn.kinds!r}")
 
     def test_toggle_connection_enabled(self):
         """POST to toggle endpoint flips the enabled flag."""

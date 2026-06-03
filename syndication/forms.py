@@ -332,7 +332,20 @@ class ContentVersionForm(forms.Form):
 class PlatformConnectionForm(forms.Form):
     """
     Form for creating or editing a PlatformConnection.
+
+    kinds is a MultipleChoiceField rendered as checkboxes — no raw JSON
+    visible to the user. cleaned_data["kinds"] is already a plain Python
+    list (["listing"] / ["promotion"] / ["listing","promotion"]).
+
+    destination_id is required for non-switch platforms; for switch the
+    view/form defaults it to "own-page" when blank (ADR-008 D3: fail loud
+    for non-switch with empty destination, never silent zero-fill).
     """
+
+    KINDS_CHOICES = [
+        ("listing", _("Listing")),
+        ("promotion", _("Promotion")),
+    ]
 
     platform = forms.ChoiceField(
         choices=[
@@ -345,14 +358,16 @@ class PlatformConnectionForm(forms.Form):
     )
     destination_id = forms.CharField(
         max_length=300,
-        label=_("Destination ID"),
-        help_text=_("Platform-specific identifier: channel ID, username, account ID, or 'own-page'."),
-    )
-    kinds = forms.CharField(
         required=False,
-        label=_("Supported kinds"),
-        help_text=_('JSON array, e.g. ["listing"] or ["promotion"] or ["listing", "promotion"]'),
-        widget=forms.TextInput(attrs={"placeholder": '["listing"]'}),
+        label=_("Destination"),
+        help_text=_("Platform-specific identifier: channel username, account ID, etc."),
+    )
+    kinds = forms.MultipleChoiceField(
+        choices=KINDS_CHOICES,
+        required=True,
+        label=_("Kinds"),
+        widget=forms.CheckboxSelectMultiple,
+        help_text=_("Select at least one kind this connection supports."),
     )
     enabled = forms.BooleanField(
         required=False,
@@ -361,21 +376,23 @@ class PlatformConnectionForm(forms.Form):
         help_text=_("Enable this connection for eager projection creation."),
     )
 
-    def clean_kinds(self):
-        """Parse kinds from JSON-encoded string."""
-        raw = self.cleaned_data.get("kinds", "").strip()
-        if not raw:
-            return []
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise forms.ValidationError(
-                _('Kinds must be a valid JSON array, e.g. ["listing"] or ["listing", "promotion"].')
-            ) from exc
-        if not isinstance(parsed, list):
-            raise forms.ValidationError(_("Kinds must be a JSON array."))
-        allowed = {"listing", "promotion"}
-        for k in parsed:
-            if k not in allowed:
-                raise forms.ValidationError(_(f"Invalid kind '{k}'. Must be 'listing' or 'promotion'."))
-        return parsed
+    def clean(self):
+        """
+        Cross-field validation:
+        - For non-switch platforms, destination_id is required (fail loud).
+        - For switch, default destination_id to 'own-page' if blank.
+        """
+        cleaned = super().clean()
+        platform = cleaned.get("platform")
+        destination_id = cleaned.get("destination_id", "").strip()
+
+        if platform == "switch":
+            if not destination_id:
+                cleaned["destination_id"] = "own-page"
+        else:
+            if not destination_id:
+                self.add_error(
+                    "destination_id",
+                    _("This field is required for the selected platform."),
+                )
+        return cleaned

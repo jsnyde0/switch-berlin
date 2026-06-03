@@ -1,60 +1,172 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
 {% block title %}
-  {% trans "Add Platform Connection" %} — Switch
+  {% trans "Add Connection" %} — Switch
 {% endblock %}
 {% block content %}
-  <div class="max-w-xl mx-auto pt-10" x-data="{ submitting: false }">
+  {# Platform → destination metadata lookup for Alpine #}
+  <div class="max-w-xl mx-auto pt-10"
+       x-data="{
+         platform: '{{ form.platform.value|default:'switch' }}',
+         platformMeta: {
+           switch: {
+             label: 'Own event page',
+             showDest: false,
+             note: 'Posts directly to your organizer\'s own Switch event page. No destination needed.'
+           },
+           fetlife: {
+             label: 'Username',
+             placeholder: 'fetlife-username',
+             hint: 'Your FetLife username.',
+             showDest: true
+           },
+           tickettailor: {
+             label: 'Account ID',
+             placeholder: 'tt-account-id',
+             hint: 'Your Ticket Tailor account or box-office ID.',
+             showDest: true
+           },
+           telegram: {
+             label: 'Channel',
+             placeholder: '@yourchannel',
+             hint: 'Channel username (e.g. @yourchannel) or numeric chat ID.',
+             showDest: true
+           }
+         },
+         get meta() { return this.platformMeta[this.platform] || this.platformMeta.switch; },
+         submitting: false
+       }">
     <a href="{% url 'syndication:connections-list' %}"
-       class="kb-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-base-content/45 hover:text-base-content transition-colors mb-6">
+       class="kb-btn-quiet mb-8 inline-flex items-center gap-2">
       <span aria-hidden="true">←</span>
       <span>{% trans "Back to connections" %}</span>
     </a>
-    <h1 class="kb-display text-[36px] font-light leading-tight mb-8">{% trans "Add connection" %}</h1>
+
+    <div class="mb-10">
+      <p class="kb-eyebrow kb-eyebrow-accent mb-3">{% trans "Syndication" %}</p>
+      <h1 class="kb-display text-[36px] font-light leading-tight">{% trans "Add connection" %}</h1>
+    </div>
+
     <form method="post" action="" @submit="submitting = true">
       {% csrf_token %}
+
       {% if form.non_field_errors %}
-        <div class="mb-6 p-4 border border-red-500/50 bg-red-500/10 text-red-300 text-sm rounded">
-          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        <div class="kb-alert kb-alert-error mb-8" role="alert">
+          <span class="kb-alert-kicker">{% trans "Error" %}</span>
+          <div class="kb-alert-body">
+            {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+          </div>
         </div>
       {% endif %}
-      <div class="flex flex-col gap-4 mb-8">
-        <div class="flex flex-col gap-1">
-          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
-                 for="{{ form.platform.id_for_label }}">{{ form.platform.label }}</label>
-          {{ form.platform }}
-          {% if form.platform.errors %}<p class="text-red-400 text-xs mt-1">{{ form.platform.errors|join:", " }}</p>{% endif %}
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
-                 for="{{ form.destination_id.id_for_label }}">{{ form.destination_id.label }}</label>
-          <span class="text-base-content/40 text-xs">{{ form.destination_id.help_text }}</span>
-          {{ form.destination_id }}
-          {% if form.destination_id.errors %}
-            <p class="text-red-400 text-xs mt-1">{{ form.destination_id.errors|join:", " }}</p>
+
+      <div class="flex flex-col gap-10 mb-10">
+
+        {# ── Platform select ─────────────────────────────────────────── #}
+        <label class="kb-field">
+          <span class="kb-field-label">{% trans "Platform" %}</span>
+          <select name="{{ form.platform.html_name }}"
+                  id="{{ form.platform.id_for_label }}"
+                  class="kb-select"
+                  x-model="platform">
+            {% for val, label in form.platform.field.choices %}
+              <option value="{{ val }}"
+                      {% if form.platform.value == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          {% if form.platform.errors %}
+            <span class="kb-field-error" role="alert">{{ form.platform.errors|join:", " }}</span>
           {% endif %}
+        </label>
+
+        {# ── Destination — adapts to platform ───────────────────────── #}
+        {# x-if (not x-show) so only one destination_id input is ever in the DOM at submit time #}
+        <template x-if="meta.showDest">
+          <div>
+            <label class="kb-field">
+              <span class="kb-field-label" x-text="meta.label">{% trans "Destination" %}</span>
+              <input type="text"
+                     name="{{ form.destination_id.html_name }}"
+                     id="{{ form.destination_id.id_for_label }}"
+                     class="kb-input"
+                     :placeholder="meta.placeholder"
+                     value="{{ form.destination_id.value|default:'' }}"
+                     autocomplete="off">
+              <span class="kb-field-hint" x-text="meta.hint"></span>
+            </label>
+            {% if form.destination_id.errors %}
+              <span class="kb-field-error mt-1 block" role="alert">{{ form.destination_id.errors|join:", " }}</span>
+            {% endif %}
+          </div>
+        </template>
+
+        {# ── Switch platform note ─────────────────────────────────────── #}
+        <template x-if="!meta.showDest">
+          <div>
+            <div class="kb-alert kb-alert-info" role="note">
+              <span class="kb-alert-kicker">{% trans "Note" %}</span>
+              <div class="kb-alert-body">
+                <p x-text="meta.note"></p>
+              </div>
+            </div>
+            {# Hidden field submits 'own-page' for Switch — only in DOM when Switch selected #}
+            <input type="hidden" name="{{ form.destination_id.html_name }}" value="own-page">
+          </div>
+        </template>
+
+        {# ── Kinds — checkboxes ──────────────────────────────────────── #}
+        <fieldset>
+          <legend class="kb-field-label mb-5">{% trans "Kinds" %}</legend>
+          <div class="flex flex-col gap-4">
+            {% for choice_val, choice_label in form.kinds.field.choices %}
+              <label class="flex items-start gap-3 cursor-pointer group">
+                <input type="checkbox"
+                       name="{{ form.kinds.html_name }}"
+                       value="{{ choice_val }}"
+                       class="kb-check mt-0.5 shrink-0"
+                       {% if choice_val in form.kinds.value %}checked{% endif %}>
+                <span class="flex flex-col gap-1">
+                  <span class="kb-kicker text-[var(--kb-ink-soft)] group-hover:text-[var(--kb-ink)] transition-colors">{{ choice_label }}</span>
+                  {% if choice_val == "listing" %}
+                    <span class="kb-field-hint">{% trans "The event/listing itself" %}</span>
+                  {% elif choice_val == "promotion" %}
+                    <span class="kb-field-hint">{% trans "Promotional posts about the event" %}</span>
+                  {% endif %}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+          {% if form.kinds.errors %}
+            <span class="kb-field-error mt-3 block" role="alert">{{ form.kinds.errors|join:", " }}</span>
+          {% endif %}
+        </fieldset>
+
+        {# ── Enabled toggle ──────────────────────────────────────────── #}
+        <div class="kb-bracketed-top kb-bracketed-bottom py-4">
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox"
+                   name="{{ form.enabled.html_name }}"
+                   id="{{ form.enabled.id_for_label }}"
+                   class="kb-check shrink-0"
+                   {% if form.enabled.value %}checked{% endif %}>
+            <span class="flex flex-col gap-1">
+              <span class="kb-field-label group-hover:text-[var(--kb-ink-soft)] transition-colors">{% trans "Enabled" %}</span>
+              <span class="kb-field-hint">{% trans "Creates draft projections whenever you author an Event or Post." %}</span>
+            </span>
+          </label>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
-                 for="{{ form.kinds.id_for_label }}">{{ form.kinds.label }}</label>
-          <span class="text-base-content/40 text-xs">{{ form.kinds.help_text }}</span>
-          {{ form.kinds }}
-          {% if form.kinds.errors %}<p class="text-red-400 text-xs mt-1">{{ form.kinds.errors|join:", " }}</p>{% endif %}
-        </div>
-        <div class="flex items-center gap-3">
-          {{ form.enabled }}
-          <label class="kb-mono text-[11px] uppercase tracking-widest text-base-content/60"
-                 for="{{ form.enabled.id_for_label }}">{{ form.enabled.label }}</label>
-        </div>
-      </div>
-      <div class="flex gap-3 pt-4 border-t border-white/10">
+
+      </div>{# /fields #}
+
+      <div class="flex items-center gap-6">
         <button type="submit"
                 class="kb-btn"
                 :disabled="submitting"
-                x-text="submitting ? '{% trans "Saving..." %}' : '{% trans "Add connection" %}'">
+                x-text="submitting ? '{% trans "Saving…" %}' : '{% trans "Add connection" %}'">
           {% trans "Add connection" %}
         </button>
+        <a href="{% url 'syndication:connections-list' %}" class="kb-btn-quiet">{% trans "Cancel" %}</a>
       </div>
+
     </form>
   </div>
 {% endblock content %}

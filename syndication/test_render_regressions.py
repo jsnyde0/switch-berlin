@@ -44,17 +44,14 @@ def _make_profile(name, slug, user=None):
     return profile
 
 
-class ConnectionsListKindsSeparatorTest(TestCase):
+class ConnectionsListKindsChipTest(TestCase):
     """
-    Regression: connections_list.html kinds separator must render as ' · '.
+    Regression: connections_list.html renders kinds as kb-tag chips, not a
+    separator-joined span.
 
-    Pre-reformat the kinds loop used a literal ' · ' separator. After djlint
-    reformat the loop body was reflowed across lines and the spaces were
-    stripped from the separator block, so the raw rendered output became a
-    newline-broken form that does NOT contain ' · ' as an adjacent sequence.
-
-    The fix must produce 'listing · promotion' (space-middot-space) adjacent in
-    the output, e.g. via {{ conn.kinds|join:" · " }}.
+    The redesign (kb-bxdm) replaced the ' · ' separator pattern with individual
+    kb-tag elements, one per kind. Each chip must render its label text in the
+    HTML output. Listing shows with kb-tag-accent, Promotion with purple tint.
     """
 
     def setUp(self):
@@ -68,7 +65,7 @@ class ConnectionsListKindsSeparatorTest(TestCase):
             slug="rr-conn-profile",
             user=self.user,
         )
-        # Create a connection with two kinds so the separator is rendered
+        # Create a connection with two kinds so both chips are rendered
         PlatformConnection.objects.create(
             organizer=self.profile,
             platform="fetlife",
@@ -77,36 +74,22 @@ class ConnectionsListKindsSeparatorTest(TestCase):
             enabled=True,
         )
 
-    def test_kinds_separator_renders_as_spaced_middot_adjacent_in_output(self):
+    def test_kinds_render_as_individual_chips(self):
         """
-        The raw rendered HTML for a multi-kind connection must contain
-        'listing · promotion' (kind1, space, middot, space, kind2) as adjacent
-        text — without intervening newlines/indentation breaking the
-        space-middot-space sequence.
-
-        Specifically: the rendered text content (after collapsing Django template
-        whitespace) of the span containing the kinds must produce 'listing · promotion'
-        not 'listing·promotion' or 'listing \n · \n promotion'.
-
-        We check the raw HTML: 'listing · promotion' must appear as a substring
-        somewhere in the content. The only place this appears is the kinds span.
-        (Other uses of ' · ' on the page are in different contexts and would not
-        immediately precede 'listing' or 'promotion'.)
+        The redesigned list renders each kind as a separate kb-tag chip.
+        Both 'Listing' and 'Promotion' must appear as chip label text in the
+        rendered HTML output for a multi-kind connection.
         """
         client = Client()
         client.force_login(self.user)
         response = client.get("/syndication/connections/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # The exact sequence 'listing · promotion' must appear adjacently in the
-        # raw HTML. If the loop is split across lines, the raw HTML carries a
-        # newline-broken form that does NOT contain it as a substring.
-        self.assertIn(
-            "listing · promotion",
-            content,
-            "Kinds must render as 'listing · promotion' (space-middot-space "
-            "adjacent); djlint stripped the spaces — check the loop or use |join",
-        )
+        # Both chips must be present with their display labels.
+        self.assertIn("Listing", content, "Listing chip label must appear in connections list")
+        self.assertIn("Promotion", content, "Promotion chip label must appear in connections list")
+        # kb-tag class must appear (chip structure present).
+        self.assertIn("kb-tag", content, "kb-tag class must appear in connections list for kind chips")
 
 
 class EventListSortTabHrefTest(TestCase):

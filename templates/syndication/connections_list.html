@@ -4,58 +4,89 @@
   {% trans "Platform Connections" %} — Switch
 {% endblock %}
 {% block content %}
-  <div class="max-w-3xl mx-auto pt-10" x-data="{}">
-    <div class="flex items-start justify-between mb-8">
+  <div class="max-w-3xl mx-auto pt-10">
+    {# ── Header ──────────────────────────────────────────────────── #}
+    <div class="flex items-start justify-between gap-6 mb-10">
       <div>
+        <p class="kb-eyebrow kb-eyebrow-accent mb-3">{% trans "Studio" %}</p>
         <h1 class="kb-display text-[40px] font-light leading-tight">{% trans "Platform connections" %}</h1>
-        <p class="text-base-content/50 text-sm mt-2">
-          {% trans "Manage your syndication destinations. Each enabled connection creates draft projections when you author an Event or Post." %}
+        <p class="kb-field-hint mt-3 max-w-[52ch]">
+          {% trans "Syndication destinations for your events and posts. Each enabled connection creates draft projections when you publish." %}
         </p>
       </div>
       <a href="{% url 'syndication:connection-create' %}"
-         class="kb-btn text-sm">+ {% trans "Add connection" %}</a>
+         class="kb-btn shrink-0 mt-1">
+        {% trans "Add connection" %}
+      </a>
     </div>
+
     {% if connections %}
-      <div id="connections-list" class="flex flex-col gap-3">
+      <div id="connections-list" class="flex flex-col">
         {% for conn in connections %}
-          <div class="flex items-center justify-between p-4 border border-white/10 bg-white/2 rounded"
-               x-data="{}">
-            <div class="flex flex-col gap-1">
-              <span class="kb-mono text-[12px] uppercase tracking-wider font-medium text-base-content/90">{{ conn.platform }}</span>
-              <span class="text-sm text-base-content/60">{{ conn.destination_id }}</span>
-              <span class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{{ conn.kinds|join:" · " }}</span>
-            </div>
-            <div class="flex items-center gap-4">
-              <span class="kb-tag {% if conn.enabled %}kb-tag-success{% else %}text-base-content/30{% endif %} normal-case text-[10px]">
-                {% if conn.enabled %}
-                  {% trans "enabled" %}
-                {% else %}
-                  {% trans "disabled" %}
+          {# ── Connection row ──────────────────────────────────────── #}
+          <div class="kb-bracketed-top py-5 {% if forloop.last %}kb-bracketed-bottom{% endif %}">
+            <div class="flex items-start justify-between gap-4">
+
+              {# Left: platform identity + destination + kinds #}
+              <div class="flex flex-col gap-2 min-w-0">
+                {# Platform label #}
+                <span class="kb-eyebrow kb-eyebrow-strong tracking-[0.22em]">
+                  {% if conn.platform == "switch" %}{% trans "Switch" %}
+                  {% elif conn.platform == "fetlife" %}{% trans "FetLife" %}
+                  {% elif conn.platform == "tickettailor" %}{% trans "Ticket Tailor" %}
+                  {% elif conn.platform == "telegram" %}{% trans "Telegram" %}
+                  {% else %}{{ conn.platform }}{% endif %}
+                </span>
+                {# Destination ID — not shown for Switch own-page #}
+                {% if conn.destination_id and conn.destination_id != "own-page" %}
+                  <span class="kb-display-italic text-[15px] text-[var(--kb-ink-soft)] truncate">{{ conn.destination_id }}</span>
+                {% elif conn.platform == "switch" %}
+                  <span class="kb-field-hint italic">{% trans "Own event page" %}</span>
                 {% endif %}
-              </span>
-              <form method="post"
-                    action="{% url 'syndication:connection-toggle' pk=conn.pk %}"
-                    hx-post="{% url 'syndication:connection-toggle' pk=conn.pk %}"
-                    hx-target="#connections-list"
-                    hx-swap="outerHTML">
-                {% csrf_token %}
-                <button type="submit"
-                        class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40 hover:text-base-content transition-colors">
-                  {% if conn.enabled %}
-                    {% trans "Disable" %}
-                  {% else %}
-                    {% trans "Enable" %}
-                  {% endif %}
-                </button>
-              </form>
+                {# Kinds chips #}
+                <div class="flex items-center gap-2 mt-1">
+                  {% for kind in conn.kinds %}
+                    {% if kind == "listing" %}
+                      <span class="kb-tag kb-tag-accent">{% trans "Listing" %}</span>
+                    {% elif kind == "promotion" %}
+                      <span class="kb-tag" style="border-color: rgb(167 139 250 / 0.45); color: rgb(196 181 253);">{% trans "Promotion" %}</span>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+
+              {# Right: enabled status + toggle action #}
+              <div class="flex items-center gap-4 shrink-0 pt-0.5">
+                {% if conn.enabled %}
+                  <span class="kb-tag kb-tag-success">{% trans "On" %}</span>
+                {% else %}
+                  <span class="kb-tag" style="color: var(--kb-ink-faint); border-color: var(--kb-hair);">{% trans "Off" %}</span>
+                {% endif %}
+                <form method="post"
+                      action="{% url 'syndication:connection-toggle' pk=conn.pk %}"
+                      hx-post="{% url 'syndication:connection-toggle' pk=conn.pk %}"
+                      hx-target="#connections-list"
+                      hx-swap="outerHTML">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="kb-btn-secondary text-[10px] py-2 px-3 min-h-[44px] min-w-[44px]"
+                          aria-label="{% if conn.enabled %}{% trans 'Disable' %} {{ conn.destination_id|default:conn.platform }}{% else %}{% trans 'Enable' %} {{ conn.destination_id|default:conn.platform }}{% endif %}">
+                    {% if conn.enabled %}{% trans "Disable" %}{% else %}{% trans "Enable" %}{% endif %}
+                  </button>
+                </form>
+              </div>
+
             </div>
           </div>
         {% endfor %}
       </div>
+
     {% else %}
-      <div class="py-16 text-center">
-        <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-6">
-          — {% trans "No connections yet" %} —
+      {# ── Empty state ─────────────────────────────────────────────── #}
+      <div class="py-20 text-center">
+        <p class="kb-eyebrow mb-6 text-[var(--kb-ink-faint)]">{% trans "No connections yet" %}</p>
+        <p class="kb-field-hint mb-8 max-w-[44ch] mx-auto">
+          {% trans "Add a connection to start syndicating your events and posts to external platforms." %}
         </p>
         <a href="{% url 'syndication:connection-create' %}" class="kb-btn">{% trans "Add your first connection" %}</a>
       </div>
