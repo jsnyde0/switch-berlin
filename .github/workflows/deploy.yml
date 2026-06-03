@@ -245,6 +245,28 @@ jobs:
           $COMPOSE ps
           EOF
 
+      # kb-vixx: the recreate step's `up -d` only prints "service init didn't
+      # complete successfully: exit 1" — the init container's actual stderr (the
+      # migration traceback) is NOT captured, which left a prod deploy break blind
+      # for ~4 days (2026-05-29 → 2026-06-03). Dump init's logs on any failure so
+      # the next break is diagnosable straight from the Actions log, no SSH needed.
+      - name: Dump init + app logs on failure
+        if: failure()
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'bash -s' <<'EOF' || true
+          cd /opt/switch-berlin/app
+          COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+          echo "=== init container logs (tail 100) ==="
+          $COMPOSE logs init --tail=100 2>&1 || true
+          echo "=== app container logs (tail 50) ==="
+          $COMPOSE logs app --tail=50 2>&1 || true
+          echo "=== compose ps ==="
+          $COMPOSE ps 2>&1 || true
+          EOF
+
       - name: Trigger kb-backup (populates timer LAST)
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
