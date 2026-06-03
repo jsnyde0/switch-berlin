@@ -73,22 +73,52 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: Remove the fields being dropped from PlatformProjection.
-        migrations.RemoveField(
-            model_name='platformprojection',
-            name='generated_by',
+        # Step 1: Drop the four fields being removed from PlatformProjection.
+        #
+        # Idempotent DROP COLUMN IF EXISTS (not RemoveField) — kb-vixx, 2026-06-03.
+        # The syndication migration lineage was squashed/refronted during the
+        # kb-a4u epic (0001_initial rewritten in e940abb to fold these four
+        # fields into the CREATE TABLE). Prod applied the OLD lineage, so its
+        # syndication_platformprojection table never received these columns via
+        # the path the current migration graph assumes. A plain RemoveField
+        # emits `ALTER TABLE ... DROP COLUMN generated_by`, which raises
+        # ProgrammingError ("column does not exist") on prod and wedged the
+        # init container / deploy for days (last green deploy 2026-05-29).
+        #
+        # DROP COLUMN IF EXISTS is correct on BOTH shapes: fresh/test DBs (built
+        # from current 0001_initial, columns present → dropped) and prod (drifted,
+        # columns absent → no-op). state_operations keeps Django's historical
+        # model state identical to the RemoveField it replaces, so downstream
+        # migrations and makemigrations --check are unaffected. reverse_sql=noop:
+        # we never reverse prod pre-launch (ADR-008 D1); re-adding columns with
+        # faithful DDL on reverse buys nothing here.
+        migrations.RunSQL(
+            sql='ALTER TABLE syndication_platformprojection DROP COLUMN IF EXISTS generated_by;',
+            reverse_sql=migrations.RunSQL.noop,
+            state_operations=[
+                migrations.RemoveField(model_name='platformprojection', name='generated_by'),
+            ],
         ),
-        migrations.RemoveField(
-            model_name='platformprojection',
-            name='last_generated_at',
+        migrations.RunSQL(
+            sql='ALTER TABLE syndication_platformprojection DROP COLUMN IF EXISTS last_generated_at;',
+            reverse_sql=migrations.RunSQL.noop,
+            state_operations=[
+                migrations.RemoveField(model_name='platformprojection', name='last_generated_at'),
+            ],
         ),
-        migrations.RemoveField(
-            model_name='platformprojection',
-            name='override_data',
+        migrations.RunSQL(
+            sql='ALTER TABLE syndication_platformprojection DROP COLUMN IF EXISTS override_data;',
+            reverse_sql=migrations.RunSQL.noop,
+            state_operations=[
+                migrations.RemoveField(model_name='platformprojection', name='override_data'),
+            ],
         ),
-        migrations.RemoveField(
-            model_name='platformprojection',
-            name='provenance',
+        migrations.RunSQL(
+            sql='ALTER TABLE syndication_platformprojection DROP COLUMN IF EXISTS provenance;',
+            reverse_sql=migrations.RunSQL.noop,
+            state_operations=[
+                migrations.RemoveField(model_name='platformprojection', name='provenance'),
+            ],
         ),
 
         # Step 2: Make ContentVersion editorial fields nullable (null-means-derive).
