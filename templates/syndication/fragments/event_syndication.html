@@ -62,7 +62,7 @@
         {% endif %}
       </div>
     {% elif projection_rows %}
-      <div class="flex items-start gap-1 mb-5 overflow-x-auto pb-1"
+      <div class="flex items-start gap-1.5 mb-5 overflow-x-auto pb-1"
            role="tablist"
            aria-label="{% trans 'Channels' %}">
         {% for row in projection_rows %}
@@ -71,15 +71,20 @@
                     role="tab"
                     :aria-selected="selectedPk === {{ proj.pk }}"
                     @click="selectedPk = {{ proj.pk }}"
-                    class="flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2 transition-all duration-150 focus-visible:outline-none border-b-2"
+                    class="flex-shrink-0 flex flex-col items-start gap-1.5 px-3.5 py-2.5 transition-all duration-150 focus-visible:outline-none border-b-2 min-w-[96px]"
                     :class="selectedPk === {{ proj.pk }} ? 'border-fuchsia-300/60 text-base-content/90' : 'border-transparent text-base-content/40 hover:text-base-content/65 hover:border-white/20'">
-              <span class="kb-mono text-[9px] uppercase tracking-[0.2em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
+              <span class="kb-mono text-[10px] uppercase tracking-[0.2em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
                 {{ proj.connection.platform }}
               </span>
-              <span class="kb-mono text-[7px] text-base-content/30 max-w-[80px] truncate">{{ proj.connection.destination_id }}</span>
-              <span class="kb-mono text-[7px] uppercase tracking-[0.1em] px-1 py-px border {% if proj.status == 'draft' %}text-amber-300/80 border-amber-300/20 {% elif proj.status == 'ready' %}text-fuchsia-300/80 border-fuchsia-300/25 {% elif proj.status == 'published' %}text-emerald-400 border-emerald-400/25 {% elif proj.status == 'failed' %}text-rose-400 border-rose-400/25 {% else %}text-base-content/30 border-white/8{% endif %}">
-                {{ proj.get_status_display }}
+              <span class="flex items-center gap-1.5 flex-wrap">
+                <span class="kb-mono text-[9px] uppercase tracking-[0.12em] px-1.5 py-px border {% if proj.kind == 'listing' %}text-fuchsia-300/70 border-fuchsia-300/25 {% else %}text-violet-300/70 border-violet-300/25{% endif %}">
+                  {{ proj.get_kind_display }}
+                </span>
+                <span class="kb-mono text-[9px] uppercase tracking-[0.1em] px-1.5 py-px border {% if proj.status == 'draft' %}text-amber-300/80 border-amber-300/20 {% elif proj.status == 'ready' %}text-emerald-400/80 border-emerald-400/25 {% elif proj.status == 'published' %}text-emerald-400 border-emerald-400/25 {% elif proj.status == 'failed' %}text-rose-400 border-rose-400/25 {% else %}text-base-content/30 border-white/8{% endif %}">
+                  {{ proj.get_status_display }}
+                </span>
               </span>
+              <span class="kb-mono text-[9px] text-base-content/35 max-w-[120px] truncate">{{ proj.connection.destination_id }}</span>
               {% if consumers_map %}
                 {% for cv, consumers in consumers_map.items %}
                   {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
@@ -115,10 +120,11 @@
             {% endif %}
             {% if can_edit and proj.status == 'draft' %}
               <div class="mb-7">
-                <div class="flex items-center gap-0 mb-5 pb-3"
+                {# ── Sync control bar ── #}
+                <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3"
                      style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+                  {# Primary: synced↔custom state toggle #}
                   {% if proj.content_version.name == "canonical" %}
-                    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] text-base-content/22 mr-3 shrink-0 select-none">{% trans "synced" %}</span>
                     <form method="post"
                           action="{% url 'syndication:projection-customize' pk=proj.pk %}"
                           hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
@@ -126,25 +132,36 @@
                           hx-swap="outerHTML">
                       {% csrf_token %}
                       <button type="submit"
-                              class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/32 hover:text-base-content/65 transition-colors px-0">
-                        {% trans "Customize" %}
+                              class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
+                              title="{% trans 'Click to customize this channel independently' %}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
+                        <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Synced" %}</span>
+                        <span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
                       </button>
                     </form>
                   {% else %}
-                    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] text-amber-300/50 mr-3 shrink-0 select-none">{% trans "custom" %}</span>
-                    <form method="post"
-                          action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-                          hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
-                          hx-target="#event-syndication"
-                          hx-swap="outerHTML">
-                      {% csrf_token %}
-                      <button type="submit"
-                              class="kb-mono text-[8px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors px-0">
-                        {% trans "Reset" %}
-                      </button>
-                    </form>
+                    <div class="flex items-center gap-2">
+                      <span class="flex items-center gap-2 px-2.5 py-1.5 border border-amber-300/20"
+                            style="background: rgba(251,191,36,0.04)">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-300/60 shrink-0"></span>
+                        <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/70">{% trans "Custom" %}</span>
+                      </span>
+                      <form method="post"
+                            action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                            hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                            hx-target="#event-syndication"
+                            hx-swap="outerHTML">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors"
+                                title="{% trans 'Reset to synced canonical content' %}">
+                          ↩ {% trans "Reset to synced" %}
+                        </button>
+                      </form>
+                    </div>
                   {% endif %}
-                  <span class="text-base-content/20 mx-2 text-[10px] select-none leading-none">·</span>
+                  {# Secondary utilities — Duplicate, Copy from #}
+                  <span class="text-base-content/15 text-[10px] select-none leading-none ml-1">|</span>
                   <form method="post"
                         action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
                         hx-post="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
@@ -152,7 +169,7 @@
                         hx-swap="outerHTML">
                     {% csrf_token %}
                     <button type="submit"
-                            class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 transition-colors px-0">
+                            class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/28 hover:text-base-content/55 transition-colors">
                       {% trans "Duplicate" %}
                     </button>
                   </form>
@@ -164,14 +181,14 @@
                           hx-swap="outerHTML"
                           class="flex items-center gap-1.5 ml-auto">
                       {% csrf_token %}
-                      <span class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
+                      <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
                       <div class="relative">
                         <select name="source_version_pk"
-                                class="kb-mono text-[8px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
+                                class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
                           {% for other_row in projection_rows %}
                             {% if other_row.projection.pk != proj.pk %}
                               <option value="{{ other_row.projection.content_version.pk }}">
-                                {{ other_row.projection.connection.platform }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
+                                {{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
                               </option>
                             {% endif %}
                           {% endfor %}
@@ -184,7 +201,7 @@
                         </span>
                       </div>
                       <button type="submit"
-                              class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/22 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
+                              class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/25 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
                         {% trans "Apply" %}
                       </button>
                     </form>
