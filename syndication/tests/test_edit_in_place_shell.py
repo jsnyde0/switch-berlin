@@ -604,6 +604,140 @@ class EventSyndicationDataLossRegressionTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# FIX 4: carry-only fields must be hidden, not visible form widgets
+# ---------------------------------------------------------------------------
+
+
+class EventSyndicationCarryFieldsHiddenTest(TestCase):
+    """
+    FIX 4: The 17 carry-only fields added in kb-ide0.1 to prevent data loss
+    must NOT render as visible form widgets below the Save button.
+
+    Binding user decision: the Switch listing card's "fields ARE the card"
+    surface. Only the ~8 listing-facing fields (title, start, end, description,
+    dress_code, age_restriction, tickets_url, slug) must be visually styled.
+
+    The carry-only fields (venue, tags, content_warnings, capacity, visibility,
+    language, is_free, price_min_cents, price_max_cents, currency, sliding_scale,
+    price_description, external_url, registration_required, registration_url,
+    registration_email, category) must render as true hidden inputs — present
+    in the DOM so the POST carries their values, but invisible in the card.
+
+    IMPORTANT: the data-loss regression test_title_only_edit_preserves_boolean_and_choice_fields
+    must STILL pass — the view's HTMX filtering (submitted_keys) handles booleans
+    correctly (absent unchecked checkbox = don't update that field).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="cfh_user", email="cfh@test.com", password="pw")
+        self.profile = _make_profile("CFH Org", "cfh-org", user=self.user)
+        self.event = _make_event(self.profile, "Carry Fields Hidden Event", "carry-fields-hidden")
+        # Set boolean fields to True so we can verify they round-trip through hidden inputs
+        self.event.is_free = True
+        self.event.sliding_scale = True
+        self.event.registration_required = True
+        self.event.currency = "EUR"
+        self.event.save(update_fields=["is_free", "sliding_scale", "registration_required", "currency"])
+        self.switch_conn = _make_switch_connection(self.profile)
+        _make_switch_listing_projection(self.event, self.switch_conn)
+        self.client.force_login(self.user)
+
+    def test_carry_fields_are_hidden_not_visible_widgets(self):
+        """
+        FIX 4: The Switch listing card must NOT render carry-only fields as
+        visible form widgets. They must appear inside a hidden container so
+        they are invisible but their values still submit in the POST.
+
+        Django renders CheckboxInput as: <input type="checkbox" name="is_free" ...>
+        (type attribute comes first). We assert no visible checkbox (type="checkbox")
+        appears for the carry-only boolean fields — they must be wrapped in a
+        display:none container or rendered as type="hidden" inputs.
+        """
+        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # Django renders CheckboxInput as <input type="checkbox" name="is_free" ...>
+        # The carry-only boolean fields must NOT appear as exposed visible checkboxes.
+        # We check for the pattern Django actually emits (type first, then name).
+        # If the field is wrapped in display:none container, the checkbox may still
+        # exist but must be inside the hidden wrapper — we verify no VISIBLE checkbox
+        # by checking there is no type="checkbox" with these names at all
+        # (the fix should use type="hidden" inputs, not CSS-hidden checkboxes).
+        self.assertNotIn(
+            'type="checkbox" name="is_free"',
+            content,
+            "FIX 4: is_free must NOT render as a visible checkbox (type='checkbox') — "
+            "it must be a hidden input so it is invisible in the card.",
+        )
+        self.assertNotIn(
+            'type="checkbox" name="sliding_scale"',
+            content,
+            "FIX 4: sliding_scale must NOT render as a visible checkbox (type='checkbox').",
+        )
+        self.assertNotIn(
+            'type="checkbox" name="registration_required"',
+            content,
+            "FIX 4: registration_required must NOT render as a visible checkbox (type='checkbox').",
+        )
+
+    def test_carry_boolean_true_values_round_trip_through_hidden_inputs(self):
+        """
+        FIX 4: When is_free=True, the hidden input for is_free must carry a
+        value that Django's BooleanField.to_python() recognises as True after
+        the POST, so that saving via the card preserves the True value.
+
+        We do a FULL form POST (simulating the browser submitting all hidden
+        inputs) with only the visible fields changed, and confirm is_free/
+        sliding_scale/registration_required survive as True.
+        """
+        self.event.refresh_from_db()
+        self.assertTrue(self.event.is_free)
+        self.assertTrue(self.event.sliding_scale)
+        self.assertTrue(self.event.registration_required)
+
+        # Simulate a full card POST: visible fields + carry booleans as "on"
+        # (what a checked checkbox emits) + carry text fields as their values
+        post_data = {
+            "title": "Round-trip Title",
+            "slug": self.event.slug,
+            "start": "2026-06-11T12:00",
+            # Carry booleans — a checked hidden checkbox emits "on"
+            "is_free": "on",
+            "sliding_scale": "on",
+            "registration_required": "on",
+            "currency": "EUR",
+        }
+
+        url = f"/syndication/events/{self.event.pk}/edit/"
+        response = self.client.post(url, data=post_data, HTTP_HX_REQUEST="true")
+        self.assertIn(response.status_code, [200, 302])
+
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.title, "Round-trip Title")
+        self.assertTrue(
+            self.event.is_free,
+            "FIX 4: is_free=True must survive a full-card POST with is_free=on in the hidden input",
+        )
+        self.assertTrue(
+            self.event.sliding_scale,
+            "FIX 4: sliding_scale=True must survive a full-card POST",
+        )
+        self.assertTrue(
+            self.event.registration_required,
+            "FIX 4: registration_required=True must survive a full-card POST",
+        )
+        self.assertEqual(
+            self.event.currency,
+            "EUR",
+            "FIX 4: currency must survive a full-card POST",
+        )
+
+
+# ---------------------------------------------------------------------------
 # FIX 3: studio_swap must gate the Review-all cross-link (not hollow tests)
 # ---------------------------------------------------------------------------
 
