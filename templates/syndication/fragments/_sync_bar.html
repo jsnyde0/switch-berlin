@@ -25,53 +25,40 @@ States:
 <div id="sync-bar-proj-{{ proj.pk }}"
      {% if oob %}hx-swap-oob="true"{% endif %}>
   {% if proj.content_version.name == "canonical" and not proj.sync_source %}
-    {% comment %}State (i): sharing canonical CV, no peer sync — edits broadcast to all sharers{% endcomment %}
-    {% comment %}Count how many projections share this canonical CV (broadcast scope){% endcomment %}
+    {% comment %}State (i): sharing canonical CV, no peer sync — edits broadcast to all sharers.
+    F2b (ADR-008 D3): The Customize form ALWAYS renders; only the count span is conditional on
+    finding the CV in consumers_map with >1 sharer. No code path may leave this badge blank.{% endcomment %}
+    {% comment %}Determine count: scan consumers_map for this CV. Default to 0 (no count shown).{% endcomment %}
     {% with cv_pk=proj.content_version.pk %}
-      {% if consumers_map %}
-        {% for cv, cv_consumers in consumers_map.items %}
-          {% if cv.pk == cv_pk %}
-            {% with consumer_count=cv_consumers|length %}
-              <form method="post"
-                    action="{% url 'syndication:projection-customize' pk=proj.pk %}"
-                    hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
-                    hx-target="{{ fragment_target }}"
-                    hx-swap="outerHTML">
-                {% csrf_token %}
-                {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-                <input type="hidden" name="selected_pk" :value="selectedPk">
-                <button type="submit"
-                        class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
-                        title="{% trans 'Click to customize this channel independently' %}">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
-                  <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Shared" %}</span>
-                  {% if consumer_count > 1 %}
-                    <span class="kb-mono text-[9px] text-emerald-400/55 group-hover:text-emerald-400/75 transition-colors">{% blocktrans with n=consumer_count %}· edits update {{ n }} channels{% endblocktrans %}</span>
-                  {% endif %}
-                  <span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
-                </button>
-              </form>
-            {% endwith %}
+      {% comment %}Resolve the consumer count by walking consumers_map (may be empty or absent).
+      We use a nested with to extract just the count for the matched CV.
+      If consumers_map is falsy or the CV key is absent, consumer_count stays 0 — no count span.{% endcomment %}
+      <form method="post"
+            action="{% url 'syndication:projection-customize' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
+        <button type="submit"
+                class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
+                title="{% trans 'Click to customize this channel independently' %}">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
+          <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Shared" %}</span>
+          {% comment %}F3: count span — only if CV is in consumers_map with >1 sharer.
+          "Shared across N channels" (N = total, including this channel).
+          Wording chosen: unambiguous — editing changes all N channels.{% endcomment %}
+          {% if consumers_map %}
+            {% for cv, cv_consumers in consumers_map.items %}
+              {% if cv.pk == cv_pk and cv_consumers|length > 1 %}
+                <span class="kb-mono text-[9px] text-emerald-400/55 group-hover:text-emerald-400/75 transition-colors">{% blocktrans with n=cv_consumers|length %}· Shared across {{ n }} channels{% endblocktrans %}</span>
+              {% endif %}
+            {% endfor %}
           {% endif %}
-        {% endfor %}
-      {% else %}
-        {% comment %}OOB path: no consumers_map available — simpler label without count{% endcomment %}
-        <form method="post"
-              action="{% url 'syndication:projection-customize' pk=proj.pk %}"
-              hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
-              hx-target="{{ fragment_target }}"
-              hx-swap="outerHTML">
-          {% csrf_token %}
-          <input type="hidden" name="selected_pk" :value="selectedPk">
-          <button type="submit"
-                  class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
-                  title="{% trans 'Click to customize this channel independently' %}">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
-            <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Shared" %}</span>
-            <span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
-          </button>
-        </form>
-      {% endif %}
+          <span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
+        </button>
+      </form>
     {% endwith %}
   {% elif proj.sync_source %}
     {% comment %}State (ii): own CV + sync_source set → Synced from peer channel; editing detaches{% endcomment %}

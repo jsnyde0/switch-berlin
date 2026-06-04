@@ -142,10 +142,20 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                   {% comment %}D2: Edit-in-place — the styled Switch card contains the EventForm inputs.
                   Sync controls (Customize/Reset) are SEPARATE forms above the event-edit form
                   since they operate on the ContentVersion, not event fields.{% endcomment %}
-                  {% comment %}Sync control bar — separate version-op forms (kept as-is){% endcomment %}
+                  {% comment %}Sync control bar — separate version-op forms.
+                  F4 (kb-lprn lesson): three-state badge — must match _sync_bar.html.
+                  Switch is the canonical home (ADR-010 D1) so it is normally state (i):
+                  canonical CV + no sync_source. State (ii) and (iii) are included here
+                  to prevent mis-rendering should a Switch projection ever be in a
+                  non-canonical state (config error, migration artefact, etc.).
+                  State (i)  canonical CV + sync_source NULL → "Shared"
+                  State (ii) own CV + sync_source SET        → "Synced from <peer>"
+                  State (iii) own CV + sync_source NULL      → "Custom"{% endcomment %}
                   <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3"
                        style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-                    {% if proj.content_version.name == "canonical" %}
+                    {% if proj.content_version.name == "canonical" and not proj.sync_source %}
+                      {% comment %}State (i): Switch on canonical CV — "Shared" badge + optional count.
+                      F3: count uses "Shared across N channels" wording (N = total sharers).{% endcomment %}
                       <form method="post"
                             action="{% url 'syndication:projection-customize' pk=proj.pk %}"
                             hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
@@ -161,7 +171,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                             {% with cv_pk=proj.content_version.pk %}
                               {% for cv, cv_consumers in consumers_map.items %}
                                 {% if cv.pk == cv_pk and cv_consumers|length > 1 %}
-                                  <span class="kb-mono text-[9px] text-emerald-400/55 group-hover:text-emerald-400/75 transition-colors">{% blocktrans with n=cv_consumers|length %}· edits update {{ n }} channels{% endblocktrans %}</span>
+                                  <span class="kb-mono text-[9px] text-emerald-400/55 group-hover:text-emerald-400/75 transition-colors">{% blocktrans with n=cv_consumers|length %}· Shared across {{ n }} channels{% endblocktrans %}</span>
                                 {% endif %}
                               {% endfor %}
                             {% endwith %}
@@ -169,7 +179,31 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                           <span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
                         </button>
                       </form>
+                    {% elif proj.sync_source %}
+                      {% comment %}State (ii): own CV + sync_source set — "Synced from <peer>".
+                      Unusual for Switch (ADR-010 D1) but must render correctly if it occurs.{% endcomment %}
+                      <div class="flex items-center gap-2">
+                        <span class="flex items-center gap-2 px-2.5 py-1.5 border border-emerald-400/20"
+                              style="background: rgba(52,211,153,0.04)">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0"></span>
+                          <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-emerald-400/80">
+                            {% trans "Synced from" %} {{ proj.sync_source.connection.platform }}
+                          </span>
+                          <span class="kb-mono text-[9px] text-emerald-400/40">{% trans "· editing detaches" %}</span>
+                        </span>
+                        <form method="post"
+                              action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                              hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+                              hx-target="#event-syndication"
+                              hx-swap="outerHTML">
+                          {% csrf_token %}
+                          <button type="submit"
+                                  class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors"
+                                  title="{% trans 'Reset to canonical content' %}">↩ {% trans "Reset" %}</button>
+                        </form>
+                      </div>
                     {% else %}
+                      {% comment %}State (iii): own CV + sync_source NULL — "Custom".{% endcomment %}
                       <div class="flex items-center gap-2">
                         <span class="flex items-center gap-2 px-2.5 py-1.5 border border-amber-300/20"
                               style="background: rgba(251,191,36,0.04)">
@@ -304,10 +338,11 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                     </div>
                   </form>
                 {% else %}
-                  {% comment %}Non-Switch-listing: sync control bar with three render states (kb-ide0.4):
-                (i)  canonical CV + sync_source NULL → "Synced" (from canonical, default)
-                (ii) own CV + sync_source SET        → "Synced from <channel>"
-                  (iii) own CV + sync_source NULL      → "Custom / detached"
+                  {% comment %}Non-Switch-listing: sync control bar — three render states via _sync_bar.html partial.
+                  (i)  canonical CV + sync_source NULL → "Shared" (edits broadcast to all sharers)
+                  (ii) own CV + sync_source SET        → "Synced from <peer> · editing detaches"
+                  (iii) own CV + sync_source NULL      → "Custom"
+                  Single-source-of-truth via _sync_bar.html (kb-lprn Repair 1).
                   The badge div carries id="sync-bar-proj-<pk>" so version_edit can
                   OOB-swap it (kb-lprn server-driven badge update).{% endcomment %}
                   <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3"
