@@ -34,6 +34,7 @@ from syndication.models import PlatformConnection, PlatformProjection, Post
 from syndication.services import (
     _get_primary_profile_for_user,
     _resolve_publishable_for_cv,
+    _supports_post_promotion,
     approve_projection,
     content_version_consumers_map,
     copy_from,
@@ -448,7 +449,9 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         organizer_id__in=organizer_profile_ids,
         enabled=True,
     )
-    has_promotion_connections = any("promotion" in (conn.kinds or []) for conn in all_connections)
+    has_promotion_connections = any(
+        "promotion" in (conn.kinds or []) and _supports_post_promotion(conn.platform) for conn in all_connections
+    )
     has_posts = Post.objects.filter(event=event).exists()
     no_promo_posts = has_promotion_connections and not has_posts
 
@@ -672,7 +675,11 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         .select_related("connection", "source_post")
         .order_by("connection__platform")
     )
-    projections = [p for p in all_post_projections if "promotion" in (p.connection.kinds or [])]
+    projections = [
+        p
+        for p in all_post_projections
+        if "promotion" in (p.connection.kinds or []) and _supports_post_promotion(p.connection.platform)
+    ]
 
     rendered_rows = {}
     projection_rows = []

@@ -551,7 +551,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/35 mb-5">
           {% trans "No projections yet" %}
         </p>
-        {% if can_edit %}
+        {% if can_edit and has_promotion_connections %}
           <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
              class="kb-btn-secondary text-[10px] inline-block">{% trans "Add promo message" %}</a>
         {% endif %}

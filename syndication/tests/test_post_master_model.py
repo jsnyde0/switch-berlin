@@ -400,3 +400,162 @@ class PostMasterAnchorLabelTest(TestCase):
             content,
             "When selected_pk is posted, the fragment should seed selectedPk to that pk.",
         )
+
+
+# ---------------------------------------------------------------------------
+# 4. FINDING 13: has_promotion_connections excludes non-capable platforms
+#    A Switch connection with 'promotion' in kinds must NOT make the event board
+#    show the "Add promo message" CTA — Switch can't deliver promo posts.
+# ---------------------------------------------------------------------------
+
+
+class EventBoardNoPromoCTAForSwitchOnlyTest(TestCase):
+    """
+    FINDING 13 (user-facing): When the ONLY promotion-capable connections belong
+    to Switch (which does not support post promotion), the event board must NOT
+    display the "Add promo message" / "No promo posts yet" CTA, because creating
+    a post would yield no Switch channel tab — an invite-with-no-result.
+
+    Fix: has_promotion_connections must also check _supports_post_promotion(conn.platform).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="f13_user", email="f13@test.com", password="pw")
+        self.profile = _make_profile("F13 Org", "f13-org", user=self.user)
+        self.event = _make_event(self.profile, "F13 Event", "f13-event")
+        # Switch-only connection with 'promotion' in kinds — the broken case
+        self.switch_conn = _make_connection(self.profile, "switch", "f13-switch-page", kinds=["listing", "promotion"])
+        self.client.force_login(self.user)
+
+    def test_event_board_does_not_show_add_promo_cta_for_switch_only_connection(self):
+        """
+        When only a Switch connection has 'promotion' in kinds, the event board
+        must NOT show the 'Add promo message' CTA — Switch cannot deliver promo posts,
+        so showing the CTA leads to an invite-with-no-result (FINDING 13).
+        """
+        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # The CTA text appears when no_promo_posts is True in the template.
+        # With a Switch-only promo connection, has_promotion_connections must be False
+        # so no_promo_posts is False and the CTA is suppressed.
+        self.assertNotIn(
+            "Add promo message",
+            content,
+            "Event board must NOT show 'Add promo message' CTA when the only "
+            "promotion connection is Switch (Switch cannot deliver promo posts).",
+        )
+
+    def test_event_board_shows_add_promo_cta_with_telegram_connection(self):
+        """
+        Regression: when a real promotion-capable connection (Telegram) exists,
+        the 'Add promo message' CTA IS shown.
+        """
+        _make_connection(self.profile, "telegram", "f13-telegram-channel", kinds=["promotion"])
+
+        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "Add promo message",
+            content,
+            "Event board MUST show 'Add promo message' CTA when a real "
+            "promotion-capable connection (e.g. Telegram) exists.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 5. FINDING 4: Post composer excludes Switch promo tabs from legacy DB state
+#    Even if a Switch promotion projection exists in DB (pre-existing legacy data),
+#    the post composer must NOT render it as a tab (render-level filter).
+# ---------------------------------------------------------------------------
+
+
+class LegacySwitchPromoTabFilteredAtRenderTest(TestCase):
+    """
+    FINDING 4 (robustness): The post composer's projection filter must exclude
+    projections whose connection.platform does not support post promotion —
+    even if those projections already exist in the database (legacy/force-created).
+
+    This makes the 'no spurious Switch tab' guarantee hold regardless of DB state,
+    not just for new posts (which are guarded by the mint-time gate).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="f4_user", email="f4@test.com", password="pw")
+        self.profile = _make_profile("F4 Org", "f4-org", user=self.user)
+        self.event = _make_event(self.profile, "F4 Event", "f4-event")
+        self.post = _make_post(self.event, "F4 Post Headline")
+
+        # Switch connection with 'promotion' in kinds
+        self.switch_conn = _make_connection(self.profile, "switch", "f4-switch-page", kinds=["listing", "promotion"])
+        # Force-create a Switch promotion projection directly in DB
+        # (simulating legacy data that pre-dates the mint-time gate)
+        from syndication.models import ContentVersion
+
+        switch_cv = ContentVersion.objects.create(
+            post=self.post,
+            name="legacy-switch-canonical",
+        )
+        self.switch_proj = PlatformProjection.objects.create(
+            connection=self.switch_conn,
+            source_post=self.post,
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            content_version=switch_cv,
+        )
+
+        # Also add a Telegram connection + projection so we have something to show
+        self.telegram_conn = _make_connection(self.profile, "telegram", "f4-telegram-channel", kinds=["promotion"])
+        from syndication.services import _eager_create_promotion_projections
+
+        _eager_create_promotion_projections(self.post)
+
+        self.client.force_login(self.user)
+
+    def test_switch_promo_tab_absent_even_with_legacy_db_projection(self):
+        """
+        Even if a Switch promotion projection exists in DB (force-created / legacy),
+        the post composer must NOT render it as a tab.
+
+        This is FINDING 4: the render-level filter must apply _supports_post_promotion,
+        not just the kinds filter, so the guarantee holds regardless of DB state.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertNotIn(
+            "f4-switch-page",
+            content,
+            "Post composer must NOT render a Switch promo tab even when a Switch "
+            "promotion projection exists in DB (render-level capability filter — FINDING 4).",
+        )
+
+    def test_telegram_promo_tab_still_present_with_legacy_switch_projection(self):
+        """
+        Regression: Telegram must still appear in the post composer tabs
+        even when a legacy Switch projection is in DB and filtered out.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "f4-telegram-channel",
+            content,
+            "Telegram must still appear in post composer tabs — "
+            "filtering out legacy Switch projection must not affect other platforms.",
+        )

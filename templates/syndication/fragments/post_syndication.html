@@ -131,7 +131,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
             <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-fuchsia-300/70">{% trans "Master copy" %}</span>
             <span class="kb-mono text-[9px] text-base-content/30 ml-1">{% trans "· edits here feed every channel" %}</span>
           </div>
-          {% comment %}Edit-in-place: Source canonical body editor — same autosave pattern.{% endcomment %}
+          {% comment %}Edit-in-place: Master copy body editor — same autosave pattern.{% endcomment %}
           <form method="post"
                 action="{% url 'syndication:version-edit' pk=source_row.content_version.pk %}"
                 hx-post="{% url 'syndication:version-edit' pk=source_row.content_version.pk %}"
