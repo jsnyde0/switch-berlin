@@ -724,10 +724,15 @@ class CapabilityFilteredPostComposerTabsTest(TestCase):
             "FetLife (both kinds) must be PRESENT in the post composer tab row.",
         )
 
-    def test_switch_present_in_post_composer_tab_row(self):
+    def test_switch_absent_from_post_composer_tab_row(self):
         """
-        Switch (kinds=['listing','promotion']) MUST appear in the post composer
-        tab row — it supports promotion.
+        ADR-010 D1 (kb-shzi.4): Switch does NOT support post promotion yet —
+        the capability gate in _eager_create_promotion_projections skips switch
+        even when the connection has kinds=['listing','promotion'].
+        Switch must NOT appear as a tab in the post composer.
+
+        When Switch posting ships, remove 'switch' from
+        _PLATFORMS_WITHOUT_POST_PROMOTION in services.py to flip this cheap.
         """
         url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
         response = self.client.get(url)
@@ -735,10 +740,11 @@ class CapabilityFilteredPostComposerTabsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        self.assertIn(
+        self.assertNotIn(
             "cfp-switch-page",
             content,
-            "Switch (both kinds) must be PRESENT in the post composer tab row.",
+            "Switch must NOT appear in the post composer tab row "
+            "(capability gate: Switch does not support post promotion yet, ADR-010 D1).",
         )
 
 

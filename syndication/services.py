@@ -301,6 +301,26 @@ def _eager_create_listing_projections(event, canonical_cv=None):
         )
 
 
+# ---------------------------------------------------------------------------
+# Platform capability: which platforms support promotion projections for posts
+# ---------------------------------------------------------------------------
+#
+# ADR-010 D1 + ADR-008 D3: Switch does not yet support post/promotion publishing,
+# so no switch promotion projection should be minted for posts.
+# This is a capability-aware gate, NOT a hard permanent ban — when Switch posting
+# ships, removing 'switch' from this set is the cheap flip (ADR-003).
+#
+# Platforms absent from this set are skipped at promotion-projection minting time.
+# A platform NOT listed here is implicitly capable (opt-out rather than opt-in),
+# so adding new platforms doesn't require updating this set.
+_PLATFORMS_WITHOUT_POST_PROMOTION = frozenset({"switch"})
+
+
+def _supports_post_promotion(platform: str) -> bool:
+    """Return True if the platform supports post promotion projections."""
+    return platform not in _PLATFORMS_WITHOUT_POST_PROMOTION
+
+
 def _eager_create_promotion_projections(post, canonical_cv=None):
     """
     ADR-016 D4: For each enabled PlatformConnection that supports 'promotion'
@@ -311,9 +331,19 @@ def _eager_create_promotion_projections(post, canonical_cv=None):
 
     canonical_cv is passed in to avoid redundant DB round-trips; must be the
     POST's canonical (post FK set, event FK null).
+
+    ADR-010 D1 + ADR-008 D3: platforms in _PLATFORMS_WITHOUT_POST_PROMOTION
+    (currently: switch) are skipped even if their connection has 'promotion'
+    in kinds — Switch does not support post promotion yet. When Switch posting
+    ships, remove 'switch' from _PLATFORMS_WITHOUT_POST_PROMOTION (cheap flip,
+    ADR-003).
     """
+    import logging as _logging
+
     from events.models import EventOrganizer
     from syndication.models import PlatformConnection, PlatformProjection
+
+    _logger = _logging.getLogger(__name__)
 
     if canonical_cv is None:
         canonical_cv = _ensure_canonical_content_version(post=post)
@@ -333,6 +363,16 @@ def _eager_create_promotion_projections(post, canonical_cv=None):
     for conn in connections:
         kinds = conn.kinds or []
         if "promotion" not in kinds:
+            continue
+        # ADR-010 D1 capability gate: skip platforms that don't support post promotion yet.
+        if not _supports_post_promotion(conn.platform):
+            _logger.info(
+                "_eager_create_promotion_projections: skipping %r connection %r "
+                "— platform does not support post promotion (ADR-010 D1). "
+                "Remove from _PLATFORMS_WITHOUT_POST_PROMOTION when Switch posting ships.",
+                conn.platform,
+                conn.pk,
+            )
             continue
         PlatformProjection.objects.create(
             connection=conn,

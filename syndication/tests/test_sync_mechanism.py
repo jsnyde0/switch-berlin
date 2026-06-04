@@ -10,7 +10,7 @@ Contract groups:
 (F) snapshot-no-propagation — editing SOURCE after downstream synced does NOT
     change downstream content
 (G) three render states — template renders correct indicator per state
-(H) post composer Source anchor — restored as first tab (ADR-010 D1)
+(H) post composer Master copy anchor — first tab (ADR-010 D1 / kb-shzi.4)
 (I) sync endpoint — version_copy_from sets sync_source; cycle guard enforced
 
 Assertions on response.content (NOT response.context — hollow per memory).
@@ -585,15 +585,17 @@ class ThreeRenderStatesTemplateTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# (G) Post composer Source anchor — restored as first tab (ADR-010 D1)
+# (G) Post composer Master copy anchor — first tab (ADR-010 D1 / kb-shzi.4)
 # ---------------------------------------------------------------------------
 
 
 class PostComposerSourceAnchorTest(TestCase):
     """
-    The post_syndication fragment must render a "Source" anchor as the first
-    tab (ADR-010 D1 — a Post has no native-home channel, so its canonical is
-    an abstract 'Source' anchor). Child C dropped this; D must restore it.
+    The post_syndication fragment must render a "Master copy" anchor as the
+    first tab (ADR-010 D1 — a Post has no native-home channel yet, so its
+    canonical is an abstract 'Master copy' anchor slot). Relabeled from
+    'Source' → 'Master copy' in kb-shzi.4 per ADR-010 D1 cheap-foresight.
+    The Alpine 'source' key is preserved for selectedPk compat (kb-shzi.2).
 
     Assertions on response.content.
     """
@@ -639,33 +641,38 @@ class PostComposerSourceAnchorTest(TestCase):
 
     def test_post_composer_renders_source_tab_first(self):
         """
-        The post_syndication fragment must include a 'Source' tab as the
+        The post_syndication fragment must include a 'Master copy' tab as the
         first channel tab — the abstract canonical anchor for a Post.
+
+        ADR-010 D1 (kb-shzi.4): relabeled from 'Source' → 'Master copy' with
+        helper text "edits here feed every channel". The Alpine 'source' key is
+        preserved for selectedPk compatibility (kb-shzi.2).
 
         Falsifiable guard: the old assertion (assertIn("Source", content)) was
         hollow because "Source not found" (the A1-invariant-violated error panel)
-        also contains "Source". This test is only meaningful when setUp creates
-        the canonical CV (see setUp above) so the happy path fires.
+        also contains "Source". This test uses "Master copy" + helper text.
 
         Strengthened assertions:
-        - The Source tab renders its "canonical post content" sub-label
-          (only present in the real Source tab panel, not the error fallback).
-        - The seeded canonical body text appears in the Source panel.
-        - The A1-invariant-violated error string "Source not found" is ABSENT.
+        - The Master copy tab renders its "edits here feed every channel" sub-label
+          (only present in the real Master copy tab panel, not the error fallback).
+        - The seeded canonical body text appears in the Master copy panel.
+        - The A1-invariant-violated error string "Master copy not found" is ABSENT.
         """
         response = self._get_fragment()
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # Real Source tab contains "canonical post content" sub-label (template line ~124)
-        self.assertIn("canonical post content", content)
-        # The seeded body text must appear inside the Source panel textarea
+        # Real Master copy tab contains "edits here feed every channel" sub-label
+        self.assertIn("edits here feed every channel", content)
+        # The seeded body text must appear inside the Master copy panel textarea
         self.assertIn("Come to our event!", content)
         # A1-invariant error fallback must NOT appear
-        self.assertNotIn("Source not found", content)
+        self.assertNotIn("Master copy not found", content)
 
     def test_source_tab_appears_before_other_channel_tabs(self):
         """
-        The 'Source' tab appears before Telegram/FetLife tabs in the DOM.
+        The 'Master copy' tab appears before Telegram/FetLife tabs in the DOM.
+
+        ADR-010 D1 (kb-shzi.4): relabeled from 'Source' → 'Master copy'.
         """
         # Create promotion projections so other channel tabs render
         post_cv, _ = ContentVersion.objects.get_or_create(
@@ -682,12 +689,12 @@ class PostComposerSourceAnchorTest(TestCase):
         )
         response = self._get_fragment()
         content = response.content.decode()
-        # "Source" must appear before "telegram" in the DOM
-        source_pos = content.find("Source")
+        # "Master copy" must appear before "telegram" in the DOM
+        source_pos = content.find("Master copy")
         telegram_pos = content.find("telegram")
-        self.assertGreater(source_pos, -1, "Source tab not found in content")
+        self.assertGreater(source_pos, -1, "Master copy tab not found in content")
         self.assertGreater(telegram_pos, -1, "Telegram tab not found in content")
-        self.assertLess(source_pos, telegram_pos, "Source tab must appear before Telegram tab")
+        self.assertLess(source_pos, telegram_pos, "Master copy tab must appear before Telegram tab")
 
 
 # ---------------------------------------------------------------------------
