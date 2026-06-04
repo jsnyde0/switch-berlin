@@ -1171,6 +1171,15 @@ def version_edit(request, pk):
             return _publishable_fragment_response_for_cv(request, version, action_error=str(exc))
         return _publishable_hub_redirect_for_cv(version)
 
+    # Acceptance bullet 4: detach-on-edit.
+    # If any projection pointing at this version has sync_source set, clear it now.
+    # The content already diverged (edit_version just mutated it); persisting the
+    # detach makes the state consistent: own CV + sync_source NULL → "Custom".
+    # No auth re-gate: edit_version above already confirmed can_edit authority.
+    _synced_consumers = list(version.projections.filter(sync_source__isnull=False))
+    for _proj in _synced_consumers:
+        detach_sync_source(_proj)
+
     if request.headers.get("HX-Request"):
         return _publishable_fragment_response_for_cv(request, version)
     return _publishable_hub_redirect_for_cv(version)

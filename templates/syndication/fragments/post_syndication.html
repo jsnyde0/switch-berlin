@@ -254,38 +254,111 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                     {% trans "Duplicate" %}
                   </button>
                 </form>
+                {% comment %}Cycle-guard picker (kb-ide0.4 bullet 6): only INDEPENDENT projections
+                (sync_source IS NULL) are offerable as sync sources. Synced channels are
+                themselves downstream — allowing them as sources creates A→B→C chains.
+                Uses source_projection_pk path so sync_source is persisted on the target.
+                ADR-008 D3: backend is the backstop; UI pre-filters for better UX.{% endcomment %}
                 {% if projection_rows|length > 1 %}
-                  <form method="post"
-                        action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-                        hx-target="#post-syndication"
-                        hx-swap="outerHTML"
-                        class="flex items-center gap-1.5 ml-auto">
-                    {% csrf_token %}
-                    <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
-                    <div class="relative">
-                      <select name="source_version_pk"
-                              class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
-                        {% for other_row in projection_rows %}
-                          {% if other_row.projection.pk != proj.pk %}
-                            <option value="{{ other_row.projection.content_version.pk }}">
-                              {{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
-                            </option>
-                          {% endif %}
-                        {% endfor %}
-                      </select>
-                      <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28"
-                            aria-hidden="true">
-                        <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
-                          <path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                      </span>
-                    </div>
-                    <button type="submit"
-                            class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/25 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
-                      {% trans "Apply" %}
-                    </button>
-                  </form>
+                  {% comment %}Discard-confirm modal (kb-ide0.4 bullet 5): when this channel
+                  is in state (iii) custom (own CV, sync_source NULL), re-syncing overwrites
+                  local edits. Alpine x-data scoped to the picker provides confirmResync state.{% endcomment %}
+                  <div x-data="{ confirmResync: false, pendingSourcePk: null }"
+                       class="flex items-center gap-1.5 ml-auto">
+                    {% if proj.sync_source == None and proj.content_version.name != "canonical" %}
+                      {% comment %}State (iii): custom — discard-confirm modal required before re-sync.{% endcomment %}
+                      <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Sync from" %}</span>
+                      <div class="relative">
+                        <select id="resync-select-post-{{ proj.pk }}"
+                                @change="pendingSourcePk = $event.target.value; confirmResync = true"
+                                class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
+                          <option value="">{% trans "— choose —" %}</option>
+                          {% for other_row in projection_rows %}
+                            {% if other_row.projection.pk != proj.pk and not other_row.projection.sync_source %}
+                              <option value="{{ other_row.projection.pk }}">
+                                {{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
+                              </option>
+                            {% endif %}
+                          {% endfor %}
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28"
+                              aria-hidden="true">
+                          <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+                            <path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                          </svg>
+                        </span>
+                      </div>
+                      {% comment %}Discard modal — ADR-008 D3: never silently overwrite local edits.{% endcomment %}
+                      <div x-show="confirmResync"
+                           x-cloak
+                           class="fixed inset-0 z-50 flex items-center justify-center"
+                           style="background: rgba(0,0,0,0.6)">
+                        <div class="px-6 py-5 max-w-sm w-full"
+                             style="background: rgb(18 10 28);
+                                    border: 1px solid rgba(255,255,255,0.12)">
+                          <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/80 mb-3">
+                            {% trans "Discard your edits?" %}
+                          </p>
+                          <p class="text-[12px] text-base-content/50 mb-5 leading-relaxed">
+                            {% trans "Re-syncing will replace your custom content for this channel with a snapshot from the chosen source. Your current edits will be lost." %}
+                          </p>
+                          <div class="flex items-center gap-3">
+                            <form method="post"
+                                  action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
+                                  hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
+                                  hx-target="#post-syndication"
+                                  hx-swap="outerHTML"
+                                  @submit="confirmResync = false">
+                              {% csrf_token %}
+                              <input type="hidden" name="source_projection_pk" :value="pendingSourcePk">
+                              <button type="submit"
+                                      class="kb-mono text-[10px] uppercase tracking-[0.14em] text-rose-400/80 hover:text-rose-400 px-3 py-1.5 border border-rose-400/30 hover:border-rose-400/60 transition-colors">
+                                {% trans "Discard and re-sync" %}
+                              </button>
+                            </form>
+                            <button type="button"
+                                    @click="confirmResync = false; pendingSourcePk = null; document.getElementById('resync-select-post-{{ proj.pk }}').value = ''"
+                                    class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/40 hover:text-base-content/70 transition-colors">
+                              {% trans "Cancel" %}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    {% else %}
+                      {% comment %}State (i)/(ii): canonical or synced — no local edits, submit directly.{% endcomment %}
+                      <form method="post"
+                            action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
+                            hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
+                            hx-target="#post-syndication"
+                            hx-swap="outerHTML"
+                            class="flex items-center gap-1.5">
+                        {% csrf_token %}
+                        <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
+                        <div class="relative">
+                          <select name="source_projection_pk"
+                                  class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
+                            {% for other_row in projection_rows %}
+                              {% if other_row.projection.pk != proj.pk and not other_row.projection.sync_source %}
+                                <option value="{{ other_row.projection.pk }}">
+                                  {{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
+                                </option>
+                              {% endif %}
+                            {% endfor %}
+                          </select>
+                          <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28"
+                                aria-hidden="true">
+                            <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+                              <path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                          </span>
+                        </div>
+                        <button type="submit"
+                                class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/25 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
+                          {% trans "Apply" %}
+                        </button>
+                      </form>
+                    {% endif %}
+                  </div>
                 {% endif %}
               </div>
               {% comment %}D2: Bubble-as-editor — the styled textarea IS the promotion surface.
