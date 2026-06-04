@@ -21,13 +21,18 @@ Context variables required:
     <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 truncate"
        title="{{ primary_profile.name }}">{{ primary_profile.name }}</p>
   </div>
-  {% comment %}Nav-sections slot — Channels link (add-channel discoverability, kb-shzi.5){% endcomment %}
-  <div class="studio-nav-sections pr-5 mb-3">
-    <a href="{% url 'syndication:connections-list' %}"
-       class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/35 hover:text-base-content/60 transition-colors">
-      {% trans "Channels" %} ↗
-    </a>
-  </div>
+  {% comment %}Nav-sections slot — Channels link (add-channel discoverability, kb-shzi.5).
+  Guarded by primary_profile for consistency with navbar.html (kb-shzi.6 F4).
+  The rail is only rendered when a primary_profile exists (it's always in context here),
+  but the explicit guard mirrors the navbar pattern and makes the intent clear.{% endcomment %}
+  {% if primary_profile %}
+    <div class="studio-nav-sections pr-5 mb-3">
+      <a href="{% url 'syndication:connections-list' %}"
+         class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/35 hover:text-base-content/60 transition-colors">
+        {% trans "Channels" %} ↗
+      </a>
+    </div>
+  {% endif %}
   {% comment %}Publishables section rule + label{% endcomment %}
   <div class="pr-5 mb-2.5">
     <div class="kb-rule"></div>

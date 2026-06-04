@@ -450,6 +450,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                       hx-target="#post-syndication"
                       hx-swap="outerHTML">
                   {% csrf_token %}
+                  {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                  <input type="hidden" name="selected_pk" :value="selectedPk">
                   <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
                 </form>
               {% endif %}
@@ -460,6 +462,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                       hx-target="#post-syndication"
                       hx-swap="outerHTML">
                   {% csrf_token %}
+                  {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                  <input type="hidden" name="selected_pk" :value="selectedPk">
                   <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
                 </form>
                 {% if proj.connection.platform == 'fetlife' %}
@@ -479,6 +483,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                       hx-target="#post-syndication"
                       hx-swap="outerHTML">
                   {% csrf_token %}
+                  {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                  <input type="hidden" name="selected_pk" :value="selectedPk">
                   <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
                 </form>
               {% endif %}
@@ -490,6 +496,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                       hx-target="#post-syndication"
                       hx-swap="outerHTML">
                   {% csrf_token %}
+                  {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                  <input type="hidden" name="selected_pk" :value="selectedPk">
                   <button type="submit"
                           class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
                     {% trans "Retry" %}

@@ -104,6 +104,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                   hx-target="#event-syndication"
                   hx-swap="outerHTML">
               {% csrf_token %}
+              {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+              <input type="hidden" name="selected_pk" :value="selectedPk">
               <button type="submit"
                       class="kb-mono text-[9px] uppercase tracking-[0.16em] text-fuchsia-300/80 hover:text-fuchsia-300 px-2.5 py-1.5 border border-fuchsia-300/25 hover:border-fuchsia-300/50 transition-colors">
                 {% trans "Publish all ready" %}
@@ -162,6 +164,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                             hx-target="#event-syndication"
                             hx-swap="outerHTML">
                         {% csrf_token %}
+                        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                        <input type="hidden" name="selected_pk" :value="selectedPk">
                         <button type="submit"
                                 class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
                                 title="{% trans 'Click to customize this channel independently' %}">
@@ -197,6 +201,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                               hx-target="#event-syndication"
                               hx-swap="outerHTML">
                           {% csrf_token %}
+                          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                          <input type="hidden" name="selected_pk" :value="selectedPk">
                           <button type="submit"
                                   class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors"
                                   title="{% trans 'Reset to canonical content' %}">↩ {% trans "Reset" %}</button>
@@ -216,6 +222,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                               hx-target="#event-syndication"
                               hx-swap="outerHTML">
                           {% csrf_token %}
+                          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                          <input type="hidden" name="selected_pk" :value="selectedPk">
                           <button type="submit"
                                   class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors"
                                   title="{% trans 'Reset to synced canonical content' %}">
@@ -524,6 +532,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                         hx-target="#event-syndication"
                         hx-swap="outerHTML">
                     {% csrf_token %}
+                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                    <input type="hidden" name="selected_pk" :value="selectedPk">
                     <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
                   </form>
                 {% endif %}
@@ -534,6 +544,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                         hx-target="#event-syndication"
                         hx-swap="outerHTML">
                     {% csrf_token %}
+                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                    <input type="hidden" name="selected_pk" :value="selectedPk">
                     <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
                   </form>
                   {% if proj.connection.platform == 'fetlife' %}
@@ -554,6 +566,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                         hx-target="#event-syndication"
                         hx-swap="outerHTML">
                     {% csrf_token %}
+                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                    <input type="hidden" name="selected_pk" :value="selectedPk">
                     <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
                   </form>
                 {% endif %}
@@ -565,6 +579,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                         hx-target="#event-syndication"
                         hx-swap="outerHTML">
                     {% csrf_token %}
+                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+                    <input type="hidden" name="selected_pk" :value="selectedPk">
                     <button type="submit"
                             class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
                       {% trans "Retry" %}
