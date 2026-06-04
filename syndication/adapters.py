@@ -25,6 +25,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 
+from events.services import publish_event
 from syndication.engine import render_projection, transition_status
 from syndication.models import PlatformProjection
 
@@ -141,6 +142,14 @@ def publish_switch_own_page(projection: PlatformProjection) -> None:
     projection.external_url = external_url
     projection.syndicated_at = timezone.now()
     projection.save(update_fields=["external_url", "syndicated_at", "updated_at"])
+
+    # Promote the canonical Event to 'published' (kb-shzi.1, ADR-016 D5).
+    # Switch own-page IS the listing — confirming the projection published means
+    # the event is now publicly visible. Idempotent: only stamps published_at on
+    # first publish (see events/services.py). ADAPTER-LOCAL to Switch only —
+    # Telegram and FetLife do NOT promote Event.status (they publish promotion
+    # content, not the Switch listing).
+    publish_event(event)
 
 
 # ---------------------------------------------------------------------------

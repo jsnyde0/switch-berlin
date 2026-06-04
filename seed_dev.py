@@ -80,11 +80,14 @@ print("Connections: switch, fetlife, telegram")
 # --- Event ---
 event = Event.objects.filter(slug="demo-nightfall-2026").first()
 if not event:
+    import datetime  # noqa: PLC0415
+
+    future_start = (timezone.now() + datetime.timedelta(days=14)).replace(hour=22, minute=0, second=0, microsecond=0)
     event = create_event(
         user=user,
         title="Nightfall — Queer Kink Gathering",
         slug="demo-nightfall-2026",
-        start=timezone.now().replace(hour=22, minute=0, second=0, microsecond=0),
+        start=future_start,
     )
     print(f"Created event: {event.title} (pk={event.pk})")
 else:
