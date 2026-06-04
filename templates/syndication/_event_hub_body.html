@@ -5,8 +5,11 @@ event_hub_fragment.html (layout-less HX swap target). One source of truth;
 neither the full page nor the fragment can diverge (kb-9f1h.3 carry-forward).
 
 Context variables required:
-  event     — Event instance
-  can_edit  — bool
+  event       — Event instance
+  can_edit    — bool
+  studio_swap — bool (optional, default falsy). When True, thread ?studio=1
+                to the event_syndication sub-fragment loader so the fragment
+                knows it is rendering inside the studio shell (kb-ide0.1).
 {% endcomment %}
 <div class="w-full pt-8 pb-16" x-data="{}">
   {# ── Slim event header ── #}
@@ -25,23 +28,9 @@ Context variables required:
       </p>
       <h1 class="kb-display text-[32px] font-light leading-tight truncate">{{ event.title }}</h1>
     </div>
-    {% if can_edit %}
-      <a href="{% url 'syndication:event-edit' pk=event.pk %}"
-         class="kb-btn-secondary text-[10px] shrink-0 mt-1">{% trans "Edit event" %}</a>
-    {% endif %}
   </div>
   <div class="kb-rule mb-6"></div>
-  {# event_facts — slim inline strip above the workspace #}
-  <section id="event-facts"
-           hx-get="{% url 'syndication:fragment-event-facts' pk=event.pk %}"
-           hx-trigger="load"
-           hx-swap="outerHTML">
-    <div class="py-3 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest">
-      {% trans "Loading event facts…" %}
-    </div>
-  </section>
-  <div class="kb-rule my-5"></div>
-  {# event_posts — compact collapsible below facts #}
+  {# event_posts — compact collapsible #}
   <section id="event-posts"
            hx-get="{% url 'syndication:fragment-event-posts' pk=event.pk %}"
            hx-trigger="load"
@@ -49,9 +38,10 @@ Context variables required:
     <div class="py-3 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest">{% trans "Loading posts…" %}</div>
   </section>
   <div class="kb-rule my-5"></div>
-  {# event_syndication — the main two-pane composer workspace #}
+  {# event_syndication — edit-in-place composer workspace (kb-ide0.1) #}
+  {# Thread ?studio=1 when inside the studio shell so the sub-fragment is context-aware #}
   <section id="event-syndication"
-           hx-get="{% url 'syndication:fragment-event-syndication' pk=event.pk %}"
+           hx-get="{% url 'syndication:fragment-event-syndication' pk=event.pk %}{% if studio_swap %}?studio=1{% endif %}"
            hx-trigger="load"
            hx-swap="outerHTML">
     <div class="py-10 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest text-center">

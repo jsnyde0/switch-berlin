@@ -2510,19 +2510,28 @@ class ChannelIconTabsRenderTest(TestCase):
             "No generate button/input must appear",
         )
 
-    def test_event_workspace_has_facts_header(self):
+    def test_event_workspace_has_event_title_in_header(self):
         """
-        The event hub page renders event facts as a slim header (D5).
-        The hub page must include the HTMX-loaded event-facts section.
+        The event hub page renders the event title in the page header (D1/D5).
+        After kb-ide0.1 D1: the event_facts HTMX-loader section is removed from
+        the hub body (facts are embedded in the Switch listing tab as edit-in-place
+        inputs). The hub header instead shows the event title directly.
         """
         response = self.client.get(f"/syndication/events/{self.event.pk}/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # The hub must include the event-facts HTMX trigger section
-        self.assertIn(
-            "event-facts",
+        # D1: hub body must NOT load event-facts separately; event info is in the tab
+        self.assertNotIn(
+            "fragments/event_facts/",
             content,
-            "Event hub must include the event-facts section (D5 shared header)",
+            "Event hub must NOT include the event-facts HTMX-loader after kb-ide0.1 D1 "
+            "(facts are now in the Switch listing tab edit-in-place card)",
+        )
+        # The event title is rendered in the slim header bar
+        self.assertIn(
+            "Tabs Test Event",
+            content,
+            "Event hub must include the event title in the page header",
         )
 
 

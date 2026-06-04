@@ -2,5 +2,7 @@
 {% comment %}
 Layout-less event hub body — returned on HX-Request for studio main-pane swap.
 Shares its body with the full-page event_hub.html via _event_hub_body.html.
+studio_swap=True activates HTMX swap attrs and threads ?studio=1 to the
+event_syndication sub-fragment loader so it is context-aware. kb-ide0.1.
 {% endcomment %}
-{% include "syndication/_event_hub_body.html" %}
+{% include "syndication/_event_hub_body.html" with studio_swap=True %}

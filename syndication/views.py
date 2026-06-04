@@ -183,6 +183,8 @@ def event_hub_edit(request, pk):
     Edit an Event via the web form.
     GET: render form pre-populated with current values.
     POST: call update_event service (co-equal with API), redirect to hub on success.
+    HTMX-aware (kb-ide0.1): on HX-Request, return the event_syndication fragment
+    so the edit-in-place card re-renders without a full page reload.
     """
     event = get_object_or_404(Event, pk=pk)
     if not can_edit(request.user, event):
@@ -201,6 +203,14 @@ def event_hub_edit(request, pk):
         if form.is_valid():
             cd = form.cleaned_data
             cover_file = cd.pop("cover_image", None)
+            # FIX 2 (ADR-008 D3): For HTMX/partial-form POSTs (card edit-in-place), only
+            # update fields that were explicitly present in the submitted POST data.
+            # Boolean checkbox fields are absent from POST when unchecked — on a partial
+            # form, "absent" means "user didn't touch it", not "user set it to False".
+            # The full-page edit (non-HTMX) submits all fields, so no filtering needed.
+            if request.headers.get("HX-Request"):
+                submitted_keys = set(request.POST.keys())
+                cd = {k: v for k, v in cd.items() if k in submitted_keys}
             update_event(user=request.user, event=event, **cd)
             if cover_file:
                 try:
@@ -215,6 +225,8 @@ def event_hub_edit(request, pk):
                             "event": event,
                         },
                     )
+            if request.headers.get("HX-Request"):
+                return fragment_event_syndication(request, pk=event.pk)
             return redirect("syndication:event-hub", pk=event.pk)
     else:
         # Include ALL editable fields so edit-load round-trips stored values.
@@ -414,6 +426,52 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     # Guards the "Publish all ready" button — no-op when none are ready (ADR-008 D3).
     has_ready_projections = any(row["projection"].status == "ready" for row in projection_rows)
 
+    # kb-ide0.1: thread studio context to the template (same pattern as
+    # fragment_post_syndication). The event_syndication template gates
+    # studio-specific HTMX attrs on this flag. Without ?studio=1 the fragment
+    # serves the standalone context (no hx-target="#studio-main" emitted).
+    studio_swap = bool(request.GET.get("studio"))
+
+    # kb-ide0.1 D2: pre-populate the EventForm with the event's current field
+    # values for the Switch listing edit-in-place card. The form renders structured
+    # inputs (title, description, start, etc.) inside the styled listing card.
+    # ADR-008 D2: simplest path — same form used by event_hub_edit, same initial dict.
+    import json as _json
+
+    event_form = EventForm(
+        initial={
+            "title": event.title,
+            "slug": event.slug,
+            "start": event.start,
+            "end": event.end,
+            "description": event.description,
+            "venue": event.venue_id,
+            "tags": ", ".join(event.tags.values_list("slug", flat=True)) if event.pk else "",
+            "dress_code": event.dress_code,
+            "content_warnings": (
+                _json.dumps(event.content_warnings)
+                if isinstance(event.content_warnings, list)
+                else event.content_warnings or ""
+            ),
+            "age_restriction": event.age_restriction,
+            "capacity": event.capacity,
+            "visibility": event.visibility,
+            "language": event.language,
+            "is_free": event.is_free,
+            "price_min_cents": event.price_min_cents,
+            "price_max_cents": event.price_max_cents,
+            "currency": event.currency,
+            "sliding_scale": event.sliding_scale,
+            "price_description": event.price_description,
+            "external_url": event.external_url,
+            "tickets_url": event.tickets_url,
+            "registration_required": event.registration_required,
+            "registration_url": event.registration_url,
+            "registration_email": event.registration_email,
+            "category": event.category,
+        }
+    )
+
     return render(
         request,
         "syndication/fragments/event_syndication.html",
@@ -429,6 +487,8 @@ def fragment_event_syndication(request, pk, *, action_error=None):
             "action_error": action_error,
             "consumers_map": consumers_map,
             "has_ready_projections": has_ready_projections,
+            "studio_swap": studio_swap,
+            "event_form": event_form,
         },
     )
 
