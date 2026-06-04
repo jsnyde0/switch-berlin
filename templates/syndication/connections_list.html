@@ -15,27 +15,29 @@
         </p>
       </div>
       <a href="{% url 'syndication:connection-create' %}"
-         class="kb-btn shrink-0 mt-1">
-        {% trans "Add connection" %}
-      </a>
+         class="kb-btn shrink-0 mt-1">{% trans "Add connection" %}</a>
     </div>
-
     {% if connections %}
       <div id="connections-list" class="flex flex-col">
         {% for conn in connections %}
           {# ── Connection row ──────────────────────────────────────── #}
           <div class="kb-bracketed-top py-5 {% if forloop.last %}kb-bracketed-bottom{% endif %}">
             <div class="flex items-start justify-between gap-4">
-
               {# Left: platform identity + destination + kinds #}
               <div class="flex flex-col gap-2 min-w-0">
                 {# Platform label #}
                 <span class="kb-eyebrow kb-eyebrow-strong tracking-[0.22em]">
-                  {% if conn.platform == "switch" %}{% trans "Switch" %}
-                  {% elif conn.platform == "fetlife" %}{% trans "FetLife" %}
-                  {% elif conn.platform == "tickettailor" %}{% trans "Ticket Tailor" %}
-                  {% elif conn.platform == "telegram" %}{% trans "Telegram" %}
-                  {% else %}{{ conn.platform }}{% endif %}
+                  {% if conn.platform == "switch" %}
+                    {% trans "Switch" %}
+                  {% elif conn.platform == "fetlife" %}
+                    {% trans "FetLife" %}
+                  {% elif conn.platform == "tickettailor" %}
+                    {% trans "Ticket Tailor" %}
+                  {% elif conn.platform == "telegram" %}
+                    {% trans "Telegram" %}
+                  {% else %}
+                    {{ conn.platform }}
+                  {% endif %}
                 </span>
                 {# Destination ID — not shown for Switch own-page #}
                 {% if conn.destination_id and conn.destination_id != "own-page" %}
@@ -49,18 +51,21 @@
                     {% if kind == "listing" %}
                       <span class="kb-tag kb-tag-accent">{% trans "Listing" %}</span>
                     {% elif kind == "promotion" %}
-                      <span class="kb-tag" style="border-color: rgb(167 139 250 / 0.45); color: rgb(196 181 253);">{% trans "Promotion" %}</span>
+                      <span class="kb-tag"
+                            style="border-color: rgb(167 139 250 / 0.45);
+                                   color: rgb(196 181 253)">{% trans "Promotion" %}</span>
                     {% endif %}
                   {% endfor %}
                 </div>
               </div>
-
               {# Right: enabled status + toggle action #}
               <div class="flex items-center gap-4 shrink-0 pt-0.5">
                 {% if conn.enabled %}
                   <span class="kb-tag kb-tag-success">{% trans "On" %}</span>
                 {% else %}
-                  <span class="kb-tag" style="color: var(--kb-ink-faint); border-color: var(--kb-hair);">{% trans "Off" %}</span>
+                  <span class="kb-tag"
+                        style="color: var(--kb-ink-faint);
+                               border-color: var(--kb-hair)">{% trans "Off" %}</span>
                 {% endif %}
                 <form method="post"
                       action="{% url 'syndication:connection-toggle' pk=conn.pk %}"
@@ -71,16 +76,18 @@
                   <button type="submit"
                           class="kb-btn-secondary text-[10px] py-2 px-3 min-h-[44px] min-w-[44px]"
                           aria-label="{% if conn.enabled %}{% trans 'Disable' %} {{ conn.destination_id|default:conn.platform }}{% else %}{% trans 'Enable' %} {{ conn.destination_id|default:conn.platform }}{% endif %}">
-                    {% if conn.enabled %}{% trans "Disable" %}{% else %}{% trans "Enable" %}{% endif %}
+                    {% if conn.enabled %}
+                      {% trans "Disable" %}
+                    {% else %}
+                      {% trans "Enable" %}
+                    {% endif %}
                   </button>
                 </form>
               </div>
-
             </div>
           </div>
         {% endfor %}
       </div>
-
     {% else %}
       {# ── Empty state ─────────────────────────────────────────────── #}
       <div class="py-20 text-center">

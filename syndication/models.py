@@ -455,6 +455,41 @@ class PlatformProjection(models.Model):
         ),
     )
 
+    # Sync-source self-FK (kb-ide0.4 D4 — snapshot + persisted pointer mechanism).
+    # ADR-016 D2 evolved: a nullable FK to the source PlatformProjection within
+    # the same publishable's projection set. Records which channel this one
+    # last synced FROM (snapshot at sync time; no live propagation).
+    #
+    # Three render states:
+    #   (i) content_version IS the shared canonical row AND sync_source IS NULL
+    #       → "Synced from canonical" (default)
+    #  (ii) own content_version AND sync_source IS NOT NULL
+    #       → "Synced from <that peer channel>"
+    # (iii) own content_version AND sync_source IS NULL
+    #       → "Custom / detached"
+    #
+    # Detach: clear sync_source when the user edits the channel (no confirm).
+    # Re-sync: discard-confirm → copy_from again + re-set sync_source.
+    # Cycle guard (backend): a projection is a legal source iff its own
+    # sync_source IS NULL. Service raises if asked to sync from a non-null-source
+    # projection (ADR-008 D3 fail-loud).
+    #
+    # on_delete=SET_NULL: deleting the source projection nulls this pointer
+    # (the synced channel keeps its independent content_version, just loses
+    # the recorded link — graceful degradation to "Custom" state).
+    sync_source = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sync_dependents",
+        help_text=(
+            "The source PlatformProjection this one last synced FROM (snapshot-plus-pointer). "
+            "NULL = not synced (canonical or custom). Non-null = synced from that peer. "
+            "A projection is a legal sync source iff its OWN sync_source IS NULL (cycle guard)."
+        ),
+    )
+
     # Frozen content snapshot (ADR-016 D2, kb-a4u.20 hybrid content model).
     # Null while status=draft (projection tracks live canonical via content_version).
     # Materialized at draft→ready transition: stores the full effective content

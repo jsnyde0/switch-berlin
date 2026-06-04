@@ -24,7 +24,8 @@
   {# Telegram: chat-app aesthetic — message bubble in teal-dark bg #}
   <div class="px-4 pt-3 pb-4">
     {% if proj.connection.destination_id %}
-      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(33 150 243 / 0.5)">{{ proj.connection.destination_id }}</p>
+      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+         style="color: rgb(33 150 243 / 0.5)">{{ proj.connection.destination_id }}</p>
     {% endif %}
     <div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 {% if full_content %}max-w-sm{% else %}max-w-xs{% endif %}"
          style="background: rgb(33 150 243 / 0.18);
@@ -40,7 +41,8 @@
   {# FetLife: gothic dark platform — warm-purple body text, dense type #}
   <div class="px-4 pt-3 pb-4">
     {% if proj.connection.destination_id %}
-      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(167 139 250 / 0.45)">{{ proj.connection.destination_id }}</p>
+      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+         style="color: rgb(167 139 250 / 0.45)">{{ proj.connection.destination_id }}</p>
     {% endif %}
     <p class="text-[12px] leading-relaxed {% if not full_content %}line-clamp-4{% endif %} whitespace-pre-wrap break-words"
        style="color: rgb(210 165 230 / 0.72)">{{ body }}</p>
@@ -51,7 +53,8 @@
     {# Fuchsia hairline accent signals native platform #}
     <div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5);"></div>
     {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
-      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(248 113 196 / 0.4)">{{ proj.connection.destination_id }}</p>
+      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+         style="color: rgb(248 113 196 / 0.4)">{{ proj.connection.destination_id }}</p>
     {% endif %}
     <p class="leading-relaxed {% if not full_content %}line-clamp-3{% endif %} whitespace-pre-wrap break-words kb-display"
        style="color: rgb(230 225 240 / 0.70);
@@ -61,7 +64,9 @@
 {% else %}
   <div class="px-4 pt-3 pb-4">
     {% if proj.connection.destination_id %}
-      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/30 mb-2">{{ proj.connection.destination_id }}</p>
+      <p class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/30 mb-2">
+        {{ proj.connection.destination_id }}
+      </p>
     {% endif %}
     <p class="text-[12px] text-base-content/55 leading-relaxed {% if not full_content %}line-clamp-3{% endif %} font-mono whitespace-pre-wrap break-words">
       {{ body }}

@@ -911,6 +911,64 @@ def copy_to(user, source_version, target_projections):
     return new_versions
 
 
+def sync_projection_from(user, target, source):
+    """
+    Sync a target projection FROM a source projection (kb-ide0.4 D4).
+
+    Mechanism: snapshot + persisted pointer (ADR-016 D2 evolved):
+    1. Cycle guard (ADR-008 D3 fail-loud): RAISE if source.sync_source is non-null.
+       A projection is a legal sync source iff its own sync_source IS NULL.
+       This prevents A→B→C chains (which would create implicit transitive coupling).
+    2. Copy source's CURRENT content_version into target as an INDEPENDENT new row
+       (calls the existing copy_from op).
+    3. Set target.sync_source = source (persisted pointer for reload survival + UI state).
+
+    NO live propagation: source edits after this call do NOT flow to target.
+    This is intentional — ToS-divergent destinations want divergence.
+
+    Gate: user must be able to edit target's event (can_edit seam via copy_from).
+
+    Returns the new ContentVersion minted for the target.
+    """
+    # Cycle guard (ADR-008 D3 — fail loud, backend-enforced, not UI-only).
+    if source.sync_source_id is not None:
+        raise ValueError(
+            f"sync_projection_from: source projection {source.pk!r} already has "
+            f"sync_source={source.sync_source_id!r}. "
+            "A projection is only a legal sync source when its own sync_source IS NULL. "
+            "This prevents cycle chains (A→B→C transitive coupling). "
+            "(ADR-008 D3: fail loud — cycle guard, backend-enforced)"
+        )
+
+    # One-time snapshot: copy source's current content_version to target.
+    new_cv = copy_from(user=user, projection=target, source_version=source.content_version)
+
+    # Persist the pointer so the state survives reload.
+    target.sync_source = source
+    target.save(update_fields=["sync_source", "updated_at"])
+
+    return new_cv
+
+
+def detach_sync_source(projection):
+    """
+    Detach a projection from its sync source — clear sync_source to None.
+
+    Called when the user edits a synced channel (no confirm required; the
+    content_version already has its own independent row from the original
+    copy_from — detach just records that the link is broken).
+
+    No auth gate here: this is called from the edit flow which is already
+    gated (edit_version / event_hub_edit call can_edit). Detach is a
+    lightweight metadata clear, not a destructive op.
+
+    Returns the projection (updated in-place, not refreshed).
+    """
+    projection.sync_source = None
+    projection.save(update_fields=["sync_source", "updated_at"])
+    return projection
+
+
 def customize(user, projection):
     """
     Duplicate the projection's CURRENT version into the projection's OWN new row

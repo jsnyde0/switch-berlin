@@ -39,6 +39,7 @@ from syndication.services import (
     create_event,
     create_post,
     customize,
+    detach_sync_source,
     duplicate,
     edit_version,
     get_publishables_for_profile,
@@ -49,6 +50,7 @@ from syndication.services import (
     publish_projection_direct,
     reset_to_canonical,
     set_event_cover,
+    sync_projection_from,
     update_event,
 )
 
@@ -555,8 +557,11 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     Shows the post's per-channel ContentVersions (promotion projections only —
     connections whose kinds contains "promotion"; listing-only connections are
     excluded, symmetric with the event composer's listing filter).
-    No "Source" tab is rendered — the post canonical-source model is being
-    finalized in kb-ide0.4.
+
+    ADR-010 D1 (kb-ide0.4): A Post has no native-home channel, so its canonical
+    is an abstract "Source" anchor. The Source tab is rendered FIRST in the tab row
+    — it is the default sync source for all secondary channels. source_row carries
+    the canonical ContentVersion body for this tab.
 
     Context mirrors fragment_event_syndication but scoped to the post's
     projections and its own canonical ContentVersion.
@@ -566,6 +571,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     import logging as _logging
 
     from syndication.engine import render_projection
+    from syndication.models import ContentVersion as _ContentVersion
 
     _logger = _logging.getLogger(__name__)
 
@@ -609,6 +615,29 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     # reads it and forwards it to post_syndication.html.
     studio_swap = bool(request.GET.get("studio"))
 
+    # ADR-010 D1 (kb-ide0.4): Resolve the post's canonical ContentVersion for
+    # the "Source" anchor tab (the abstract master a post anchors at, since
+    # posts have no native-home channel). Fail loud if absent (A1 invariant) —
+    # a missing canonical is a data bug (ADR-008 D3), not a silent gap.
+    try:
+        source_cv = _ContentVersion.objects.get(post=post, name="canonical")
+        source_body = source_cv.body if source_cv.body is not None else post.body
+    except _ContentVersion.DoesNotExist:
+        # A1 invariant violated — surface the error rather than hiding it.
+        source_cv = None
+        source_body = post.body  # Fallback to Post.body for display; log the violation.
+        _logger.warning(
+            "fragment_post_syndication: post %r has no canonical ContentVersion. "
+            "A1 invariant violated — every post must be seeded with a canonical CV. "
+            "(ADR-008 D3: fail loud). Falling back to post.body for Source tab display.",
+            post.pk,
+        )
+
+    source_row = {
+        "content_version": source_cv,
+        "body": source_body,
+    }
+
     return render(
         request,
         "syndication/fragments/post_syndication.html",
@@ -624,6 +653,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
             "consumers_map": consumers_map,
             "has_ready_projections": has_ready_projections,
             "studio_swap": studio_swap,
+            "source_row": source_row,
         },
     )
 
@@ -836,7 +866,7 @@ def _publishable_hub_redirect_for_cv(content_version):
     return redirect("syndication:post-hub", pk=post.pk)
 
 
-def _publishable_fragment_response(request, proj):
+def _publishable_fragment_response(request, proj, action_error=None):
     """
     Return the refreshed syndication fragment for the projection's publishable.
 
@@ -844,9 +874,9 @@ def _publishable_fragment_response(request, proj):
     post → post_syndication fragment). kb-q4u9.3 item 7.
     """
     if proj.kind == PlatformProjection.Kind.LISTING:
-        return fragment_event_syndication(request, pk=proj.source_event.pk)
+        return fragment_event_syndication(request, pk=proj.source_event.pk, action_error=action_error)
     if proj.kind == PlatformProjection.Kind.PROMOTION:
-        return fragment_post_syndication(request, pk=proj.source_post.pk)
+        return fragment_post_syndication(request, pk=proj.source_post.pk, action_error=action_error)
     raise ValueError(f"Unknown projection kind {proj.kind!r}")
 
 
@@ -1181,12 +1211,18 @@ def version_duplicate(request, pk):
 def version_copy_from(request, pk):
     """
     Copy-from: repoint the target projection at a NEW independent copy taken
-    from source_version (mint a new row from source, FK the projection to it).
+    from a source (mint a new row from source, FK the projection to it).
 
-    POST only. Calls copy_from(user, projection, source_version) service.
-    POST body: source_version_pk — the ContentVersion to copy from.
+    POST only. Two mutually exclusive POST params:
+    - source_projection_pk (preferred, kb-ide0.4): copies from a peer PlatformProjection
+      and sets projection.sync_source = that peer (snapshot + persisted pointer).
+      Enforces cycle guard: raises ValueError if source projection has non-null
+      sync_source (ADR-008 D3 fail-loud — backend-enforced, not UI-only).
+    - source_version_pk (legacy, kb-wz8m.5): copies from a bare ContentVersion
+      (no sync_source update — backward compatible with existing copy-from UI).
+
     HTMX-aware: returns refreshed syndication fragment on HX-Request.
-    ADR-008 D3: PermissionError → 403; ValueError → fail loud.
+    ADR-008 D3: PermissionError → 403; ValueError → surfaced as action_error.
     """
     from syndication.models import ContentVersion
 
@@ -1195,6 +1231,25 @@ def version_copy_from(request, pk):
     if request.method != "POST":
         return _publishable_hub_redirect(projection)
 
+    # --- Preferred path: source_projection_pk (sync with persisted pointer) ---
+    source_projection_pk = request.POST.get("source_projection_pk", "").strip()
+    if source_projection_pk:
+        source_proj = get_object_or_404(PlatformProjection, pk=source_projection_pk)
+        try:
+            sync_projection_from(user=request.user, target=projection, source=source_proj)
+        except PermissionError:
+            return render(request, "syndication/403.html", {}, status=403)
+        except ValueError as exc:
+            # Cycle guard violation or cross-event error — fail loud (ADR-008 D3).
+            if request.headers.get("HX-Request"):
+                return _publishable_fragment_response(request, projection, action_error=str(exc))
+            return _publishable_hub_redirect(projection)
+
+        if request.headers.get("HX-Request"):
+            return _publishable_fragment_response(request, projection)
+        return _publishable_hub_redirect(projection)
+
+    # --- Legacy path: source_version_pk (bare ContentVersion copy, no sync_source) ---
     source_version_pk = request.POST.get("source_version_pk", "").strip()
     if not source_version_pk:
         if request.headers.get("HX-Request"):
