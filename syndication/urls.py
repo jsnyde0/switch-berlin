@@ -71,6 +71,11 @@ urlpatterns = [
         name="projection-publish",
     ),
     path(
+        "projections/<int:pk>/direct-publish/",
+        views.projection_direct_publish,
+        name="projection-direct-publish",
+    ),
+    path(
         "projections/<int:pk>/mark-published/",
         views.projection_mark_published,
         name="projection-mark-published",

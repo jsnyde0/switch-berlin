@@ -18,7 +18,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
 {% endcomment %}
 {% with first_pk=projection_rows.0.projection.pk %}
   <section id="event-syndication"
-           x-data="{ selectedPk: {{ first_pk|default:'null' }} }">
+           x-data="{ selectedPk: {{ first_pk|default:'null' }}, autosaveSaved: false }"
+           x-on:kb:autosaved.document="autosaveSaved = true; setTimeout(() => autosaveSaved = false, 2000)">
     {% if action_error %}
       <div class="mb-5 px-4 py-3 border border-error/35 bg-error/8">
         <div class="flex items-start gap-3">
@@ -193,11 +194,15 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                       </div>
                     {% endif %}
                   </div>
+                  {% comment %}Autosave: hx-swap="none" + debounced trigger keeps focus.
+                  A subtle "Saved" indicator (x-data inside the section x-data root)
+                  updates via hx-on::after-request without DOM replacement.{% endcomment %}
                   <form method="post"
                         action="{% url 'syndication:event-edit' pk=event.pk %}"
                         hx-post="{% url 'syndication:event-edit' pk=event.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
+                        hx-swap="none"
+                        hx-trigger="input changed delay:600ms from:input, input changed delay:600ms from:textarea, input changed delay:600ms from:select"
+                        hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
                     {% csrf_token %}
                     {% comment %}Styled Switch listing card containing event form inputs.
                     The card mirrors the Switch preview styling from _channel_preview.html
@@ -292,9 +297,13 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                     {{ event_form.registration_url }}
                     {{ event_form.registration_email }}
                     {{ event_form.category }}
-                    <div class="flex items-center gap-4 pt-3"
+                    {% comment %}D6: No explicit Save button — autosave handles persistence.
+                    A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomment %}
+                    <div class="flex items-center gap-3 pt-3"
                          style="border-top: 1px solid rgba(255,255,255,0.06)">
-                      <button type="submit" class="kb-btn text-[9px] px-5 py-2.5 min-h-[44px]">{% trans "Save" %}</button>
+                      <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
+                            x-show="autosaveSaved"
+                            x-cloak>{% trans "Saved" %}</span>
                     </div>
                   </form>
                 {% else %}
@@ -383,11 +392,13 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                       </form>
                     {% endif %}
                   </div>
+                  {% comment %}Autosave: hx-swap="none" + debounced trigger keeps focus intact.{% endcomment %}
                   <form method="post"
                         action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
                         hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
+                        hx-swap="none"
+                        hx-trigger="input changed delay:600ms from:textarea[name='body']"
+                        hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
                     {% csrf_token %}
                     <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 block mb-3">
                       {% trans "Body" %}
@@ -397,9 +408,12 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                               style="padding-left: 0;
                                      padding-right: 0"
                               placeholder="{% trans "Write the post body for this channel…" %}">{{ body }}</textarea>
-                    <div class="flex items-center gap-4 mt-4 pt-3"
+                    {% comment %}D6: No explicit Save button — autosave handles persistence.{% endcomment %}
+                    <div class="flex items-center gap-3 mt-4 pt-3"
                          style="border-top: 1px solid rgba(255,255,255,0.06)">
-                      <button type="submit" class="kb-btn text-[9px] px-5 py-2.5 min-h-[44px]">{% trans "Save" %}</button>
+                      <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
+                            x-show="autosaveSaved"
+                            x-cloak>{% trans "Saved" %}</span>
                       {% if proj.content_version.provenance == 'manual' %}
                         <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-sky-400/45">{% trans "Edited" %}</span>
                       {% elif proj.content_version.provenance == 'agent_supplied' %}
@@ -429,15 +443,16 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
             {% if can_edit or can_publish %}
               <div class="flex items-center gap-2 flex-wrap pt-4"
                    style="border-top: 1px solid rgba(255,255,255,0.07)">
-                {% if proj.status == 'draft' and can_edit %}
+                {% comment %}D6: One Publish CTA — drives internal draft→ready→published sequence.
+                No separate Approve gate for the solo flow.{% endcomment %}
+                {% if proj.status == 'draft' and can_publish %}
                   <form method="post"
-                        action="{% url 'syndication:projection-approve' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+                        action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+                        hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
                         hx-target="#event-syndication"
                         hx-swap="outerHTML">
                     {% csrf_token %}
-                    <button type="submit"
-                            class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Approve" %}</button>
+                    <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
                   </form>
                 {% endif %}
                 {% if proj.status == 'ready' and can_publish %}
@@ -471,6 +486,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                   </form>
                 {% endif %}
                 {% if proj.status == 'failed' %}
+                  {% comment %}Retry via approve_projection (draft→ready) — still valid for failed projections.{% endcomment %}
                   <form method="post"
                         action="{% url 'syndication:projection-approve' pk=proj.pk %}"
                         hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"

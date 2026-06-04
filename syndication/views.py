@@ -46,6 +46,7 @@ from syndication.services import (
     publish_all_ready_projections,
     publish_all_ready_projections_for_post,
     publish_projection,
+    publish_projection_direct,
     reset_to_canonical,
     set_event_cover,
     update_event,
@@ -926,6 +927,37 @@ def projection_publish(request, pk):
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
         # ADR-008 D3: fail loud — surface the error, never return success-shaped output
+        if request.headers.get("HX-Request"):
+            return _projection_transition_error_response(request, exc, proj)
+        return _publishable_hub_redirect(proj)
+
+    if request.headers.get("HX-Request"):
+        return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
+
+
+@login_required
+def projection_direct_publish(request, pk):
+    """
+    Direct-publish: solo-flow Publish CTA (kb-ide0.2 D6).
+
+    Drives the internal draft→ready→published two-step transparently.
+    If the projection is 'draft': approve (freeze frozen_content) then publish.
+    If the projection is 'ready': publish directly.
+
+    POST only. Calls publish_projection_direct service.
+    HTMX-aware: returns refreshed syndication fragment on HX-Request.
+    ADR-008 D3: ValueError (illegal transition) surfaces as error state.
+    """
+    proj = get_object_or_404(PlatformProjection, pk=pk)
+    if request.method != "POST":
+        return _publishable_hub_redirect(proj)
+
+    try:
+        publish_projection_direct(user=request.user, projection=proj)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
         if request.headers.get("HX-Request"):
             return _projection_transition_error_response(request, exc, proj)
         return _publishable_hub_redirect(proj)

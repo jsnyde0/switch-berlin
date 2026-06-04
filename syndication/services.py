@@ -1152,6 +1152,42 @@ def publish_projection(user, projection):
     return projection
 
 
+def publish_projection_direct(user, projection):
+    """
+    Direct-publish: drive the internal draft→ready→published two-step transparently.
+
+    Solo-flow CTA (kb-ide0.2 D6): the user sees one Publish button; this service
+    drives the internal sequence so frozen_content is always materialized before
+    the projection reaches 'published'.
+
+    - If projection is 'draft': call approve_projection (draft→ready, freezes
+      frozen_content), THEN publish_projection (ready→published).
+    - If projection is already 'ready': call publish_projection directly (freeze
+      already happened at approve time).
+    - If projection is in any other status: delegate to publish_projection which
+      will raise ValueError via the engine (ADR-008 D3 — fail loud).
+
+    The three-state engine model (_LEGAL_TRANSITIONS) is UNCHANGED; this service
+    just sequences the two existing service calls for the common solo case.
+
+    ADR-008 D3: frozen_content is NEVER null on a published row — the approve
+    step materializes it before the publish step runs.
+
+    Raises PermissionError if user lacks edit or publish authority.
+    Raises ValueError if the transition is illegal (engine invariant).
+    """
+    from syndication.models import PlatformProjection as _PP
+
+    if projection.status == _PP.Status.DRAFT:
+        # Step 1: draft → ready (materializes frozen_content)
+        approve_projection(user=user, projection=projection)
+        # projection is now in 'ready' status; frozen_content is set
+
+    # Step 2: ready → published (or raises if status is unexpected)
+    publish_projection(user=user, projection=projection)
+    return projection
+
+
 def mark_projection_published(user, projection):
     """
     Mark a projection as published (actor-attested, out-of-band posting).
