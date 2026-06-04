@@ -738,3 +738,73 @@ class CapabilityFilteredPostComposerTabsTest(TestCase):
             content,
             "Switch (both kinds) must be PRESENT in the post composer tab row.",
         )
+
+
+class ListingOnlyChannelAbsentFromPostComposerTest(TestCase):
+    """
+    kb-ide0.3 Fix 1: The post composer (post_syndication fragment) view MUST
+    filter projections to only those whose connection.kinds contains "promotion".
+    A listing-only connection (kinds=['listing']) must be ABSENT from the post
+    composer tab row — its projection must not appear even if one exists.
+
+    This test was RED before Fix 1 (the view fetched all source_post projections
+    without the kinds filter) and GREEN after.
+
+    Assertions on response.content (NOT response.context).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="loa_user", email="loa@test.com", password="pw")
+        self.profile = _make_profile("LOA Org", "loa-org", user=self.user)
+        self.event = _make_event(self.profile, "LOA Event", "loa-event")
+        self.post = _make_post(self.event, "LOA Post Headline")
+
+        # listing-only connection — must be ABSENT from post composer tabs
+        self.listing_only_conn = _make_connection(
+            self.profile, "fetlife", "loa-fetlife-listing-only", kinds=["listing"]
+        )
+
+        # Manually create a projection for the listing-only connection tied
+        # to the post — simulates a corrupt/unexpected DB state, or tests that
+        # the view-layer filter is the real guard (not just the eager-creation
+        # invariant). We use PlatformProjection.objects.create directly to
+        # bypass service-layer guards.
+        from syndication.models import ContentVersion, PlatformProjection
+        cv = ContentVersion.objects.create(
+            post=self.post,
+            name="canonical",
+            body="listing-only body",
+        )
+        self.listing_only_proj = PlatformProjection.objects.create(
+            connection=self.listing_only_conn,
+            source_post=self.post,
+            content_version=cv,
+            kind=PlatformProjection.Kind.LISTING,
+        )
+
+        self.client.force_login(self.user)
+
+    def test_listing_only_connection_absent_from_post_composer_tab_row(self):
+        """
+        A listing-only connection (kinds=['listing']) whose projection is
+        associated to the post MUST NOT appear in the post composer tab row.
+        The view-layer 'promotion' filter is the real guard; the listing-only
+        projection must be excluded regardless of eager-creation invariants.
+
+        This test was RED before Fix 1 (no kinds filter in fragment_post_syndication)
+        and GREEN after (symmetric promotion filter added).
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertNotIn(
+            "loa-fetlife-listing-only",
+            content,
+            "Listing-only connection (kinds=['listing']) MUST be ABSENT from the "
+            "post composer tab row. The view must filter to promotion-capable "
+            "connections only — not rely solely on the eager-creation invariant.",
+        )

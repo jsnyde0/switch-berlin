@@ -552,9 +552,11 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     """
     post_syndication fragment: the per-post Typefully composer workspace.
 
-    Shows the post's per-channel ContentVersions (promotion projections).
-    Canonical is anchored at a "Source" tab (a post has no native-home channel,
-    unlike events which anchor at Switch — kb-q4u9.3 D3, ADR-008 D2).
+    Shows the post's per-channel ContentVersions (promotion projections only —
+    connections whose kinds contains "promotion"; listing-only connections are
+    excluded, symmetric with the event composer's listing filter).
+    No "Source" tab is rendered — the post canonical-source model is being
+    finalized in kb-ide0.4.
 
     Context mirrors fragment_event_syndication but scoped to the post's
     projections and its own canonical ContentVersion.
@@ -572,11 +574,17 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     user_can_edit = can_edit(request.user, event)
     user_can_publish = can_publish(request.user, event)
 
-    projections = list(
+    # kb-ide0.3 D3: Post composer shows ONLY promotion projections (connections
+    # whose kinds contains "promotion"). Listing-only connections belong to the
+    # event composer, not the post composer. No hard-coded platform names:
+    # kinds drives the filter — symmetric with the event-side "listing" guard
+    # in fragment_event_syndication (ADR-008 D2/D3 — defend the invariant).
+    all_post_projections = list(
         PlatformProjection.objects.filter(source_post=post)
         .select_related("connection", "source_post")
         .order_by("connection__platform")
     )
+    projections = [p for p in all_post_projections if "promotion" in (p.connection.kinds or [])]
 
     rendered_rows = {}
     projection_rows = []
