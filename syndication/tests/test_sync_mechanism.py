@@ -609,6 +609,17 @@ class PostComposerSourceAnchorTest(TestCase):
             headline="Test promo post",
             body="Come to our event!",
         )
+        # A1 seed: create the post's canonical ContentVersion (required by the
+        # fragment_post_syndication view to render the real Source tab panel rather
+        # than the "Source not found" error fallback). Without this, the view renders
+        # the A1-invariant-violated error path — which ALSO contains the substring
+        # "Source", making the old assertion hollow. (kb-ide0 re-verify finding.)
+        self.post_cv = ContentVersion.objects.create(
+            post=self.post,
+            name="canonical",
+            body="Come to our event!",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
         self.conn_telegram = PlatformConnection.objects.create(
             organizer=self.profile,
             platform="telegram",
@@ -631,12 +642,27 @@ class PostComposerSourceAnchorTest(TestCase):
         """
         The post_syndication fragment must include a 'Source' tab as the
         first channel tab — the abstract canonical anchor for a Post.
+
+        Falsifiable guard: the old assertion (assertIn("Source", content)) was
+        hollow because "Source not found" (the A1-invariant-violated error panel)
+        also contains "Source". This test is only meaningful when setUp creates
+        the canonical CV (see setUp above) so the happy path fires.
+
+        Strengthened assertions:
+        - The Source tab renders its "canonical post content" sub-label
+          (only present in the real Source tab panel, not the error fallback).
+        - The seeded canonical body text appears in the Source panel.
+        - The A1-invariant-violated error string "Source not found" is ABSENT.
         """
         response = self._get_fragment()
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # Must have a "Source" label as a tab
-        self.assertIn("Source", content)
+        # Real Source tab contains "canonical post content" sub-label (template line ~124)
+        self.assertIn("canonical post content", content)
+        # The seeded body text must appear inside the Source panel textarea
+        self.assertIn("Come to our event!", content)
+        # A1-invariant error fallback must NOT appear
+        self.assertNotIn("Source not found", content)
 
     def test_source_tab_appears_before_other_channel_tabs(self):
         """

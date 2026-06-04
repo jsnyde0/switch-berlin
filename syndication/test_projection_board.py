@@ -176,34 +176,106 @@ class BoardFragmentRenderTest(TestCase):
 
     def test_fragment_renders_only_listing_projections(self):
         """
-        kb-ide0.3: The event composer shows ONLY listing projections.
-        Promotion projections (post-owned) belong in the post composer, not here.
+        kb-ide0.3: The event composer shows ONLY listing projections (connections
+        whose kinds contains "listing"). The D3 kinds filter in
+        fragment_event_syndication must exclude source_event-linked projections
+        on connections that lack "listing" in their kinds.
+
+        The old version of this test was HOLLOW: it used _make_promotion_projection
+        (source_post-linked), which was excluded by the pre-existing
+        source_event=event ORM filter — the D3 kinds filter was never exercised.
+
+        This version creates a source_event-linked projection on a promotion-only
+        connection (kinds=["promotion"]). That row reaches the kinds filter but
+        must be dropped. The listing projection on a listing-capable connection
+        must be the only one that survives.
+
+        Primary assertions are on response.content (rendered HTML tabs) — so a
+        broken template cannot hide a failing filter.
         """
-        proj1 = _make_listing_projection(self.conn, self.event)
-        post = _make_post(self.event)
-        _make_promotion_projection(self.conn, post)
+        from syndication.models import ContentVersion, PlatformProjection
+
+        # Listing-capable connection (kinds contains "listing") — projection should appear
+        conn_listing = _make_connection(
+            self.profile, platform="fetlife", destination_id="fl-listing-cap", kinds=["listing"]
+        )
+        proj1 = _make_listing_projection(conn_listing, self.event)
+
+        # Promotion-only connection (kinds does NOT contain "listing") — same source_event
+        # so it passes the ORM filter, but the D3 kinds filter must exclude it.
+        conn_promo_only = _make_connection(
+            self.profile, platform="telegram", destination_id="tg-promo-only", kinds=["promotion"]
+        )
+        cv_for_excluded = _make_content_version(self.event, name="tg-promo-only-cv")
+        PlatformProjection.objects.create(
+            connection=conn_promo_only,
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            source_event=self.event,
+            content_version=cv_for_excluded,
+        )
 
         response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
-        # Context must contain only the listing projection (not the promotion one)
+        content = response.content.decode()
+
+        # Primary: rendered HTML must include the listing-capable connection's destination_id
+        # and must NOT include the promotion-only connection's destination_id.
+        self.assertIn("fl-listing-cap", content, "Listing-capable connection tab must be rendered")
+        self.assertNotIn(
+            "tg-promo-only",
+            content,
+            "Promotion-only connection tab must be excluded by the D3 kinds filter",
+        )
+
+        # Secondary: context cross-check (listing projection is the only one)
         projections = list(response.context["projections"])
         self.assertEqual(len(projections), 1)
-        pk_set = {p.pk for p in projections}
-        self.assertIn(proj1.pk, pk_set)
+        self.assertEqual(projections[0].pk, proj1.pk)
 
     def test_fragment_excludes_promotion_projections(self):
         """
-        kb-ide0.3: The event composer must NOT show promotion projections
-        (post-owned, source_post-linked). Those belong to the post composer.
+        kb-ide0.3: The event composer must NOT show projections on connections
+        whose kinds list does NOT contain "listing" (promotion-only connections).
+
+        The old version of this test was HOLLOW: it used _make_promotion_projection
+        (source_post-linked), which was already excluded by the ORM source_event
+        filter — the D3 kinds filter was never reached or tested.
+
+        This version creates a source_event-linked projection on a promotion-only
+        connection (kinds=["promotion"]) so only the D3 kinds filter can exclude it.
+
+        Primary assertion is on response.content so a broken template cannot pass.
         """
-        post = _make_post(self.event)
-        promo_proj = _make_promotion_projection(self.conn, post)
+        from syndication.models import ContentVersion, PlatformProjection
+
+        conn_promo_only = _make_connection(
+            self.profile, platform="telegram", destination_id="tg-promo-excl", kinds=["promotion"]
+        )
+        cv = _make_content_version(self.event, name="tg-promo-excl-cv")
+        promo_proj = PlatformProjection.objects.create(
+            connection=conn_promo_only,
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            source_event=self.event,
+            content_version=cv,
+        )
 
         response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # Primary: the promotion-only connection's destination_id must NOT appear in rendered tabs
+        self.assertNotIn(
+            "tg-promo-excl",
+            content,
+            "Promotion-only connection must be excluded by D3 kinds filter — must not render a tab",
+        )
+
+        # Secondary: context cross-check
         projections = list(response.context["projections"])
         pk_set = {p.pk for p in projections}
-        self.assertNotIn(promo_proj.pk, pk_set, "Promotion projection must NOT appear in event composer")
+        self.assertNotIn(promo_proj.pk, pk_set, "Promotion-only projection must NOT appear in event composer")
 
     def test_fragment_projection_carries_status(self):
         """Each projection in context has the correct status value."""
