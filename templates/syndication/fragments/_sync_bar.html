@@ -30,6 +30,8 @@ States:
           hx-target="{{ fragment_target }}"
           hx-swap="outerHTML">
       {% csrf_token %}
+      {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+      <input type="hidden" name="selected_pk" :value="selectedPk">
       <button type="submit"
               class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
               title="{% trans 'Click to customize this channel independently' %}">
@@ -54,6 +56,8 @@ States:
             hx-target="{{ fragment_target }}"
             hx-swap="outerHTML">
         {% csrf_token %}
+        {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
         <button type="submit"
                 class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors"
                 title="{% trans 'Reset to canonical content' %}">↩ {% trans "Reset" %}</button>
@@ -73,6 +77,8 @@ States:
             hx-target="{{ fragment_target }}"
             hx-swap="outerHTML">
         {% csrf_token %}
+        {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
         <button type="submit"
                 class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors"
                 title="{% trans 'Reset to synced canonical content' %}">↩ {% trans "Reset to synced" %}</button>

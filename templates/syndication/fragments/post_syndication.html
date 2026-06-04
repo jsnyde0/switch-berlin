@@ -17,9 +17,13 @@ studio_swap: when True (threaded via ?studio=1 from the hub body in studio
 
 Alpine 3.x: own x-data root required on each HTMX swap target.
 {% endcomment %}
-<section id="post-syndication"
-         x-data="{ selectedPk: 'source', autosaveSaved: false }"
-         x-on:kb:autosaved.document="autosaveSaved = true; setTimeout(() => autosaveSaved = false, 2000)">
+<section id="post-syndication" x-data="{ selectedPk:
+  {% if selected_pk %}
+    {{ selected_pk }}
+  {% else %}
+    'source'
+  {% endif %}
+  , autosaveSaved: false }" x-on:kb:autosaved.document="autosaveSaved = true; setTimeout(() => autosaveSaved = false, 2000)">
   {% if action_error %}
     <div class="mb-5 px-4 py-3 border border-error/35 bg-error/8">
       <div class="flex items-start gap-3">
@@ -216,6 +220,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                       hx-target="#post-syndication"
                       hx-swap="outerHTML">
                   {% csrf_token %}
+                  {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
+                  <input type="hidden" name="selected_pk" :value="selectedPk">
                   <button type="submit"
                           class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/28 hover:text-base-content/55 transition-colors">
                     {% trans "Duplicate" %}

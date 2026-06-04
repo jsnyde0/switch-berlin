@@ -393,12 +393,18 @@ class PostHubStandaloneCrossLinkTest(TestCase):
         self.post = _make_post(self.event, "PHSA Post Headline")
         self.client.force_login(self.user)
 
-    def test_standalone_post_hub_cross_link_has_no_bare_hx_target_studio_main(self):
+    def test_standalone_post_hub_renders_studio_shell_with_studio_main(self):
         """
-        The standalone post_hub page (normal GET — no HX-Request header) must
-        NOT render hx-target="#studio-main" on the "Event hub" back-link.
-        Without a studio shell the target element doesn't exist, and HTMX
-        would intercept the click and do nothing (ADR-008 D3 violation).
+        kb-shzi.2: The standalone post_hub page (normal GET — no HX-Request header)
+        now renders the studio two-pane shell, so id="studio-main" EXISTS on the page.
+
+        This supersedes the old test that asserted hx-target="#studio-main" was absent
+        (because the standalone page had no studio shell). After kb-shzi.2, the standalone
+        page IS the studio shell, so:
+        1. id="studio-main" is present (the shell is rendered)
+        2. hx-target="#studio-main" on internal links is NOW safe/correct (the target exists)
+
+        The old premise ("no studio shell on this page") no longer holds.
         """
         url = f"/syndication/posts/{self.post.pk}/"
         response = self.client.get(url)
@@ -406,11 +412,12 @@ class PostHubStandaloneCrossLinkTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        self.assertNotIn(
-            'hx-target="#studio-main"',
+        # The standalone page now has the studio shell with #studio-main
+        self.assertIn(
+            'id="studio-main"',
             content,
-            "Standalone post_hub must NOT emit hx-target='#studio-main' — "
-            "no studio shell on this page; HTMX would silently no-op the click.",
+            "kb-shzi.2: Standalone post_hub must now render id='studio-main' — "
+            "the standalone page IS the studio shell after this fix.",
         )
 
     def test_standalone_post_hub_cross_link_has_plain_href(self):

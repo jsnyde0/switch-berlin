@@ -1,6 +1,36 @@
-{% extends "layouts/_default.html" %}
+{% extends "_base.html" %}
 {% load i18n %}
 {% block title %}{{ post.headline }} — Switch Post Workspace{% endblock %}
-{% block content %}
-  {% include "syndication/_post_hub_body.html" %}
-{% endblock content %}
+{% comment %}
+Standalone full-page post hub (kb-shzi.2).
+
+Renders the studio two-pane shell (rail + #studio-main with the composer inside)
+so that plain GET / refresh / deep-link gives the same rail-plus-composer experience.
+Without this, the standalone page extended layouts/_default.html which has no rail.
+
+Shares _studio_rail.html with studio.html and event_hub.html.
+Shares _post_hub_body.html with post_hub_fragment.html.
+studio_swap=True so HTMX cross-links (Event hub link) resolve within the shell.
+
+Context variables required (in addition to the base hub ctx):
+  primary_profile  — Profile instance (claimant's profile)
+  publishables     — list of {"kind": "event"|"post", "obj": <instance>} dicts
+  current_path     — request.path for active-row detection
+  studio_swap      — True (always; this page IS the studio shell)
+{% endcomment %}
+{% block footer %}
+{% endblock footer %}
+{% block body_content %}
+  <div class="antialiased flex flex-col" style="min-height: 100vh">
+    <c-navbar />
+    <div class="flex flex-1 items-stretch w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {% comment %}── Left rail ──────────────────────────────────────────────{% endcomment %}
+      {% include "syndication/_studio_rail.html" %}
+      {% comment %}── Main pane (#studio-main, HTMX swap target) ──────────────{% endcomment %}
+      <main id="studio-main"
+            class="flex-1 min-w-0 px-6 sm:px-8 lg:px-10 pt-6 pb-20">
+        {% include "syndication/_post_hub_body.html" with studio_swap=True %}
+      </main>
+    </div>
+  </div>
+{% endblock body_content %}

@@ -170,6 +170,12 @@ def event_hub(request, pk):
     layout-less body fragment (no {% extends %} so it can be swapped into
     #studio-main without nesting <head>/<body>). Normal GET returns the full
     page for deep-link/refresh compatibility.
+
+    kb-shzi.2 (BUG 1 fix): the full-page response now renders the studio
+    two-pane shell (rail + #studio-main) so that direct GET / refresh /
+    deep-link all show the rail — not just in-studio HTMX navigation.
+    Rail context (primary_profile, publishables, current_path) is populated
+    via the same pattern as the studio front-door view.
     """
     event = get_object_or_404(Event, pk=pk)
     user_can_edit = can_edit(request.user, event)
@@ -179,6 +185,28 @@ def event_hub(request, pk):
     }
     if request.headers.get("HX-Request"):
         return render(request, "syndication/event_hub_fragment.html", ctx)
+
+    # Full-page render: populate the studio shell rail context (kb-shzi.2).
+    # Use the same pattern as the studio view: get the claimant's profile and
+    # their publishables. If no claimant, fall back gracefully (no rail data).
+    from events.models import Event as _Event
+    from organizers.models import ProfileClaim
+
+    claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
+    if claim is not None:
+        primary_profile = claim.profile
+        raw_publishables = get_publishables_for_profile(primary_profile)
+        publishables = [
+            {"kind": "event" if isinstance(item, _Event) else "post", "obj": item} for item in raw_publishables
+        ]
+        ctx.update(
+            {
+                "primary_profile": primary_profile,
+                "publishables": publishables,
+                "current_path": request.path,
+            }
+        )
+
     return render(request, "syndication/event_hub.html", ctx)
 
 
@@ -498,6 +526,19 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     ):
         event_form.fields[_carry_field].widget = _HiddenInput()
 
+    # kb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
+    # re-opens the same channel tab. The action POSTs (customize/reset/duplicate)
+    # submit selected_pk as a hidden input; we read it from POST (or GET fallback),
+    # validate it against the current projection set, and fall back to first_pk
+    # if the pk is absent or no longer exists.
+    # The autosave path (hx-swap="none") does NOT use this — no change there.
+    raw_selected = request.POST.get("selected_pk") or request.GET.get("selected_pk") or ""
+    projection_pks = {str(proj.pk) for proj in projections}
+    if raw_selected and raw_selected in projection_pks:
+        selected_pk = int(raw_selected)
+    else:
+        selected_pk = None  # None → template falls back to first_pk
+
     return render(
         request,
         "syndication/fragments/event_syndication.html",
@@ -515,6 +556,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
             "has_ready_projections": has_ready_projections,
             "studio_swap": studio_swap,
             "event_form": event_form,
+            "selected_pk": selected_pk,
         },
     )
 
@@ -537,6 +579,10 @@ def post_hub(request, pk):
     layout-less body fragment (no {% extends %} so it can be swapped into
     #studio-main without nesting <head>/<body>). Normal GET returns the full
     page for deep-link/refresh compatibility.
+
+    kb-shzi.2 (BUG 1 fix): the full-page response now renders the studio
+    two-pane shell (rail + #studio-main) so that direct GET / refresh /
+    deep-link all show the rail. Same pattern as event_hub.
     """
     post = get_object_or_404(Post, pk=pk)
     event = post.event
@@ -548,6 +594,26 @@ def post_hub(request, pk):
     }
     if request.headers.get("HX-Request"):
         return render(request, "syndication/post_hub_fragment.html", ctx)
+
+    # Full-page render: populate the studio shell rail context (kb-shzi.2).
+    from events.models import Event as _Event
+    from organizers.models import ProfileClaim
+
+    claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
+    if claim is not None:
+        primary_profile = claim.profile
+        raw_publishables = get_publishables_for_profile(primary_profile)
+        publishables = [
+            {"kind": "event" if isinstance(item, _Event) else "post", "obj": item} for item in raw_publishables
+        ]
+        ctx.update(
+            {
+                "primary_profile": primary_profile,
+                "publishables": publishables,
+                "current_path": request.path,
+            }
+        )
+
     return render(request, "syndication/post_hub.html", ctx)
 
 
@@ -640,6 +706,21 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         "body": source_body,
     }
 
+    # kb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
+    # re-opens the same channel tab. The action POSTs (customize/reset/duplicate)
+    # submit selected_pk as a hidden input; we read it from POST (or GET fallback),
+    # validate it against the current projection set, and fall back to 'source'
+    # if the pk is absent or no longer exists (fail-loud-friendly: never crash).
+    # The autosave path (hx-swap="none") does NOT use this — no change there.
+    raw_selected = request.POST.get("selected_pk") or request.GET.get("selected_pk") or ""
+    projection_pks = {str(proj.pk) for proj in projections}
+    if raw_selected and raw_selected in projection_pks:
+        # Valid non-first tab — preserve it
+        selected_pk = int(raw_selected)
+    else:
+        # No selection or invalid pk — default to 'source' (the Source anchor tab)
+        selected_pk = None  # None → template renders 'source' default
+
     return render(
         request,
         "syndication/fragments/post_syndication.html",
@@ -656,6 +737,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
             "has_ready_projections": has_ready_projections,
             "studio_swap": studio_swap,
             "source_row": source_row,
+            "selected_pk": selected_pk,
         },
     )
 
