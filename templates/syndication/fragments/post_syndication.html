@@ -95,12 +95,12 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
            hx-target="#studio-main"
            hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
            class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
-          {% trans "Event hub" %} ↗
+          {% trans "Event Workspace" %} ↗
         </a>
       {% else %}
         <a href="{% url 'syndication:event-hub' pk=event.pk %}"
            class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
-          {% trans "Event hub" %} ↗
+          {% trans "Event Workspace" %} ↗
         </a>
       {% endif %}
       {% if can_publish and projection_rows and has_ready_projections %}
@@ -218,21 +218,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
               OOB-swap it (kb-lprn server-driven badge update).{% endcomment %}
               <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3"
                    style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-                {% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target="#post-syndication" only %}
-                <span class="text-base-content/15 text-[10px] select-none leading-none ml-1">|</span>
-                <form method="post"
-                      action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-                      hx-post="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-                      hx-target="#post-syndication"
-                      hx-swap="outerHTML">
-                  {% csrf_token %}
-                  {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
-                  <input type="hidden" name="selected_pk" :value="selectedPk">
-                  <button type="submit"
-                          class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/28 hover:text-base-content/55 transition-colors">
-                    {% trans "Duplicate" %}
-                  </button>
-                </form>
+                {% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target="#post-syndication" consumers_map=consumers_map only %}
                 {% comment %}Cycle-guard picker (kb-ide0.4 bullet 6): only INDEPENDENT projections
                 (sync_source IS NULL) are offerable as sync sources. Synced channels are
                 themselves downstream — allowing them as sources creates A→B→C chains.

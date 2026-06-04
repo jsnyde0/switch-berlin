@@ -9,7 +9,7 @@
               class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40 hover:text-base-content transition-colors"
               @click="showForm = !showForm"
               :aria-expanded="showForm">
-        <span x-show="!showForm">+ {% trans "Add post" %}</span>
+        <span x-show="!showForm">+ {% trans "Add promo post" %}</span>
         <span x-show="showForm" x-cloak>{% trans "Cancel" %}</span>
       </button>
     {% endif %}
@@ -38,7 +38,7 @@
             {{ post_form.body }}
           </div>
           <div class="flex gap-3">
-            <button type="submit" class="kb-btn text-sm">{% trans "Add post" %}</button>
+            <button type="submit" class="kb-btn text-sm">{% trans "Add promo post" %}</button>
           </div>
         </div>
       </form>
@@ -64,6 +64,8 @@
       {% endfor %}
     </div>
   {% else %}
-    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">— {% trans "No posts yet" %} —</p>
+    <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 py-8">
+      — {% trans "No promo posts yet" %} —
+    </p>
   {% endif %}
 </section>

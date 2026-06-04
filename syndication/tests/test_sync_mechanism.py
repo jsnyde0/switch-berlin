@@ -523,17 +523,18 @@ class ThreeRenderStatesTemplateTest(TestCase):
         url = reverse("syndication:fragment-event-syndication", kwargs={"pk": event.pk})
         return self.client.get(url)
 
-    def test_state_i_canonical_sharing_shows_synced_indicator(self):
+    def test_state_i_canonical_sharing_shows_shared_indicator(self):
         """
-        State (i): projection on canonical CV + sync_source NULL → shows "Synced" indicator.
+        State (i): projection on canonical CV + sync_source NULL → shows "Shared" indicator.
         The Switch projection always starts on the canonical and has no sync_source.
+        Renamed "Synced" → "Shared" to surface the broadcast behavior (kb-shzi.5).
         """
         _make_projection(self.conn_switch, self.event, self.cv)
         response = self._get_fragment(self.event)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # Switch is on canonical → shows "Synced" indicator (the default state)
-        self.assertIn("Synced", content)
+        # Switch is on canonical → shows "Shared" indicator (edits broadcast to all sharers)
+        self.assertIn("Shared", content)
 
     def test_state_ii_sync_source_set_shows_synced_from_channel(self):
         """
@@ -582,6 +583,53 @@ class ThreeRenderStatesTemplateTest(TestCase):
         content = response.content.decode()
         # State (iii): FetLife has own CV and no sync_source → shows "Custom"
         self.assertIn("Custom", content)
+
+    def test_state_ii_shows_editing_detaches_label(self):
+        """
+        kb-shzi.5: State (ii) sync bar must include 'editing detaches' so the user
+        understands the behavioral consequence before editing.
+        """
+        source = _make_projection(self.conn_switch, self.event, self.cv)
+        target_cv = ContentVersion.objects.create(
+            event=self.event,
+            name="fl-synced-ii",
+            body="synced body",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        PlatformProjection.objects.create(
+            connection=self.conn_fetlife,
+            kind="listing",
+            status=PlatformProjection.Status.DRAFT,
+            source_event=self.event,
+            content_version=target_cv,
+            sync_source=source,
+        )
+        response = self._get_fragment(self.event)
+        content = response.content.decode()
+        self.assertIn(
+            "editing detaches",
+            content,
+            "State (ii) sync bar must show 'editing detaches' to surface the behavioral consequence (kb-shzi.5)",
+        )
+
+    def test_state_i_shows_shared_label_not_synced(self):
+        """
+        kb-shzi.5: State (i) must show 'Shared' (broadcast) not 'Synced' (ambiguous).
+        Content assertion locks the vocabulary change.
+        """
+        _make_projection(self.conn_switch, self.event, self.cv)
+        response = self._get_fragment(self.event)
+        content = response.content.decode()
+        self.assertIn(
+            "Shared",
+            content,
+            "State (i) must render 'Shared' label (kb-shzi.5: was 'Synced', renamed to surface broadcast semantics)",
+        )
+        self.assertNotIn(
+            ">Synced<",
+            content,
+            "State (i) must NOT render raw '>Synced<' badge text (renamed to 'Shared' in kb-shzi.5)",
+        )
 
 
 # ---------------------------------------------------------------------------

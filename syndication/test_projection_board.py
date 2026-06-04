@@ -1328,7 +1328,8 @@ class MarkPublishedSharedSourceTest(TestCase):
 class NoPromoPostsRenderedTextTest(TestCase):
     """
     The no_promo_posts state must render the actual text 'No promo posts yet'
-    and the 'Add promo message' CTA in the response body.
+    and the 'Add promo post' CTA in the response body.
+    Updated 'Add promo message' → 'Add promo post' for vocab consistency (kb-shzi.5).
     """
 
     def setUp(self):
@@ -1343,7 +1344,7 @@ class NoPromoPostsRenderedTextTest(TestCase):
         """
         When no_promo_posts=True, the response body must contain:
         - "No promo posts yet" text
-        - "Add promo message" CTA
+        - "Add promo post" CTA (kb-shzi.5: unified vocab — was "Add promo message")
         """
         _make_connection(self.profile, destination_id="fl-nopromo", kinds=["promotion"])
         response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
@@ -1355,9 +1356,9 @@ class NoPromoPostsRenderedTextTest(TestCase):
             "Template must render 'No promo posts yet' when no_promo_posts=True",
         )
         self.assertIn(
-            "Add promo message",
+            "Add promo post",
             content,
-            "Template must render 'Add promo message' CTA when no_promo_posts=True",
+            "Template must render 'Add promo post' CTA when no_promo_posts=True (kb-shzi.5 vocab)",
         )
 
 
@@ -2427,10 +2428,10 @@ class ChannelIconTabsRenderTest(TestCase):
 
     def test_sync_control_synced_state_shows_customize_only(self):
         """
-        Render-regression: when a projection is at the canonical version (synced
+        Render-regression: when a projection is at the canonical version (shared
         state), the sync control row must render 'Customize' (the advance action)
         and must NOT render 'Reset' (which is the diverged-state action).
-        Also asserts the 'synced' state label is present.
+        Also asserts the 'shared' state label is present (kb-shzi.5: was 'synced').
         kb-9f1h.6: single-control toggle folded from the original two-button row.
         """
         proj = _make_listing_projection(self.conn_switch, self.event)
@@ -2445,23 +2446,23 @@ class ChannelIconTabsRenderTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        # Synced state: must show 'Customize' action
+        # Shared state: must show 'Customize' action
         self.assertIn(
             "Customize",
             content,
-            "Synced projection: sync control must render 'Customize'",
+            "Shared projection: sync control must render 'Customize'",
         )
-        # Synced state: must NOT show 'Reset' (that is the diverged-state action)
+        # Shared state: must NOT show 'Reset' (that is the diverged-state action)
         self.assertNotIn(
             "Reset",
             content,
-            "Synced projection: sync control must NOT render 'Reset' (only one action shown per state)",
+            "Shared projection: sync control must NOT render 'Reset' (only one action shown per state)",
         )
-        # Synced state: 'synced' state label must be present
+        # Shared state: 'shared' label must be present (kb-shzi.5: relabeled from 'synced')
         self.assertIn(
-            "synced",
+            "shared",
             content.lower(),
-            "Synced projection: 'synced' state label must be rendered",
+            "Shared projection: sync control must render 'Shared' label (kb-shzi.5 vocab)",
         )
 
     def test_sync_control_diverged_state_shows_reset_only(self):
@@ -3076,28 +3077,11 @@ class PostComposerPublishedStateGatingTest(TestCase):
             "Reset must NOT appear for a ready post projection",
         )
 
-    def test_duplicate_not_shown_on_published_post_projection(self):
+    def test_duplicate_not_shown_on_any_post_projection(self):
         """
-        Finding 6: Duplicate must NOT appear on published post projections
-        (parity with event template gating).
-        """
-        post, proj = self._make_post_with_projection(status="published")
-
-        response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode()
-
-        # Check that version-duplicate URL for this projection's CV is not present
-        version_dup_url = f"/syndication/versions/{proj.content_version.pk}/duplicate/"
-        self.assertNotIn(
-            version_dup_url,
-            content,
-            "Duplicate must NOT appear for a published post projection (parity with event template)",
-        )
-
-    def test_duplicate_shown_on_draft_post_projection(self):
-        """
-        Finding 6: Duplicate MUST appear on draft post projections (parity with event template).
+        kb-shzi.5: Duplicate button removed from post composer sync bar (created an
+        orphan ContentVersion with no visible effect — confusing, purpose unclear).
+        The version-duplicate endpoint still exists for programmatic use.
         """
         post, proj = self._make_post_with_projection(status="draft")
 
@@ -3106,8 +3090,8 @@ class PostComposerPublishedStateGatingTest(TestCase):
         content = response.content.decode()
 
         version_dup_url = f"/syndication/versions/{proj.content_version.pk}/duplicate/"
-        self.assertIn(
+        self.assertNotIn(
             version_dup_url,
             content,
-            "Duplicate MUST appear for a draft post projection (parity with event template)",
+            "Duplicate button must NOT appear in post composer (removed in kb-shzi.5)",
         )

@@ -55,7 +55,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         </p>
         {% if can_edit %}
           <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
-             class="kb-btn-secondary text-[10px] inline-block">{% trans "Add promo message" %}</a>
+             class="kb-btn-secondary text-[10px] inline-block">{% trans "Add promo post" %}</a>
         {% endif %}
       </div>
     {% elif projection_rows %}
@@ -156,7 +156,16 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                                 class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
                                 title="{% trans 'Click to customize this channel independently' %}">
                           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
-                          <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Synced" %}</span>
+                          <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Shared" %}</span>
+                          {% if consumers_map %}
+                            {% with cv_pk=proj.content_version.pk %}
+                              {% for cv, cv_consumers in consumers_map.items %}
+                                {% if cv.pk == cv_pk and cv_consumers|length > 1 %}
+                                  <span class="kb-mono text-[9px] text-emerald-400/55 group-hover:text-emerald-400/75 transition-colors">{% blocktrans with n=cv_consumers|length %}· edits update {{ n }} channels{% endblocktrans %}</span>
+                                {% endif %}
+                              {% endfor %}
+                            {% endwith %}
+                          {% endif %}
                           <span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
                         </button>
                       </form>
@@ -303,21 +312,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                   OOB-swap it (kb-lprn server-driven badge update).{% endcomment %}
                   <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3"
                        style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-                    {% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target="#event-syndication" only %}
-                    <span class="text-base-content/15 text-[10px] select-none leading-none ml-1">|</span>
-                    <form method="post"
-                          action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-                          hx-post="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
-                          hx-target="#event-syndication"
-                          hx-swap="outerHTML">
-                      {% csrf_token %}
-                      {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
-                      <input type="hidden" name="selected_pk" :value="selectedPk">
-                      <button type="submit"
-                              class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/28 hover:text-base-content/55 transition-colors">
-                        {% trans "Duplicate" %}
-                      </button>
-                    </form>
+                    {% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target="#event-syndication" consumers_map=consumers_map only %}
                     {% comment %}Cycle-guard picker (kb-ide0.4 bullet 6): only INDEPENDENT projections
                     (sync_source IS NULL) are offerable as sync sources. A projection synced from
                     another channel is itself downstream — allowing it as a source would create
@@ -553,7 +548,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         </p>
         {% if can_edit and has_promotion_connections %}
           <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
-             class="kb-btn-secondary text-[10px] inline-block">{% trans "Add promo message" %}</a>
+             class="kb-btn-secondary text-[10px] inline-block">{% trans "Add promo post" %}</a>
         {% endif %}
       </div>
     {% endif %}

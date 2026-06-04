@@ -444,9 +444,9 @@ class EventBoardNoPromoCTAForSwitchOnlyTest(TestCase):
         # With a Switch-only promo connection, has_promotion_connections must be False
         # so no_promo_posts is False and the CTA is suppressed.
         self.assertNotIn(
-            "Add promo message",
+            "Add promo post",
             content,
-            "Event board must NOT show 'Add promo message' CTA when the only "
+            "Event board must NOT show 'Add promo post' CTA when the only "
             "promotion connection is Switch (Switch cannot deliver promo posts).",
         )
 
@@ -464,9 +464,9 @@ class EventBoardNoPromoCTAForSwitchOnlyTest(TestCase):
         content = response.content.decode()
 
         self.assertIn(
-            "Add promo message",
+            "Add promo post",
             content,
-            "Event board MUST show 'Add promo message' CTA when a real "
+            "Event board MUST show 'Add promo post' CTA when a real "
             "promotion-capable connection (e.g. Telegram) exists.",
         )
 

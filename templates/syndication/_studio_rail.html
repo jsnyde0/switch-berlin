@@ -21,14 +21,22 @@ Context variables required:
     <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 truncate"
        title="{{ primary_profile.name }}">{{ primary_profile.name }}</p>
   </div>
-  {% comment %}Nav-sections slot (empty) — reserved for kb-5ok6{% endcomment %}
-  <div class="studio-nav-sections" aria-hidden="true"></div>
+  {% comment %}Nav-sections slot — Channels link (add-channel discoverability, kb-shzi.5){% endcomment %}
+  <div class="studio-nav-sections pr-5 mb-3">
+    <a href="{% url 'syndication:connections-list' %}"
+       class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/35 hover:text-base-content/60 transition-colors">
+      {% trans "Channels" %} ↗
+    </a>
+  </div>
   {% comment %}Publishables section rule + label{% endcomment %}
   <div class="pr-5 mb-2.5">
     <div class="kb-rule"></div>
   </div>
-  <div class="pr-5 mb-2">
+  <div class="pr-5 mb-2 flex items-center justify-between">
     <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25">{% trans "Publishables" %}</p>
+    <a href="{% url 'syndication:event-create' %}"
+       class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 hover:text-base-content/60 transition-colors"
+       title="{% trans 'Create a new event' %}">+ {% trans "New" %}</a>
   </div>
   {% comment %}Flat publishables list (D1: Events + Posts as peers, no nesting){% endcomment %}
   {% if publishables %}

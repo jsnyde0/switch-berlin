@@ -817,3 +817,86 @@ class ListingOnlyChannelAbsentFromPostComposerTest(TestCase):
             "post composer tab row. The view must filter to promotion-capable "
             "connections only — not rely solely on the eager-creation invariant.",
         )
+
+
+# ---------------------------------------------------------------------------
+# (f) kb-shzi.5 — vocabulary locks: Event Workspace label + cross-link text
+# ---------------------------------------------------------------------------
+
+
+class EventWorkspaceVocabLockTest(TestCase):
+    """
+    kb-shzi.5: The event kicker and page title must read 'Event Workspace',
+    not 'Event Hub'. The cross-link in the post composer must read
+    'Event Workspace', not 'Event hub'.
+
+    Content assertions lock the vocabulary so a future template edit cannot
+    silently regress the renamed labels.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="vocab_user", email="vocab@test.com", password="pw")
+        self.profile = _make_profile("Vocab Org", "vocab-org", user=self.user)
+        self.event = _make_event(self.profile, "Vocab Event", "vocab-event")
+        self.post = _make_post(self.event, "Vocab Post Headline")
+        self.client.force_login(self.user)
+
+    def test_event_hub_body_kicker_says_event_workspace(self):
+        """
+        The event hub body kicker must say 'Event Workspace' (renamed from 'Event Hub').
+        """
+        url = f"/syndication/events/{self.event.pk}/"
+        response = self.client.get(url, HTTP_HX_REQUEST="true")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "Event Workspace",
+            content,
+            "Event hub kicker must read 'Event Workspace' (kb-shzi.5 vocab rename).",
+        )
+        self.assertNotIn(
+            "Event Hub",
+            content,
+            "Event hub kicker must NOT read 'Event Hub' (kb-shzi.5 rename to 'Event Workspace').",
+        )
+
+    def test_post_syndication_cross_link_says_event_workspace(self):
+        """
+        The post composer cross-link must read 'Event Workspace ↗' (renamed from 'Event hub ↗').
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "Event Workspace",
+            content,
+            "Post syndication cross-link must read 'Event Workspace' (kb-shzi.5 vocab rename).",
+        )
+
+    def test_event_posts_fragment_add_button_says_add_promo_post(self):
+        """
+        The event posts add-button must read 'Add promo post' (unified from 'Add post').
+        kb-shzi.5: one consistent term across all post-create entry points.
+        """
+        url = f"/syndication/events/{self.event.pk}/fragments/event_posts/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "Add promo post",
+            content,
+            "event_posts add-button must read 'Add promo post' (kb-shzi.5 unified vocab).",
+        )
+        self.assertNotIn(
+            "Add post",
+            content,
+            "event_posts add-button must NOT read bare 'Add post' (kb-shzi.5: use 'Add promo post').",
+        )
