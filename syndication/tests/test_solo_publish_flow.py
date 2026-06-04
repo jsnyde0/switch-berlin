@@ -27,7 +27,7 @@ from django.utils import timezone
 from events.models import Event, EventOrganizer
 from organizers.models import Profile, ProfileClaim
 from syndication.engine import generate_projection
-from syndication.models import PlatformConnection, PlatformProjection
+from syndication.models import PlatformConnection
 
 User = get_user_model()
 
@@ -526,7 +526,6 @@ class ReviewAllNoApproveButtonTest(TestCase):
             response,
             "Publish",
             msg_prefix=(
-                "review_all (draft) must contain 'Publish' — "
-                "D6: direct-publish CTA present for draft projections."
+                "review_all (draft) must contain 'Publish' — D6: direct-publish CTA present for draft projections."
             ),
         )

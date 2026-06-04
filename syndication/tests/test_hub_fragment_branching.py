@@ -568,20 +568,17 @@ class CapabilityFilteredEventComposerTabsTest(TestCase):
         self.event = _make_event(self.profile, "CFE Event", "cfe-event")
 
         # Telegram: promotion-only — must be ABSENT from event composer tabs
-        self.telegram_conn = _make_connection(
-            self.profile, "telegram", "cfe-telegram-channel", kinds=["promotion"]
-        )
+        self.telegram_conn = _make_connection(self.profile, "telegram", "cfe-telegram-channel", kinds=["promotion"])
         # FetLife: both — must be PRESENT in event composer tabs
         self.fetlife_conn = _make_connection(
             self.profile, "fetlife", "cfe-fetlife-user", kinds=["listing", "promotion"]
         )
         # Switch: both — must be PRESENT in event composer tabs
-        self.switch_conn = _make_connection(
-            self.profile, "switch", "cfe-switch-page", kinds=["listing", "promotion"]
-        )
+        self.switch_conn = _make_connection(self.profile, "switch", "cfe-switch-page", kinds=["listing", "promotion"])
 
         # Trigger eager listing projections for the event.
         from syndication.services import _eager_create_listing_projections
+
         _eager_create_listing_projections(self.event)
 
         # Create a Post for the event with promotion projections.
@@ -589,6 +586,7 @@ class CapabilityFilteredEventComposerTabsTest(TestCase):
         # Post, but must still be ABSENT from the EVENT composer tab row.
         self.post = _make_post(self.event, "CFE Post Headline")
         from syndication.services import _eager_create_promotion_projections
+
         _eager_create_promotion_projections(self.post)
 
         self.client.force_login(self.user)
@@ -668,22 +666,19 @@ class CapabilityFilteredPostComposerTabsTest(TestCase):
         self.post = _make_post(self.event, "CFP Post Headline")
 
         # Telegram: promotion-only — must be PRESENT in the post composer tabs
-        self.telegram_conn = _make_connection(
-            self.profile, "telegram", "cfp-telegram-channel", kinds=["promotion"]
-        )
+        self.telegram_conn = _make_connection(self.profile, "telegram", "cfp-telegram-channel", kinds=["promotion"])
         # FetLife: both — must be PRESENT in post composer tabs
         self.fetlife_conn = _make_connection(
             self.profile, "fetlife", "cfp-fetlife-user", kinds=["listing", "promotion"]
         )
         # Switch: both — must be PRESENT in post composer tabs
-        self.switch_conn = _make_connection(
-            self.profile, "switch", "cfp-switch-page", kinds=["listing", "promotion"]
-        )
+        self.switch_conn = _make_connection(self.profile, "switch", "cfp-switch-page", kinds=["listing", "promotion"])
 
         # Trigger eager promotion projections for the post.
         # The service creates projections at create_post time, but we created
         # connections after the post — trigger manually for test isolation.
         from syndication.services import _eager_create_promotion_projections
+
         _eager_create_promotion_projections(self.post)
 
         self.client.force_login(self.user)
@@ -771,6 +766,7 @@ class ListingOnlyChannelAbsentFromPostComposerTest(TestCase):
         # invariant). We use PlatformProjection.objects.create directly to
         # bypass service-layer guards.
         from syndication.models import ContentVersion, PlatformProjection
+
         cv = ContentVersion.objects.create(
             post=self.post,
             name="canonical",

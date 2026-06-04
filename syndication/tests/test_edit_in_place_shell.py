@@ -528,8 +528,6 @@ class EventSyndicationDataLossRegressionTest(TestCase):
     """
 
     def setUp(self):
-        from events.models import Tag
-        from venues.models import Venue
 
         self.client = Client()
         self.user = _make_user(username="dl_user", email="dl@test.com", password="pw")
@@ -541,9 +539,7 @@ class EventSyndicationDataLossRegressionTest(TestCase):
         self.event.sliding_scale = True
         self.event.registration_required = True
         self.event.currency = "EUR"
-        self.event.save(
-            update_fields=["is_free", "sliding_scale", "registration_required", "currency"]
-        )
+        self.event.save(update_fields=["is_free", "sliding_scale", "registration_required", "currency"])
 
         self.switch_conn = _make_switch_connection(self.profile)
         _make_switch_listing_projection(self.event, self.switch_conn)

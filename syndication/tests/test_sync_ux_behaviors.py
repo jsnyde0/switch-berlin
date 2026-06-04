@@ -138,9 +138,7 @@ class DetachOnEditEventComposerTest(TestCase):
             body="copied switch body",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        self.fl_proj = _make_listing_projection(
-            self.conn_fetlife, self.event, self.fl_cv, sync_source=self.source_proj
-        )
+        self.fl_proj = _make_listing_projection(self.conn_fetlife, self.event, self.fl_cv, sync_source=self.source_proj)
         self.client.force_login(self.user)
 
     def test_edit_synced_projection_clears_sync_source(self):
@@ -240,9 +238,7 @@ class DetachOnEditPostComposerTest(TestCase):
             body="fetlife-copy",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        self.fl_proj = _make_promotion_projection(
-            self.conn_fetlife, self.post, self.fl_cv, sync_source=self.tg_proj
-        )
+        self.fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.fl_cv, sync_source=self.tg_proj)
         self.client.force_login(self.user)
 
     def test_post_composer_edit_synced_projection_clears_sync_source(self):
@@ -320,9 +316,7 @@ class CycleGuardPickerEventComposerTest(TestCase):
             body="fl body",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        self.fl_proj = _make_listing_projection(
-            self.conn_fetlife, self.event, self.fl_cv, sync_source=self.switch_proj
-        )
+        self.fl_proj = _make_listing_projection(self.conn_fetlife, self.event, self.fl_cv, sync_source=self.switch_proj)
 
         # Telegram: a third independent projection
         self.tg_cv = ContentVersion.objects.create(
@@ -420,9 +414,7 @@ class CycleGuardPickerPostComposerTest(TestCase):
             body="fl body",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        self.fl_proj = _make_promotion_projection(
-            self.conn_fetlife, self.post, self.fl_cv, sync_source=self.tg_proj
-        )
+        self.fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.fl_cv, sync_source=self.tg_proj)
         self.client.force_login(self.user)
 
     def _get_fragment(self):
@@ -501,9 +493,7 @@ class DiscardConfirmModalPresenceTest(TestCase):
             provenance=ContentVersion.Provenance.MANUAL,
         )
         self.switch_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
-        self.fl_proj = _make_listing_projection(
-            self.conn_fetlife, self.event, self.fl_cv, sync_source=None
-        )
+        self.fl_proj = _make_listing_projection(self.conn_fetlife, self.event, self.fl_cv, sync_source=None)
         self.client.force_login(self.user)
 
     def _get_event_fragment(self):
@@ -579,9 +569,7 @@ class DiscardConfirmModalPostComposerTest(TestCase):
             body="custom fl body",
             provenance=ContentVersion.Provenance.MANUAL,
         )
-        self.fl_proj = _make_promotion_projection(
-            self.conn_fetlife, self.post, self.fl_cv, sync_source=None
-        )
+        self.fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.fl_cv, sync_source=None)
         self.client.force_login(self.user)
 
     def _get_post_fragment(self):

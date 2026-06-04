@@ -193,7 +193,7 @@ class BoardFragmentRenderTest(TestCase):
         Primary assertions are on response.content (rendered HTML tabs) — so a
         broken template cannot hide a failing filter.
         """
-        from syndication.models import ContentVersion, PlatformProjection
+        from syndication.models import PlatformProjection
 
         # Listing-capable connection (kinds contains "listing") — projection should appear
         conn_listing = _make_connection(
@@ -247,7 +247,7 @@ class BoardFragmentRenderTest(TestCase):
 
         Primary assertion is on response.content so a broken template cannot pass.
         """
-        from syndication.models import ContentVersion, PlatformProjection
+        from syndication.models import PlatformProjection
 
         conn_promo_only = _make_connection(
             self.profile, platform="telegram", destination_id="tg-promo-excl", kinds=["promotion"]
@@ -2700,7 +2700,7 @@ class PostHubViewTest(TestCase):
             "No generate affordance in post workspace",
         )
 
-    def test_post_workspace_renders_channel_tabs(self):
+    def test_post_workspace_renders_channel_tab_for_projection(self):
         """
         The post syndication fragment must render horizontal channel icon-tabs.
         """

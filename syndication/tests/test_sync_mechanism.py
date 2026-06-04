@@ -150,7 +150,6 @@ class SyncSourceModelFieldTest(TestCase):
             sync_source=source,
         )
         # Delete the source projection — target.sync_source should become NULL
-        source_pk = source.pk
         # We need to first remove the source's content_version reference constraints
         # The source projection itself doesn't have a sync_source, so we can delete it.
         # But source's content_version is the canonical CV shared by multiple projections —
@@ -782,7 +781,7 @@ class SyncEndpointTest(TestCase):
         self.source_proj.sync_source = third_proj
         self.source_proj.save(update_fields=["sync_source", "updated_at"])
 
-        response = self.client.post(
+        self.client.post(
             self._url(self.target_proj.pk),
             {"source_projection_pk": self.source_proj.pk},
         )
