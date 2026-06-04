@@ -1,5 +1,5 @@
 """
-Hub fragment branching tests (kb-9f1h.2 / kb-9f1h.7).
+Hub fragment branching tests (kb-9f1h.2 / kb-9f1h.7 / kb-ide0.3).
 
 Contract groups:
 (a) event_hub + post_hub, requested with HX-Request, return layout-less body
@@ -28,7 +28,7 @@ from django.utils import timezone
 
 from events.models import Event, EventOrganizer
 from organizers.models import Profile, ProfileClaim
-from syndication.models import Post
+from syndication.models import PlatformConnection, Post
 
 User = get_user_model()
 
@@ -520,4 +520,221 @@ class PostSyndicationStudioContextTest(TestCase):
             'hx-target="#studio-main"',
             content,
             "post_syndication with ?studio=1 MUST have hx-target='#studio-main' for the in-studio swap to work.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# (e) kb-ide0.3 — capability-filtered channel tabs
+#
+# PlatformConnection.kinds drives which composer shows which channels.
+# Event composer: only listing-capable connections (kinds contains "listing").
+# Post composer: only promotion-capable connections (kinds contains "promotion").
+# FetLife (both) and Switch (both) appear in BOTH composers.
+# Telegram (promotion-only) appears ONLY in the post composer.
+#
+# Assertions are on response.content (assertContains/assertNotContains),
+# NOT response.context — hollow test prevention (memory anti-pattern).
+# ---------------------------------------------------------------------------
+
+
+def _make_connection(organizer, platform, destination_id, kinds, enabled=True):
+    """Create a PlatformConnection with given kinds."""
+    return PlatformConnection.objects.create(
+        organizer=organizer,
+        platform=platform,
+        destination_id=destination_id,
+        kinds=kinds,
+        enabled=enabled,
+    )
+
+
+class CapabilityFilteredEventComposerTabsTest(TestCase):
+    """
+    kb-ide0.3: The event composer (event_syndication fragment) tab row MUST
+    show ONLY listing-capable channels. A promotion-only connection (Telegram,
+    kinds=['promotion']) must be ABSENT from the event composer tab row —
+    even when the event HAS Posts (which generate Telegram promotion projections).
+
+    FetLife (kinds=['listing','promotion']) and Switch (kinds=['listing','promotion'])
+    must be PRESENT in the event composer tab row.
+
+    Assertions on response.content (NOT response.context).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="cfe_user", email="cfe@test.com", password="pw")
+        self.profile = _make_profile("CFE Org", "cfe-org", user=self.user)
+        self.event = _make_event(self.profile, "CFE Event", "cfe-event")
+
+        # Telegram: promotion-only — must be ABSENT from event composer tabs
+        self.telegram_conn = _make_connection(
+            self.profile, "telegram", "cfe-telegram-channel", kinds=["promotion"]
+        )
+        # FetLife: both — must be PRESENT in event composer tabs
+        self.fetlife_conn = _make_connection(
+            self.profile, "fetlife", "cfe-fetlife-user", kinds=["listing", "promotion"]
+        )
+        # Switch: both — must be PRESENT in event composer tabs
+        self.switch_conn = _make_connection(
+            self.profile, "switch", "cfe-switch-page", kinds=["listing", "promotion"]
+        )
+
+        # Trigger eager listing projections for the event.
+        from syndication.services import _eager_create_listing_projections
+        _eager_create_listing_projections(self.event)
+
+        # Create a Post for the event with promotion projections.
+        # This is the critical case: Telegram gets a promotion projection via this
+        # Post, but must still be ABSENT from the EVENT composer tab row.
+        self.post = _make_post(self.event, "CFE Post Headline")
+        from syndication.services import _eager_create_promotion_projections
+        _eager_create_promotion_projections(self.post)
+
+        self.client.force_login(self.user)
+
+    def test_telegram_absent_from_event_composer_tab_row(self):
+        """
+        Telegram (promotion-only, kinds=['promotion']) MUST NOT appear as a tab
+        in the event composer's tab row — even when the event has a Post with a
+        Telegram promotion projection. The event composer shows ONLY listing-
+        capable channels; promotion-only channels belong to the post composer.
+        """
+        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        # We use the destination_id as the unique identifier so we don't
+        # accidentally match the platform name in unrelated places (e.g. text).
+        self.assertNotIn(
+            "cfe-telegram-channel",
+            content,
+            "Telegram (promotion-only) must be ABSENT from the event composer tab row "
+            "even when the event has a Post with a Telegram promotion projection.",
+        )
+
+    def test_fetlife_present_in_event_composer_tab_row(self):
+        """
+        FetLife (kinds=['listing','promotion']) MUST appear in the event composer
+        tab row — it supports listing.
+        """
+        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "cfe-fetlife-user",
+            content,
+            "FetLife (both kinds) must be PRESENT in the event composer tab row.",
+        )
+
+    def test_switch_present_in_event_composer_tab_row(self):
+        """
+        Switch (kinds=['listing','promotion']) MUST appear in the event composer
+        tab row — it supports listing.
+        """
+        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "cfe-switch-page",
+            content,
+            "Switch (both kinds) must be PRESENT in the event composer tab row.",
+        )
+
+
+class CapabilityFilteredPostComposerTabsTest(TestCase):
+    """
+    kb-ide0.3: The post composer (post_syndication fragment) tab row MUST
+    show ONLY promotion-capable channels. A promotion-only Telegram connection
+    (kinds=['promotion']) must be PRESENT. FetLife and Switch (both kinds) must
+    also be PRESENT.
+
+    Assertions on response.content (NOT response.context).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="cfp_user", email="cfp@test.com", password="pw")
+        self.profile = _make_profile("CFP Org", "cfp-org", user=self.user)
+        self.event = _make_event(self.profile, "CFP Event", "cfp-event")
+        self.post = _make_post(self.event, "CFP Post Headline")
+
+        # Telegram: promotion-only — must be PRESENT in the post composer tabs
+        self.telegram_conn = _make_connection(
+            self.profile, "telegram", "cfp-telegram-channel", kinds=["promotion"]
+        )
+        # FetLife: both — must be PRESENT in post composer tabs
+        self.fetlife_conn = _make_connection(
+            self.profile, "fetlife", "cfp-fetlife-user", kinds=["listing", "promotion"]
+        )
+        # Switch: both — must be PRESENT in post composer tabs
+        self.switch_conn = _make_connection(
+            self.profile, "switch", "cfp-switch-page", kinds=["listing", "promotion"]
+        )
+
+        # Trigger eager promotion projections for the post.
+        # The service creates projections at create_post time, but we created
+        # connections after the post — trigger manually for test isolation.
+        from syndication.services import _eager_create_promotion_projections
+        _eager_create_promotion_projections(self.post)
+
+        self.client.force_login(self.user)
+
+    def test_telegram_present_in_post_composer_tab_row(self):
+        """
+        Telegram (promotion-only, kinds=['promotion']) MUST appear as a tab
+        in the post composer's tab row — promotion channels belong here.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "cfp-telegram-channel",
+            content,
+            "Telegram (promotion-only) must be PRESENT in the post composer tab row.",
+        )
+
+    def test_fetlife_present_in_post_composer_tab_row(self):
+        """
+        FetLife (kinds=['listing','promotion']) MUST appear in the post composer
+        tab row — it supports promotion.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "cfp-fetlife-user",
+            content,
+            "FetLife (both kinds) must be PRESENT in the post composer tab row.",
+        )
+
+    def test_switch_present_in_post_composer_tab_row(self):
+        """
+        Switch (kinds=['listing','promotion']) MUST appear in the post composer
+        tab row — it supports promotion.
+        """
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "cfp-switch-page",
+            content,
+            "Switch (both kinds) must be PRESENT in the post composer tab row.",
         )

@@ -1,47 +1,24 @@
 {% load i18n %}
-{# post_syndication fragment — Typefully-shaped post composer workspace (kb-q4u9.3) #}
-{# Horizontal channel icon-tabs; canonical anchored at "Source" tab (no native-home channel). #}
-{# Alpine 3.x: own x-data root required on each HTMX swap target. #}
+{% comment %}
+post_syndication fragment — Typefully-shaped post composer workspace (kb-ide0.3).
+
+D5: Single top row — channel tabs left-aligned, Publish CTA right-aligned.
+    Same shell as event_syndication.html (Child A). No stacked "Source" box above.
+D2: Edit-in-place for freeform promotion content — the styled post bubble IS the
+    editor. A textarea styled to match the platform skin (Telegram bubble / FetLife
+    purple / Switch editorial) replaces the old "textarea + separate stacked preview"
+    split. User types directly into the platform-styled surface.
+D3: Only promotion-capable channels appear as tabs (kinds filtering done in view).
+
+studio_swap: when True (threaded via ?studio=1 from the hub body in studio
+    context), emit studio-context HTMX attrs on any cross-links (kb-9f1h.7).
+
+Alpine 3.x: own x-data root required on each HTMX swap target.
+{% endcomment %}
 {% with first_pk=projection_rows.0.projection.pk %}
   <section id="post-syndication"
            x-data="{ selectedPk: {{ first_pk|default:'null' }}, autosaveSaved: false }"
            x-on:kb:autosaved.document="autosaveSaved = true; setTimeout(() => autosaveSaved = false, 2000)">
-    <div class="flex items-center justify-between mb-5 gap-3">
-      <div class="flex items-center gap-2">
-        <span class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/35">{% trans "Source" %}</span>
-        <span class="text-base-content/20 text-[10px] select-none">·</span>
-        <span class="kb-mono text-[9px] text-base-content/40">{{ post.headline }}</span>
-      </div>
-      <div class="flex items-center gap-2">
-        {% if studio_swap %}
-          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
-             hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
-             hx-target="#studio-main"
-             hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
-             class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors">
-            {% trans "Event hub" %} ↗
-          </a>
-        {% else %}
-          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
-             class="kb-mono text-[8px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors">
-            {% trans "Event hub" %} ↗
-          </a>
-        {% endif %}
-        {% if can_publish and projection_rows and has_ready_projections %}
-          <form method="post"
-                action="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
-                hx-post="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
-                hx-target="#post-syndication"
-                hx-swap="outerHTML">
-            {% csrf_token %}
-            <button type="submit"
-                    class="kb-mono text-[9px] uppercase tracking-[0.16em] text-fuchsia-300/80 hover:text-fuchsia-300 px-2.5 py-1.5 border border-fuchsia-300/25 hover:border-fuchsia-300/50 transition-colors">
-              {% trans "Publish all ready" %}
-            </button>
-          </form>
-        {% endif %}
-      </div>
-    </div>
     {% if action_error %}
       <div class="mb-5 px-4 py-3 border border-error/35 bg-error/8">
         <div class="flex items-start gap-3">
@@ -50,24 +27,11 @@
         </div>
       </div>
     {% endif %}
-    {% if not projection_rows %}
-      <div class="py-10">
-        <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-3">{% trans "No channels yet" %}</p>
-        <p class="text-[13px] text-base-content/50 mb-5 max-w-md leading-relaxed">
-          {% trans "Connect Telegram, FetLife, or other platforms to publish this post." %}
-        </p>
-      </div>
-    {% else %}
-      <div class="mb-5">
-        <p class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/28 mb-2">{% trans "Source" %}</p>
-        <div class="px-3 py-2.5 border"
-             style="border-color: rgba(255,255,255,0.08);
-                    background: rgba(255,255,255,0.02)">
-          <p class="text-[12px] text-base-content/60 leading-relaxed">{{ post.body|default:"—" }}</p>
-        </div>
-      </div>
-      <div class="kb-rule mb-5"></div>
-      <div class="flex items-start gap-1.5 mb-5 overflow-x-auto pb-1"
+    {% comment %}D5: Single top row — channel tabs left, Event hub cross-link + Publish CTA right.
+    The Event hub link is always present (even when no channels) so navigation works in all states.
+    Preserve studio_swap context gating (kb-9f1h.7) — no hx-target in standalone context.{% endcomment %}
+    <div class="flex items-center gap-1 mb-5 overflow-x-auto pb-1">
+      <div class="flex items-start gap-1.5 flex-1 min-w-0 overflow-x-auto"
            role="tablist"
            aria-label="{% trans 'Channels' %}">
         {% for row in projection_rows %}
@@ -101,6 +65,47 @@
           {% endwith %}
         {% endfor %}
       </div>
+      {% comment %}CTAs right-aligned in the same row as the tabs.
+      Event hub link always present (even when no channels).{% endcomment %}
+      <div class="flex items-center gap-2 ml-auto shrink-0 pl-2">
+        {% comment %}Event hub cross-link — studio-context aware (kb-9f1h.7 pattern).{% endcomment %}
+        {% if studio_swap %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-target="#studio-main"
+             hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
+            {% trans "Event hub" %} ↗
+          </a>
+        {% else %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
+            {% trans "Event hub" %} ↗
+          </a>
+        {% endif %}
+        {% if can_publish and projection_rows and has_ready_projections %}
+          <form method="post"
+                action="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
+                hx-post="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
+                hx-target="#post-syndication"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <button type="submit"
+                    class="kb-mono text-[9px] uppercase tracking-[0.16em] text-fuchsia-300/80 hover:text-fuchsia-300 px-2.5 py-1.5 border border-fuchsia-300/25 hover:border-fuchsia-300/50 transition-colors">
+              {% trans "Publish all ready" %}
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+    {% if not projection_rows %}
+      <div class="py-10">
+        <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/40 mb-3">{% trans "No channels yet" %}</p>
+        <p class="text-[13px] text-base-content/50 mb-5 max-w-md leading-relaxed">
+          {% trans "Connect Telegram, FetLife, or other platforms to publish this post." %}
+        </p>
+      </div>
+    {% else %}
       {% for row in projection_rows %}
         {% with proj=row.projection body=row.body render_error=row.render_error %}
           <div x-show="selectedPk === {{ proj.pk }}" x-cloak>
@@ -125,10 +130,9 @@
             {% endif %}
             {% if can_edit and proj.status == 'draft' %}
               <div class="mb-7">
-                {# ── Sync control bar ── #}
+                {% comment %}Sync control bar{% endcomment %}
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3"
                      style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-                  {# Primary: synced↔custom state toggle #}
                   {% if proj.content_version.name == "canonical" %}
                     <form method="post"
                           action="{% url 'syndication:projection-customize' pk=proj.pk %}"
@@ -165,7 +169,6 @@
                       </form>
                     </div>
                   {% endif %}
-                  {# Secondary utilities — Duplicate, Copy from #}
                   <span class="text-base-content/15 text-[10px] select-none leading-none ml-1">|</span>
                   <form method="post"
                         action="{% url 'syndication:version-duplicate' pk=proj.content_version.pk %}"
@@ -212,7 +215,11 @@
                     </form>
                   {% endif %}
                 </div>
-                {% comment %}Autosave: hx-swap="none" + debounced trigger keeps focus intact.{% endcomment %}
+                {% comment %}D2: Bubble-as-editor — the styled textarea IS the promotion surface.
+                The textarea is styled to look like the platform-skinned post bubble.
+                No separate stacked read-only preview below. Autosave: hx-swap="none" +
+                debounced trigger keeps focus intact. Gated on status=='draft' (autosave
+                only applies to editable content, per Child B lifecycle contract).{% endcomment %}
                 <form method="post"
                       action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
                       hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
@@ -220,16 +227,88 @@
                       hx-trigger="input changed delay:600ms from:textarea[name='body']"
                       hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
                   {% csrf_token %}
-                  <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 block mb-3">
-                    {% trans "Body" %}
-                  </label>
-                  <textarea name="body"
-                            class="kb-textarea w-full min-h-[160px] resize-y"
-                            style="padding-left: 0;
-                                   padding-right: 0"
-                            placeholder="{% trans "Write the post body for this channel…" %}">{{ body }}</textarea>
+                  {% comment %}Platform-skinned bubble container wraps the textarea.
+                  Each skin matches _channel_preview.html's visual treatment.{% endcomment %}
+                  {% if proj.connection.platform == 'telegram' %}
+                    {% comment %}Telegram: chat bubble — teal-dark background, rounded corners.{% endcomment %}
+                    <div class="px-4 pt-3 pb-4 mb-5"
+                         style="background: rgb(33 150 243 / 0.05);
+                                border: 1px solid rgb(33 150 243 / 0.14)">
+                      {% if proj.connection.destination_id %}
+                        <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+                           style="color: rgb(33 150 243 / 0.5)">{{ proj.connection.destination_id }}</p>
+                      {% endif %}
+                      <div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-sm"
+                           style="background: rgb(33 150 243 / 0.18);
+                                  border: 1px solid rgb(33 150 243 / 0.22)">
+                        <textarea name="body"
+                                  class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+                                  style="color: rgb(210 228 248);
+                                         padding: 0;
+                                         resize: vertical;
+                                         field-sizing: content"
+                                  placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
+                        <p class="kb-mono text-[8px] text-right mt-1.5"
+                           style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
+                      </div>
+                    </div>
+                  {% elif proj.connection.platform == 'fetlife' %}
+                    {% comment %}FetLife: gothic dark — warm-purple body text, dense type.{% endcomment %}
+                    <div class="px-4 pt-3 pb-4 mb-5"
+                         style="background: rgba(255,255,255,0.025);
+                                border: 1px solid rgba(255,255,255,0.07)">
+                      {% if proj.connection.destination_id %}
+                        <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+                           style="color: rgb(167 139 250 / 0.45)">{{ proj.connection.destination_id }}</p>
+                      {% endif %}
+                      <textarea name="body"
+                                class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+                                style="color: rgb(210 165 230 / 0.72);
+                                       padding: 0;
+                                       resize: vertical;
+                                       field-sizing: content"
+                                placeholder="{% trans "Write your FetLife post…" %}">{{ body }}</textarea>
+                    </div>
+                  {% elif proj.connection.platform == 'switch' %}
+                    {% comment %}Switch: editorial serif — fuchsia hairline accent, editorial type.{% endcomment %}
+                    <div class="px-4 pt-3 pb-4 mb-5"
+                         style="background: rgba(255,255,255,0.025);
+                                border: 1px solid rgba(255,255,255,0.07)">
+                      <div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5)"></div>
+                      {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
+                        <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+                           style="color: rgb(248 113 196 / 0.4)">{{ proj.connection.destination_id }}</p>
+                      {% endif %}
+                      <textarea name="body"
+                                class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 kb-display leading-relaxed whitespace-pre-wrap break-words"
+                                style="color: rgb(230 225 240 / 0.70);
+                                       font-size: 13px;
+                                       font-variation-settings: 'opsz' 48, 'SOFT' 50;
+                                       padding: 0;
+                                       resize: vertical;
+                                       field-sizing: content"
+                                placeholder="{% trans "Write your Switch post…" %}">{{ body }}</textarea>
+                    </div>
+                  {% else %}
+                    {% comment %}Generic: plain mono treatment for unknown platforms.{% endcomment %}
+                    <div class="px-4 pt-3 pb-4 mb-5"
+                         style="background: rgba(255,255,255,0.025);
+                                border: 1px solid rgba(255,255,255,0.07)">
+                      {% if proj.connection.destination_id %}
+                        <p class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/30 mb-2">
+                          {{ proj.connection.destination_id }}
+                        </p>
+                      {% endif %}
+                      <textarea name="body"
+                                class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] text-base-content/55 leading-relaxed font-mono whitespace-pre-wrap break-words"
+                                style="padding: 0;
+                                       resize: vertical;
+                                       field-sizing: content"
+                                placeholder="{% trans "Write your post…" %}">{{ body }}</textarea>
+                    </div>
+                  {% endif %}
                   {% comment %}D6: No explicit Save button — autosave handles persistence.{% endcomment %}
-                  <div class="flex items-center gap-3 mt-4 pt-3"
+                  <div class="flex items-center gap-3 pt-3"
                        style="border-top: 1px solid rgba(255,255,255,0.06)">
                     <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
                           x-show="autosaveSaved"
@@ -248,13 +327,6 @@
                      style="border-bottom-color: rgba(255,255,255,0.07)">{{ body }}</div>
               </div>
             {% endif %}
-            <div class="mb-6">
-              <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 mb-3">{% trans "Preview" %}</p>
-              <div style="background: rgba(255,255,255,0.025);
-                          border: 1px solid rgba(255,255,255,0.07)">
-                {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
-              </div>
-            </div>
             {% if can_edit or can_publish %}
               <div class="flex items-center gap-2 flex-wrap pt-4"
                    style="border-top: 1px solid rgba(255,255,255,0.07)">

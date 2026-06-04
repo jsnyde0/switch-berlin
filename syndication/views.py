@@ -351,31 +351,25 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     user_can_edit = can_edit(request.user, event)
     user_can_publish = can_publish(request.user, event)
 
-    # Collect all projections: listing (direct event FK) + promotion (via posts)
+    # kb-ide0.3 D3: Event composer shows ONLY listing projections (connections
+    # whose kinds contains "listing"). Promotion projections (post-owned, via
+    # PlatformConnection.kinds contains "promotion" only) belong to the post
+    # composer, not the event composer. This matches the eager-creation filter
+    # in _eager_create_listing_projections (same field, no new abstraction —
+    # ADR-008 D2). No hard-coded platform names: kinds drives the filter.
     listing_projections = PlatformProjection.objects.filter(source_event=event).select_related("connection")
 
-    post_ids = Post.objects.filter(event=event).values_list("pk", flat=True)
-    promotion_projections = PlatformProjection.objects.filter(source_post_id__in=post_ids).select_related(
-        "connection", "source_post"
-    )
-
-    # Combine: listing first, then promotion
-    from itertools import chain
-
-    projections = list(chain(listing_projections, promotion_projections))
+    # Filter: only connections whose kinds includes "listing" (drop promotion-only tabs)
+    projections = [p for p in listing_projections if "listing" in (p.connection.kinds or [])]
 
     # ADR-010 D1: Switch is the canonical anchor for the event workspace — sort it first.
     # Within listing projections the Switch tab leads; all other channels follow alphabetically.
-    # Promotion projections (post-owned) trail listing projections.
     def _event_proj_sort_key(p):
         # Tier 0: Switch listing → canonical anchor, always first
         if p.connection.platform == "switch" and p.kind == PlatformProjection.Kind.LISTING:
             return (0, "", "")
         # Tier 1: remaining listing channels alphabetically
-        if p.kind == PlatformProjection.Kind.LISTING:
-            return (1, p.connection.platform, "")
-        # Tier 2: promotion channels alphabetically
-        return (2, p.connection.platform, p.kind)
+        return (1, p.connection.platform, "")
 
     projections.sort(key=_event_proj_sort_key)
 

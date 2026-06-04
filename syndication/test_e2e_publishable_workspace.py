@@ -641,14 +641,11 @@ class AnchorConfirmationTest(TestCase):
             "HTML — Switch is the canonical anchor (tier 0 in the sort key).",
         )
 
-    def test_post_workspace_source_tab_is_canonical_anchor(self):
+    def test_post_workspace_renders_single_top_row_with_event_hub_link(self):
         """
-        GET the post_syndication fragment and assert the literal text 'Source'
-        appears in the rendered HTML — the Source label is the canonical anchor
-        for the post workspace (no native-home channel for posts).
-
-        The post_syndication template renders a 'Source' header label in the
-        fragment header section.
+        kb-ide0.3 D5: GET the post_syndication fragment and assert it renders
+        the single top row shell (channel tabs + Event hub cross-link right).
+        The old stacked 'Source' header layout is replaced by the D5 shell.
 
         Asserts on response.content (rendered bytes), not response.context.
         """
@@ -676,15 +673,12 @@ class AnchorConfirmationTest(TestCase):
 
         content = fragment_response.content.decode("utf-8")
 
-        # The canonical anchor for the post workspace is the "Source" label.
-        # post_syndication.html renders: <span>Source</span> in the header.
+        # D5: Event hub cross-link must appear in the top row.
+        expected_event_hub_path = f"/syndication/events/{event.pk}/"
         self.assertIn(
-            "Source",
+            f'href="{expected_event_hub_path}"',
             content,
-            "Post workspace must render the 'Source' canonical anchor label. "
-            "This ties the rendered HTML to the data layer (no native-home channel "
-            "for posts — the canonical anchor is the source content, not "
-            "a channel tab).",
+            "Post workspace must render the Event hub cross-link in the top row (D5 shell).",
         )
 
 

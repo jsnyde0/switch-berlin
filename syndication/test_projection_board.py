@@ -174,27 +174,27 @@ class BoardFragmentRenderTest(TestCase):
         self.client = Client()
         self.client.force_login(self.user)
 
-    def test_fragment_renders_one_row_per_projection(self):
+    def test_fragment_renders_only_listing_projections(self):
         """
-        Board must show exactly one row per projection that exists for the event.
+        kb-ide0.3: The event composer shows ONLY listing projections.
+        Promotion projections (post-owned) belong in the post composer, not here.
         """
         proj1 = _make_listing_projection(self.conn, self.event)
         post = _make_post(self.event)
-        proj2 = _make_promotion_projection(self.conn, post)
+        _make_promotion_projection(self.conn, post)
 
         response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
-        # Context must contain both projections
+        # Context must contain only the listing projection (not the promotion one)
         projections = list(response.context["projections"])
-        self.assertEqual(len(projections), 2)
+        self.assertEqual(len(projections), 1)
         pk_set = {p.pk for p in projections}
         self.assertIn(proj1.pk, pk_set)
-        self.assertIn(proj2.pk, pk_set)
 
-    def test_fragment_includes_promotion_projections(self):
+    def test_fragment_excludes_promotion_projections(self):
         """
-        The fragment must show promotion projections (source_post-linked),
-        not only listing projections (source_event-linked).
+        kb-ide0.3: The event composer must NOT show promotion projections
+        (post-owned, source_post-linked). Those belong to the post composer.
         """
         post = _make_post(self.event)
         promo_proj = _make_promotion_projection(self.conn, post)
@@ -203,7 +203,7 @@ class BoardFragmentRenderTest(TestCase):
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
         pk_set = {p.pk for p in projections}
-        self.assertIn(promo_proj.pk, pk_set, "Promotion projection must appear in board")
+        self.assertNotIn(promo_proj.pk, pk_set, "Promotion projection must NOT appear in event composer")
 
     def test_fragment_projection_carries_status(self):
         """Each projection in context has the correct status value."""
@@ -1514,9 +1514,11 @@ class ComposerRailBoardRenderTest(TestCase):
         self.client = Client()
         self.client.force_login(self.user)
 
-    def test_fragment_renders_one_card_per_projection(self):
+    def test_fragment_renders_only_listing_cards(self):
         """
-        One card per projection: listing + promotion both appear.
+        kb-ide0.3: Event composer shows ONLY listing projections.
+        Promotion projections (post-owned) are excluded from the event composer
+        tab row — they belong to the post composer.
         """
         proj1 = _make_listing_projection(self.conn, self.event)
         post = _make_post(self.event)
@@ -1525,10 +1527,10 @@ class ComposerRailBoardRenderTest(TestCase):
         response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
         projections = list(response.context["projections"])
-        self.assertEqual(len(projections), 2)
+        self.assertEqual(len(projections), 1)
         pks = {p.pk for p in projections}
         self.assertIn(proj1.pk, pks)
-        self.assertIn(proj2.pk, pks)
+        self.assertNotIn(proj2.pk, pks)
 
     def test_fragment_renders_status_pill(self):
         """
@@ -2595,19 +2597,21 @@ class PostHubViewTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    def test_post_workspace_renders_source_tab(self):
+    def test_post_workspace_renders_channel_tabs(self):
         """
-        The post syndication fragment must anchor canonical at a "Source" tab
-        (not Switch — a post has no native-home channel, kb-q4u9.3 D3).
+        kb-ide0.3: The post syndication fragment renders per-channel tabs in a
+        single top row (D5). The old "Source" header row is gone; the channel
+        platform name appears as the tab label.
         """
         post = self._make_post_with_projection()
         response = self.client.get(f"/syndication/posts/{post.pk}/fragments/post_syndication/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
+        # Channel tab row present — look for the tablist role
         self.assertIn(
-            "Source",
+            'role="tablist"',
             content,
-            "Post workspace must anchor canonical at a 'Source' tab (not Switch)",
+            "Post workspace must render a channel tab row (D5 single top row)",
         )
 
     def test_post_workspace_has_no_generate_affordance(self):
