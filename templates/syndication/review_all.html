@@ -111,21 +111,18 @@
               {# ── Per-channel publish controls (reuse from board, read-only gate) ── #}
               {% if can_edit %}
                 <div class="px-4 pb-3.5 pt-2.5 flex items-center gap-2 flex-wrap border-t border-white/6">
-                  {# Approve: draft → ready #}
-                  {% if proj.status == 'draft' %}
+                  {# D6: Draft → direct-publish (two-step draft→ready→published internally) #}
+                  {% if proj.status == 'draft' and can_publish %}
                     <form method="post"
-                          action="{% url 'syndication:projection-approve' pk=proj.pk %}"
-                          hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
-                          hx-target="body"
-                          hx-swap="none">
+                          action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}">
                       {% csrf_token %}
                       <button type="submit"
-                              class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-white/25 hover:border-white/50 text-base-content/65 hover:text-base-content rounded-sm transition-colors font-medium min-h-[44px]">
-                        {% trans "Approve" %}
+                              class="kb-mono text-[9px] uppercase tracking-[0.16em] px-3 py-2 border border-fuchsia-300/45 hover:border-fuchsia-300/75 text-fuchsia-300/85 hover:text-fuchsia-300 rounded-sm transition-colors font-semibold min-h-[44px]">
+                        {% trans "Publish" %}
                       </button>
                     </form>
                   {% endif %}
-                  {# Publish: ready → published — gated on can_publish #}
+                  {# Publish: ready → published — recovery path for stranded ready projections #}
                   {% if proj.status == 'ready' and can_publish %}
                     <form method="post"
                           action="{% url 'syndication:projection-publish' pk=proj.pk %}">

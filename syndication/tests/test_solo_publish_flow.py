@@ -471,3 +471,62 @@ class AutosaveTest(TestCase):
                 "button — D6: autosave replaces explicit save."
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# 4. review_all surface — D6 consistency (no Approve gate)
+# ---------------------------------------------------------------------------
+
+
+class ReviewAllNoApproveButtonTest(TestCase):
+    """
+    D6: The review_all surface must NOT show an 'Approve' button for a draft
+    projection. It must show a direct 'Publish' CTA instead (matching the
+    composer-fragment reconciliation applied in 14acb3f).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="ra_user", email="ra@test.com", password="pw")
+        self.profile = _make_profile("RA Org", "ra-org", user=self.user)
+        self.event = _make_event(self.profile, "Review-All Test Event", "review-all-event")
+        self.switch_conn = _make_switch_connection(self.profile)
+        _make_switch_listing_projection(self.event, self.switch_conn)
+        self.client.force_login(self.user)
+
+    def test_review_all_draft_has_no_approve_button(self):
+        """
+        D6: GET review_all with a draft projection must NOT contain 'Approve'.
+        The Approve button was the D6 violation on this surface — it must be
+        replaced with the direct-publish CTA.
+        """
+        url = f"/syndication/events/{self.event.pk}/review-all/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            "Approve",
+            msg_prefix=(
+                "review_all (draft) must NOT contain 'Approve' — "
+                "D6: Approve gate removed; direct-publish CTA replaces it."
+            ),
+        )
+
+    def test_review_all_draft_has_publish_cta(self):
+        """
+        D6: GET review_all with a draft projection MUST contain a 'Publish' CTA.
+        The direct-publish CTA replaces the removed Approve button.
+        """
+        url = f"/syndication/events/{self.event.pk}/review-all/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Publish",
+            msg_prefix=(
+                "review_all (draft) must contain 'Publish' — "
+                "D6: direct-publish CTA present for draft projections."
+            ),
+        )
