@@ -122,12 +122,4 @@ urlpatterns = [
         views.version_copy_from,
         name="version-copy-from",
     ),
-    # --- Review-all surface (kb-wz8m.6) ---
-    # Side-by-side cross-channel review. Route name + event_pk signature
-    # referenced from the board template (event_syndication.html).
-    path(
-        "events/<int:event_pk>/review-all/",
-        views.review_all,
-        name="review-all",
-    ),
 ]

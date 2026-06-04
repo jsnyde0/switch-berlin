@@ -316,23 +316,6 @@ class EventSyndicationSingleTopRowTest(TestCase):
             "heading — D5: single top row replaces two-row layout.",
         )
 
-    def test_event_syndication_fragment_has_review_all_link(self):
-        """
-        D5: The single top row must still contain the 'Review all' link.
-        (It may be relocated but must not vanish.)
-        """
-        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        content = response.content.decode()
-
-        self.assertIn(
-            "Review all",
-            content,
-            "event_syndication fragment must retain the 'Review all' link after D5.",
-        )
-
 
 # ---------------------------------------------------------------------------
 # studio_swap gating (dual render-context safety)
@@ -380,23 +363,6 @@ class EventSyndicationStudioContextTest(TestCase):
             content,
             "event_syndication without ?studio=1 must NOT emit hx-target='#studio-main' — "
             "standalone context has no studio shell; HTMX would silently no-op the click.",
-        )
-
-    def test_event_syndication_with_studio_param_emits_studio_context_target(self):
-        """
-        FIX 3: With ?studio=1 (in-studio context): the fragment MUST emit
-        hx-target="#studio-main" on cross-links (e.g. 'Review all').
-        This replaces the previous hollow test that only checked status_code==200.
-        """
-        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/?studio=1"
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            'hx-target="#studio-main"',
-            msg_prefix="FIX 3: with ?studio=1, the fragment must emit hx-target='#studio-main' "
-            "on cross-links (Review all) — prevents studio-context navigation collapse.",
         )
 
     def test_event_hub_hx_fragment_passes_studio_swap_to_syndication(self):
@@ -730,60 +696,4 @@ class EventSyndicationCarryFieldsHiddenTest(TestCase):
             self.event.currency,
             "EUR",
             "FIX 4: currency must survive a full-card POST",
-        )
-
-
-# ---------------------------------------------------------------------------
-# FIX 3: studio_swap must gate the Review-all cross-link (not hollow tests)
-# ---------------------------------------------------------------------------
-
-
-class EventSyndicationStudioSwapCrossLinkTest(TestCase):
-    """
-    FIX 3: studio_swap is threaded to template context but the Review-all
-    cross-link was a plain <a href>, causing full-page navigation in the
-    in-studio HTMX context (browser-confirmed).
-
-    With ?studio=1: the cross-link must carry hx-target="#studio-main".
-    Without ?studio=1: the cross-link must NOT carry hx-target="#studio-main".
-    """
-
-    def setUp(self):
-        self.client = Client()
-        self.user = _make_user(username="sscl_user", email="sscl@test.com", password="pw")
-        self.profile = _make_profile("SSCL Org", "sscl-org", user=self.user)
-        self.event = _make_event(self.profile, "Studio Swap Cross-link Event", "studio-swap-cl-event")
-        self.switch_conn = _make_switch_connection(self.profile)
-        _make_switch_listing_projection(self.event, self.switch_conn)
-        self.client.force_login(self.user)
-
-    def test_review_all_link_carries_studio_target_when_studio_param_present(self):
-        """
-        FIX 3 (real assertion): With ?studio=1, the 'Review all' cross-link
-        must emit hx-target="#studio-main" so navigation swaps within the
-        studio shell rather than full-page-navigating and destroying it.
-        """
-        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/?studio=1"
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            'hx-target="#studio-main"',
-            msg_prefix="FIX 3: with ?studio=1, Review-all link must carry hx-target='#studio-main'",
-        )
-
-    def test_review_all_link_has_no_studio_target_without_studio_param(self):
-        """
-        FIX 3 (real assertion): Without ?studio=1, the 'Review all' cross-link
-        must NOT carry hx-target="#studio-main" — standalone page has no studio shell.
-        """
-        url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(
-            response,
-            'hx-target="#studio-main"',
-            msg_prefix="FIX 3: without ?studio=1, Review-all link must NOT carry hx-target='#studio-main'",
         )

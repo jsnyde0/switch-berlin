@@ -2087,50 +2087,6 @@ class BoardAuthzTest(TestCase):
         )
 
 
-class ReviewAllStubTest(TestCase):
-    """
-    The board must include a review-all toggle/button that points to the
-    review-all URL (stub for kb-wz8m.6).
-    """
-
-    def setUp(self):
-        self.user = _make_vouched_user(username="reviewall_user", email="reviewall@test.com", password="pw")
-        self.profile = _make_profile(name="ReviewAll Org", slug="reviewall-org", user=self.user)
-        self.event = _make_event(slug="reviewall-event")
-        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
-        self.conn = _make_connection(self.profile, destination_id="fl-reviewall")
-        self.client = Client()
-        self.client.force_login(self.user)
-
-    def test_review_all_url_resolves(self):
-        """
-        The 'syndication:review-all' named URL must resolve (stub exists).
-        kb-wz8m.6 will fill the real view; here we just assert the route exists.
-        """
-        from django.urls import NoReverseMatch, reverse
-
-        try:
-            url = reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
-            self.assertIsNotNone(url)
-        except NoReverseMatch:
-            self.fail(
-                "The 'syndication:review-all' URL must be registered (stub for kb-wz8m.6). "
-                "Add a minimal placeholder view in urls.py."
-            )
-
-    def test_review_all_stub_returns_acceptable_response(self):
-        """The review-all stub URL must return a response (not 404/500)."""
-        from django.urls import reverse
-
-        url = reverse("syndication:review-all", kwargs={"event_pk": self.event.pk})
-        response = self.client.get(url)
-        self.assertNotIn(
-            response.status_code,
-            [404, 500],
-            f"review-all stub must not 404/500 (got {response.status_code})",
-        )
-
-
 # ---------------------------------------------------------------------------
 # F1: duplicate and copy_from version affordances (kb-wz8m.5)
 # ---------------------------------------------------------------------------

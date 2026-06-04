@@ -97,22 +97,6 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         </div>
         {% comment %}D5: CTAs right-aligned in the same row as the tabs.{% endcomment %}
         <div class="flex items-center gap-2 ml-auto shrink-0 pl-2">
-          {% comment %}FIX 3: gate on studio_swap — in-studio context swaps within #studio-main;
-          standalone uses plain href (same pattern as post_syndication.html / kb-9f1h.7).{% endcomment %}
-          {% if studio_swap %}
-            <a href="{% url 'syndication:review-all' event_pk=event.pk %}"
-               hx-get="{% url 'syndication:review-all' event_pk=event.pk %}"
-               hx-target="#studio-main"
-               hx-push-url="{% url 'syndication:review-all' event_pk=event.pk %}"
-               class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
-              {% trans "Review all" %}
-            </a>
-          {% else %}
-            <a href="{% url 'syndication:review-all' event_pk=event.pk %}"
-               class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/60 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors">
-              {% trans "Review all" %}
-            </a>
-          {% endif %}
           {% if can_publish and projection_rows and has_ready_projections %}
             <form method="post"
                   action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
