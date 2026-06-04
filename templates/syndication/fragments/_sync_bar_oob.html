@@ -1,0 +1,11 @@
+{% comment %}
+OOB wrapper — delegates to the single-source _sync_bar.html partial (kb-lprn Repair 1).
+
+Renders the sync-bar badge with hx-swap-oob="true" so HTMX replaces the inline
+id="sync-bar-proj-<pk>" element after a version_edit autosave round-trip.
+
+Context variables (forwarded to _sync_bar.html):
+  proj             — PlatformProjection
+  fragment_target  — HTMX target for Customize/Reset forms
+{% endcomment %}
+{% include "syndication/fragments/_sync_bar.html" with oob=True %}

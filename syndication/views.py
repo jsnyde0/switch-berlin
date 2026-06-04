@@ -23,7 +23,9 @@ import logging as _views_logger_mod
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 
 from events.models import Event
 from syndication.authz import can_edit, can_publish
@@ -1181,7 +1183,38 @@ def version_edit(request, pk):
         detach_sync_source(_proj)
 
     if request.headers.get("HX-Request"):
-        return _publishable_fragment_response_for_cv(request, version)
+        # kb-lprn: server-driven OOB badge update.
+        # Return OOB sync-bar fragments for every projection sharing this CV so
+        # the badge updates from the server's truth after the autosave round-trip.
+        # The autosave form uses hx-swap="none" — HTMX ignores the main body but
+        # still processes hx-swap-oob="true" elements. This is the only source of
+        # truth that's correct for BOTH detach (own CV → "Custom") and broadcast
+        # (shared canonical → still "Synced") — the naive optimistic flip lies
+        # for broadcast channels (ADR-016 D2 single-row sharing).
+        _cv_projections = list(
+            version.projections.select_related(
+                "sync_source",
+                "sync_source__connection",
+                "content_version",
+                "connection",
+            ).all()
+        )
+        _oob_fragments = []
+        for _proj in _cv_projections:
+            # Determine the full-fragment target for the Customize/Reset forms in
+            # the OOB partial (these forms refresh the whole fragment if clicked).
+            if _proj.kind == PlatformProjection.Kind.LISTING:
+                _target = "#event-syndication"
+            else:
+                _target = "#post-syndication"
+            _oob_fragments.append(
+                render_to_string(
+                    "syndication/fragments/_sync_bar.html",
+                    {"proj": _proj, "fragment_target": _target, "oob": True},
+                    request=request,
+                )
+            )
+        return HttpResponse("".join(_oob_fragments), content_type="text/html")
     return _publishable_hub_redirect_for_cv(version)
 
 

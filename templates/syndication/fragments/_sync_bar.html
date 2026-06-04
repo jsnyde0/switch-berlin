@@ -1,0 +1,82 @@
+{% load i18n %}
+{% comment %}
+Per-channel sync-bar badge — single source of truth (kb-lprn Repair 1).
+
+Rendered inline (oob=False, default) in event_syndication and post_syndication,
+and as hx-swap-oob="true" (oob=True) by version_edit in views.py.
+
+The outer div carries id="sync-bar-proj-<pk>" so version_edit OOB-swaps it.
+When oob=True the div also carries hx-swap-oob="true".
+
+Context variables:
+  proj             — PlatformProjection (must be select_related sync_source,
+                     sync_source__connection, content_version, connection)
+  fragment_target  — HTMX target for the full-fragment refresh forms
+                     (e.g. "#event-syndication" or "#post-syndication")
+  oob              — boolean; when True adds hx-swap-oob="true" (default False)
+
+States:
+  (i)  canonical CV + sync_source NULL → "Synced" with Customize → button
+  (ii) own CV + sync_source SET        → "Synced from <peer>" + Reset button
+  (iii) own CV + sync_source NULL      → "Custom" + Reset to synced button
+{% endcomment %}
+<div id="sync-bar-proj-{{ proj.pk }}"
+     {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% if proj.content_version.name == "canonical" and not proj.sync_source %}
+    {% comment %}State (i): sharing canonical CV, no peer sync — Synced from canonical{% endcomment %}
+    <form method="post"
+          action="{% url 'syndication:projection-customize' pk=proj.pk %}"
+          hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}"
+          hx-target="{{ fragment_target }}"
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <button type="submit"
+              class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
+              title="{% trans 'Click to customize this channel independently' %}">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
+        <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Synced" %}</span>
+        <span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
+      </button>
+    </form>
+  {% elif proj.sync_source %}
+    {% comment %}State (ii): own CV + sync_source set → Synced from peer channel{% endcomment %}
+    <div class="flex items-center gap-2">
+      <span class="flex items-center gap-2 px-2.5 py-1.5 border border-emerald-400/20"
+            style="background: rgba(52,211,153,0.04)">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0"></span>
+        <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-emerald-400/80">
+          {% trans "Synced from" %} {{ proj.sync_source.connection.platform }}
+        </span>
+      </span>
+      <form method="post"
+            action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        <button type="submit"
+                class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors"
+                title="{% trans 'Reset to canonical content' %}">↩ {% trans "Reset" %}</button>
+      </form>
+    </div>
+  {% else %}
+    {% comment %}State (iii): own CV + sync_source NULL → Custom / detached{% endcomment %}
+    <div class="flex items-center gap-2">
+      <span class="flex items-center gap-2 px-2.5 py-1.5 border border-amber-300/20"
+            style="background: rgba(251,191,36,0.04)">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-300/60 shrink-0"></span>
+        <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/70">{% trans "Custom" %}</span>
+      </span>
+      <form method="post"
+            action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        <button type="submit"
+                class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors"
+                title="{% trans 'Reset to synced canonical content' %}">↩ {% trans "Reset to synced" %}</button>
+      </form>
+    </div>
+  {% endif %}
+</div>

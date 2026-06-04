@@ -1915,8 +1915,17 @@ class VersionOpEndpointTest(TestCase):
             "copy_to must create new version row, not point at source version",
         )
 
-    def test_edit_version_endpoint_returns_refreshed_fragment(self):
-        """POST edit-version returns the refreshed syndication fragment."""
+    def test_edit_version_endpoint_returns_oob_sync_bar_fragment(self):
+        """
+        POST edit-version (HX-Request) returns an OOB sync-bar fragment (kb-lprn).
+
+        The autosave endpoint now returns hx-swap-oob="true" sync-bar elements
+        rather than the full syndication fragment. HTMX processes OOB elements
+        from the response even when the form uses hx-swap="none".
+
+        Assertion on response.content (NOT response.context — hollow per memory
+        'django-view-test-context-vs-content-hollow').
+        """
         proj = _make_listing_projection(self.conn, self.event)
         response = self.client.post(
             f"/syndication/versions/{proj.content_version_id}/edit/",
@@ -1924,7 +1933,19 @@ class VersionOpEndpointTest(TestCase):
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("projections", response.context)
+        content = response.content.decode()
+        # OOB mechanism must be present
+        self.assertIn(
+            'hx-swap-oob="true"',
+            content,
+            "version_edit (HX-Request) must return hx-swap-oob='true' sync-bar fragment",
+        )
+        # Per-projection sync-bar anchor must be present
+        self.assertIn(
+            f'id="sync-bar-proj-{proj.pk}"',
+            content,
+            f"version_edit response must contain sync-bar anchor for projection {proj.pk}",
+        )
 
     def test_edit_version_endpoint_persists_body(self):
         """POST edit-version persists body to ContentVersion."""
