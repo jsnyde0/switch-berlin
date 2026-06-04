@@ -222,6 +222,20 @@ class EventHubFullPageRendersStudioShellTest(TestCase):
         # HX fragment must NOT nest <html or <body
         self.assertNotIn("<html", content)
         self.assertNotIn("<body", content)
+        # HX fragment must NOT contain the rail or shell — it is body-only for
+        # swapping INTO the existing #studio-main, so the rail/shell must be absent.
+        self.assertNotIn(
+            'aria-label="Publishables"',
+            content,
+            "HX fragment must not contain the rail (aria-label='Publishables'); "
+            "it is swapped INTO #studio-main so the rail must not be inside it.",
+        )
+        self.assertNotIn(
+            'id="studio-main"',
+            content,
+            "HX fragment must not contain id='studio-main'; "
+            "the fragment IS the body of #studio-main, not a wrapper around it.",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -320,6 +334,102 @@ class PostHubFullPageRendersStudioShellTest(TestCase):
 
         self.assertNotIn("<html", content)
         self.assertNotIn("<body", content)
+        # HX fragment must NOT contain the rail or shell — it is body-only for
+        # swapping INTO the existing #studio-main, so the rail/shell must be absent.
+        self.assertNotIn(
+            'aria-label="Publishables"',
+            content,
+            "HX fragment must not contain the rail (aria-label='Publishables'); "
+            "it is swapped INTO #studio-main so the rail must not be inside it.",
+        )
+        self.assertNotIn(
+            'id="studio-main"',
+            content,
+            "HX fragment must not contain id='studio-main'; "
+            "the fragment IS the body of #studio-main, not a wrapper around it.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Finding 1 (ADR-008 D3): hub views must 403 when user has no ProfileClaim,
+# matching the studio view's established no-claim handling.
+# ---------------------------------------------------------------------------
+
+
+class EventHubNoClaim403Test(TestCase):
+    """
+    ADR-008 D3 consistency: event_hub full-page render must return 403 when the
+    authenticated user has no ProfileClaim — same as the studio view's no-claim
+    path. Silently rendering a broken rail (blank profile, "Nothing here yet")
+    with 200 is a silent-fallback violation.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        # User with NO ProfileClaim
+        self.user = _make_user(username="eh_noclaim", email="eh_noclaim@test.com", password="pw")
+        # Profile + event owned by a different user — this user cannot claim it
+        owner = _make_user(username="eh_owner", email="eh_owner@test.com", password="pw")
+        self.profile = _make_profile("EH Owner Org", "eh-owner-org", user=owner)
+        self.event = _make_event(self.profile, "EH NoClaim Event", "eh-noclaim-event")
+        self.switch_conn = _make_switch_connection(self.profile)
+        _make_switch_listing_projection(self.event, self.switch_conn)
+        self.client.force_login(self.user)
+
+    def test_event_hub_full_page_no_claim_returns_403(self):
+        """
+        A user with no ProfileClaim must get 403, not a broken 200 with an
+        empty rail. Mirrors the studio view's no-claim handling (ADR-008 D3).
+        """
+        url = reverse("syndication:event-hub", kwargs={"pk": self.event.pk})
+        response = self.client.get(url)  # No HX-Request — full-page
+
+        self.assertEqual(
+            response.status_code,
+            403,
+            "event_hub full-page must return 403 for a user with no ProfileClaim "
+            "(ADR-008 D3: fail loud, never render a broken rail).",
+        )
+
+
+class PostHubNoClaim403Test(TestCase):
+    """
+    ADR-008 D3 consistency: post_hub full-page render must return 403 when the
+    authenticated user has no ProfileClaim — same as the studio view's no-claim
+    path.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        # User with NO ProfileClaim
+        self.user = _make_user(username="ph_noclaim", email="ph_noclaim@test.com", password="pw")
+        owner = _make_user(username="ph_owner", email="ph_owner@test.com", password="pw")
+        self.profile = _make_profile("PH Owner Org", "ph-owner-org", user=owner)
+        self.event = _make_event(self.profile, "PH NoClaim Event", "ph-noclaim-event")
+        self.post = Post.objects.create(event=self.event, headline="PH NoClaim Post", body="body")
+        ContentVersion.objects.create(
+            post=self.post,
+            name="canonical",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        self.switch_conn = _make_switch_connection(self.profile)
+        _make_switch_listing_projection(self.event, self.switch_conn)
+        self.client.force_login(self.user)
+
+    def test_post_hub_full_page_no_claim_returns_403(self):
+        """
+        A user with no ProfileClaim must get 403, not a broken 200 with an
+        empty rail. Mirrors the studio view's no-claim handling (ADR-008 D3).
+        """
+        url = reverse("syndication:post-hub", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)  # No HX-Request — full-page
+
+        self.assertEqual(
+            response.status_code,
+            403,
+            "post_hub full-page must return 403 for a user with no ProfileClaim "
+            "(ADR-008 D3: fail loud, never render a broken rail).",
+        )
 
 
 # ---------------------------------------------------------------------------

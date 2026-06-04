@@ -187,25 +187,31 @@ def event_hub(request, pk):
         return render(request, "syndication/event_hub_fragment.html", ctx)
 
     # Full-page render: populate the studio shell rail context (kb-shzi.2).
-    # Use the same pattern as the studio view: get the claimant's profile and
-    # their publishables. If no claimant, fall back gracefully (no rail data).
+    # Fail loud when there is no claim — mirror the studio view's no-claim
+    # handling (ADR-008 D3: never synthesize a broken rail on missing data).
     from events.models import Event as _Event
     from organizers.models import ProfileClaim
 
     claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
-    if claim is not None:
-        primary_profile = claim.profile
-        raw_publishables = get_publishables_for_profile(primary_profile)
-        publishables = [
-            {"kind": "event" if isinstance(item, _Event) else "post", "obj": item} for item in raw_publishables
-        ]
-        ctx.update(
-            {
-                "primary_profile": primary_profile,
-                "publishables": publishables,
-                "current_path": request.path,
-            }
+    if claim is None:
+        # Zero-claims user — fail loud, never render a broken rail (ADR-008 D3).
+        return render(
+            request,
+            "syndication/403.html",
+            {"detail": "No organizer profile. Studio access requires an active profile claim."},
+            status=403,
         )
+
+    primary_profile = claim.profile
+    raw_publishables = get_publishables_for_profile(primary_profile)
+    publishables = [{"kind": "event" if isinstance(item, _Event) else "post", "obj": item} for item in raw_publishables]
+    ctx.update(
+        {
+            "primary_profile": primary_profile,
+            "publishables": publishables,
+            "current_path": request.path,
+        }
+    )
 
     return render(request, "syndication/event_hub.html", ctx)
 
@@ -596,23 +602,31 @@ def post_hub(request, pk):
         return render(request, "syndication/post_hub_fragment.html", ctx)
 
     # Full-page render: populate the studio shell rail context (kb-shzi.2).
+    # Fail loud when there is no claim — mirror the studio view's no-claim
+    # handling (ADR-008 D3: never synthesize a broken rail on missing data).
     from events.models import Event as _Event
     from organizers.models import ProfileClaim
 
     claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
-    if claim is not None:
-        primary_profile = claim.profile
-        raw_publishables = get_publishables_for_profile(primary_profile)
-        publishables = [
-            {"kind": "event" if isinstance(item, _Event) else "post", "obj": item} for item in raw_publishables
-        ]
-        ctx.update(
-            {
-                "primary_profile": primary_profile,
-                "publishables": publishables,
-                "current_path": request.path,
-            }
+    if claim is None:
+        # Zero-claims user — fail loud, never render a broken rail (ADR-008 D3).
+        return render(
+            request,
+            "syndication/403.html",
+            {"detail": "No organizer profile. Studio access requires an active profile claim."},
+            status=403,
         )
+
+    primary_profile = claim.profile
+    raw_publishables = get_publishables_for_profile(primary_profile)
+    publishables = [{"kind": "event" if isinstance(item, _Event) else "post", "obj": item} for item in raw_publishables]
+    ctx.update(
+        {
+            "primary_profile": primary_profile,
+            "publishables": publishables,
+            "current_path": request.path,
+        }
+    )
 
     return render(request, "syndication/post_hub.html", ctx)
 
