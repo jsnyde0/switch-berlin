@@ -644,7 +644,9 @@ class ComposerConjunctionTest(TestCase):
         content = response.content.decode()
         # Must have at least one form element with an hx-post pointing to publish
         # (direct-publish for the draft FetLife channel, or batch-publish if ready projections exist)
-        has_publish_form = "direct-publish" in content or "projection-batch-publish" in content or "projection-publish" in content
+        has_publish_form = (
+            "direct-publish" in content or "projection-batch-publish" in content or "projection-publish" in content
+        )
         self.assertTrue(
             has_publish_form,
             "event_syndication fragment must contain a functional Publish form "
@@ -665,7 +667,7 @@ class ComposerConjunctionTest(TestCase):
         # The text "Publish" may appear in forms (functional) but should not appear
         # as a text-base-content/25 faded inert span at the bar level.
         self.assertNotIn(
-            'text-base-content/25 px-2.5 py-1.5 border border-white/8',
+            "text-base-content/25 px-2.5 py-1.5 border border-white/8",
             content,
             "Event hub shell must NOT contain the old inert Publish stub (text-base-content/25 border-white/8).",
         )
@@ -715,7 +717,7 @@ class ComposerConjunctionTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertNotIn(
-            'text-base-content/25 px-2.5 py-1.5 border border-white/8',
+            "text-base-content/25 px-2.5 py-1.5 border border-white/8",
             content,
             "Post hub shell must NOT contain the old inert Publish stub (text-base-content/25 border-white/8).",
         )

@@ -73,7 +73,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         {% comment %}LEFT: pill list — overflow-x-auto with flex-1 keeps pills from growing
         into the breadcrumb / CTA zones.{% endcomment %}
         <div class="flex items-center gap-1.5 min-w-0 overflow-x-auto"
-             style="flex: 0 1 auto; max-width: 50%"
+             style="flex: 0 1 auto;
+                    max-width: 50%"
              role="tablist"
              aria-label="{% trans 'Channels' %}">
           {% for row in projection_rows %}
