@@ -231,11 +231,13 @@ class ComposerConjunctionTest(TestCase):
 
     def test_b1_post_hub_fragment_has_breadcrumb_with_event_link(self):
         """
-        The post hub HTMX fragment MUST have a breadcrumb linking back to the
-        event hub — the "Studio › <event.title>" pattern.
+        The post composer workspace (post_syndication fragment) MUST have a
+        breadcrumb linking back to the event hub — the "Studio › <event.title>"
+        pattern (kb-96tn.9: breadcrumb now lives in the post_syndication fragment,
+        not the hub shell, so we check the fragment URL directly).
         """
-        url = reverse("syndication:post-hub", kwargs={"pk": self.post.pk})
-        response = self.client.get(url, HTTP_HX_REQUEST="true")
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # The breadcrumb links to the event hub URL
@@ -243,13 +245,13 @@ class ComposerConjunctionTest(TestCase):
         self.assertIn(
             event_hub_url,
             content,
-            f"Post hub fragment must have a breadcrumb linking to event hub ({event_hub_url}).",
+            f"Post syndication fragment must have a breadcrumb linking to event hub ({event_hub_url}).",
         )
         # The event title appears in the breadcrumb
         self.assertIn(
             "Conjunction Test Event",
             content,
-            "Post hub fragment breadcrumb must contain the parent event title.",
+            "Post syndication fragment breadcrumb must contain the parent event title.",
         )
 
     # ------------------------------------------------------------------
@@ -593,4 +595,177 @@ class ComposerConjunctionTest(TestCase):
             pos_posts,
             f"#event-syndication (pos={pos_syndication}) must precede "
             f"#event-posts (pos={pos_posts}) in the rendered HTML (kb-96tn.7 D-IA8).",
+        )
+
+    # ------------------------------------------------------------------
+    # kb-96tn.9: ONE consolidated bar — pills + breadcrumb + publish in
+    # the fragment; shell must NOT have a separate pills row.
+    # ------------------------------------------------------------------
+
+    def test_kb96tn9_event_fragment_contains_pills(self):
+        """
+        The event_syndication fragment must contain channel pills
+        (data-testid='channel-pill') — confirming the bar lives IN the fragment.
+        """
+        url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            'data-testid="channel-pill"',
+            content,
+            "event_syndication fragment must contain channel pills (bar lives inside the fragment).",
+        )
+
+    def test_kb96tn9_event_fragment_contains_breadcrumb_studio(self):
+        """
+        The event_syndication fragment must contain 'Studio' breadcrumb text
+        — confirming the bar with breadcrumb lives IN the fragment.
+        """
+        url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "Studio",
+            content,
+            "event_syndication fragment must contain 'Studio' breadcrumb in the bar.",
+        )
+
+    def test_kb96tn9_event_fragment_contains_functional_publish_form(self):
+        """
+        The event_syndication fragment must contain at least one functional Publish form
+        (a <form> with hx-post pointing to a publish endpoint) — not an inert <span>Publish</span>.
+        The fixture has a DRAFT FetLife projection → direct-publish form must appear.
+        """
+        url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Must have at least one form element with an hx-post pointing to publish
+        # (direct-publish for the draft FetLife channel, or batch-publish if ready projections exist)
+        has_publish_form = "direct-publish" in content or "projection-batch-publish" in content or "projection-publish" in content
+        self.assertTrue(
+            has_publish_form,
+            "event_syndication fragment must contain a functional Publish form "
+            "(direct-publish, projection-publish, or batch-publish) — not an inert Publish stub.",
+        )
+
+    def test_kb96tn9_shell_bar_no_inert_publish_stub(self):
+        """
+        The event hub shell bar must NOT contain an inert <span>Publish</span> stub
+        — the bar's Publish must be the functional one from the fragment.
+        """
+        url = reverse("syndication:event-hub", kwargs={"pk": self.event.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # The old inert stub had: <span class="kb-mono text-[9px] ... text-base-content/25">Publish</span>
+        # We detect the inert pattern by looking for the bare inert span stub.
+        # The text "Publish" may appear in forms (functional) but should not appear
+        # as a text-base-content/25 faded inert span at the bar level.
+        self.assertNotIn(
+            'text-base-content/25 px-2.5 py-1.5 border border-white/8',
+            content,
+            "Event hub shell must NOT contain the old inert Publish stub (text-base-content/25 border-white/8).",
+        )
+
+    def test_kb96tn9_post_fragment_contains_pills(self):
+        """
+        The post_syndication fragment must contain channel pills
+        (data-testid='channel-pill') — confirming the bar lives IN the fragment.
+        """
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            'data-testid="channel-pill"',
+            content,
+            "post_syndication fragment must contain channel pills (bar lives inside the fragment).",
+        )
+
+    def test_kb96tn9_post_fragment_contains_breadcrumb_studio_and_event_link(self):
+        """
+        The post_syndication fragment must contain 'Studio' and a link to the
+        parent event hub — breadcrumb lives IN the fragment.
+        """
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "Studio",
+            content,
+            "post_syndication fragment must contain 'Studio' breadcrumb text.",
+        )
+        event_hub_url = reverse("syndication:event-hub", kwargs={"pk": self.event.pk})
+        self.assertIn(
+            event_hub_url,
+            content,
+            f"post_syndication fragment breadcrumb must link to event hub ({event_hub_url}).",
+        )
+
+    def test_kb96tn9_post_shell_bar_no_inert_publish_stub(self):
+        """
+        The post hub shell bar must NOT contain an inert <span>Publish</span> stub.
+        """
+        url = reverse("syndication:post-hub", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn(
+            'text-base-content/25 px-2.5 py-1.5 border border-white/8',
+            content,
+            "Post hub shell must NOT contain the old inert Publish stub (text-base-content/25 border-white/8).",
+        )
+
+    # ------------------------------------------------------------------
+    # kb-96tn.10: Post composer — no double-render for published projections.
+    # ------------------------------------------------------------------
+
+    def test_kb96tn10_post_syndication_no_body_label_for_published_projection(self):
+        """
+        The post_syndication fragment must NOT render a 'Body' label block for
+        a published (non-draft) projection — only _channel_preview.html once
+        (mirrors event_syndication.html fix from kb-96tn.2).
+
+        This test seeds a published post projection and asserts the 'Body'
+        label block is absent from the post_syndication fragment.
+        """
+        # Need a post with a PUBLISHED projection
+        post2 = Post.objects.create(
+            event=self.event,
+            headline="Published Post",
+            body="Published post body for double-render test.",
+        )
+        # Create a promotion connection
+        tg_conn = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="test-channel",
+            kinds=["promotion"],
+            enabled=True,
+        )
+        # Create a published promotion projection
+        proj = generate_projection(
+            kind="promotion",
+            connection=tg_conn,
+            source_post=post2,
+            mode="rule_based",
+        )
+        transition_status(proj, "ready")
+        proj.refresh_from_db()
+        transition_status(proj, "published")
+        proj.refresh_from_db()
+
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": post2.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn(
+            ">Body<",
+            content,
+            "post_syndication fragment must NOT have a 'Body' section label for a "
+            "published projection (kb-96tn.10 double-render fix).",
         )

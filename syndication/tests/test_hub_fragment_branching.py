@@ -115,10 +115,11 @@ class EventHubHxFragmentTest(TestCase):
 
     def test_event_hub_hx_request_fragment_has_composer_bar(self):
         """
-        kb-96tn.1: The fragment returned must contain the composer bar
-        (sanity check that we're getting real content, not an empty response).
-        The h1 with the event title was removed; the bar has #composer-pills
-        and the breadcrumb "Studio".
+        kb-96tn.1 / kb-96tn.9: The fragment returned must contain real content.
+        The h1 with the event title was removed; the bar (with pills, breadcrumb,
+        publish) now lives INSIDE the event_syndication sub-fragment (Option A).
+        The hub body shell contains the #event-syndication section which lazy-loads
+        the full bar via HTMX. We verify the section anchor is present.
         """
         url = f"/syndication/events/{self.event.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
@@ -127,9 +128,10 @@ class EventHubHxFragmentTest(TestCase):
         content = response.content.decode()
 
         self.assertIn(
-            'id="composer-pills"',
+            'id="event-syndication"',
             content,
-            "event_hub HX fragment must contain the composer bar pill placeholder (kb-96tn.1).",
+            "event_hub HX fragment must contain id='event-syndication' "
+            "(the lazy-load section that renders the composer bar + pills, kb-96tn.9).",
         )
 
 
@@ -170,10 +172,11 @@ class PostHubHxFragmentTest(TestCase):
 
     def test_post_hub_hx_request_fragment_has_composer_bar(self):
         """
-        kb-96tn.1: Fragment must contain the composer bar (sanity check that
-        we're getting real content, not an empty response). The h1 with the
-        post headline was removed; the bar has #composer-pills and the
-        breadcrumb "Studio › <event.title>".
+        kb-96tn.1 / kb-96tn.9: Fragment must contain real content.
+        The h1 with the post headline was removed; the bar (with pills, breadcrumb,
+        publish) now lives INSIDE the post_syndication sub-fragment (Option A).
+        The hub body shell contains the #post-syndication section which lazy-loads
+        the full bar via HTMX. We verify the section anchor is present.
         """
         url = f"/syndication/posts/{self.post.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
@@ -182,15 +185,10 @@ class PostHubHxFragmentTest(TestCase):
         content = response.content.decode()
 
         self.assertIn(
-            'id="composer-pills"',
+            'id="post-syndication"',
             content,
-            "post_hub HX fragment must contain the composer bar pill placeholder (kb-96tn.1).",
-        )
-        # Breadcrumb links back to event hub
-        self.assertIn(
-            f"/syndication/events/{self.event.pk}/",
-            content,
-            "post_hub HX fragment breadcrumb must link to the event hub (kb-96tn.1).",
+            "post_hub HX fragment must contain id='post-syndication' "
+            "(the lazy-load section that renders the composer bar + pills, kb-96tn.9).",
         )
 
 
@@ -303,12 +301,13 @@ class PostSyndicationCrossLinkTest(TestCase):
 
     def test_post_hub_hx_fragment_breadcrumb_has_hx_push_url_real_path(self):
         """
-        kb-96tn.1: The breadcrumb in the post hub body (bar) in the STUDIO
-        CONTEXT (HX-Request) must have hx-push-url pointing to the real event
-        hub path (/syndication/events/<pk>/).
+        kb-96tn.1 / kb-96tn.9: The breadcrumb in the post_syndication fragment
+        (bar) in the STUDIO CONTEXT (?studio=1) must have hx-push-url pointing
+        to the real event hub path (/syndication/events/<pk>/).
+        With kb-96tn.9, the breadcrumb lives in post_syndication, not the hub shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/"
-        response = self.client.get(url, HTTP_HX_REQUEST="true")
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -317,17 +316,18 @@ class PostSyndicationCrossLinkTest(TestCase):
         self.assertIn(
             f'hx-push-url="{expected_event_hub_path}"',
             content,
-            f"post hub breadcrumb must have hx-push-url='{expected_event_hub_path}' (kb-96tn.1).",
+            f"post_syndication breadcrumb (studio=1) must have hx-push-url='{expected_event_hub_path}' (kb-96tn.1).",
         )
 
     def test_post_hub_hx_fragment_breadcrumb_uses_hx_get(self):
         """
-        kb-96tn.1: The breadcrumb in the post hub body (bar) in the STUDIO
-        CONTEXT (HX-Request) must use hx-get to trigger the HTMX swap within
-        the studio shell.
+        kb-96tn.1 / kb-96tn.9: The breadcrumb in the post_syndication fragment
+        (bar) in the STUDIO CONTEXT (?studio=1) must use hx-get to trigger the
+        HTMX swap within the studio shell.
+        With kb-96tn.9, the breadcrumb lives in post_syndication, not the hub shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/"
-        response = self.client.get(url, HTTP_HX_REQUEST="true")
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -336,7 +336,7 @@ class PostSyndicationCrossLinkTest(TestCase):
         self.assertIn(
             f'hx-get="{expected_event_hub_path}"',
             content,
-            "post hub breadcrumb must use hx-get for swap (kb-96tn.1).",
+            "post_syndication breadcrumb (studio=1) must use hx-get for swap (kb-96tn.1).",
         )
 
 
@@ -433,10 +433,11 @@ class PostHubStandaloneCrossLinkTest(TestCase):
 
     def test_standalone_post_hub_cross_link_has_plain_href(self):
         """
-        The standalone post_hub's "Event hub" back-link must include a plain
-        href pointing to the event hub URL (so clicking it navigates correctly).
+        The standalone post_syndication fragment (without ?studio=1) breadcrumb
+        must include a plain href pointing to the event hub URL for correct navigation.
+        With kb-96tn.9, the breadcrumb lives in post_syndication, not the hub shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/"
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -446,17 +447,18 @@ class PostHubStandaloneCrossLinkTest(TestCase):
         self.assertIn(
             f'href="{expected_event_hub_path}"',
             content,
-            "Standalone post_hub 'Event hub' link must have plain href for navigation.",
+            "post_syndication breadcrumb (no studio) must have plain href for navigation (kb-96tn.9).",
         )
 
     def test_studio_fragment_post_hub_cross_link_has_hx_target_studio_main(self):
         """
-        The post_hub body when requested via HX-Request (in-studio context)
-        MUST still render hx-target="#studio-main" on the "Event hub" link —
+        The post_syndication fragment with ?studio=1 (in-studio context)
+        MUST render hx-target="#studio-main" on the "Event hub" breadcrumb link —
         the in-studio swap behavior must be preserved.
+        With kb-96tn.9, the breadcrumb lives in post_syndication, not the hub shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/"
-        response = self.client.get(url, HTTP_HX_REQUEST="true")
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -464,8 +466,8 @@ class PostHubStandaloneCrossLinkTest(TestCase):
         self.assertIn(
             'hx-target="#studio-main"',
             content,
-            "post_hub HX fragment (in-studio context) MUST have hx-target='#studio-main' "
-            "on the 'Event hub' link so the studio swap works.",
+            "post_syndication (studio=1) MUST have hx-target='#studio-main' on the breadcrumb link "
+            "so the studio swap works (kb-96tn.9).",
         )
 
 
@@ -507,11 +509,12 @@ class PostSyndicationStudioContextTest(TestCase):
 
     def test_post_hub_standalone_breadcrumb_has_plain_href(self):
         """
-        kb-96tn.1: The standalone post_hub (normal GET) bar breadcrumb must have
-        a plain href to the event hub for correct navigation without HTMX.
+        kb-96tn.1 / kb-96tn.9: The post_syndication fragment breadcrumb without
+        ?studio=1 must have a plain href to the event hub for correct navigation.
         (studio_swap=False → plain <a href>, no hx-get/hx-target.)
+        With kb-96tn.9, the breadcrumb lives in post_syndication, not the hub shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/"
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -521,17 +524,18 @@ class PostSyndicationStudioContextTest(TestCase):
         self.assertIn(
             f'href="{expected_event_hub_path}"',
             content,
-            "post_hub standalone breadcrumb must have plain href for navigation (kb-96tn.1).",
+            "post_syndication breadcrumb (no studio) must have plain href for navigation (kb-96tn.1 / kb-96tn.9).",
         )
 
     def test_post_hub_hx_fragment_breadcrumb_has_hx_target_studio_main(self):
         """
-        kb-96tn.1: The post hub body (bar breadcrumb) when requested via HX-Request
+        kb-96tn.1 / kb-96tn.9: The post_syndication fragment with ?studio=1
         (in-studio context, studio_swap=True) MUST render hx-target="#studio-main"
         so the studio swap works correctly.
+        With kb-96tn.9, the breadcrumb lives in post_syndication, not the hub shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/"
-        response = self.client.get(url, HTTP_HX_REQUEST="true")
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
+        response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -539,7 +543,8 @@ class PostSyndicationStudioContextTest(TestCase):
         self.assertIn(
             'hx-target="#studio-main"',
             content,
-            "post hub HX breadcrumb MUST have hx-target='#studio-main' for the in-studio swap (kb-96tn.1).",
+            "post_syndication (studio=1) breadcrumb MUST have hx-target='#studio-main' "
+            "for the in-studio swap (kb-96tn.1 / kb-96tn.9).",
         )
 
 
@@ -857,9 +862,11 @@ class EventWorkspaceVocabLockTest(TestCase):
 
     def test_event_hub_body_has_composer_bar_not_eyebrow(self):
         """
-        kb-96tn.1: The event hub body must NOT have the old 'Event Workspace'
+        kb-96tn.1 / kb-96tn.9: The event hub body must NOT have the old 'Event Workspace'
         status eyebrow or h1.kb-display — those were replaced by the composer bar.
-        The bar has a 'Studio' breadcrumb and a pill-row placeholder.
+        With kb-96tn.9, the bar (pills + 'Studio' breadcrumb + publish) lives INSIDE the
+        event_syndication fragment. The hub shell no longer carries #composer-pills
+        or the "Studio" text directly; it has the #event-syndication lazy-load section.
         """
         url = f"/syndication/events/{self.event.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
@@ -873,17 +880,11 @@ class EventWorkspaceVocabLockTest(TestCase):
             content,
             "Event hub body must NOT have the old 'Event Workspace' status eyebrow (kb-96tn.1).",
         )
-        # Bar replaces it — Studio breadcrumb is present
+        # The hub shell must have the event-syndication section which lazy-loads the bar
         self.assertIn(
-            "Studio",
+            'id="event-syndication"',
             content,
-            "Event hub body must have the 'Studio' breadcrumb in the composer bar (kb-96tn.1).",
-        )
-        # Pill-row placeholder is present for C3
-        self.assertIn(
-            'id="composer-pills"',
-            content,
-            "Event hub body must have the composer-pills placeholder in the bar (kb-96tn.1).",
+            "Event hub body must have id='event-syndication' section that lazy-loads the composer bar (kb-96tn.9).",
         )
 
     def test_post_syndication_fragment_has_no_event_workspace_cross_link(self):

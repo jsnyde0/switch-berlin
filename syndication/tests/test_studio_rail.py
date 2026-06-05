@@ -425,14 +425,15 @@ class SharedBodyPartialRegressionTest(TestCase):
 
     def test_event_hub_fragment_renders_composer_bar(self):
         """
-        kb-96tn.1: HX-fragment event_hub renders the composer bar (not the old h1 title).
-        The bar has a 'Studio' breadcrumb and #composer-pills placeholder.
+        kb-96tn.1 / kb-96tn.9: HX-fragment event_hub renders the lazy-load anchor
+        for the composer bar — the bar (pills + 'Studio' breadcrumb + publish) now
+        lives INSIDE the event_syndication sub-fragment. The shell has the
+        id='event-syndication' section (no longer #composer-pills directly).
         """
         url = f"/syndication/events/{self.event.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="composer-pills"')
-        self.assertContains(response, "Studio")
+        self.assertContains(response, 'id="event-syndication"')
 
     def test_post_hub_full_page_renders_post_headline(self):
         """Full-page post_hub still renders the post headline after shared-body refactor."""
@@ -443,15 +444,15 @@ class SharedBodyPartialRegressionTest(TestCase):
 
     def test_post_hub_fragment_renders_composer_bar(self):
         """
-        kb-96tn.1: HX-fragment post_hub renders the composer bar (not the old h1 headline).
-        The bar has a 'Studio › <event.title>' breadcrumb and #composer-pills placeholder.
+        kb-96tn.1 / kb-96tn.9: HX-fragment post_hub renders the lazy-load anchor
+        for the composer bar — the bar (pills + breadcrumb + publish) now lives
+        INSIDE the post_syndication sub-fragment. The shell has id='post-syndication'
+        section (no longer #composer-pills directly).
         """
         url = f"/syndication/posts/{self.post.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="composer-pills"')
-        # Breadcrumb shows event title as the back-link
-        self.assertContains(response, "Partial Event")
+        self.assertContains(response, 'id="post-syndication"')
 
     def test_event_hub_fragment_no_layout_tags(self):
         """After refactor, event_hub_fragment still omits <html>/<body>."""

@@ -12,21 +12,9 @@ Context variables required:
                 knows it is rendering inside the studio shell (kb-ide0.1).
 {% endcomment %}
 <div class="w-full pt-4 pb-16" x-data="{}">
-  {# ── Composer bar: pills · breadcrumb · publish CTA ── #}
-  <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/[0.07]">
-    {# LEFT: pill-row placeholder — filled by C3 (kb-96tn.3) #}
-    <div id="composer-pills" class="flex items-center gap-1 shrink-0"></div>
-    {# CENTER: breadcrumb #}
-    <div class="flex-1 flex justify-center">
-      <span class="kb-mono text-[10px] uppercase tracking-[0.2em] text-base-content/45">{% trans "Studio" %}</span>
-    </div>
-    {# RIGHT: Schedule/Publish CTA placeholder — lifecycle wired by later children #}
-    <div class="flex items-center gap-2 shrink-0">
-      <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/25 px-2.5 py-1.5 border border-white/8">
-        {% trans "Publish" %}
-      </span>
-    </div>
-  </div>
+  {# kb-96tn.9: The composer bar (pills · breadcrumb · publish) now lives INSIDE
+     the event_syndication fragment below — where Alpine x-data + projection data
+     are both available. The shell renders no separate bar. #}
   {# event_syndication — edit-in-place composer workspace (kb-ide0.1) #}
   {# Thread ?studio=1 when inside the studio shell so the sub-fragment is context-aware #}
   <section id="event-syndication"

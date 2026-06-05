@@ -64,12 +64,63 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
       Status dot resolution point: draft=amber, ready=blue, published/live=green, failed=rose.
       (dirty/edited-needs-republish=orange is added by kb-96tn.5 — extend here.)
       Active pill = filled/opaque bg, inactive = ghost outline only.{% endcomment %}
-      {% comment %}kb-96tn.4: overflow-x-auto on the pill row clips the absolute-positioned
-      kebab dropdown. Split into two rows: pills row (overflow-x-auto) + CTA row (overflow: visible).
-      The CTA row (Publish all ready + "…" button) stays above the pills row without overflow clipping.{% endcomment %}
-      <div class="flex items-center gap-2 mb-2">
-        {% comment %}D5: CTAs right-aligned — moved above the pill row so no overflow-x-auto ancestor clips the dropdown.{% endcomment %}
-        <div class="flex items-center gap-2 ml-auto shrink-0">
+      {% comment %}kb-96tn.9: ONE consolidated bar — pills left · breadcrumb center · publish right.
+      The bar lives inside the fragment's x-data root so selectedPk stays wired.
+      Replaces the two-row split (CTA row above + pills row below) with a single flex row.
+      The "…" kebab dropdown uses position:relative on its own x-data div (sibling of the
+      pill list) to avoid overflow clipping (same pattern as kb-96tn.4).{% endcomment %}
+      <div class="flex items-center gap-2 mb-5 pb-4 border-b border-white/[0.07]">
+        {% comment %}LEFT: pill list — overflow-x-auto with flex-1 keeps pills from growing
+        into the breadcrumb / CTA zones.{% endcomment %}
+        <div class="flex items-center gap-1.5 min-w-0 overflow-x-auto"
+             style="flex: 0 1 auto; max-width: 50%"
+             role="tablist"
+             aria-label="{% trans 'Channels' %}">
+          {% for row in projection_rows %}
+            {% with proj=row.projection %}
+              <button type="button"
+                      role="tab"
+                      data-testid="channel-pill"
+                      data-status="{{ proj.status }}"
+                      title="{{ proj.connection.platform }}{% if proj.connection.destination_id %} · {{ proj.connection.destination_id }}{% endif %} ({{ proj.status }})"
+                      :aria-selected="selectedPk === {{ proj.pk }}"
+                      @click="selectedPk = {{ proj.pk }}"
+                      class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 transition-all duration-150 focus-visible:outline-none border"
+                      :class="selectedPk === {{ proj.pk }} ? '{% if proj.connection.platform == 'telegram' %}border-sky-400/40 bg-sky-400/10{% elif proj.connection.platform == 'fetlife' %}border-pink-400/40 bg-pink-400/10{% elif proj.connection.platform == 'switch' %}border-fuchsia-300/40 bg-fuchsia-300/10{% else %}border-white/20 bg-white/8{% endif %}' : 'border-white/12 bg-transparent hover:border-white/25'">
+                {% comment %}Status dot — single resolution point (kb-96tn.3).
+                kb-96tn.5 adds dirty=orange: published+edited-needs-republish → orange/amber-500.
+                Gate order: dirty overrides published-green (published+dirty is orange, not green).
+                id="channel-dot-<pk>" enables OOB-swap by version_edit (no-reload dirty update).{% endcomment %}
+                <span id="channel-dot-{{ proj.pk }}"
+                      class="w-1.5 h-1.5 rounded-full shrink-0 {% if row.is_dirty %}bg-orange-400{% elif proj.status == 'draft' %}bg-amber-400{% elif proj.status == 'ready' %}bg-sky-400{% elif proj.status == 'published' or proj.status == 'live' %}bg-emerald-400{% elif proj.status == 'failed' %}bg-rose-400{% else %}bg-base-content/20{% endif %}"
+                      {% if row.is_dirty %}title="{% trans "Edited — re-publish to update the live post" %}"{% endif %}></span>
+                {% comment %}Platform name — platform-colored.
+                Destination ID as sr-only so tests + accessibility see it without visual clutter.{% endcomment %}
+                <span class="kb-mono text-[9px] uppercase tracking-[0.18em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
+                  {{ proj.connection.platform }}
+                </span>
+                {% if proj.connection.destination_id %}<span class="sr-only">{{ proj.connection.destination_id }}</span>{% endif %}
+                {% comment %}Shared-content dot — subtle emerald if this content version is shared across channels.{% endcomment %}
+                {% if consumers_map %}
+                  {% for cv, consumers in consumers_map.items %}
+                    {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
+                      <span class="w-1 h-1 rounded-full bg-emerald-400/50 shrink-0"
+                            title="{% trans 'Shared content' %}"></span>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              </button>
+            {% endwith %}
+          {% endfor %}
+        </div>
+        {% comment %}CENTER: breadcrumb — "Studio" label for the event workspace.{% endcomment %}
+        <div class="flex-1 flex justify-center px-2">
+          <span class="kb-mono text-[10px] uppercase tracking-[0.2em] text-base-content/45">{% trans "Studio" %}</span>
+        </div>
+        {% comment %}RIGHT: Publish CTA + "…" add-channel kebab.
+        The kebab x-data div uses position:relative as a sibling of the overflow-x-auto
+        pill list — dropdown popup is not clipped (kb-96tn.4 pattern).{% endcomment %}
+        <div class="flex items-center gap-2 shrink-0">
           {% if can_publish and projection_rows and has_ready_projections %}
             <form method="post"
                   action="{% url 'syndication:projection-batch-publish' event_pk=event.pk %}"
@@ -170,48 +221,6 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
               </div>
             </div>
           {% endif %}
-        </div>
-      </div>
-      <div class="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
-        <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto"
-             role="tablist"
-             aria-label="{% trans 'Channels' %}">
-          {% for row in projection_rows %}
-            {% with proj=row.projection %}
-              <button type="button"
-                      role="tab"
-                      data-testid="channel-pill"
-                      data-status="{{ proj.status }}"
-                      title="{{ proj.connection.platform }}{% if proj.connection.destination_id %} · {{ proj.connection.destination_id }}{% endif %} ({{ proj.status }})"
-                      :aria-selected="selectedPk === {{ proj.pk }}"
-                      @click="selectedPk = {{ proj.pk }}"
-                      class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 transition-all duration-150 focus-visible:outline-none border"
-                      :class="selectedPk === {{ proj.pk }} ? '{% if proj.connection.platform == 'telegram' %}border-sky-400/40 bg-sky-400/10{% elif proj.connection.platform == 'fetlife' %}border-pink-400/40 bg-pink-400/10{% elif proj.connection.platform == 'switch' %}border-fuchsia-300/40 bg-fuchsia-300/10{% else %}border-white/20 bg-white/8{% endif %}' : 'border-white/12 bg-transparent hover:border-white/25'">
-                {% comment %}Status dot — single resolution point (kb-96tn.3).
-                kb-96tn.5 adds dirty=orange: published+edited-needs-republish → orange/amber-500.
-                Gate order: dirty overrides published-green (published+dirty is orange, not green).
-                id="channel-dot-<pk>" enables OOB-swap by version_edit (no-reload dirty update).{% endcomment %}
-                <span id="channel-dot-{{ proj.pk }}"
-                      class="w-1.5 h-1.5 rounded-full shrink-0 {% if row.is_dirty %}bg-orange-400{% elif proj.status == 'draft' %}bg-amber-400{% elif proj.status == 'ready' %}bg-sky-400{% elif proj.status == 'published' or proj.status == 'live' %}bg-emerald-400{% elif proj.status == 'failed' %}bg-rose-400{% else %}bg-base-content/20{% endif %}"
-                      {% if row.is_dirty %}title="{% trans "Edited — re-publish to update the live post" %}"{% endif %}></span>
-                {% comment %}Platform name — platform-colored.
-                Destination ID as sr-only so tests + accessibility see it without visual clutter.{% endcomment %}
-                <span class="kb-mono text-[9px] uppercase tracking-[0.18em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
-                  {{ proj.connection.platform }}
-                </span>
-                {% if proj.connection.destination_id %}<span class="sr-only">{{ proj.connection.destination_id }}</span>{% endif %}
-                {% comment %}Shared-content dot — subtle emerald if this content version is shared across channels.{% endcomment %}
-                {% if consumers_map %}
-                  {% for cv, consumers in consumers_map.items %}
-                    {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
-                      <span class="w-1 h-1 rounded-full bg-emerald-400/50 shrink-0"
-                            title="{% trans 'Shared content' %}"></span>
-                    {% endif %}
-                  {% endfor %}
-                {% endif %}
-              </button>
-            {% endwith %}
-          {% endfor %}
         </div>
       </div>
       {% for row in projection_rows %}

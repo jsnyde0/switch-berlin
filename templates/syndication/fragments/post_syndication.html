@@ -34,20 +34,22 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
       </div>
     </div>
   {% endif %}
-  {% comment %}D5 / D-IA4: Single top row — compact pills left, Publish CTA + "…" right.
+  {% comment %}D5 / D-IA4 / kb-96tn.9: ONE consolidated bar — pills left · breadcrumb center · publish right.
+    The bar lives inside the fragment's x-data root so selectedPk stays wired.
     Each pill: platform identity (name, platform-colored) + status dot.
     Status dot resolution point: draft=amber, ready=blue, published/live=green, failed=rose.
     (dirty/edited-needs-republish=orange is added by kb-96tn.5 — extend here.)
     Active pill = filled/opaque bg, inactive = ghost outline only.
     ADR-010 D1 (kb-ide0.4): Master copy anchor = first pill (abstract canonical for post).
     The 'source' key preserved for Alpine selectedPk compatibility (kb-shzi.2).
-    kb-96tn.4: The outer flex container has no overflow. The pill list is a flex-1 child
-    with its own overflow-x-auto. The CTAs (including the "…" dropdown) are siblings of the
-    pill list — outside the overflow-x-auto — so the absolute-positioned dropdown popup is
-    not clipped. DOM order: pills first → "Master copy" appears before any dropdown content,
+    kb-96tn.4: The outer flex container has no overflow. The pill list uses its own
+    overflow-x-auto with constrained width. The CTAs (including the "…" dropdown) are
+    siblings — absolute-positioned dropdown popup is not clipped.
+    DOM order: pills first → "Master copy" appears before any dropdown content,
   preserving test assertions on DOM ordering (test_source_tab_appears_before_other_channel_tabs).{% endcomment %}
-  <div class="flex items-center gap-2 mb-5 pb-1">
-    <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto"
+  <div class="flex items-center gap-2 mb-5 pb-4 border-b border-white/[0.07]">
+    <div class="flex items-center gap-1.5 min-w-0 overflow-x-auto"
+         style="flex: 0 1 auto; max-width: 50%"
          role="tablist"
          aria-label="{% trans 'Channels' %}">
       {% comment %}ADR-010 D1: Master copy anchor pill — first pill, abstract canonical for the post.
@@ -100,10 +102,28 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         {% endwith %}
       {% endfor %}
     </div>
-    {% comment %}CTAs right-aligned as a flex sibling of the pill list.
+    {% comment %}CENTER: breadcrumb — "Studio › event.title" linking back to the event hub.
+    studio_swap is forwarded from the hub body shell context (kb-9f1h.7).{% endcomment %}
+    <div class="flex-1 flex justify-center px-2">
+      <span class="kb-mono text-[10px] uppercase tracking-[0.2em] text-base-content/45">
+        {% trans "Studio" %}
+        <span class="mx-1.5 text-base-content/20">›</span>
+        {% if studio_swap %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
+             hx-target="#studio-main"
+             hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="text-base-content/55 hover:text-base-content/80 transition-colors">{{ event.title }}</a>
+        {% else %}
+          <a href="{% url 'syndication:event-hub' pk=event.pk %}"
+             class="text-base-content/55 hover:text-base-content/80 transition-colors">{{ event.title }}</a>
+        {% endif %}
+      </span>
+    </div>
+    {% comment %}RIGHT: CTAs — batch publish + "…" add-channel kebab.
     The x-data div for the kebab dropdown uses position: relative, which is a sibling of
     the overflow-x-auto pill list — so the absolute-positioned dropdown popup is NOT clipped.{% endcomment %}
-    <div class="flex items-center gap-2 ml-auto shrink-0 pl-2">
+    <div class="flex items-center gap-2 shrink-0 pl-2">
       {% if can_publish and projection_rows and has_ready_projections %}
         <form method="post"
               action="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
@@ -518,10 +538,14 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
             </div>
           {% endif %}
           {% if proj.status != 'draft' %}
+            {% comment %}kb-96tn.10: Mirror event_syndication.html — published/ready/failed post
+            projections render content ONCE via _channel_preview.html.
+            The old 'Body' label + raw-text block is removed (duplicate render).{% endcomment %}
             <div class="mb-6">
-              <p class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/28 mb-3">{% trans "Body" %}</p>
-              <div class="kb-mono text-[11px] text-base-content/55 leading-relaxed whitespace-pre-wrap border-b pb-4"
-                   style="border-bottom-color: rgba(255,255,255,0.07)">{{ body }}</div>
+              <div style="background: rgba(255,255,255,0.025);
+                          border: 1px solid rgba(255,255,255,0.07)">
+                {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+              </div>
             </div>
             {% comment %}kb-96tn.5: dirty banner container — id="channel-dirty-<pk>" for OOB-swap
             by version_edit (no-reload dirty update). Inner div conditional on is_dirty.{% endcomment %}
