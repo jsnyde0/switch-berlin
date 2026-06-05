@@ -583,3 +583,290 @@ class ChannelEditorFormActionTest(TestCase):
             f"Per-channel body form must use `projection-detach-and-edit` URL "
             f"({expected_detach_url!r}) — not version-edit keyed by canonical CV",
         )
+
+    def test_master_source_tab_body_form_action_is_version_edit(self):
+        """
+        The body form on the master/source (broadcast) tab must post to `version-edit`
+        keyed by the canonical CV pk — NOT to `projection-detach-and-edit`.
+
+        Template-level assertion: renders the fragment and checks the HTML content.
+        Guards against a template regression that accidentally routes the master tab
+        through the detach endpoint.
+        """
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        expected_version_edit_url = reverse(
+            "syndication:version-edit",
+            kwargs={"pk": self.canonical_cv.pk},
+        )
+        self.assertIn(
+            expected_version_edit_url,
+            content,
+            f"Master/source (broadcast) tab body form must use `version-edit` URL "
+            f"({expected_version_edit_url!r}) — not projection-detach-and-edit",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 6. FIX A — CV churn idempotence: second edit on already-detached channel
+#            must NOT mint a new ContentVersion.
+# ---------------------------------------------------------------------------
+
+
+class DetachAndEditIdempotenceTest(TestCase):
+    """
+    FIX A (kb-kgza.2 adversarial-review): detach_and_edit must be idempotent.
+
+    If a projection is ALREADY on its own independent CV (state iii: not the
+    canonical, only one consumer — this projection), a SECOND call to
+    projection-detach-and-edit must edit IN PLACE (call edit_version on the
+    existing CV) and must NOT mint a new ContentVersion row.
+
+    Simulates autosave: user types a burst, 600ms quiet, first autosave fires
+    → detaches and mints CV. Another burst, 600ms quiet, second autosave fires
+    → must NOT mint a second orphaned CV.
+
+    DB-state assertion: ContentVersion row count is unchanged across the second call.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="idempotent_detach_user",
+            email="idempotent_detach@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("Idempotent Detach Org", "idempotent-detach-org", user=self.user)
+        self.event = _make_event(self.profile, "Idempotent Detach Event", "idempotent-detach-event")
+        self.post = Post.objects.create(
+            event=self.event,
+            headline="Idempotent Detach Post",
+            body="Original body",
+        )
+        self.conn_fetlife = _make_connection(self.profile, "fetlife", "fl-idempotent", ["promotion"])
+        self.canonical_cv = _make_canonical_cv_for_post(self.post, body="Canonical body")
+        self.fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.canonical_cv)
+        self.client.force_login(self.user)
+
+    def test_second_autosave_on_already_detached_channel_mints_no_new_cv(self):
+        """
+        After the FIRST edit detaches and mints a new CV, the SECOND edit must
+        edit the SAME CV in place — no new ContentVersion row.
+
+        ContentVersion count must be unchanged across the second POST.
+        """
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
+
+        # First edit: detaches from canonical, mints a new CV
+        self.client.post(url, {"body": "First autosave"}, HTTP_HX_REQUEST="true")
+
+        # Capture count after the first edit (channel now on its own CV)
+        cv_count_after_first = ContentVersion.objects.filter(post=self.post).count()
+
+        # Second edit: must edit IN PLACE, no new CV
+        self.client.post(url, {"body": "Second autosave"}, HTTP_HX_REQUEST="true")
+
+        cv_count_after_second = ContentVersion.objects.filter(post=self.post).count()
+
+        self.assertEqual(
+            cv_count_after_second,
+            cv_count_after_first,
+            "A SECOND detach-and-edit on an already-detached channel must NOT mint a new "
+            f"ContentVersion row (count was {cv_count_after_first} after first edit, "
+            f"got {cv_count_after_second} after second — expected no change).",
+        )
+
+    def test_second_autosave_applies_the_new_body(self):
+        """
+        Even though no new CV is minted, the second edit must still update the body
+        in place on the existing (already-detached) CV.
+        """
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
+
+        # First edit detaches
+        self.client.post(url, {"body": "First autosave"}, HTTP_HX_REQUEST="true")
+
+        # Second edit — should update body in place
+        self.client.post(url, {"body": "Second autosave updated"}, HTTP_HX_REQUEST="true")
+
+        self.fl_proj.refresh_from_db()
+        self.assertEqual(
+            self.fl_proj.content_version.body,
+            "Second autosave updated",
+            "Second edit on already-detached channel must update the body in place",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 7. FIX B — state-ii inconsistency: editing a state-ii projection via
+#            detach-and-edit must clear sync_source (ADR-016 D2).
+# ---------------------------------------------------------------------------
+
+
+class DetachAndEditStateIIConsistencyTest(TestCase):
+    """
+    FIX B (kb-kgza.2 adversarial-review): editing a state-ii projection
+    (own CV + sync_source SET) via projection-detach-and-edit must clear
+    sync_source to NULL, producing a clean state-iii (own CV + sync_source NULL).
+
+    ADR-016 D2 forbids own-CV + sync_source-set as a stable resting state.
+    detach_and_edit currently mints a new CV but NEVER clears sync_source —
+    leaving the inconsistent state.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="state_ii_user",
+            email="state_ii@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("State II Org", "state-ii-org", user=self.user)
+        self.event = _make_event(self.profile, "State II Event", "state-ii-event")
+        self.post = Post.objects.create(
+            event=self.event,
+            headline="State II Post",
+            body="State ii body",
+        )
+        self.conn_telegram = _make_connection(self.profile, "telegram", "tg-state-ii", ["promotion"])
+        self.conn_fetlife = _make_connection(self.profile, "fetlife", "fl-state-ii", ["promotion"])
+        self.canonical_cv = _make_canonical_cv_for_post(self.post, body="canonical body")
+
+        # Telegram: the sync source (state i — on canonical, sync_source NULL)
+        self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.canonical_cv)
+
+        # FetLife: state ii — its OWN CV (copied from canonical), sync_source = tg_proj
+        self.fl_own_cv = ContentVersion.objects.create(
+            post=self.post,
+            name="fl-copy",
+            provenance=ContentVersion.Provenance.MANUAL,
+            body="FL own body",
+        )
+        self.fl_proj = PlatformProjection.objects.create(
+            connection=self.conn_fetlife,
+            kind=PlatformProjection.Kind.PROMOTION,
+            status="draft",
+            source_post=self.post,
+            content_version=self.fl_own_cv,
+            sync_source=self.tg_proj,  # state ii: own CV + sync_source SET
+        )
+        self.client.force_login(self.user)
+
+    def test_editing_state_ii_projection_clears_sync_source(self):
+        """
+        POST to projection-detach-and-edit on a state-ii projection (own CV + sync_source SET)
+        must result in sync_source being NULL on the projection.
+
+        ADR-016 D2: detached = own CV + sync_source NULL (state iii, clean).
+        The current implementation leaves sync_source set — an inconsistent state.
+        """
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
+        self.client.post(url, {"body": "detach state-ii edit"}, HTTP_HX_REQUEST="true")
+
+        self.fl_proj.refresh_from_db()
+        self.assertIsNone(
+            self.fl_proj.sync_source_id,
+            "After detach-and-edit on a state-ii projection (own CV + sync_source SET), "
+            "sync_source must be NULL — ADR-016 D2 forbids own-CV + sync_source-set.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 8. FIX C — dirty OOB missing oob=True: detach-edit on a published projection
+#            must emit _channel_dirty_oob.html with hx-swap-oob="true".
+# ---------------------------------------------------------------------------
+
+
+class DetachAndEditDirtyOOBFlagTest(TestCase):
+    """
+    FIX C (kb-kgza.2 adversarial-review): projection_detach_and_edit renders
+    _channel_dirty_oob.html WITHOUT oob=True in context, so the dirty pill/banner
+    are emitted WITHOUT hx-swap-oob and never update client-side.
+
+    version_edit passes oob=True (views.py ~1651-1655).
+    projection_detach_and_edit must do the same.
+
+    Content assertion: rendered HTML must contain hx-swap-oob="true" inside the
+    _channel_dirty_oob.html fragment when the projection is published and dirty.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="dirty_oob_user",
+            email="dirty_oob@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("Dirty OOB Org", "dirty-oob-org", user=self.user)
+        self.event = _make_event(self.profile, "Dirty OOB Event", "dirty-oob-event")
+        self.post = Post.objects.create(
+            event=self.event,
+            headline="Dirty OOB Post",
+            body="Dirty oob body",
+        )
+        self.conn_fetlife = _make_connection(self.profile, "fetlife", "fl-dirty-oob", ["promotion"])
+        self.canonical_cv = _make_canonical_cv_for_post(self.post, body="canonical dirty oob body")
+
+        # Published projection sharing canonical CV — will become dirty after edit
+        self.fl_proj = _make_promotion_projection(
+            self.conn_fetlife,
+            self.post,
+            self.canonical_cv,
+            status="published",
+        )
+        # frozen_content set at the CANONICAL body (before detach-edit makes it dirty)
+        self.fl_proj.frozen_content = {"body": "canonical dirty oob body"}
+        self.fl_proj.save(update_fields=["frozen_content", "updated_at"])
+        self.client.force_login(self.user)
+
+    def test_detach_edit_on_published_projection_emits_dirty_oob_channel_dot_with_swap_oob(self):
+        """
+        A detach-edit on a PUBLISHED projection (dirty after the edit) must emit
+        the channel-dot span from _channel_dirty_oob carrying hx-swap-oob="true",
+        so the dirty pill updates client-side via HTMX OOB swap.
+
+        Without oob=True in the render context, the template emits:
+          <span id="channel-dot-{pk}" ...>
+        WITHOUT hx-swap-oob — HTMX ignores it and the dirty indicator never updates.
+
+        This test asserts the channel-dot element AND hx-swap-oob coexist in the
+        response — i.e. the dirty OOB fragment carries the OOB attribute, not just
+        the sync-bar OOB fragment (which always has hx-swap-oob="true").
+        """
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
+        response = self.client.post(
+            url,
+            {"body": "new body that makes projection dirty"},
+            HTTP_HX_REQUEST="true",
+        )
+        content = response.content.decode()
+
+        # The channel-dot span is the key element from _channel_dirty_oob.html.
+        # When oob=True is passed to the template, the span carries hx-swap-oob="true".
+        # Without oob=True, the same span is emitted WITHOUT the attribute — HTMX
+        # will not process it as an OOB swap and the dot never updates client-side.
+        channel_dot_id = f'id="channel-dot-{self.fl_proj.pk}"'
+        self.assertIn(
+            channel_dot_id,
+            content,
+            f"Response must contain the channel-dot span ({channel_dot_id!r}) from _channel_dirty_oob.html.",
+        )
+
+        # Find the channel-dot span and assert hx-swap-oob="true" is in the same
+        # element (not just somewhere else in the response from the sync-bar OOB).
+        channel_dot_idx = content.index(channel_dot_id)
+        # The span opening tag ends at the first > after channel_dot_idx
+        span_end_idx = content.index(">", channel_dot_idx)
+        span_tag = content[channel_dot_idx - 20 : span_end_idx + 1]
+
+        self.assertIn(
+            'hx-swap-oob="true"',
+            span_tag,
+            f"The channel-dot span ({channel_dot_id!r}) must carry hx-swap-oob='true' — "
+            "without oob=True in the context, the template omits this attribute and HTMX "
+            "never processes the OOB swap (FIX C: pass oob=True to _channel_dirty_oob context).\n"
+            f"Actual span tag found: {span_tag!r}",
+        )

@@ -1468,6 +1468,10 @@ def projection_detach_and_edit(request, pk):
                     {
                         "proj": proj,
                         "is_dirty": _is_dirty,
+                        "oob": True,  # FIX C (kb-kgza.2): emit hx-swap-oob="true" so HTMX
+                        # processes the dirty pill/banner OOB swap client-side.
+                        # version_edit passes oob=True (views.py ~1651-1655); detach-and-edit
+                        # was missing it, leaving the dirty indicator un-updated after detach.
                     },
                     request=request,
                 )

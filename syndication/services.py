@@ -1204,26 +1204,61 @@ def detach_and_edit(user, projection, **fields):
 
       editing a per-channel tab AUTO-DETACHES it to an independent version.
 
+    Idempotent (FIX A, kb-kgza.2): if the projection is ALREADY on its own
+    independent CV (sole consumer, not the canonical), edit IN PLACE via
+    edit_version — do NOT call customize again (which would mint a new orphaned
+    CV on every autosave keystroke-batch).
+
+    The "needs detach" condition: the projection's current CV is shared —
+    either it IS the canonical (name == 'canonical') OR it has more than one
+    consumer projection. Any of these cases means a customize is required
+    before editing.
+
+    FIX B (kb-kgza.2): if the projection has sync_source set (state ii: own CV
+    + sync_source SET), clear it after detach so the result is a clean state-iii
+    (own CV + sync_source NULL), as ADR-016 D2 mandates.
+
     Procedure:
-    1. Call customize(user, projection) — mints a new independent CV, repoints
-       the projection's FK. Idempotent if the projection is already on its own
-       CV (customize still mints a new copy, which is fine for the edit path).
-    2. Call edit_version(user, new_cv, **fields) on the NEW CV — applies the
-       body/headline/etc. edits to the isolated row. Passes
-       _allow_edit_after_publish=True so the guard does not trip when the
+    1. If the projection shares its CV (state i or multi-consumer), call
+       customize(user, projection) — mints a new independent CV, repoints the
+       FK. Clear sync_source if set (→ state iii).
+    2. If already on its own independent CV (state iii), skip customize.
+       Clear sync_source if set (state ii → state iii).
+    3. Call edit_version(user, cv, **fields) — applies body/headline/etc. edits.
+       Passes _allow_edit_after_publish=True so the guard does not trip when the
        projection is published (ADR-016 D5: editing a published projection
        dirties it but does NOT corrupt frozen_content).
 
-    Returns: (new_cv, updated_projection) after the full detach-and-edit.
+    Returns: (cv, updated_projection) after the full detach-and-edit.
 
     Gate: inherited from customize (can_edit check) and edit_version (same gate).
     ADR-008 D3: no silent fallback — both steps raise on invalid input.
     """
-    new_cv = customize(user, projection)
-    # Refresh projection so content_version FK resolves to new_cv
-    projection.refresh_from_db()
-    edit_version(user, new_cv, _allow_edit_after_publish=True, **fields)
-    return new_cv, projection
+    current_cv = projection.content_version
+
+    # Determine whether a customize (mint new CV) is needed.
+    # Need to detach when the CV is shared:
+    #   - it is the canonical (name == 'canonical') — always shared by design, OR
+    #   - it has more than one consumer projection — siblings still share it.
+    # If neither condition holds, the projection already owns its own independent CV.
+    consumer_count = current_cv.projections.count()
+    needs_customize = current_cv.name == "canonical" or consumer_count > 1
+
+    if needs_customize:
+        cv = customize(user, projection)
+        # Refresh so content_version FK resolves to the newly minted CV.
+        projection.refresh_from_db()
+    else:
+        # Already on an independent CV — edit in place, no new row.
+        cv = current_cv
+
+    # FIX B: clear sync_source if set (state ii → state iii).
+    # ADR-016 D2: detached = own CV + sync_source NULL.
+    if projection.sync_source_id is not None:
+        detach_sync_source(projection)
+
+    edit_version(user, cv, _allow_edit_after_publish=True, **fields)
+    return cv, projection
 
 
 def approve_projection(user, projection):
