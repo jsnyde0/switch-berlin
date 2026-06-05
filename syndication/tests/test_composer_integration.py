@@ -36,6 +36,8 @@ hollow-test prevention (context assertions pass even when the template is
 broken — kb-33do.3 reformat-mutates-rendered-output caveat).
 """
 
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -770,4 +772,84 @@ class ComposerConjunctionTest(TestCase):
             content,
             "post_syndication fragment must NOT have a 'Body' section label for a "
             "published projection (kb-96tn.10 double-render fix).",
+        )
+
+
+# ---------------------------------------------------------------------------
+# kb-96tn.11: edit_after_publish_policy seam is live on the dirty/render path
+# ---------------------------------------------------------------------------
+
+
+class EditAfterPublishPolicySeamTest(TestCase):
+    """
+    Verifies that edit_after_publish_policy is a LIVE caller on the dirty path:
+      - Stubbing the policy to a non-default value suppresses the dirty affordance
+        (the seam actually gates rendering).
+      - Default policy (dirty_then_republish) leaves behavior unchanged —
+        the dirty banner and Re-publish affordance still render.
+
+    ADR-016 D5 cheap-foresight requirement (kb-96tn.11).
+    ADR-008 D2: do NOT test alternate policy behaviors beyond asserting the seam
+    is load-bearing (no lock/auto branches implemented here).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="policy_seam_user", email="policy@test.com", password="pw")
+        self.profile = _make_profile("Policy Seam Org", "policy-seam-org", user=self.user)
+        self.event = _make_event(self.profile, "Policy Seam Event", "policy-seam-event")
+        self.switch_conn = _make_switch_connection(self.profile)
+        self.switch_proj = _make_published_projection(self.event, self.switch_conn)
+        # Edit the body to create a dirty state
+        cv = self.switch_proj.content_version
+        cv.body = "EDITED BODY — seam test wants dirty state"
+        cv.save(update_fields=["body"])
+        self.switch_proj.refresh_from_db()
+        self.switch_proj.content_version.refresh_from_db()
+        self.client.login(username="policy_seam_user", password="pw")
+
+    def _get_event_syndication_html(self):
+        url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
+
+    def test_default_policy_shows_dirty_affordance(self):
+        """
+        With the default dirty_then_republish policy, a dirty published projection
+        causes the dirty banner to render — v0 behavior is unchanged (regression guard).
+        """
+        # Sanity: confirm projection is dirty before calling the view
+        self.assertTrue(
+            self.switch_proj.is_dirty,
+            "Pre-condition: projection must be dirty after body edit.",
+        )
+        content = self._get_event_syndication_html()
+        self.assertIn(
+            'data-testid="dirty-banner"',
+            content,
+            "Default policy (dirty_then_republish) must render the dirty banner for a dirty published projection.",
+        )
+
+    def test_non_default_policy_suppresses_dirty_affordance(self):
+        """
+        When edit_after_publish_policy returns a non-default value (e.g. 'lock'),
+        the dirty affordance must NOT render — proving the policy seam is LIVE.
+
+        ADR-008 D2: 'lock' behavior is not implemented; this test only verifies
+        the seam gates the affordance, not that locking works end-to-end.
+        """
+        # Sanity: projection is still dirty (content-diff fact is unchanged)
+        self.assertTrue(
+            self.switch_proj.is_dirty,
+            "Pre-condition: projection must still be dirty (is_dirty is a content-diff fact).",
+        )
+        # Stub the policy to a non-default value — the seam must gate the affordance
+        with patch("syndication.views.edit_after_publish_policy", return_value="lock"):
+            content = self._get_event_syndication_html()
+        self.assertNotIn(
+            'data-testid="dirty-banner"',
+            content,
+            "Non-default policy ('lock') must suppress the dirty banner — "
+            "proving edit_after_publish_policy is a live caller on the render path (kb-96tn.11).",
         )

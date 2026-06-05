@@ -46,6 +46,7 @@ from syndication.services import (
     customize,
     detach_sync_source,
     duplicate,
+    edit_after_publish_policy,
     edit_version,
     get_publishables_for_profile,
     mark_projection_published,
@@ -505,15 +506,26 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         # For published projections: compares current effective content to frozen_content.
         # For non-published projections: always False (no raise).
         # For published+null frozen_content (invariant violation): surface as error.
+        #
+        # ADR-016 D5 / ADR-003 cheap foresight: gate the dirty AFFORDANCE through
+        # edit_after_publish_policy so the seam is live — if a platform resolves a
+        # non-dirty_then_republish policy, the affordance is suppressed without
+        # touching the template.  is_dirty (the content-diff fact) is unchanged;
+        # only the rendered affordance is gated.  ADR-008 D2: only dirty_then_republish
+        # is implemented; alternate branches (lock/auto) are not built here.
         is_dirty = False
         try:
-            is_dirty = proj.is_dirty
+            content_is_dirty = proj.is_dirty
         except ValueError as exc:
             # Invariant violation (published+null frozen_content): surface as render_error.
             render_error = True
             if not body:
                 body = str(exc)
             _logger.warning("is_dirty check failed for projection %r: %s", proj.pk, exc)
+            content_is_dirty = False
+        if content_is_dirty:
+            policy = edit_after_publish_policy(proj.connection.platform)
+            is_dirty = policy == "dirty_then_republish"
         rendered_rows[proj.pk] = body
         projection_rows.append({"projection": proj, "body": body, "render_error": render_error, "is_dirty": is_dirty})
 
@@ -792,14 +804,19 @@ def fragment_post_syndication(request, pk, *, action_error=None):
             body = str(exc)
             _logger.warning("render_projection failed for post projection %r: %s", proj.pk, exc)
         # Compute is_dirty for this projection (ADR-016 D5 edit-after-publish).
+        # Gate the dirty affordance through edit_after_publish_policy (ADR-003 seam).
         is_dirty = False
         try:
-            is_dirty = proj.is_dirty
+            content_is_dirty = proj.is_dirty
         except ValueError as exc:
             render_error = True
             if not body:
                 body = str(exc)
             _logger.warning("is_dirty check failed for post projection %r: %s", proj.pk, exc)
+            content_is_dirty = False
+        if content_is_dirty:
+            policy = edit_after_publish_policy(proj.connection.platform)
+            is_dirty = policy == "dirty_then_republish"
         rendered_rows[proj.pk] = body
         projection_rows.append({"projection": proj, "body": body, "render_error": render_error, "is_dirty": is_dirty})
 
@@ -1538,11 +1555,17 @@ def version_edit(request, pk):
             # Compute is_dirty for this projection and emit the channel-dot +
             # channel-dirty OOB fragments so the pill dot updates live.
             # Only published projections can be dirty (is_dirty gates on status).
+            # ADR-016 D5 / ADR-003: gate the affordance through edit_after_publish_policy.
             if _proj.status == PlatformProjection.Status.PUBLISHED and _proj.frozen_content is not None:
                 try:
-                    _is_dirty = _proj.is_dirty
+                    _content_is_dirty = _proj.is_dirty
                 except ValueError:
-                    _is_dirty = False  # Invariant violation — don't crash the autosave
+                    _content_is_dirty = False  # Invariant violation — don't crash the autosave
+                if _content_is_dirty:
+                    _policy = edit_after_publish_policy(_proj.connection.platform)
+                    _is_dirty = _policy == "dirty_then_republish"
+                else:
+                    _is_dirty = False
                 _oob_fragments.append(
                     render_to_string(
                         "syndication/fragments/_channel_dirty_oob.html",
