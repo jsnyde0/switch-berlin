@@ -535,6 +535,44 @@ class PlatformProjection(models.Model):
     def __str__(self):
         return f"{self.connection} / {self.kind} / {self.status}"
 
+    @property
+    def is_dirty(self):
+        """
+        True iff this published projection's effective content differs from
+        what was frozen at publish time (edit-after-publish, ADR-016 D5).
+
+        Gate order (critical — ADR-016 D5, ADR-008 D3):
+          1. status != 'published' → return False immediately.
+             A DRAFT projection legitimately has null frozen_content and
+             is NEVER dirty — do NOT check frozen_content for drafts.
+          2. status == 'published' AND frozen_content is None →
+             invariant violation → raise ValueError (ADR-008 D3: fail loud).
+          3. status == 'published' AND frozen_content set →
+             compute current effective content and compare to frozen.
+
+        Deferred import: engine imports models at module level, so we
+        import engine here inside the property body to avoid a circular
+        import at load time.
+        """
+        if self.status != self.Status.PUBLISHED:
+            return False
+
+        # status == 'published': frozen_content MUST be set (ADR-008 D3).
+        if self.frozen_content is None:
+            raise ValueError(
+                f"PlatformProjection {self.pk!r} is status='published' but has "
+                "frozen_content=None — invariant violation. frozen_content must be "
+                "materialized at draft→ready and must not be cleared for published rows. "
+                "(ADR-008 D3: fail loud — not a silent dirty=False)"
+            )
+
+        # Compare the current effective content dict to the frozen snapshot.
+        # Deferred import to avoid circular import (engine imports models at load time).
+        from syndication.engine import _materialize_effective_fields  # noqa: PLC0415
+
+        current = _materialize_effective_fields(self)
+        return current != self.frozen_content
+
 
 # ---------------------------------------------------------------------------
 # Agent credential auth models (ADR-016 D3, kb-a4u.2)

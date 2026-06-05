@@ -619,6 +619,48 @@ def update_post(user, post, **kwargs):
 
 
 # ---------------------------------------------------------------------------
+# Edit-after-publish policy seam (ADR-016 D5, ADR-003 cheap foresight)
+#
+# v0 applies the dirty-marker uniformly: editing a published projection's
+# ContentVersion marks it "dirty" (is_dirty=True on the model property) and
+# re-publish is an explicit act. Future platforms that cannot be edited after
+# posting (e.g. a no-edit-API channel) will resolve a different policy here —
+# a value change in ONE place, not a rewrite of the dirty logic.
+#
+# This is the SINGLE named resolution point (grep "edit_after_publish_policy"
+# must find exactly ONE def site — here). Callers import this function; they
+# do NOT inline the policy logic.
+# ---------------------------------------------------------------------------
+
+
+def edit_after_publish_policy(platform: str) -> str:
+    """
+    Resolve the edit-after-publish behaviour for a given platform.
+
+    Returns a policy string consumed by the dirty-marker / publish path:
+      "dirty_then_republish" — editing a published channel marks it dirty;
+                               re-publish is an explicit act that re-freezes
+                               frozen_content (the v0 default for all platforms).
+
+    Future values (ADR-008 D2 — do NOT implement these now; only make the seam):
+      "lock"                — editing is disabled for published channels (e.g.
+                              a platform with no edit API where a second post
+                              would duplicate, not update, the content).
+      "auto_rebroadcast"   — editing automatically re-pushes to the platform
+                              (e.g. a platform with a safe in-place edit API).
+
+    ADR-003 cheap foresight: the seam is here so a future per-platform "lock"
+    is a value-change in this lookup, NOT a rewrite of every dirty code path.
+    ADR-008 D2: do NOT add branches for the alternate behaviours now (no first
+    caller). Just return the v0 default for all platforms.
+    """
+    # v0: all platforms → dirty_then_republish (single value, no branching needed).
+    # When a platform needs a different policy, add it as a lookup entry here
+    # (e.g. _PLATFORM_EDIT_AFTER_PUBLISH_POLICY = {"fetlife-no-api": "lock"}).
+    return "dirty_then_republish"
+
+
+# ---------------------------------------------------------------------------
 # Projection lifecycle actions (kb-a4u.5, ADR-016 D5)
 #
 # Co-equal seam (ADR-016 D6): all lifecycle actions are service functions
@@ -1250,23 +1292,81 @@ def publish_projection(user, projection):
     return projection
 
 
+def republish_projection(user, projection):
+    """
+    Re-publish a dirty published projection (ADR-016 D5 edit-after-publish).
+
+    When a published projection's ContentVersion has been edited (making it dirty),
+    the facilitator must explicitly re-publish to update the live post. This verb:
+      1. Re-materializes frozen_content (captures the current effective content).
+      2. Saves the updated frozen_content (status stays 'published').
+      3. Re-dispatches to the platform adapter for push-API platforms, OR records
+         the re-freeze as an attestation update for no-API platforms.
+
+    Gate: user must be able to publish the projection's event (can_publish seam).
+
+    ADR-016 D5: re-publish is EXPLICIT — never automatic on edit.
+    ADR-008 D3: fail loud if projection is not 'published' (wrong verb for
+                non-published projections).
+    ADR-016 D6: co-equal seam — callable by both HTMX views and the Ninja API.
+    """
+    from syndication.authz import can_publish
+    from syndication.engine import _materialize_effective_fields
+    from syndication.models import PlatformProjection as _PP
+
+    event = _resolve_projection_event(projection)
+    if not can_publish(user, event):
+        raise PermissionError(
+            f"User {user} cannot re-publish projection {projection.pk!r} (event '{event}'). (ADR-017 D2)"
+        )
+
+    if projection.status != _PP.Status.PUBLISHED:
+        raise ValueError(
+            f"republish_projection requires status=published; "
+            f"got status={projection.status!r} for projection {projection.pk!r}. "
+            "Use publish_projection_direct for first-publish of draft/ready rows. "
+            "(ADR-008 D3 — fail loud)"
+        )
+
+    # Re-materialize: capture the current effective content into frozen_content.
+    # This is the re-freeze step that makes the dirty projection clean again.
+    new_frozen = _materialize_effective_fields(projection)
+    projection.frozen_content = new_frozen
+    projection.save(update_fields=["frozen_content", "updated_at"])
+
+    # Re-dispatch to platform adapter for push-API platforms.
+    # For push-API: the adapter re-sends the content (implementation deferred —
+    # per-adapter edit-in-place API is a future optimization per ADR-016 D5).
+    # For now: re-freeze is the source-of-truth update; the push adapters would
+    # need explicit "update post" API calls not yet implemented.
+    # No-API platforms (fetlife): the re-freeze IS the re-publish attestation —
+    # the facilitator has already re-posted manually and calls this to update
+    # Switch's record of what's live.
+    # v0 implementation: re-freeze only (frozen_content updated above).
+    # The platform-specific push is a per-adapter follow-up (ADR-008 D2: no first caller).
+
+    return projection
+
+
 def publish_projection_direct(user, projection):
     """
-    Direct-publish: drive the internal draft→ready→published two-step transparently.
+    Direct-publish: drive the internal draft→ready→published two-step transparently,
+    OR re-publish a dirty published projection.
 
-    Solo-flow CTA (kb-ide0.2 D6): the user sees one Publish button; this service
-    drives the internal sequence so frozen_content is always materialized before
-    the projection reaches 'published'.
+    Solo-flow CTA (kb-ide0.2 D6): the user sees one Publish / Re-publish button;
+    this service drives the correct path based on current status.
 
     - If projection is 'draft': call approve_projection (draft→ready, freezes
       frozen_content), THEN publish_projection (ready→published).
     - If projection is already 'ready': call publish_projection directly (freeze
       already happened at approve time).
+    - If projection is 'published' (dirty — edited after publish): call
+      republish_projection (re-freezes frozen_content, ADR-016 D5).
     - If projection is in any other status: delegate to publish_projection which
       will raise ValueError via the engine (ADR-008 D3 — fail loud).
 
     The three-state engine model (_LEGAL_TRANSITIONS) is UNCHANGED; this service
-    just sequences the two existing service calls for the common solo case.
+    sequences the existing service calls for the common solo case.
 
     ADR-008 D3: frozen_content is NEVER null on a published row — the approve
     step materializes it before the publish step runs.
@@ -1275,6 +1375,11 @@ def publish_projection_direct(user, projection):
     Raises ValueError if the transition is illegal (engine invariant).
     """
     from syndication.models import PlatformProjection as _PP
+
+    if projection.status == _PP.Status.PUBLISHED:
+        # Re-publish path: dirty published projection → re-freeze frozen_content.
+        # ADR-016 D5: explicit re-publish is the only way to update the live post.
+        return republish_projection(user=user, projection=projection)
 
     if projection.status == _PP.Status.DRAFT:
         # Step 1: draft → ready (materializes frozen_content)

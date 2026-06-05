@@ -74,8 +74,13 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                   @click="selectedPk = {{ proj.pk }}"
                   class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 transition-all duration-150 focus-visible:outline-none border"
                   :class="selectedPk === {{ proj.pk }} ? '{% if proj.connection.platform == 'telegram' %}border-sky-400/40 bg-sky-400/10{% elif proj.connection.platform == 'fetlife' %}border-pink-400/40 bg-pink-400/10{% elif proj.connection.platform == 'switch' %}border-fuchsia-300/40 bg-fuchsia-300/10{% else %}border-white/20 bg-white/8{% endif %}' : 'border-white/12 bg-transparent hover:border-white/25'">
-            {% comment %}Status dot — single resolution point. kb-96tn.5 adds dirty=orange here.{% endcomment %}
-            <span class="w-1.5 h-1.5 rounded-full shrink-0 {% if proj.status == 'draft' %}bg-amber-400{% elif proj.status == 'ready' %}bg-sky-400{% elif proj.status == 'published' or proj.status == 'live' %}bg-emerald-400{% elif proj.status == 'failed' %}bg-rose-400{% else %}bg-base-content/20{% endif %}"></span>
+            {% comment %}Status dot — single resolution point (kb-96tn.3).
+            kb-96tn.5 adds dirty=orange: published+edited-needs-republish → orange.
+            Gate order: dirty overrides published-green.
+            id="channel-dot-<pk>" enables OOB-swap by version_edit (no-reload dirty update).{% endcomment %}
+            <span id="channel-dot-{{ proj.pk }}"
+                  class="w-1.5 h-1.5 rounded-full shrink-0 {% if row.is_dirty %}bg-orange-400{% elif proj.status == 'draft' %}bg-amber-400{% elif proj.status == 'ready' %}bg-sky-400{% elif proj.status == 'published' or proj.status == 'live' %}bg-emerald-400{% elif proj.status == 'failed' %}bg-rose-400{% else %}bg-base-content/20{% endif %}"
+                  {% if row.is_dirty %}title="{% trans "Edited — re-publish to update the live post" %}"{% endif %}></span>
             {% comment %}Platform name — platform-colored.
             Destination ID as sr-only for a11y + test compatibility without visual clutter.{% endcomment %}
             <span class="kb-mono text-[9px] uppercase tracking-[0.18em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
@@ -518,12 +523,41 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
               <div class="kb-mono text-[11px] text-base-content/55 leading-relaxed whitespace-pre-wrap border-b pb-4"
                    style="border-bottom-color: rgba(255,255,255,0.07)">{{ body }}</div>
             </div>
+            {% comment %}kb-96tn.5: dirty banner container — id="channel-dirty-<pk>" for OOB-swap
+            by version_edit (no-reload dirty update). Inner div conditional on is_dirty.{% endcomment %}
+            <div id="channel-dirty-{{ proj.pk }}">
+              {% if row.is_dirty %}
+                <div class="flex items-start gap-2 px-3 py-2.5 mb-4"
+                     data-testid="dirty-banner"
+                     style="background: rgba(251,146,60,0.06);
+                            border: 1px solid rgba(251,146,60,0.22)">
+                  <span class="w-1.5 h-1.5 rounded-full bg-orange-400/80 shrink-0 mt-1"></span>
+                  <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-orange-400/80 leading-relaxed">
+                    {% trans "Edited — re-publish to update the live post" %}
+                  </span>
+                </div>
+              {% endif %}
+            </div>
           {% endif %}
           {% if can_edit or can_publish %}
             <div class="flex items-center gap-2 flex-wrap pt-4"
                  style="border-top: 1px solid rgba(255,255,255,0.07)">
-              {% comment %}D6: One Publish CTA — drives internal draft→ready→published sequence.
-              No separate Approve gate for the solo flow.{% endcomment %}
+              {% comment %}D6: One Publish / Re-publish CTA — drives internal draft→ready→published
+              sequence or re-freezes dirty published projections. No separate Approve gate.{% endcomment %}
+              {% comment %}kb-96tn.5: Re-publish CTA for dirty published projections.{% endcomment %}
+              {% if row.is_dirty and can_publish %}
+                <form method="post"
+                      action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+                      hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+                      hx-target="#post-syndication"
+                      hx-swap="outerHTML">
+                  {% csrf_token %}
+                  <input type="hidden" name="selected_pk" :value="selectedPk">
+                  <button type="submit"
+                          class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]"
+                          style="border-color: rgba(251,146,60,0.5)">{% trans "Re-publish" %}</button>
+                </form>
+              {% endif %}
               {% if proj.status == 'draft' and can_publish %}
                 <form method="post"
                       action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"

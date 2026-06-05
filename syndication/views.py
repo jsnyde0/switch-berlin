@@ -432,8 +432,21 @@ def fragment_event_syndication(request, pk, *, action_error=None):
             render_error = True
             body = str(exc)
             _logger.warning("render_projection failed for projection %r: %s", proj.pk, exc)
+        # Compute is_dirty for this projection (ADR-016 D5 edit-after-publish).
+        # For published projections: compares current effective content to frozen_content.
+        # For non-published projections: always False (no raise).
+        # For published+null frozen_content (invariant violation): surface as error.
+        is_dirty = False
+        try:
+            is_dirty = proj.is_dirty
+        except ValueError as exc:
+            # Invariant violation (published+null frozen_content): surface as render_error.
+            render_error = True
+            if not body:
+                body = str(exc)
+            _logger.warning("is_dirty check failed for projection %r: %s", proj.pk, exc)
         rendered_rows[proj.pk] = body
-        projection_rows.append({"projection": proj, "body": body, "render_error": render_error})
+        projection_rows.append({"projection": proj, "body": body, "render_error": render_error, "is_dirty": is_dirty})
 
     # --- Empty/error state flags ---
     # has_connections: check if any enabled connections exist for this event's organizers
@@ -709,8 +722,17 @@ def fragment_post_syndication(request, pk, *, action_error=None):
             render_error = True
             body = str(exc)
             _logger.warning("render_projection failed for post projection %r: %s", proj.pk, exc)
+        # Compute is_dirty for this projection (ADR-016 D5 edit-after-publish).
+        is_dirty = False
+        try:
+            is_dirty = proj.is_dirty
+        except ValueError as exc:
+            render_error = True
+            if not body:
+                body = str(exc)
+            _logger.warning("is_dirty check failed for post projection %r: %s", proj.pk, exc)
         rendered_rows[proj.pk] = body
-        projection_rows.append({"projection": proj, "body": body, "render_error": render_error})
+        projection_rows.append({"projection": proj, "body": body, "render_error": render_error, "is_dirty": is_dirty})
 
     consumers_map = content_version_consumers_map(post=post)
 
@@ -1335,12 +1357,20 @@ def version_edit(request, pk):
         # truth that's correct for BOTH detach (own CV → "Custom") and broadcast
         # (shared canonical → still "Synced") — the naive optimistic flip lies
         # for broadcast channels (ADR-016 D2 single-row sharing).
+        #
+        # kb-96tn.5: also emit dirty-state OOB (channel-dot + channel-dirty)
+        # for published projections so the pill dot and banner update WITHOUT a
+        # full page reload. Published projections that share this CV may become
+        # dirty immediately after the autosave — surface it in the same round-trip.
         _cv_projections = list(
             version.projections.select_related(
                 "sync_source",
                 "sync_source__connection",
                 "content_version",
                 "connection",
+                "source_event",
+                "source_event__venue",
+                "source_post",
             ).all()
         )
         _oob_fragments = []
@@ -1358,6 +1388,22 @@ def version_edit(request, pk):
                     request=request,
                 )
             )
+            # kb-96tn.5: OOB dirty-state update for published projections.
+            # Compute is_dirty for this projection and emit the channel-dot +
+            # channel-dirty OOB fragments so the pill dot updates live.
+            # Only published projections can be dirty (is_dirty gates on status).
+            if _proj.status == PlatformProjection.Status.PUBLISHED and _proj.frozen_content is not None:
+                try:
+                    _is_dirty = _proj.is_dirty
+                except ValueError:
+                    _is_dirty = False  # Invariant violation — don't crash the autosave
+                _oob_fragments.append(
+                    render_to_string(
+                        "syndication/fragments/_channel_dirty_oob.html",
+                        {"proj": _proj, "is_dirty": _is_dirty, "oob": True},
+                        request=request,
+                    )
+                )
         return HttpResponse("".join(_oob_fragments), content_type="text/html")
     return _publishable_hub_redirect_for_cv(version)
 
