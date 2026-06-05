@@ -122,4 +122,17 @@ urlpatterns = [
         views.version_copy_from,
         name="version-copy-from",
     ),
+    # --- Add-channel / remove-channel (kb-96tn.4, ADR-016 D4) ---
+    # add-channel: POST /syndication/events/<pk>/add-channel/ (connection_pk body param)
+    # remove-channel: POST /syndication/projections/<pk>/remove-channel/
+    path(
+        "events/<int:pk>/add-channel/",
+        views.add_channel_event,
+        name="event-add-channel",
+    ),
+    path(
+        "projections/<int:pk>/remove-channel/",
+        views.remove_channel,
+        name="projection-remove-channel",
+    ),
 ]

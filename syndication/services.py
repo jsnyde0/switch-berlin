@@ -1367,6 +1367,192 @@ def publish_all_ready_projections(user, event):
     return published, failures
 
 
+# ---------------------------------------------------------------------------
+# Post-hoc projection reconciliation (kb-96tn.4, ADR-016 D4)
+#
+# add_projection(publishable, connection): mint a draft PlatformProjection for
+# an existing Event/Post × connection IF none exists; idempotent; fail loud on
+# wrong-kind (ADR-008 D3); never delete/overwrite a published projection.
+#
+# reconcile_projections(publishable): fan add_projection across all enabled
+# connections for the publishable's organizer profiles, returning newly created
+# projections. Co-equal service verbs (ADR-016 D3): callable by both UI and
+# a future API.
+# ---------------------------------------------------------------------------
+
+
+def _publishable_kind(publishable):
+    """
+    Return the applicable projection kind for a publishable.
+
+    An Event publishable maps to 'listing'; a Post publishable maps to 'promotion'.
+    Fail loud if the publishable is neither (ADR-008 D3).
+    """
+    from events.models import Event
+    from syndication.models import PlatformProjection, Post
+
+    if isinstance(publishable, Event):
+        return PlatformProjection.Kind.LISTING
+    if isinstance(publishable, Post):
+        return PlatformProjection.Kind.PROMOTION
+    raise ValueError(
+        f"add_projection: publishable must be an Event or Post, got {type(publishable)!r}. "
+        "(ADR-008 D3: fail loud — unknown publishable type)"
+    )
+
+
+def _get_organizer_profile_ids_for_publishable(publishable):
+    """
+    Return the list of organizer Profile IDs for a publishable (Event or Post).
+
+    For Events: from EventOrganizer through-table.
+    For Posts: via the post's Event → EventOrganizer.
+    Fail loud if the publishable type is unknown (ADR-008 D3).
+    """
+    from events.models import Event, EventOrganizer
+    from syndication.models import Post
+
+    if isinstance(publishable, Event):
+        return list(EventOrganizer.objects.filter(event=publishable).values_list("profile_id", flat=True))
+    if isinstance(publishable, Post):
+        return list(EventOrganizer.objects.filter(event=publishable.event).values_list("profile_id", flat=True))
+    raise ValueError(
+        f"_get_organizer_profile_ids_for_publishable: unknown publishable type {type(publishable)!r}. "
+        "(ADR-008 D3: fail loud)"
+    )
+
+
+def add_projection(publishable, connection):
+    """
+    Mint a draft PlatformProjection for an existing Event/Post × connection.
+
+    ADR-016 D4 (post-hoc projection reconciliation) + ADR-008 D3 (fail loud):
+
+    - Idempotent: if a projection already exists for this (publishable, connection)
+      pair, return the existing one WITHOUT creating a duplicate. This covers the
+      case where the projection is published — published projections are NEVER
+      touched, deleted, or overwritten.
+    - Raises ValueError (fail loud) if the connection's kinds do not include the
+      applicable kind for the publishable:
+        Event → must include 'listing'
+        Post  → must include 'promotion'
+    - Wires the new projection to the canonical ContentVersion + the same defaults
+      the eager-fan path uses (status=draft, canonical_cv FK).
+
+    Co-equal service verb (ADR-016 D3): callable by both the UI and a future API.
+    """
+    from events.models import Event
+    from syndication.models import PlatformProjection
+
+    applicable_kind = _publishable_kind(publishable)
+
+    # Fail loud on wrong-kind (ADR-008 D3): the connection must support the
+    # applicable kind for this publishable. A telegram-promotion-only connection
+    # cannot be used for an Event listing, and a switch-listing-only connection
+    # cannot be used for a Post promotion.
+    kinds = connection.kinds or []
+    kind_value = applicable_kind.value if hasattr(applicable_kind, "value") else str(applicable_kind)
+    if kind_value not in kinds:
+        raise ValueError(
+            f"add_projection: connection {connection.pk!r} (platform={connection.platform!r}, "
+            f"kinds={kinds!r}) does not support kind={kind_value!r} required by "
+            f"{type(publishable).__name__} publishable {getattr(publishable, 'pk', None)!r}. "
+            "(ADR-008 D3: fail loud — wrong-kind mismatch)"
+        )
+
+    # Build the filter kwargs for the (publishable, connection) pair lookup.
+    if isinstance(publishable, Event):
+        lookup_kwargs = {"source_event": publishable, "connection": connection}
+    else:  # Post
+        lookup_kwargs = {"source_post": publishable, "connection": connection}
+
+    # Idempotency check: return existing projection if it already exists.
+    # This covers all statuses including published — never delete/overwrite.
+    existing = PlatformProjection.objects.filter(**lookup_kwargs).first()
+    if existing is not None:
+        return existing
+
+    # No existing projection — mint a new draft.
+    # Wire to the canonical ContentVersion (A1 seed, parallel to eager-fan path).
+    if isinstance(publishable, Event):
+        canonical_cv = _ensure_canonical_content_version(event=publishable)
+        return PlatformProjection.objects.create(
+            connection=connection,
+            kind=PlatformProjection.Kind.LISTING,
+            status=PlatformProjection.Status.DRAFT,
+            source_event=publishable,
+            content_version=canonical_cv,
+        )
+    else:  # Post
+        canonical_cv = _ensure_canonical_content_version(post=publishable)
+        return PlatformProjection.objects.create(
+            connection=connection,
+            kind=PlatformProjection.Kind.PROMOTION,
+            status=PlatformProjection.Status.DRAFT,
+            source_post=publishable,
+            content_version=canonical_cv,
+        )
+
+
+def reconcile_projections(publishable):
+    """
+    For every enabled PlatformConnection on the publishable's organizer profile(s)
+    that supports the applicable kind, call add_projection.
+
+    Returns the list of NEWLY-CREATED projections (existing projections are
+    returned by add_projection but filtered out here — callers see only new ones).
+
+    Co-equal service verb (ADR-016 D3): callable by both the UI and a future API.
+    Mirrors the eager-fan logic of _eager_create_listing_projections /
+    _eager_create_promotion_projections but operates on an existing publishable.
+
+    ADR-008 D3: fail loud on unknown publishable types (via _publishable_kind).
+    """
+    from syndication.models import PlatformConnection, PlatformProjection
+
+    applicable_kind = _publishable_kind(publishable)
+    kind_value = applicable_kind.value if hasattr(applicable_kind, "value") else str(applicable_kind)
+
+    organizer_profile_ids = _get_organizer_profile_ids_for_publishable(publishable)
+    if not organizer_profile_ids:
+        return []
+
+    connections = PlatformConnection.objects.filter(
+        organizer_id__in=organizer_profile_ids,
+        enabled=True,
+    )
+
+    # Build the set of existing (publishable, connection) projection pairs so we
+    # can identify which add_projection calls are new.
+    from events.models import Event
+
+    if isinstance(publishable, Event):
+        existing_conn_ids = set(
+            PlatformProjection.objects.filter(source_event=publishable).values_list("connection_id", flat=True)
+        )
+    else:  # Post
+        existing_conn_ids = set(
+            PlatformProjection.objects.filter(source_post=publishable).values_list("connection_id", flat=True)
+        )
+
+    newly_created = []
+    for conn in connections:
+        conn_kinds = conn.kinds or []
+        if kind_value not in conn_kinds:
+            continue
+        # Also apply the post-promotion platform gate (mirrors _eager_create_promotion_projections).
+        if kind_value == "promotion" and not _supports_post_promotion(conn.platform):
+            continue
+        if conn.pk in existing_conn_ids:
+            # Already projected — add_projection would return the existing one;
+            # we track only newly-created ones so skip here (idempotency path).
+            continue
+        proj = add_projection(publishable, conn)
+        newly_created.append(proj)
+
+    return newly_created
+
+
 def publish_all_ready_projections_for_post(user, post):
     """
     Batch-publish every ready promotion projection for the given post.

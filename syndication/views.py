@@ -33,8 +33,10 @@ from syndication.forms import EventForm, PlatformConnectionForm, PostForm
 from syndication.models import PlatformConnection, PlatformProjection, Post
 from syndication.services import (
     _get_primary_profile_for_user,
+    _resolve_projection_event,
     _resolve_publishable_for_cv,
     _supports_post_promotion,
+    add_projection,
     approve_projection,
     content_version_consumers_map,
     copy_from,
@@ -445,9 +447,12 @@ def fragment_event_syndication(request, pk, *, action_error=None):
 
     # has_promotion_connections: connections whose kinds list contains "promotion"
     # (must filter by kinds, not just any connection — ADR-008 D2/D3)
-    all_connections = PlatformConnection.objects.filter(
-        organizer_id__in=organizer_profile_ids,
-        enabled=True,
+    # Materialise to a list so we can reuse across multiple passes without extra DB queries.
+    all_connections = list(
+        PlatformConnection.objects.filter(
+            organizer_id__in=organizer_profile_ids,
+            enabled=True,
+        )
     )
     has_promotion_connections = any(
         "promotion" in (conn.kinds or []) and _supports_post_promotion(conn.platform) for conn in all_connections
@@ -550,6 +555,16 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     else:
         selected_pk = None  # None → template falls back to first_pk
 
+    # kb-96tn.4: available_connections — enabled connections that support 'listing'
+    # but have no projection yet for this event. Powers the "…" toggle dropdown.
+    # Excludes connections already projected (any status — including published).
+    already_projected_conn_ids = set(p.connection_id for p in projections)
+    available_connections = [
+        conn
+        for conn in all_connections
+        if "listing" in (conn.kinds or []) and conn.pk not in already_projected_conn_ids
+    ]
+
     return render(
         request,
         "syndication/fragments/event_syndication.html",
@@ -568,6 +583,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
             "studio_swap": studio_swap,
             "event_form": event_form,
             "selected_pk": selected_pk,
+            "available_connections": available_connections,
         },
     )
 
@@ -1417,6 +1433,105 @@ def version_copy_from(request, pk):
     if request.headers.get("HX-Request"):
         return _publishable_fragment_response(request, projection)
     return _publishable_hub_redirect(projection)
+
+
+# ---------------------------------------------------------------------------
+# Add-channel / remove-channel endpoints (kb-96tn.4, ADR-016 D4)
+#
+# add_channel_event: POST /syndication/events/<pk>/add-channel/
+#   Mints a draft projection for an enabled connection not yet projected.
+#   can_edit gated (ADR-017). Returns HTMX swap of the syndication fragment.
+#
+# remove_channel: POST /syndication/projections/<pk>/remove-channel/
+#   Removes/deletes an UNPUBLISHED projection.
+#   CRITICAL (ADR-008 D3): if called on a PUBLISHED projection, return HTTP 400
+#   with a VISIBLE reason in the response body — never a silent 200 or empty 400.
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def add_channel_event(request, pk):
+    """
+    Add a channel to an event by minting a draft PlatformProjection for an
+    enabled connection that has no projection yet for this event.
+
+    POST only. Takes `connection_pk` from the POST body.
+    can_edit gated (ADR-017 D1).
+    Calls add_projection service (co-equal API verb, ADR-016 D3).
+    Returns HTMX swap of the event_syndication fragment on HX-Request.
+
+    Idempotent: re-POSTing for an already-projected connection returns 200 (via
+    add_projection's idempotency — no duplicate minted).
+    """
+    event = get_object_or_404(Event, pk=pk)
+    if not can_edit(request.user, event):
+        return render(request, "syndication/403.html", {}, status=403)
+
+    if request.method != "POST":
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    connection_pk = request.POST.get("connection_pk")
+    if not connection_pk:
+        return HttpResponse("connection_pk is required", status=400)
+
+    conn = get_object_or_404(PlatformConnection, pk=connection_pk)
+
+    try:
+        add_projection(event, conn)
+    except ValueError as exc:
+        _views_logger.warning("add_channel_event: ValueError for event %r, conn %r: %s", pk, connection_pk, exc)
+        if request.headers.get("HX-Request"):
+            return fragment_event_syndication(request, pk=event.pk, action_error=str(exc))
+        return redirect("syndication:event-hub", pk=event.pk)
+
+    if request.headers.get("HX-Request"):
+        return fragment_event_syndication(request, pk=event.pk)
+    return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def remove_channel(request, pk):
+    """
+    Remove/delete an UNPUBLISHED PlatformProjection.
+
+    POST only. can_edit gated (ADR-017 D1).
+
+    CRITICAL (ADR-008 D3 fail-loud): if called on a PUBLISHED projection,
+    return HTTP 400 with a VISIBLE reason in the response body — NOT an empty
+    400, NOT a silent 200. The reason must explain why the remove is refused.
+
+    For draft/ready projections: delete the projection and return the refreshed
+    syndication fragment (HTMX swap).
+    """
+    proj = get_object_or_404(PlatformProjection, pk=pk)
+    event = _resolve_projection_event(proj)
+
+    if not can_edit(request.user, event):
+        return render(request, "syndication/403.html", {}, status=403)
+
+    if request.method != "POST":
+        return _publishable_hub_redirect(proj)
+
+    # CRITICAL (ADR-008 D3): fail loud if the projection is published.
+    # A published projection is already on an external platform — it cannot be
+    # silently deleted. Surface a visible reason in the response body.
+    if proj.status == PlatformProjection.Status.PUBLISHED:
+        reason = (
+            f"Cannot remove a published projection (pk={proj.pk!r}, "
+            f"platform={proj.connection.platform!r}). "
+            "The content has already been published to the external platform. "
+            "To remove it, un-publish or archive it on the platform directly. "
+            "(ADR-008 D3: fail loud — published projections are immutable from Switch's side)"
+        )
+        _views_logger.warning("remove_channel: refused to delete published projection %r", proj.pk)
+        return HttpResponse(reason, status=400, content_type="text/plain")
+
+    # Unpublished (draft or ready): safe to delete.
+    proj.delete()
+
+    if request.headers.get("HX-Request"):
+        return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
 
 
 @login_required
