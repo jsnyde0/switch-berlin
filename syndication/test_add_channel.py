@@ -533,3 +533,171 @@ class AddChannelDropdownContextTest(TestCase):
         self.assertNotIn(conn_projected.pk, available_pks)
         # conn_not_projected has no projection — SHOULD be in available_connections
         self.assertIn(conn_not_projected.pk, available_pks)
+
+
+# ---------------------------------------------------------------------------
+# 6. add_channel_post view endpoint — POST tests (kb-96tn.4 parity)
+# ---------------------------------------------------------------------------
+
+
+class AddChannelPostViewTest(TestCase):
+    """
+    POST /syndication/posts/<pk>/add-channel/
+    - requires can_edit (ADR-017)
+    - calls add_projection service (promotion kind for Post)
+    - returns HTMX swap of the post_syndication fragment (status 200)
+    - response contains the new channel's platform name
+    Mirror of AddChannelViewTest for events, but scoped to Posts.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="add_ch_post_user", email="add_ch_post@test.com", password="x")
+        self.profile = _make_profile(name="Add Ch Post Profile", slug="add-ch-post-profile", user=self.user)
+        self.event = _make_event(self.profile)
+        self.post = _make_post(self.event, self.profile)
+        self.conn = _make_connection(
+            self.profile, platform="telegram", destination_id="tg-channel", kinds=["promotion"]
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_add_channel_post_creates_projection_and_returns_200(self):
+        """POST add-channel for a post creates a promotion projection and returns 200."""
+        url = f"/syndication/posts/{self.post.pk}/add-channel/"
+        response = self.client.post(
+            url,
+            data={"connection_pk": self.conn.pk},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            PlatformProjection.objects.filter(source_post=self.post, connection=self.conn).exists()
+        )
+
+    def test_add_channel_post_response_contains_platform_name(self):
+        """HTMX response for add_channel_post contains the new channel's platform name (telegram)."""
+        url = f"/syndication/posts/{self.post.pk}/add-channel/"
+        response = self.client.post(
+            url,
+            data={"connection_pk": self.conn.pk},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "telegram")
+
+    def test_add_channel_post_requires_login(self):
+        """add_channel_post requires authentication."""
+        anon_client = Client()
+        url = f"/syndication/posts/{self.post.pk}/add-channel/"
+        response = anon_client.post(url, data={"connection_pk": self.conn.pk})
+        self.assertIn(response.status_code, [302, 403])
+
+    def test_add_channel_post_non_editor_gets_403(self):
+        """A non-editor user gets 403 on add_channel_post."""
+        stranger = _make_vouched_user(username="stranger_post_ch", email="stranger_post_ch@test.com", password="x")
+        stranger_client = Client()
+        stranger_client.force_login(stranger)
+        url = f"/syndication/posts/{self.post.pk}/add-channel/"
+        response = stranger_client.post(url, data={"connection_pk": self.conn.pk})
+        self.assertEqual(response.status_code, 403)
+
+    def test_add_channel_post_idempotent_returns_200(self):
+        """Re-POSTing add_channel_post for the same connection returns 200 (idempotent)."""
+        url = f"/syndication/posts/{self.post.pk}/add-channel/"
+        self.client.post(url, data={"connection_pk": self.conn.pk}, HTTP_HX_REQUEST="true")
+        response = self.client.post(url, data={"connection_pk": self.conn.pk}, HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            PlatformProjection.objects.filter(source_post=self.post, connection=self.conn).count(), 1
+        )
+
+    def test_add_channel_post_creates_promotion_kind_projection(self):
+        """add_channel_post creates a PROMOTION-kind projection (not listing)."""
+        url = f"/syndication/posts/{self.post.pk}/add-channel/"
+        self.client.post(
+            url,
+            data={"connection_pk": self.conn.pk},
+            HTTP_HX_REQUEST="true",
+        )
+        proj = PlatformProjection.objects.get(source_post=self.post, connection=self.conn)
+        self.assertEqual(proj.kind, PlatformProjection.Kind.PROMOTION)
+
+
+# ---------------------------------------------------------------------------
+# 7. "…" dropdown context — available_connections in post_syndication fragment
+# ---------------------------------------------------------------------------
+
+
+class PostSyndicationAvailableConnectionsTest(TestCase):
+    """
+    The post_syndication fragment context includes 'available_connections' —
+    the list of enabled connections that support 'promotion' but have no
+    projection yet for this post. This powers the "…" toggle dropdown in the UI.
+    Mirror of AddChannelDropdownContextTest but for Posts.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="post_dropdown_user", email="post_dropdown@test.com", password="x")
+        self.profile = _make_profile(name="Post Dropdown Profile", slug="post-dropdown-profile", user=self.user)
+        self.event = _make_event(self.profile)
+        self.post = _make_post(self.event, self.profile)
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_post_fragment_context_contains_available_connections(self):
+        """
+        fragment_post_syndication view includes 'available_connections' in context
+        — enabled promotion connections without a projection yet for this post.
+        """
+        conn = _make_connection(
+            self.profile, platform="telegram", destination_id="tg-channel", kinds=["promotion"]
+        )
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("available_connections", response.context)
+        available_pks = [c.pk for c in response.context["available_connections"]]
+        self.assertIn(conn.pk, available_pks)
+
+    def test_post_fragment_available_connections_excludes_projected(self):
+        """
+        Connections that already have a projection for this post are excluded
+        from available_connections.
+        """
+        from syndication.services import add_projection
+
+        conn_projected = _make_connection(
+            self.profile, platform="telegram", destination_id="tg-channel", kinds=["promotion"]
+        )
+        # Use fetlife (promotion-capable) — switch is excluded by _supports_post_promotion.
+        conn_not_projected = _make_connection(
+            self.profile, platform="fetlife", destination_id="fl-post", kinds=["listing", "promotion"]
+        )
+
+        add_projection(self.post, conn_projected)
+
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        available_pks = [c.pk for c in response.context["available_connections"]]
+        self.assertNotIn(conn_projected.pk, available_pks)
+        self.assertIn(conn_not_projected.pk, available_pks)
+
+    def test_post_fragment_available_connections_excludes_listing_only(self):
+        """
+        Listing-only connections (kinds=['listing']) are excluded from
+        available_connections in the post fragment (posts only show promotion channels).
+        """
+        listing_conn = _make_connection(
+            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"]
+        )
+        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        available_pks = [c.pk for c in response.context["available_connections"]]
+        # listing-only conn should NOT appear in the post's available_connections
+        self.assertNotIn(listing_conn.pk, available_pks)

@@ -760,6 +760,28 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         # No selection or invalid pk — default to 'source' (the Source anchor tab)
         selected_pk = None  # None → template renders 'source' default
 
+    # kb-96tn.4: available_connections — enabled connections that support 'promotion'
+    # but have no projection yet for this post. Powers the "…" toggle dropdown.
+    # Excludes connections already projected (any status — including published).
+    # Symmetric with fragment_event_syndication's available_connections (listing kind there).
+    from events.models import EventOrganizer as _EventOrganizer
+
+    organizer_profile_ids = _EventOrganizer.objects.filter(event=event).values_list("profile_id", flat=True)
+    all_post_connections = list(
+        PlatformConnection.objects.filter(
+            organizer_id__in=organizer_profile_ids,
+            enabled=True,
+        )
+    )
+    already_projected_conn_ids = set(p.connection_id for p in projections)
+    available_connections = [
+        conn
+        for conn in all_post_connections
+        if "promotion" in (conn.kinds or [])
+        and _supports_post_promotion(conn.platform)
+        and conn.pk not in already_projected_conn_ids
+    ]
+
     return render(
         request,
         "syndication/fragments/post_syndication.html",
@@ -777,6 +799,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
             "studio_swap": studio_swap,
             "source_row": source_row,
             "selected_pk": selected_pk,
+            "available_connections": available_connections,
         },
     )
 
@@ -1487,6 +1510,49 @@ def add_channel_event(request, pk):
     if request.headers.get("HX-Request"):
         return fragment_event_syndication(request, pk=event.pk)
     return redirect("syndication:event-hub", pk=event.pk)
+
+
+@login_required
+def add_channel_post(request, pk):
+    """
+    Add a channel to a post by minting a draft PlatformProjection for an
+    enabled promotion connection that has no projection yet for this post.
+
+    POST only. Takes `connection_pk` from the POST body.
+    can_edit gated (ADR-017 D1) — checked against the parent event.
+    Calls add_projection service (co-equal API verb, ADR-016 D3).
+    Returns HTMX swap of the post_syndication fragment on HX-Request.
+
+    Idempotent: re-POSTing for an already-projected connection returns 200 (via
+    add_projection's idempotency — no duplicate minted).
+
+    Mirror of add_channel_event but scoped to Post (kb-96tn.4 parity).
+    """
+    post = get_object_or_404(Post, pk=pk)
+    event = post.event
+    if not can_edit(request.user, event):
+        return render(request, "syndication/403.html", {}, status=403)
+
+    if request.method != "POST":
+        return redirect("syndication:post-hub", pk=post.pk)
+
+    connection_pk = request.POST.get("connection_pk")
+    if not connection_pk:
+        return HttpResponse("connection_pk is required", status=400)
+
+    conn = get_object_or_404(PlatformConnection, pk=connection_pk)
+
+    try:
+        add_projection(post, conn)
+    except ValueError as exc:
+        _views_logger.warning("add_channel_post: ValueError for post %r, conn %r: %s", pk, connection_pk, exc)
+        if request.headers.get("HX-Request"):
+            return fragment_post_syndication(request, pk=post.pk, action_error=str(exc))
+        return redirect("syndication:post-hub", pk=post.pk)
+
+    if request.headers.get("HX-Request"):
+        return fragment_post_syndication(request, pk=post.pk)
+    return redirect("syndication:post-hub", pk=post.pk)
 
 
 @login_required

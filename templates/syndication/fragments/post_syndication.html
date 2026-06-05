@@ -34,18 +34,22 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
       </div>
     </div>
   {% endif %}
-  {% comment %}D5 / D-IA4: Single top row — compact pills left, Publish CTA right.
+  {% comment %}D5 / D-IA4: Single top row — compact pills left, Publish CTA + "…" right.
     Each pill: platform identity (name, platform-colored) + status dot.
     Status dot resolution point: draft=amber, ready=blue, published/live=green, failed=rose.
     (dirty/edited-needs-republish=orange is added by kb-96tn.5 — extend here.)
     Active pill = filled/opaque bg, inactive = ghost outline only.
     ADR-010 D1 (kb-ide0.4): Master copy anchor = first pill (abstract canonical for post).
-  The 'source' key preserved for Alpine selectedPk compatibility (kb-shzi.2).{% endcomment %}
-  <div class="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
+    The 'source' key preserved for Alpine selectedPk compatibility (kb-shzi.2).
+    kb-96tn.4: The outer flex container has no overflow. The pill list is a flex-1 child
+    with its own overflow-x-auto. The CTAs (including the "…" dropdown) are siblings of the
+    pill list — outside the overflow-x-auto — so the absolute-positioned dropdown popup is
+    not clipped. DOM order: pills first → "Master copy" appears before any dropdown content,
+    preserving test assertions on DOM ordering (test_source_tab_appears_before_other_channel_tabs).{% endcomment %}
+  <div class="flex items-center gap-2 mb-5 pb-1">
     <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto"
          role="tablist"
          aria-label="{% trans 'Channels' %}">
-      {% comment %}ADR-010 D1: Master copy anchor pill — first pill, abstract canonical for the post.{% endcomment %}
       {% comment %}ADR-010 D1: Master copy anchor pill — first pill, abstract canonical for the post.
       "Master copy" text preserved verbatim for test/a11y compatibility (kb-shzi.4).{% endcomment %}
       <button type="button"
@@ -91,11 +95,10 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         {% endwith %}
       {% endfor %}
     </div>
-    {% comment %}CTAs right-aligned in the same row as the tabs.
-    Event hub link always present (even when no channels).{% endcomment %}
+    {% comment %}CTAs right-aligned as a flex sibling of the pill list.
+    The x-data div for the kebab dropdown uses position: relative, which is a sibling of
+    the overflow-x-auto pill list — so the absolute-positioned dropdown popup is NOT clipped.{% endcomment %}
     <div class="flex items-center gap-2 ml-auto shrink-0 pl-2">
-      {% comment %}Event hub cross-link removed (kb-96tn.1) — the breadcrumb in
-      the composer bar (_post_hub_body.html) is now the back-link to the event hub.{% endcomment %}
       {% if can_publish and projection_rows and has_ready_projections %}
         <form method="post"
               action="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"
@@ -108,6 +111,92 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
             {% trans "Publish all ready" %}
           </button>
         </form>
+      {% endif %}
+      {% if can_edit %}
+        <div x-data="{ kebabOpen: false }" class="relative">
+          <button type="button"
+                  @click="kebabOpen = !kebabOpen"
+                  @click.outside="kebabOpen = false"
+                  data-testid="kebab-menu-btn"
+                  class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/35 hover:text-base-content/70 px-2 py-1.5 border border-white/8 hover:border-white/20 transition-colors"
+                  title="{% trans "Add or remove channels" %}">…</button>
+          <div x-show="kebabOpen"
+               x-cloak
+               @click.outside="kebabOpen = false"
+               class="absolute right-0 top-full mt-1 z-30 min-w-[200px] py-1"
+               style="background: rgb(18 10 28); border: 1px solid rgba(255,255,255,0.12)">
+            <p class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/30 px-3 py-1.5">
+              {% trans "Channels" %}
+            </p>
+            {% for row in projection_rows %}
+              {% with proj=row.projection %}
+                <div class="flex items-center gap-2 px-3 py-1.5 hover:bg-white/4 transition-colors">
+                  {% if proj.status == 'published' %}
+                    <input type="checkbox"
+                           checked
+                           disabled
+                           class="accent-emerald-400 cursor-not-allowed opacity-50"
+                           title="{% trans "Published channels cannot be removed from Switch" %}">
+                  {% else %}
+                    <form method="post"
+                          action="{% url 'syndication:projection-remove-channel' pk=proj.pk %}"
+                          hx-post="{% url 'syndication:projection-remove-channel' pk=proj.pk %}"
+                          hx-target="#post-syndication"
+                          hx-swap="outerHTML"
+                          id="remove-ch-post-form-{{ proj.pk }}">
+                      {% csrf_token %}
+                      <input type="hidden" name="selected_pk" :value="selectedPk">
+                      <input type="checkbox"
+                             checked
+                             @change="$el.closest('form').requestSubmit(); kebabOpen = false"
+                             class="accent-fuchsia-300 cursor-pointer"
+                             title="{% trans "Uncheck to remove this channel" %}">
+                    </form>
+                  {% endif %}
+                  <span class="kb-mono text-[9px] {% if proj.connection.platform == 'telegram' %}text-sky-400{% elif proj.connection.platform == 'fetlife' %}text-pink-400{% elif proj.connection.platform == 'switch' %}text-fuchsia-300{% else %}text-base-content/55{% endif %}">
+                    {{ proj.connection.platform }}
+                  </span>
+                  {% if proj.connection.destination_id %}
+                    <span class="kb-mono text-[8px] text-base-content/25 truncate max-w-[80px]">{{ proj.connection.destination_id }}</span>
+                  {% endif %}
+                  {% if proj.status == 'published' %}
+                    <span class="kb-mono text-[7px] uppercase tracking-[0.12em] text-emerald-400/60 ml-auto">{% trans "live" %}</span>
+                  {% endif %}
+                </div>
+              {% endwith %}
+            {% endfor %}
+            {% for conn in available_connections %}
+              <form method="post"
+                    action="{% url 'syndication:post-add-channel' pk=post.pk %}"
+                    hx-post="{% url 'syndication:post-add-channel' pk=post.pk %}"
+                    hx-target="#post-syndication"
+                    hx-swap="outerHTML"
+                    id="add-ch-post-form-{{ conn.pk }}">
+                {% csrf_token %}
+                <input type="hidden" name="connection_pk" value="{{ conn.pk }}">
+                <input type="hidden" name="selected_pk" :value="selectedPk">
+                <div class="flex items-center gap-2 px-3 py-1.5 hover:bg-white/4 transition-colors cursor-pointer"
+                     @click="$el.closest('form').requestSubmit(); kebabOpen = false">
+                  <input type="checkbox"
+                         class="accent-fuchsia-300 pointer-events-none"
+                         title="{% trans "Check to add this channel" %}">
+                  <span class="kb-mono text-[9px] {% if conn.platform == 'telegram' %}text-sky-400{% elif conn.platform == 'fetlife' %}text-pink-400{% elif conn.platform == 'switch' %}text-fuchsia-300{% else %}text-base-content/55{% endif %}">
+                    {{ conn.platform }}
+                  </span>
+                  {% if conn.destination_id %}
+                    <span class="kb-mono text-[8px] text-base-content/25 truncate max-w-[80px]">{{ conn.destination_id }}</span>
+                  {% endif %}
+                </div>
+              </form>
+            {% endfor %}
+            {% if not projection_rows and not available_connections %}
+              <p class="kb-mono text-[8px] text-base-content/25 px-3 py-2">
+                {% trans "No connections available." %}
+                <a href="{% url 'syndication:connections-list' %}" class="text-fuchsia-300/60 hover:text-fuchsia-300 underline">{% trans "Add one" %}</a>
+              </p>
+            {% endif %}
+          </div>
+        </div>
       {% endif %}
     </div>
   </div>
