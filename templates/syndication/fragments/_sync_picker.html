@@ -25,6 +25,16 @@ States:
   (i)/(ii) canonical CV OR own CV + sync_source set
         → submit directly, no confirmation.
         Label: "Copy from"
+
+kb-kgza.4 fixes:
+  Bug 1: both copy-from forms now carry <input name="selected_pk"> so
+         version_copy_from reads it and the re-rendered fragment stays on the
+         current tab (selectedPk seeded correctly).
+  Bug 2: "Master copy" is offered as the FIRST source option, routing to
+         projection-reset-to-canonical (NOT version_copy_from — Master copy is
+         a bare canonical CV, not a projection pk). Per ADR-016 D2.
+         The picker (and Master copy option) is rendered for NON-canonical
+         channels only — a channel cannot sync from itself.
 {% endcomment %}
 <div x-data="{ confirmResync: false, pendingSourcePk: null }"
      class="flex items-center gap-1.5 ml-auto">
@@ -34,6 +44,21 @@ States:
   {% if proj.sync_source == None and proj.content_version.name != "canonical" %}
     {% comment %}State (iii): has own edits — discard-confirm modal required.{% endcomment %}
     <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Sync from" %}</span>
+    {% comment %}Bug 2 (kb-kgza.4): Master copy → reset-to-canonical (separate form, no
+    discard-confirm needed — reset discards nothing extra beyond the current custom content).
+    Rendered only on non-canonical channels (this whole block is already inside state iii).{% endcomment %}
+    <form method="post"
+          action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+          hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+          hx-target="{{ fragment_target }}"
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <input type="hidden" name="selected_pk" :value="selectedPk">
+      <button type="submit"
+              class="kb-mono text-[9px] pl-1.5 pr-2 py-0.5 border border-white/10 bg-black/20 text-base-content/45 hover:text-base-content/70 hover:border-white/20 transition-colors cursor-pointer">
+        {% trans "Master copy" %}
+      </button>
+    </form>
     <div class="relative">
       <select id="resync-select-{{ resync_id_prefix }}{{ proj.pk }}"
               @change="pendingSourcePk = $event.target.value; confirmResync = true"
@@ -78,6 +103,7 @@ States:
                 @submit="confirmResync = false">
             {% csrf_token %}
             <input type="hidden" name="source_projection_pk" :value="pendingSourcePk">
+            <input type="hidden" name="selected_pk" :value="selectedPk">
             <button type="submit"
                     class="kb-mono text-[10px] uppercase tracking-[0.14em] text-rose-400/80 hover:text-rose-400 px-3 py-1.5 border border-rose-400/30 hover:border-rose-400/60 transition-colors">
               {% trans "Discard and re-sync" %}
@@ -92,7 +118,10 @@ States:
       </div>
     </div>
   {% else %}
-    {% comment %}State (i)/(ii): canonical or synced — no local edits, submit directly.{% endcomment %}
+    {% comment %}State (i)/(ii): canonical or synced — no local edits, submit directly.
+    Bug 2 (kb-kgza.4): Master copy option via separate reset-to-canonical form,
+    shown only when this channel is NOT already on the canonical CV (state ii only —
+    state i already IS canonical, so Master copy makes no sense there).{% endcomment %}
     <form method="post"
           action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
           hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
@@ -101,6 +130,7 @@ States:
           class="flex items-center gap-1.5">
       {% csrf_token %}
       <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
+      <input type="hidden" name="selected_pk" :value="selectedPk">
       <div class="relative">
         <select name="source_projection_pk"
                 class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
@@ -124,5 +154,19 @@ States:
         {% trans "Apply" %}
       </button>
     </form>
+    {% if proj.content_version.name != "canonical" %}
+      <form method="post"
+            action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
+        <button type="submit"
+                class="kb-mono text-[9px] pl-1.5 pr-2 py-0.5 border border-white/10 bg-black/20 text-base-content/45 hover:text-base-content/70 hover:border-white/20 transition-colors cursor-pointer">
+          {% trans "Master copy" %}
+        </button>
+      </form>
+    {% endif %}
   {% endif %}
 </div>
