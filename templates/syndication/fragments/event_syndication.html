@@ -59,35 +59,40 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         {% endif %}
       </div>
     {% elif projection_rows %}
-      {% comment %}D5: Single top row — tabs left, Review/Publish CTAs right.{% endcomment %}
-      <div class="flex items-center gap-1 mb-5 overflow-x-auto pb-1">
-        <div class="flex items-start gap-1.5 flex-1 min-w-0 overflow-x-auto"
+      {% comment %}D5 / D-IA4: Single top row — compact pills left, Publish CTA right.
+      Each pill: platform identity (name, platform-colored) + status dot.
+      Status dot resolution point: draft=amber, ready=blue, published/live=green, failed=rose.
+      (dirty/edited-needs-republish=orange is added by kb-96tn.5 — extend here.)
+      Active pill = filled/opaque bg, inactive = ghost outline only.{% endcomment %}
+      <div class="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
+        <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto"
              role="tablist"
              aria-label="{% trans 'Channels' %}">
           {% for row in projection_rows %}
             {% with proj=row.projection %}
               <button type="button"
                       role="tab"
+                      data-testid="channel-pill"
+                      data-status="{{ proj.status }}"
+                      title="{{ proj.connection.platform }}{% if proj.connection.destination_id %} · {{ proj.connection.destination_id }}{% endif %} ({{ proj.status }})"
                       :aria-selected="selectedPk === {{ proj.pk }}"
                       @click="selectedPk = {{ proj.pk }}"
-                      class="flex-shrink-0 flex flex-col items-start gap-1.5 px-3.5 py-2.5 transition-all duration-150 focus-visible:outline-none border-b-2 min-w-[96px]"
-                      :class="selectedPk === {{ proj.pk }} ? 'border-fuchsia-300/60 text-base-content/90' : 'border-transparent text-base-content/40 hover:text-base-content/65 hover:border-white/20'">
-                <span class="kb-mono text-[10px] uppercase tracking-[0.2em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
+                      class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 transition-all duration-150 focus-visible:outline-none border"
+                      :class="selectedPk === {{ proj.pk }} ? '{% if proj.connection.platform == 'telegram' %}border-sky-400/40 bg-sky-400/10{% elif proj.connection.platform == 'fetlife' %}border-pink-400/40 bg-pink-400/10{% elif proj.connection.platform == 'switch' %}border-fuchsia-300/40 bg-fuchsia-300/10{% else %}border-white/20 bg-white/8{% endif %}' : 'border-white/12 bg-transparent hover:border-white/25'">
+                {% comment %}Status dot — single resolution point. kb-96tn.5 adds dirty=orange here.{% endcomment %}
+                <span class="w-1.5 h-1.5 rounded-full shrink-0 {% if proj.status == 'draft' %}bg-amber-400{% elif proj.status == 'ready' %}bg-sky-400{% elif proj.status == 'published' or proj.status == 'live' %}bg-emerald-400{% elif proj.status == 'failed' %}bg-rose-400{% else %}bg-base-content/20{% endif %}"></span>
+                {% comment %}Platform name — platform-colored.
+                Destination ID as sr-only so tests + accessibility see it without visual clutter.{% endcomment %}
+                <span class="kb-mono text-[9px] uppercase tracking-[0.18em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
                   {{ proj.connection.platform }}
                 </span>
-                <span class="flex items-center gap-1.5 flex-wrap">
-                  <span class="kb-mono text-[9px] uppercase tracking-[0.12em] px-1.5 py-px border {% if proj.kind == 'listing' %}text-fuchsia-300/70 border-fuchsia-300/25 {% else %}text-violet-300/70 border-violet-300/25{% endif %}">
-                    {{ proj.get_kind_display }}
-                  </span>
-                  <span class="kb-mono text-[9px] uppercase tracking-[0.1em] px-1.5 py-px border {% if proj.status == 'draft' %}text-amber-300/80 border-amber-300/20 {% elif proj.status == 'ready' %}text-emerald-400/80 border-emerald-400/25 {% elif proj.status == 'published' %}text-emerald-400 border-emerald-400/25 {% elif proj.status == 'failed' %}text-rose-400 border-rose-400/25 {% else %}text-base-content/30 border-white/8{% endif %}">
-                    {{ proj.get_status_display }}
-                  </span>
-                </span>
-                <span class="kb-mono text-[9px] text-base-content/35 max-w-[120px] truncate">{{ proj.connection.destination_id }}</span>
+                {% if proj.connection.destination_id %}<span class="sr-only">{{ proj.connection.destination_id }}</span>{% endif %}
+                {% comment %}Shared-content dot — subtle emerald if this content version is shared across channels.{% endcomment %}
                 {% if consumers_map %}
                   {% for cv, consumers in consumers_map.items %}
                     {% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
-                      <span class="w-1 h-1 rounded-full bg-emerald-400/70 shrink-0"></span>
+                      <span class="w-1 h-1 rounded-full bg-emerald-400/50 shrink-0"
+                            title="{% trans 'Shared content' %}"></span>
                     {% endif %}
                   {% endfor %}
                 {% endif %}
@@ -511,17 +516,14 @@ Each skin matches _channel_preview.html's visual treatment.{% endcomment %}
                             placeholder="{% trans "Write your listing…" %}">{{ body }}</textarea>
                 </div>
               {% endif %}
-              {% comment %}D6: No explicit Save button — autosave handles persistence.{% endcomment %}
+              {% comment %}D6: No explicit Save button — autosave handles persistence.
+              D-IA4 (kb-96tn.3): "Edited"/"Agent" provenance labels removed from inline —
+              status is now surfaced via the channel pill's status dot (ADR-016 D5).{% endcomment %}
               <div class="flex items-center gap-3 pt-3"
                    style="border-top: 1px solid rgba(255,255,255,0.06)">
                 <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
                       x-show="autosaveSaved"
                       x-cloak>{% trans "Saved" %}</span>
-                {% if proj.content_version.provenance == 'manual' %}
-                  <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-sky-400/45">{% trans "Edited" %}</span>
-                {% elif proj.content_version.provenance == 'agent_supplied' %}
-                  <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-violet-400/45">{% trans "Agent" %}</span>
-                {% endif %}
               </div>
             </form>
           {% endif %}
