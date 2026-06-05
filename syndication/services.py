@@ -1127,7 +1127,7 @@ def reset_to_canonical(user, projection):
     projection.save(update_fields=["content_version", "updated_at"])
 
 
-def edit_version(user, version, **fields):
+def edit_version(user, version, _allow_edit_after_publish=False, **fields):
     """
     Mutate a pre-publish version's editorial fields; set provenance=manual on
     human edit.
@@ -1146,6 +1146,12 @@ def edit_version(user, version, **fields):
     consumer is frozen; no live reader exists). A mixed state (at least one
     draft consumer) is always permitted — frozen consumers are unaffected.
 
+    _allow_edit_after_publish=True: skip the "all-consumers-non-draft" guard.
+    Used by detach_and_edit (kb-kgza.2) when the newly-detached CV's single
+    consumer is published (ADR-016 D5 edit-after-publish). The edit dirties
+    the projection; frozen_content (the published snapshot) is unchanged, so
+    there is no silent corruption. Fail loud only on genuine corruption.
+
     Only known editorial fields (_CV_EDITORIAL_FIELDS) are applied; unknown
     kwargs are silently ignored (forward-compatible).
 
@@ -1158,17 +1164,20 @@ def edit_version(user, version, **fields):
     # Guard: blocked only when EVERY consumer is non-draft (ADR-008 D3).
     # Frozen consumers are isolated (render returns frozen_content["body"]);
     # at least one draft consumer means the live row is still being read.
-    all_consumers = list(version.projections.all())
-    if all_consumers:
-        draft_consumers = [p for p in all_consumers if p.status == PlatformProjection.Status.DRAFT]
-        if not draft_consumers:
-            non_draft_pks = [p.pk for p in all_consumers]
-            raise ValueError(
-                f"Cannot edit ContentVersion {version.pk!r}: "
-                f"ALL consumer projections {non_draft_pks!r} are non-draft "
-                "(ready/published/failed). Every consumer has frozen content. "
-                "(ADR-008 D3: fail loud — no live readers of this version)"
-            )
+    # Exception: _allow_edit_after_publish=True skips this guard for the
+    # detach-and-edit-published path (ADR-016 D5 — dirty, but not corrupt).
+    if not _allow_edit_after_publish:
+        all_consumers = list(version.projections.all())
+        if all_consumers:
+            draft_consumers = [p for p in all_consumers if p.status == PlatformProjection.Status.DRAFT]
+            if not draft_consumers:
+                non_draft_pks = [p.pk for p in all_consumers]
+                raise ValueError(
+                    f"Cannot edit ContentVersion {version.pk!r}: "
+                    f"ALL consumer projections {non_draft_pks!r} are non-draft "
+                    "(ready/published/failed). Every consumer has frozen content. "
+                    "(ADR-008 D3: fail loud — no live readers of this version)"
+                )
 
     update_fields = []
     for field, value in fields.items():
@@ -1182,6 +1191,39 @@ def edit_version(user, version, **fields):
         version.save(update_fields=update_fields)
 
     return version
+
+
+def detach_and_edit(user, projection, **fields):
+    """
+    Customize-then-edit for a per-channel projection (kb-kgza.2).
+
+    Used when a promotion or listing projection is in state (i) — sharing the
+    canonical CV (content_version.name == 'canonical', sync_source NULL) — and
+    the user edits the body on that channel's tab. The expected semantics per
+    ADR-016 D2 are:
+
+      editing a per-channel tab AUTO-DETACHES it to an independent version.
+
+    Procedure:
+    1. Call customize(user, projection) — mints a new independent CV, repoints
+       the projection's FK. Idempotent if the projection is already on its own
+       CV (customize still mints a new copy, which is fine for the edit path).
+    2. Call edit_version(user, new_cv, **fields) on the NEW CV — applies the
+       body/headline/etc. edits to the isolated row. Passes
+       _allow_edit_after_publish=True so the guard does not trip when the
+       projection is published (ADR-016 D5: editing a published projection
+       dirties it but does NOT corrupt frozen_content).
+
+    Returns: (new_cv, updated_projection) after the full detach-and-edit.
+
+    Gate: inherited from customize (can_edit check) and edit_version (same gate).
+    ADR-008 D3: no silent fallback — both steps raise on invalid input.
+    """
+    new_cv = customize(user, projection)
+    # Refresh projection so content_version FK resolves to new_cv
+    projection.refresh_from_db()
+    edit_version(user, new_cv, _allow_edit_after_publish=True, **fields)
+    return new_cv, projection
 
 
 def approve_projection(user, projection):

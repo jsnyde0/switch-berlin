@@ -505,17 +505,21 @@ class EventChannelEditorDraftTest(TestCase):
         self.client.force_login(self.user)
 
     def test_version_edit_form_shown_for_draft(self):
-        """Draft: body editor form (action=version-edit) must be present."""
+        """
+        Draft: body editor form must use projection-detach-and-edit (projection-keyed).
+        kb-kgza.2: per-channel body form now routes to projection-detach-and-edit
+        so editing auto-detaches from the shared canonical CV (ADR-016 D2).
+        """
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        version_edit_url = reverse("syndication:version-edit", kwargs={"pk": self.cv.pk})
-        self.assertIn(f'action="{version_edit_url}"', content)
+        detach_edit_url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.proj.pk})
+        self.assertIn(f'action="{detach_edit_url}"', content)
 
     def test_draft_body_editor_hx_target_is_none(self):
         """
         Draft body editor uses hx-swap='none' (autosave, no DOM replacement).
-        The hx-swap='none' must be present on the version-edit form.
+        The hx-swap='none' must be present on the projection-detach-and-edit form.
         """
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -658,12 +662,16 @@ class PostChannelEditorDraftTest(TestCase):
         self.client.force_login(self.user)
 
     def test_version_edit_form_shown_for_draft(self):
-        """Draft: body editor form (action=version-edit) must be present."""
+        """
+        Draft: body editor form must use projection-detach-and-edit (projection-keyed).
+        kb-kgza.2: per-channel body form now routes to projection-detach-and-edit
+        so editing auto-detaches from the shared canonical CV (ADR-016 D2).
+        """
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        version_edit_url = reverse("syndication:version-edit", kwargs={"pk": self.cv.pk})
-        self.assertIn(f'action="{version_edit_url}"', content)
+        detach_edit_url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.proj.pk})
+        self.assertIn(f'action="{detach_edit_url}"', content)
 
     def test_publish_form_hx_target_is_post_syndication(self):
         """Publish CTA form must target #post-syndication."""

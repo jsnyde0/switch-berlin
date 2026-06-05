@@ -44,6 +44,7 @@ from syndication.services import (
     create_event,
     create_post,
     customize,
+    detach_and_edit,
     detach_sync_source,
     duplicate,
     edit_after_publish_policy,
@@ -1394,6 +1395,84 @@ def projection_customize(request, pk):
 
     if request.headers.get("HX-Request"):
         return _publishable_fragment_response(request, proj)
+    return _publishable_hub_redirect(proj)
+
+
+@login_required
+def projection_detach_and_edit(request, pk):
+    """
+    Detach-and-edit: customize (mint own CV) then apply editorial field edits —
+    for per-channel body autosave on a projection sharing the canonical CV (state i).
+
+    POST only. Calls detach_and_edit(user, projection, **fields) service.
+    HTMX-aware: returns OOB sync-bar fragments (hx-swap="none" autosave path)
+    so the badge updates from the server's truth after the round-trip.
+
+    ADR-016 D2: editing a per-channel tab auto-detaches to its own independent CV.
+    ADR-016 D5: editing a published projection is allowed (dirties, does not corrupt).
+    ADR-008 D3: PermissionError → 403; ValueError → fail loud.
+
+    The master/source tab body form stays on version-edit (cv-keyed) and keeps
+    broadcasting. This view is ONLY for per-channel tabs.
+    """
+    proj = get_object_or_404(PlatformProjection, pk=pk)
+    if request.method != "POST":
+        return _publishable_hub_redirect(proj)
+
+    fields = {}
+    for field_name in ("body", "headline", "imagery", "cta", "voice"):
+        if field_name in request.POST:
+            fields[field_name] = request.POST[field_name]
+
+    try:
+        new_cv, proj = detach_and_edit(user=request.user, projection=proj, **fields)
+    except PermissionError:
+        return render(request, "syndication/403.html", {}, status=403)
+    except ValueError as exc:
+        if request.headers.get("HX-Request"):
+            return _publishable_fragment_response(request, proj, action_error=str(exc))
+        return _publishable_hub_redirect(proj)
+
+    if request.headers.get("HX-Request"):
+        # Server-driven OOB badge update — same pattern as version_edit.
+        # After detach the projection is on its own new CV (state iii: "Custom").
+        # Re-render the sync-bar for ONLY this projection (no siblings share new_cv).
+        # The autosave form uses hx-swap="none" so HTMX ignores the main body but
+        # still processes hx-swap-oob="true" elements.
+        proj.refresh_from_db()
+        if proj.kind == PlatformProjection.Kind.LISTING:
+            _target = "#event-syndication"
+        else:
+            _target = "#post-syndication"
+        _oob_fragments = [
+            render_to_string(
+                "syndication/fragments/_sync_bar.html",
+                {"proj": proj, "fragment_target": _target, "oob": True},
+                request=request,
+            )
+        ]
+        # Also emit OOB dirty-state for published projections (ADR-016 D5).
+        if proj.status == PlatformProjection.Status.PUBLISHED and proj.frozen_content is not None:
+            try:
+                _content_is_dirty = proj.is_dirty
+            except ValueError:
+                _content_is_dirty = False
+            if _content_is_dirty:
+                _policy = edit_after_publish_policy(proj.connection.platform)
+                _is_dirty = _policy == "dirty_then_republish"
+            else:
+                _is_dirty = False
+            _oob_fragments.append(
+                render_to_string(
+                    "syndication/fragments/_channel_dirty_oob.html",
+                    {
+                        "proj": proj,
+                        "is_dirty": _is_dirty,
+                    },
+                    request=request,
+                )
+            )
+        return HttpResponse("\n".join(_oob_fragments))
     return _publishable_hub_redirect(proj)
 
 

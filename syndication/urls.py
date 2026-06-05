@@ -104,6 +104,11 @@ urlpatterns = [
         name="projection-customize",
     ),
     path(
+        "projections/<int:pk>/detach-and-edit/",
+        views.projection_detach_and_edit,
+        name="projection-detach-and-edit",
+    ),
+    path(
         "projections/<int:pk>/reset-to-canonical/",
         views.projection_reset_to_canonical,
         name="projection-reset-to-canonical",
