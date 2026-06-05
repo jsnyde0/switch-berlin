@@ -16,6 +16,11 @@ from syndication import views
 app_name = "syndication"
 
 urlpatterns = [
+    # --- Studio front door (kb-kgza.5) ---
+    # Registered under syndication namespace so {% url 'syndication:studio' %} works
+    # in breadcrumb templates. The global /studio/ route in a_core/urls.py also exists
+    # (anonymous name="studio") — this adds the namespaced alias.
+    path("studio/", views.studio, name="studio"),
     # --- Agent pairing flow (kb-a4u.6) ---
     path("agents/pair/", views.agent_pairing_page, name="agent-pairing"),
     # --- Events ---

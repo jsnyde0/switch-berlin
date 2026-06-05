@@ -115,7 +115,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
           {% endfor %}
         </div>
         {% comment %}CENTER: breadcrumb — "Studio" label for the event workspace.{% endcomment %}
-        {% include "syndication/fragments/_breadcrumb.html" only %}
+        {% include "syndication/fragments/_breadcrumb.html" with studio_swap=studio_swap only %}
         {% comment %}RIGHT: Publish CTA + "…" add-channel kebab.
         The kebab x-data div uses position:relative as a sibling of the overflow-x-auto
         pill list — dropdown popup is not clipped (kb-96tn.4 pattern).{% endcomment %}

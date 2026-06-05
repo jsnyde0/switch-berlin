@@ -1,29 +1,44 @@
 {% load i18n %}
 {% comment %}
 Breadcrumb root — shared between event_syndication.html and post_syndication.html
-(kb-kgza.9 extraction).
+(kb-kgza.9 extraction, kb-kgza.5 Studio link fix).
 
 Renders the "Studio" or "Studio › <name>" header in the top bar.
 
 Context variables:
-  breadcrumb_link_url   — (optional) URL for the breadcrumb link. When absent,
-                          no link or separator is rendered (event composer case,
-                          which shows only "Studio" as a static label).
+  breadcrumb_link_url   — (optional) URL for the breadcrumb link (the › segment).
+                          When absent, no › separator or link is rendered.
   breadcrumb_link_text  — (optional) Link text (e.g. event.title). Required when
                           breadcrumb_link_url is set.
-  studio_swap           — (optional, default False) When True and breadcrumb_link_url
-                          is set, emits HTMX attrs on the link (hx-get, hx-target,
-                          hx-push-url) for studio-context navigation (kb-9f1h.7).
+  studio_swap           — (optional, default False) When True, emits HTMX attrs
+                          (hx-get, hx-target="#studio-main", hx-push-url) on BOTH
+                          the Studio root anchor and the breadcrumb_link anchor,
+                          for studio-context navigation (kb-kgza.5, kb-9f1h.7).
 
-Divergence note (kb-kgza.9): the event composer breadcrumb renders only "Studio"
-(no link, no › separator); the post composer renders "Studio › event.title" with
-a link back to the event hub. These two callers pass different parameters:
-  event_syndication  — no breadcrumb_link_url, no breadcrumb_link_text
-  post_syndication   — breadcrumb_link_url=event-hub-url, breadcrumb_link_text=event.title
+Studio root (kb-kgza.5): "Studio" is now always an anchor pointing to the
+syndication:studio publishables index. When studio_swap is True it also carries
+hx-get + hx-target="#studio-main" + hx-push-url so clicking it swaps into the
+studio pane rather than full-page-reloading. A plain href fallback is always
+present for non-HTMX / deep-link contexts.
+
+Callers:
+  event_syndication  — passes studio_swap only (no › link)
+  post_syndication   — passes breadcrumb_link_url=event-hub-url,
+                       breadcrumb_link_text=event.title, studio_swap=studio_swap
 {% endcomment %}
+{% url 'syndication:studio' as studio_root_url %}
 <div class="flex-1 flex justify-center px-2">
   <span class="kb-mono text-[10px] uppercase tracking-[0.2em] text-base-content/45">
-    {% trans "Studio" %}
+    {% if studio_swap %}
+      <a href="{{ studio_root_url }}"
+         hx-get="{{ studio_root_url }}"
+         hx-target="#studio-main"
+         hx-push-url="{{ studio_root_url }}"
+         class="text-base-content/45 hover:text-base-content/70 transition-colors">{% trans "Studio" %}</a>
+    {% else %}
+      <a href="{{ studio_root_url }}"
+         class="text-base-content/45 hover:text-base-content/70 transition-colors">{% trans "Studio" %}</a>
+    {% endif %}
     {% if breadcrumb_link_url and breadcrumb_link_text %}
       <span class="mx-1.5 text-base-content/20">›</span>
       {% if studio_swap %}
