@@ -405,3 +405,71 @@ class PostCreateStandaloneHtmxOobRailTest(TestCase):
             content,
             "The OOB rail fragment must include the newly-created post's headline.",
         )
+
+
+# ---------------------------------------------------------------------------
+# (i) post_create (event-scoped) HTMX POST success → OOB rail update
+# ---------------------------------------------------------------------------
+
+
+class PostCreateEventScopedHtmxOobRailTest(TestCase):
+    """
+    HTMX POST to post_create (event-scoped, /syndication/events/<pk>/posts/new/)
+    must include an OOB rail fragment containing the newly-created post's headline.
+
+    Parity contract: same OOB rail update as post_create_standalone and event_create.
+
+    Harness target (kb-kgza.1):
+      Signal: POST post_create with HX-Request header.
+      Expected green: response body contains id="studio-rail" hx-swap-oob="true"
+                      AND the specific new post's title/headline inside it.
+      An empty OOB rail FAILS (mere presence of studio-rail is insufficient).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="escoped_oob_user", email="escoped_oob@test.com", password="pw")
+        self.profile = _make_profile("EScopedOob Org", "escoped-oob-org", user=self.user)
+        self.event = _make_event(self.profile, "EScopedOob Parent Event", "escoped-oob-parent-event")
+        self.client.force_login(self.user)
+
+    def test_htmx_post_success_includes_oob_rail_attrs(self):
+        """HTMX POST success includes hx-swap-oob='true' on id='studio-rail'."""
+        response = self.client.post(
+            f"/syndication/events/{self.event.pk}/posts/new/",
+            {
+                "headline": "EScopedOob Rail Post",
+                "body": "Post body content",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            'hx-swap-oob="true"',
+            content,
+            "HTMX event-scoped post_create response must contain hx-swap-oob='true' for rail OOB swap.",
+        )
+        self.assertIn(
+            'id="studio-rail"',
+            content,
+            "HTMX event-scoped post_create response must contain id='studio-rail' in the OOB element.",
+        )
+
+    def test_htmx_post_success_rail_oob_contains_new_post_headline(self):
+        """The OOB rail fragment must contain the newly-created post's specific headline."""
+        response = self.client.post(
+            f"/syndication/events/{self.event.pk}/posts/new/",
+            {
+                "headline": "Freshly Minted Event-Scoped Post",
+                "body": "Body text for the new post.",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "Freshly Minted Event-Scoped Post",
+            content,
+            "The OOB rail fragment must include the newly-created post's specific headline.",
+        )

@@ -937,11 +937,10 @@ def post_create(request, event_pk):
         if form.is_valid():
             cd = form.cleaned_data
             _post = create_post(user=request.user, event=event, **cd)
-            # HTMX-aware: if request is HTMX, return event_posts fragment
+            # HTMX-aware: if request is HTMX, return event_posts fragment + OOB rail
             if request.headers.get("HX-Request"):
                 posts = Post.objects.filter(event=event).order_by("-created_at")
-                return render(
-                    request,
+                posts_html = render_to_string(
                     "syndication/fragments/event_posts.html",
                     {
                         "event": event,
@@ -949,7 +948,10 @@ def post_create(request, event_pk):
                         "can_edit": can_edit(request.user, event),
                         "post_form": PostForm(),
                     },
+                    request=request,
                 )
+                rail_oob = _render_rail_oob(request)
+                return HttpResponse(posts_html + rail_oob, content_type="text/html")
             return redirect("syndication:event-hub", pk=event.pk)
     else:
         form = PostForm()
