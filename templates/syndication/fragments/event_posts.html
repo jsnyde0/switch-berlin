@@ -48,18 +48,20 @@
   {% if posts %}
     <div class="flex flex-col gap-3">
       {% for post in posts %}
-        <article class="p-4 border border-white/10 bg-white/2 rounded">
+        <article hx-get="{% url 'syndication:post-hub' pk=post.pk %}"
+                 hx-target="#studio-main"
+                 hx-push-url="true"
+                 class="p-4 border border-white/10 bg-white/2 rounded cursor-pointer hover:bg-white/[0.05] transition-colors"
+                 role="button"
+                 tabindex="0"
+                 aria-label="{{ post.headline }}"
+                 @keydown.enter="$el.click()"
+                 @keydown.space.prevent="$el.click()">
           <p class="font-medium text-base-content/90">{{ post.headline }}</p>
           <p class="text-sm text-base-content/60 mt-1 leading-relaxed">{{ post.body|truncatewords:30 }}</p>
           {% if post.cta %}
             <p class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40 mt-2">CTA: {{ post.cta }}</p>
           {% endif %}
-          <div class="mt-3">
-            <a href="{% url 'syndication:post-hub' pk=post.pk %}"
-               class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/40 hover:text-base-content/70 transition-colors">
-              {% trans "Open composer" %} ↗
-            </a>
-          </div>
         </article>
       {% endfor %}
     </div>

@@ -27,14 +27,6 @@ Context variables required:
       </span>
     </div>
   </div>
-  {# event_posts — compact collapsible #}
-  <section id="event-posts"
-           hx-get="{% url 'syndication:fragment-event-posts' pk=event.pk %}"
-           hx-trigger="load"
-           hx-swap="outerHTML">
-    <div class="py-3 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest">{% trans "Loading posts…" %}</div>
-  </section>
-  <div class="kb-rule my-5"></div>
   {# event_syndication — edit-in-place composer workspace (kb-ide0.1) #}
   {# Thread ?studio=1 when inside the studio shell so the sub-fragment is context-aware #}
   <section id="event-syndication"
@@ -44,5 +36,12 @@ Context variables required:
     <div class="py-10 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest text-center">
       {% trans "Loading syndication board…" %}
     </div>
+  </section>
+  {# event_posts — compact promo strip below the channel composer #}
+  <section id="event-posts"
+           hx-get="{% url 'syndication:fragment-event-posts' pk=event.pk %}"
+           hx-trigger="load"
+           hx-swap="outerHTML">
+    <div class="py-3 text-base-content/30 kb-mono text-[11px] uppercase tracking-widest">{% trans "Loading posts…" %}</div>
   </section>
 </div>
