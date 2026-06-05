@@ -423,12 +423,16 @@ class SharedBodyPartialRegressionTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Partial Event")
 
-    def test_event_hub_fragment_renders_event_title(self):
-        """HX-fragment event_hub renders the event title after shared-body refactor."""
+    def test_event_hub_fragment_renders_composer_bar(self):
+        """
+        kb-96tn.1: HX-fragment event_hub renders the composer bar (not the old h1 title).
+        The bar has a 'Studio' breadcrumb and #composer-pills placeholder.
+        """
         url = f"/syndication/events/{self.event.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Partial Event")
+        self.assertContains(response, 'id="composer-pills"')
+        self.assertContains(response, "Studio")
 
     def test_post_hub_full_page_renders_post_headline(self):
         """Full-page post_hub still renders the post headline after shared-body refactor."""
@@ -437,12 +441,17 @@ class SharedBodyPartialRegressionTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Partial Post Headline")
 
-    def test_post_hub_fragment_renders_post_headline(self):
-        """HX-fragment post_hub renders the post headline after shared-body refactor."""
+    def test_post_hub_fragment_renders_composer_bar(self):
+        """
+        kb-96tn.1: HX-fragment post_hub renders the composer bar (not the old h1 headline).
+        The bar has a 'Studio › <event.title>' breadcrumb and #composer-pills placeholder.
+        """
         url = f"/syndication/posts/{self.post.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Partial Post Headline")
+        self.assertContains(response, 'id="composer-pills"')
+        # Breadcrumb shows event title as the back-link
+        self.assertContains(response, "Partial Event")
 
     def test_event_hub_fragment_no_layout_tags(self):
         """After refactor, event_hub_fragment still omits <html>/<body>."""

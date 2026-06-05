@@ -12,27 +12,35 @@ Context variables required:
                  for in-studio navigation. When False/absent (standalone page),
                  the link is a plain <a href> — ADR-008 D3: no silent fallback.
 {% endcomment %}
-<div class="w-full pt-8 pb-16" x-data="{}">
-  <div class="flex items-start justify-between mb-6 gap-6">
-    <div class="min-w-0">
-      <p class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/40 mb-1.5">
-        {% trans "Post Workspace" %}
-        <span class="mx-2 text-base-content/15">·</span>
+<div class="w-full pt-4 pb-16" x-data="{}">
+  {# ── Composer bar: pills · breadcrumb · publish CTA ── #}
+  <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/[0.07]">
+    {# LEFT: pill-row placeholder — filled by C3 (kb-96tn.3) #}
+    <div id="composer-pills" class="flex items-center gap-1 shrink-0"></div>
+    {# CENTER: breadcrumb — Studio › event.title (links back to event hub) #}
+    <div class="flex-1 flex justify-center">
+      <span class="kb-mono text-[10px] uppercase tracking-[0.2em] text-base-content/45">
+        {% trans "Studio" %}
+        <span class="mx-1.5 text-base-content/20">›</span>
         {% if studio_swap %}
           <a href="{% url 'syndication:event-hub' pk=event.pk %}"
              hx-get="{% url 'syndication:event-hub' pk=event.pk %}"
              hx-target="#studio-main"
              hx-push-url="{% url 'syndication:event-hub' pk=event.pk %}"
-             class="text-base-content/40 hover:text-base-content/65 transition-colors">{{ event.title }}</a>
+             class="text-base-content/55 hover:text-base-content/80 transition-colors">{{ event.title }}</a>
         {% else %}
           <a href="{% url 'syndication:event-hub' pk=event.pk %}"
-             class="text-base-content/40 hover:text-base-content/65 transition-colors">{{ event.title }}</a>
+             class="text-base-content/55 hover:text-base-content/80 transition-colors">{{ event.title }}</a>
         {% endif %}
-      </p>
-      <h1 class="kb-display text-[28px] font-light leading-tight">{{ post.headline }}</h1>
+      </span>
+    </div>
+    {# RIGHT: Schedule/Publish CTA placeholder — lifecycle wired by later children #}
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/25 px-2.5 py-1.5 border border-white/8">
+        {% trans "Publish" %}
+      </span>
     </div>
   </div>
-  <div class="kb-rule mb-6"></div>
   <section id="post-syndication"
            hx-get="{% url 'syndication:fragment-post-syndication' pk=post.pk %}{% if studio_swap %}?studio=1{% endif %}"
            hx-trigger="load"

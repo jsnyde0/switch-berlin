@@ -641,11 +641,12 @@ class AnchorConfirmationTest(TestCase):
             "HTML — Switch is the canonical anchor (tier 0 in the sort key).",
         )
 
-    def test_post_workspace_renders_single_top_row_with_event_hub_link(self):
+    def test_post_workspace_renders_single_top_row_no_event_hub_link(self):
         """
-        kb-ide0.3 D5: GET the post_syndication fragment and assert it renders
-        the single top row shell (channel tabs + Event hub cross-link right).
-        The old stacked 'Source' header layout is replaced by the D5 shell.
+        kb-96tn.1 (composer bar): GET the post_syndication fragment and assert
+        the single top row renders WITHOUT the old 'Event Workspace ↗' cross-link.
+        The back-link to the event hub is now the breadcrumb in the composer bar
+        (_post_hub_body.html), not in the fragment itself.
 
         Asserts on response.content (rendered bytes), not response.context.
         """
@@ -673,12 +674,14 @@ class AnchorConfirmationTest(TestCase):
 
         content = fragment_response.content.decode("utf-8")
 
-        # D5: Event hub cross-link must appear in the top row.
-        expected_event_hub_path = f"/syndication/events/{event.pk}/"
-        self.assertIn(
-            f'href="{expected_event_hub_path}"',
+        # kb-96tn.1: The 'Event Workspace ↗' link was removed from the fragment.
+        # The breadcrumb in the composer bar (_post_hub_body.html) is now the
+        # back-link. The fragment must NOT contain the old link text.
+        self.assertNotIn(
+            "Event Workspace",
             content,
-            "Post workspace must render the Event hub cross-link in the top row (D5 shell).",
+            "Post syndication fragment must NOT render the old 'Event Workspace ↗' "
+            "cross-link — the breadcrumb in the composer bar is the back-link (kb-96tn.1).",
         )
 
 

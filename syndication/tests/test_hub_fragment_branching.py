@@ -113,10 +113,12 @@ class EventHubHxFragmentTest(TestCase):
             "event_hub HX fragment must not contain <body — nested document defect.",
         )
 
-    def test_event_hub_hx_request_fragment_contains_event_title(self):
+    def test_event_hub_hx_request_fragment_has_composer_bar(self):
         """
-        The fragment returned must still contain the event title (sanity check
-        that we're getting real content, not an empty response).
+        kb-96tn.1: The fragment returned must contain the composer bar
+        (sanity check that we're getting real content, not an empty response).
+        The h1 with the event title was removed; the bar has #composer-pills
+        and the breadcrumb "Studio".
         """
         url = f"/syndication/events/{self.event.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
@@ -125,9 +127,9 @@ class EventHubHxFragmentTest(TestCase):
         content = response.content.decode()
 
         self.assertIn(
-            "EHF Event",
+            'id="composer-pills"',
             content,
-            "event_hub HX fragment must contain the event title.",
+            "event_hub HX fragment must contain the composer bar pill placeholder (kb-96tn.1).",
         )
 
 
@@ -166,9 +168,12 @@ class PostHubHxFragmentTest(TestCase):
             "post_hub HX fragment must not contain <body — nested document defect.",
         )
 
-    def test_post_hub_hx_request_fragment_contains_post_headline(self):
+    def test_post_hub_hx_request_fragment_has_composer_bar(self):
         """
-        Sanity: fragment must contain the post headline (not an empty response).
+        kb-96tn.1: Fragment must contain the composer bar (sanity check that
+        we're getting real content, not an empty response). The h1 with the
+        post headline was removed; the bar has #composer-pills and the
+        breadcrumb "Studio › <event.title>".
         """
         url = f"/syndication/posts/{self.post.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
@@ -177,9 +182,15 @@ class PostHubHxFragmentTest(TestCase):
         content = response.content.decode()
 
         self.assertIn(
-            "PHF Post Headline",
+            'id="composer-pills"',
             content,
-            "post_hub HX fragment must contain the post headline.",
+            "post_hub HX fragment must contain the composer bar pill placeholder (kb-96tn.1).",
+        )
+        # Breadcrumb links back to event hub
+        self.assertIn(
+            f"/syndication/events/{self.event.pk}/",
+            content,
+            "post_hub HX fragment breadcrumb must link to the event hub (kb-96tn.1).",
         )
 
 
@@ -256,13 +267,12 @@ class PostHubNormalGetFullPageTest(TestCase):
 
 class PostSyndicationCrossLinkTest(TestCase):
     """
-    The post_syndication fragment in the STUDIO CONTEXT (?studio=1) must have
-    the "Event hub" cross-link rewired to use hx-get (not a plain <a href>)
-    with hx-target="#studio-main" and hx-push-url pointing to the real event
-    hub path (/syndication/events/<pk>/).
+    kb-96tn.1: The "Event Workspace ↗" cross-link was removed from the
+    post_syndication fragment. The back-link to the event hub is now the
+    breadcrumb in the composer bar (_post_hub_body.html).
 
-    kb-9f1h.7: the swap attrs are only emitted when ?studio=1 is present.
-    Without it the fragment serves standalone context (plain href only).
+    These tests confirm the fragment no longer contains the old link,
+    and the hub body provides the correct HTMX-aware breadcrumb.
     """
 
     def setUp(self):
@@ -273,11 +283,10 @@ class PostSyndicationCrossLinkTest(TestCase):
         self.post = _make_post(self.event, "CL Post Headline")
         self.client.force_login(self.user)
 
-    def test_post_syndication_fragment_event_hub_link_has_hx_target(self):
+    def test_post_syndication_fragment_has_no_event_workspace_link(self):
         """
-        The "Event hub" link in post_syndication fragment (with ?studio=1)
-        must have hx-target="#studio-main" so clicks swap within the studio
-        shell. Without ?studio=1, no swap attrs (tested in (d) below).
+        kb-96tn.1: The post_syndication fragment must NOT contain the old
+        "Event Workspace ↗" back-link (removed in favour of the bar breadcrumb).
         """
         url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
         response = self.client.get(url)
@@ -285,20 +294,21 @@ class PostSyndicationCrossLinkTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        self.assertIn(
-            'hx-target="#studio-main"',
+        self.assertNotIn(
+            "Event Workspace",
             content,
-            "post_syndication fragment Event hub link (studio context) must have hx-target='#studio-main'.",
+            "post_syndication fragment must NOT contain 'Event Workspace' — "
+            "the back-link was moved to the composer bar breadcrumb (kb-96tn.1).",
         )
 
-    def test_post_syndication_fragment_event_hub_link_has_hx_push_url_real_path(self):
+    def test_post_hub_hx_fragment_breadcrumb_has_hx_push_url_real_path(self):
         """
-        The "Event hub" link in post_syndication fragment (with ?studio=1)
-        must have hx-push-url pointing to the real event hub path
-        (/syndication/events/<pk>/). NOT the fragments/ endpoint.
+        kb-96tn.1: The breadcrumb in the post hub body (bar) in the STUDIO
+        CONTEXT (HX-Request) must have hx-push-url pointing to the real event
+        hub path (/syndication/events/<pk>/).
         """
-        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
-        response = self.client.get(url)
+        url = f"/syndication/posts/{self.post.pk}/"
+        response = self.client.get(url, HTTP_HX_REQUEST="true")
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -307,16 +317,17 @@ class PostSyndicationCrossLinkTest(TestCase):
         self.assertIn(
             f'hx-push-url="{expected_event_hub_path}"',
             content,
-            f"post_syndication fragment Event hub link must have hx-push-url='{expected_event_hub_path}'.",
+            f"post hub breadcrumb must have hx-push-url='{expected_event_hub_path}' (kb-96tn.1).",
         )
 
-    def test_post_syndication_fragment_event_hub_link_uses_hx_get(self):
+    def test_post_hub_hx_fragment_breadcrumb_uses_hx_get(self):
         """
-        The "Event hub" link (with ?studio=1) must use hx-get to trigger the
-        HTMX swap within the studio shell.
+        kb-96tn.1: The breadcrumb in the post hub body (bar) in the STUDIO
+        CONTEXT (HX-Request) must use hx-get to trigger the HTMX swap within
+        the studio shell.
         """
-        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
-        response = self.client.get(url)
+        url = f"/syndication/posts/{self.post.pk}/"
+        response = self.client.get(url, HTTP_HX_REQUEST="true")
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -325,7 +336,7 @@ class PostSyndicationCrossLinkTest(TestCase):
         self.assertIn(
             f'hx-get="{expected_event_hub_path}"',
             content,
-            "post_syndication fragment Event hub link must use hx-get for swap.",
+            "post hub breadcrumb must use hx-get for swap (kb-96tn.1).",
         )
 
 
@@ -479,8 +490,8 @@ class PostSyndicationStudioContextTest(TestCase):
     def test_post_syndication_without_studio_param_has_no_hx_target_studio_main(self):
         """
         post_syndication fragment without ?studio=1 must NOT render
-        hx-target="#studio-main" — it's in a standalone context where
-        #studio-main doesn't exist.
+        hx-target="#studio-main" — the "Event Workspace" link is removed from
+        the fragment (kb-96tn.1); the bar breadcrumb carries the HTMX attrs.
         """
         url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
         response = self.client.get(url)
@@ -494,12 +505,13 @@ class PostSyndicationStudioContextTest(TestCase):
             "post_syndication without ?studio=1 must NOT emit hx-target='#studio-main'.",
         )
 
-    def test_post_syndication_without_studio_param_has_plain_href(self):
+    def test_post_hub_standalone_breadcrumb_has_plain_href(self):
         """
-        post_syndication fragment without ?studio=1 must have a plain href
-        on the "Event hub" link so standalone navigation works.
+        kb-96tn.1: The standalone post_hub (normal GET) bar breadcrumb must have
+        a plain href to the event hub for correct navigation without HTMX.
+        (studio_swap=False → plain <a href>, no hx-get/hx-target.)
         """
-        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
+        url = f"/syndication/posts/{self.post.pk}/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -509,16 +521,17 @@ class PostSyndicationStudioContextTest(TestCase):
         self.assertIn(
             f'href="{expected_event_hub_path}"',
             content,
-            "post_syndication without ?studio=1 must have plain href for navigation.",
+            "post_hub standalone breadcrumb must have plain href for navigation (kb-96tn.1).",
         )
 
-    def test_post_syndication_with_studio_param_has_hx_target_studio_main(self):
+    def test_post_hub_hx_fragment_breadcrumb_has_hx_target_studio_main(self):
         """
-        post_syndication fragment with ?studio=1 (in-studio context) MUST
-        render hx-target="#studio-main" for the "Event hub" link.
+        kb-96tn.1: The post hub body (bar breadcrumb) when requested via HX-Request
+        (in-studio context, studio_swap=True) MUST render hx-target="#studio-main"
+        so the studio swap works correctly.
         """
-        url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
-        response = self.client.get(url)
+        url = f"/syndication/posts/{self.post.pk}/"
+        response = self.client.get(url, HTTP_HX_REQUEST="true")
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -526,7 +539,7 @@ class PostSyndicationStudioContextTest(TestCase):
         self.assertIn(
             'hx-target="#studio-main"',
             content,
-            "post_syndication with ?studio=1 MUST have hx-target='#studio-main' for the in-studio swap to work.",
+            "post hub HX breadcrumb MUST have hx-target='#studio-main' for the in-studio swap (kb-96tn.1).",
         )
 
 
@@ -842,9 +855,11 @@ class EventWorkspaceVocabLockTest(TestCase):
         self.post = _make_post(self.event, "Vocab Post Headline")
         self.client.force_login(self.user)
 
-    def test_event_hub_body_kicker_says_event_workspace(self):
+    def test_event_hub_body_has_composer_bar_not_eyebrow(self):
         """
-        The event hub body kicker must say 'Event Workspace' (renamed from 'Event Hub').
+        kb-96tn.1: The event hub body must NOT have the old 'Event Workspace'
+        status eyebrow or h1.kb-display — those were replaced by the composer bar.
+        The bar has a 'Studio' breadcrumb and a pill-row placeholder.
         """
         url = f"/syndication/events/{self.event.pk}/"
         response = self.client.get(url, HTTP_HX_REQUEST="true")
@@ -852,20 +867,30 @@ class EventWorkspaceVocabLockTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        self.assertIn(
+        # kb-96tn.1: eyebrow removed — no "Event Workspace" text in the bar
+        self.assertNotIn(
             "Event Workspace",
             content,
-            "Event hub kicker must read 'Event Workspace' (kb-shzi.5 vocab rename).",
+            "Event hub body must NOT have the old 'Event Workspace' status eyebrow (kb-96tn.1).",
         )
-        self.assertNotIn(
-            "Event Hub",
+        # Bar replaces it — Studio breadcrumb is present
+        self.assertIn(
+            "Studio",
             content,
-            "Event hub kicker must NOT read 'Event Hub' (kb-shzi.5 rename to 'Event Workspace').",
+            "Event hub body must have the 'Studio' breadcrumb in the composer bar (kb-96tn.1).",
+        )
+        # Pill-row placeholder is present for C3
+        self.assertIn(
+            'id="composer-pills"',
+            content,
+            "Event hub body must have the composer-pills placeholder in the bar (kb-96tn.1).",
         )
 
-    def test_post_syndication_cross_link_says_event_workspace(self):
+    def test_post_syndication_fragment_has_no_event_workspace_cross_link(self):
         """
-        The post composer cross-link must read 'Event Workspace ↗' (renamed from 'Event hub ↗').
+        kb-96tn.1: The post_syndication fragment must NOT contain the old
+        'Event Workspace ↗' cross-link — it was removed in favour of the
+        breadcrumb in the composer bar (_post_hub_body.html).
         """
         url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/?studio=1"
         response = self.client.get(url)
@@ -873,10 +898,11 @@ class EventWorkspaceVocabLockTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        self.assertIn(
+        self.assertNotIn(
             "Event Workspace",
             content,
-            "Post syndication cross-link must read 'Event Workspace' (kb-shzi.5 vocab rename).",
+            "Post syndication fragment must NOT have 'Event Workspace' cross-link — "
+            "it moved to the composer bar breadcrumb (kb-96tn.1).",
         )
 
     def test_event_posts_fragment_add_button_says_add_promo_post(self):
