@@ -1,0 +1,8 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+{% block title %}
+  {% trans "New Promo Post" %} — Switch
+{% endblock %}
+{% block content %}
+  {% include "syndication/post_create_standalone_fragment.html" %}
+{% endblock content %}

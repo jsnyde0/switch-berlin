@@ -39,9 +39,34 @@ Context variables required:
   </div>
   <div class="pr-5 mb-2 flex items-center justify-between">
     <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25">{% trans "Publishables" %}</p>
-    <a href="{% url 'syndication:event-create' %}"
-       class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 hover:text-base-content/60 transition-colors"
-       title="{% trans 'Create a new event' %}">+ {% trans "New" %}</a>
+    {% comment %}+ New dropdown — Alpine dropdown, HTMX inline create (kb-96tn.6){% endcomment %}
+    <div class="relative" x-data="{ open: false }">
+      <button type="button"
+              @click="open = !open"
+              @keydown.escape.window="open = false"
+              class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/60 hover:text-base-content font-medium transition-colors px-1.5 py-0.5 rounded hover:bg-white/[0.06]"
+              :aria-expanded="open"
+              aria-haspopup="true">+ {% trans "New" %}</button>
+      <div x-show="open"
+           x-cloak
+           @click.outside="open = false"
+           class="absolute right-0 top-full mt-1 w-44 rounded border border-white/[0.09] bg-[#111] shadow-xl z-50">
+        <button type="button"
+                class="w-full text-left kb-mono text-[10px] uppercase tracking-[0.14em] px-3 py-2.5 text-base-content/70 hover:text-base-content hover:bg-white/[0.05] transition-colors"
+                hx-get="{% url 'syndication:event-create' %}"
+                hx-target="#studio-main"
+                hx-push-url="true"
+                hx-swap="innerHTML"
+                @click="open = false">{% trans "New event" %}</button>
+        <button type="button"
+                class="w-full text-left kb-mono text-[10px] uppercase tracking-[0.14em] px-3 py-2.5 text-base-content/70 hover:text-base-content hover:bg-white/[0.05] transition-colors border-t border-white/[0.05]"
+                hx-get="{% url 'syndication:post-create-standalone' %}"
+                hx-target="#studio-main"
+                hx-push-url="true"
+                hx-swap="innerHTML"
+                @click="open = false">{% trans "New promo post" %}</button>
+      </div>
+    </div>
   </div>
   {% comment %}Flat publishables list (D1: Events + Posts as peers, no nesting){% endcomment %}
   {% if publishables %}
@@ -75,8 +100,12 @@ Context variables required:
       <p class="kb-mono text-[10px] tracking-[0.06em] text-base-content/30 mb-3 leading-relaxed">
         {% trans "Nothing here yet." %}
       </p>
-      <a href="{% url 'syndication:event-create' %}"
-         class="kb-btn-secondary text-[10px]">{% trans "Create event" %} ↗</a>
+      <button type="button"
+              class="kb-btn-secondary text-[10px]"
+              hx-get="{% url 'syndication:event-create' %}"
+              hx-target="#studio-main"
+              hx-push-url="true"
+              hx-swap="innerHTML">{% trans "Create event" %} ↗</button>
     </div>
   {% endif %}
 </aside>

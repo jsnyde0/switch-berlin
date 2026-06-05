@@ -132,7 +132,14 @@ def event_create(request):
     Create a new Event via the web form.
     GET: render the form.
     POST: call create_event service (co-equal with API), redirect to hub on success.
+
+    HX-Request branching (kb-96tn.6): when requested via HTMX, return the
+    layout-less form fragment (no {% extends %}) for swapping into #studio-main.
+    On POST success with HX-Request, return the event hub fragment instead of
+    a full-page redirect (keeps rail visible, no full reload).
     """
+    is_htmx = bool(request.headers.get("HX-Request"))
+
     if request.method == "POST":
         form = EventForm(request.POST, request.FILES)
         if form.is_valid():
@@ -148,11 +155,31 @@ def event_create(request):
                         set_event_cover(request.user, event, cover_file)
                     except ValidationError as exc:
                         form.add_error("cover_image", "; ".join(exc.messages))
-                        return render(request, "syndication/event_create.html", {"form": form})
+                        template = (
+                            "syndication/event_create_fragment.html"
+                            if is_htmx
+                            else "syndication/event_create.html"
+                        )
+                        return render(request, template, {"form": form})
+                if is_htmx:
+                    # HTMX success: tell the browser to load the event hub inline
+                    # via HX-Redirect so the rail stays visible (no full-page reload).
+                    from django.urls import reverse
+
+                    hub_url = reverse("syndication:event-hub", kwargs={"pk": event.pk})
+                    response = render(
+                        request,
+                        "syndication/event_hub_fragment.html",
+                        {"event": event, "can_edit": can_edit(request.user, event)},
+                    )
+                    response["HX-Push-Url"] = hub_url
+                    return response
                 return redirect("syndication:event-hub", pk=event.pk)
     else:
         form = EventForm()
 
+    if is_htmx:
+        return render(request, "syndication/event_create_fragment.html", {"form": form})
     return render(request, "syndication/event_create.html", {"form": form})
 
 
@@ -876,6 +903,81 @@ def post_create(request, event_pk):
             "event": event,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Standalone post creation (kb-96tn.6 — no parent event selected yet)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def post_create_standalone(request):
+    """
+    Create a Post, choosing the parent Event from the user's own events.
+
+    This is the entry point for '+ New → New promo post' in the studio rail,
+    where no specific event is pre-selected. The user picks an event, fills
+    the headline/body, and submits.
+
+    HX-Request branching (kb-96tn.6): HTMX GET returns a layout-less fragment
+    (for swapping into #studio-main). HTMX POST success returns the post hub
+    fragment; plain POST redirects to the event hub.
+    """
+    from organizers.models import ProfileClaim
+
+    is_htmx = bool(request.headers.get("HX-Request"))
+
+    # Gather the user's events (same approach as studio view).
+    claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
+    if claim is None:
+        return render(
+            request,
+            "syndication/403.html",
+            {"detail": "No organizer profile. Studio access requires an active profile claim."},
+            status=403,
+        )
+
+    primary_profile = claim.profile
+    events = list(Event.objects.filter(organizers=primary_profile).distinct().order_by("-updated_at"))
+
+    if request.method == "POST":
+        form = PostForm(request.POST)
+        event_pk = request.POST.get("event_id")
+        event = None
+        if event_pk:
+            try:
+                event = Event.objects.get(pk=event_pk)
+                if not can_edit(request.user, event):
+                    event = None
+            except Event.DoesNotExist:
+                event = None
+
+        if event is None:
+            form.add_error(None, "Please select a valid event.")
+
+        if form.is_valid() and event is not None:
+            cd = form.cleaned_data
+            post = create_post(user=request.user, event=event, **cd)
+            if is_htmx:
+                from django.urls import reverse
+
+                hub_url = reverse("syndication:post-hub", kwargs={"pk": post.pk})
+                user_can_edit = can_edit(request.user, post.event)
+                response = render(
+                    request,
+                    "syndication/post_hub_fragment.html",
+                    {"post": post, "event": post.event, "can_edit": user_can_edit},
+                )
+                response["HX-Push-Url"] = hub_url
+                return response
+            return redirect("syndication:post-hub", pk=post.pk)
+    else:
+        form = PostForm()
+
+    ctx = {"form": form, "events": events}
+    if is_htmx:
+        return render(request, "syndication/post_create_standalone_fragment.html", ctx)
+    return render(request, "syndication/post_create_standalone.html", ctx)
 
 
 # ---------------------------------------------------------------------------

@@ -44,6 +44,12 @@ urlpatterns = [
         views.post_create,
         name="post-create",
     ),
+    # Standalone post creation — no event pre-selected (kb-96tn.6: + New rail entry).
+    path(
+        "posts/new/",
+        views.post_create_standalone,
+        name="post-create-standalone",
+    ),
     # --- Post hub + fragment (kb-q4u9.3) ---
     # Post-scoped workspace: analogous to event-hub but for a Post publishable.
     # "Source" tab anchors the canonical (a post has no native-home channel).
