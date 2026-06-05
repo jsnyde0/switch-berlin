@@ -69,8 +69,13 @@ Shows when this channel's CV is shared across multiple channels.{% endcomment %}
 {% endif %}
 {% endfor %}
 {% endif %}
-{% comment %}--- (a) STATUS-GATE REGION --- kb-kgza.3 edits this guard condition.{% endcomment %}
-{% if can_edit and proj.status == 'draft' %}
+{% comment %}--- (a) STATUS-GATE REGION --- kb-kgza.3 edits this guard condition.
+Original: can_edit and proj.status == 'draft'
+After kb-kgza.3: also allow published when editable=True (policy-gated from view).
+editable is computed in fragment_event_syndication / fragment_post_syndication from
+edit_after_publish_policy(platform) == 'dirty_then_republish'. The template never
+inlines policy logic (ADR-003 cheap foresight seam).{% endcomment %}
+{% if can_edit and proj.status == 'draft' or can_edit and editable %}
 <div class="mb-7">
 {% if show_switch_event_form and proj.connection.platform == 'switch' and proj.kind == 'listing' %}
 {% comment %}Switch listing: event-composer-only path. Uses EventForm inputs inside a

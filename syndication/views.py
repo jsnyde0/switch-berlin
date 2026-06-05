@@ -527,8 +527,26 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         if content_is_dirty:
             policy = edit_after_publish_policy(proj.connection.platform)
             is_dirty = policy == "dirty_then_republish"
+        # Compute editable flag for this projection (kb-kgza.3 ADR-016 D5).
+        # A published projection is editable when the platform's policy allows
+        # edit-after-publish (dirty_then_republish). Draft projections are always
+        # editable (the existing status-gate already covers that). The flag is
+        # threaded from here so the template does NOT inline policy logic.
+        if proj.status == PlatformProjection.Status.PUBLISHED:
+            _edit_policy = edit_after_publish_policy(proj.connection.platform)
+            editable = _edit_policy == "dirty_then_republish"
+        else:
+            editable = False  # draft: handled by the existing `can_edit and proj.status == 'draft'` gate
         rendered_rows[proj.pk] = body
-        projection_rows.append({"projection": proj, "body": body, "render_error": render_error, "is_dirty": is_dirty})
+        projection_rows.append(
+            {
+                "projection": proj,
+                "body": body,
+                "render_error": render_error,
+                "is_dirty": is_dirty,
+                "editable": editable,
+            }
+        )
 
     # --- Empty/error state flags ---
     # has_connections: check if any enabled connections exist for this event's organizers
@@ -818,8 +836,24 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         if content_is_dirty:
             policy = edit_after_publish_policy(proj.connection.platform)
             is_dirty = policy == "dirty_then_republish"
+        # Compute editable flag for this projection (kb-kgza.3 ADR-016 D5).
+        # Symmetric with fragment_event_syndication: published → policy-gated,
+        # draft → handled by the existing status-gate in _channel_editor.html.
+        if proj.status == PlatformProjection.Status.PUBLISHED:
+            _edit_policy = edit_after_publish_policy(proj.connection.platform)
+            editable = _edit_policy == "dirty_then_republish"
+        else:
+            editable = False  # draft: handled by the existing `can_edit and proj.status == 'draft'` gate
         rendered_rows[proj.pk] = body
-        projection_rows.append({"projection": proj, "body": body, "render_error": render_error, "is_dirty": is_dirty})
+        projection_rows.append(
+            {
+                "projection": proj,
+                "body": body,
+                "render_error": render_error,
+                "is_dirty": is_dirty,
+                "editable": editable,
+            }
+        )
 
     consumers_map = content_version_consumers_map(post=post)
 

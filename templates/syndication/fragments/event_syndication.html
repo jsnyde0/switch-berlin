@@ -223,9 +223,9 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
         </div>
       </div>
       {% for row in projection_rows %}
-        {% with proj=row.projection body=row.body render_error=row.render_error %}
+        {% with proj=row.projection body=row.body render_error=row.render_error editable=row.editable %}
           <div x-show="selectedPk === {{ proj.pk }}" x-cloak>
-            {% include "syndication/fragments/_channel_editor.html" with proj=proj row=row body=body render_error=render_error can_edit=can_edit can_publish=can_publish fragment_target="#event-syndication" consumers_map=consumers_map projection_rows=projection_rows resync_id_prefix="" copy_body_id_prefix="copy-body-" include_data_copy_body=True show_switch_event_form=True event_form=event_form event=event only %}
+            {% include "syndication/fragments/_channel_editor.html" with proj=proj row=row body=body render_error=render_error can_edit=can_edit can_publish=can_publish fragment_target="#event-syndication" consumers_map=consumers_map projection_rows=projection_rows resync_id_prefix="" copy_body_id_prefix="copy-body-" include_data_copy_body=True show_switch_event_form=True event_form=event_form event=event editable=editable only %}
           </div>
         {% endwith %}
       {% endfor %}

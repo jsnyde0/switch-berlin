@@ -3011,10 +3011,15 @@ class PostComposerPublishedStateGatingTest(TestCase):
             proj.save(update_fields=["status"])
         return post, proj
 
-    def test_customize_reset_not_shown_on_published_post_projection(self):
+    def test_editor_shown_on_published_post_projection_with_dirty_then_republish_policy(self):
         """
-        Finding 3: Customize/Reset controls must NOT appear on a published post projection.
-        The event template gates on can_edit + draft; the post template must do the same.
+        kb-kgza.3 (ADR-016 D5 edit-after-publish): a published post projection with
+        dirty_then_republish policy MUST show the editor (including the detach-and-edit
+        form action). This replaces the old "Customize/Reset must NOT appear" assertion —
+        published projections are now editable per ADR-016 D5.
+
+        The Customize button may appear in the sync-bar for projections on the canonical
+        CV (state i); this is correct — the user can customize then edit.
         """
         post, proj = self._make_post_with_projection(status="published")
 
@@ -3022,19 +3027,14 @@ class PostComposerPublishedStateGatingTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        # Customize and Reset must not appear as buttons on published projections
-        # (They appear in forms with specific hx-post URLs for the projection)
-        proj_customize_url = f"/syndication/projections/{proj.pk}/customize/"
-        proj_reset_url = f"/syndication/projections/{proj.pk}/reset-to-canonical/"
-        self.assertNotIn(
-            proj_customize_url,
+        # The editor form posts to projection-detach-and-edit — its presence confirms
+        # the editor is rendered for published projections (ADR-016 D5).
+        detach_url = f"/syndication/projections/{proj.pk}/detach-and-edit/"
+        self.assertIn(
+            detach_url,
             content,
-            "Customize must NOT appear for a published post projection",
-        )
-        self.assertNotIn(
-            proj_reset_url,
-            content,
-            "Reset must NOT appear for a published post projection",
+            "Editor (detach-and-edit URL) must appear for published post projection "
+            "when policy=dirty_then_republish (ADR-016 D5 edit-after-publish).",
         )
 
     def test_customize_reset_shown_on_draft_post_projection(self):
