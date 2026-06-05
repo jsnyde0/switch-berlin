@@ -1,0 +1,13 @@
+{% comment %}
+OOB rail wrapper — wraps _studio_rail.html with hx-swap-oob="true" so HTMX
+replaces the rail <aside id="studio-rail"> after an inline-create round-trip.
+
+Used by event_create and post_create_standalone HTMX POST success paths
+(kb-96tn.6 gap closure) to auto-refresh the left rail without a full reload.
+
+Context variables (forwarded to _studio_rail.html):
+  primary_profile  — Profile instance (claimant's profile)
+  publishables     — list of {"kind": "event"|"post", "obj": <instance>} dicts
+  current_path     — request.path for active-row detection
+{% endcomment %}
+{% include "syndication/_studio_rail.html" with oob=True %}

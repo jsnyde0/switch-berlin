@@ -15,6 +15,11 @@ Contract:
     returns 200, and is HX-Request-aware (fragment on HTMX GET).
 (g) The empty-state link also becomes an hx-get button (or the CTA link still
     works — no regression).
+(h) HTMX inline-create success responses include an OOB rail fragment so the
+    left rail auto-refreshes without a full reload (kb-96tn.6 gap closure).
+    - event_create HTMX POST success: rail OOB fragment contains new event title.
+    - post_create_standalone HTMX POST success: rail OOB contains new post headline.
+    - The rail <aside> carries id="studio-rail" so HTMX can target it.
 """
 
 from django.contrib.auth import get_user_model
@@ -255,3 +260,148 @@ class StandalonePostCreateTest(TestCase):
         content = response.content.decode()
         self.assertNotIn("<html", content)
         self.assertIn("<form", content)
+
+
+# ---------------------------------------------------------------------------
+# (h) HTMX inline-create success responses include OOB rail fragment
+# ---------------------------------------------------------------------------
+
+
+class RailStableIdTest(TestCase):
+    """
+    The studio rail <aside> must carry id="studio-rail" so HTMX can target it
+    for OOB swap on inline-create success.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="railid_user", email="railid@test.com", password="pw")
+        self.profile = _make_profile("RailId Org", "railid-org", user=self.user)
+        self.event = _make_event(self.profile, "RailId Event", "railid-event")
+        self.client.force_login(self.user)
+
+    def test_studio_rail_has_stable_id(self):
+        """The rail <aside> must have id='studio-rail' for OOB targeting."""
+        response = self.client.get("/studio/")
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            'id="studio-rail"',
+            content,
+            "Rail <aside> must carry id='studio-rail' so HTMX OOB swap can target it.",
+        )
+
+
+class EventCreateHtmxOobRailTest(TestCase):
+    """
+    HTMX POST to event_create must include an OOB rail fragment (hx-swap-oob='true')
+    in the same response that delivers the event hub composer. The OOB fragment must:
+    - carry hx-swap-oob="true" on the element with id="studio-rail"
+    - contain the newly-created event's title (so the rail reflects the new state)
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="eoob_user", email="eoob@test.com", password="pw")
+        self.profile = _make_profile("EOob Org", "eoob-org", user=self.user)
+        self.client.force_login(self.user)
+
+    def test_htmx_post_success_includes_rail_oob_fragment(self):
+        """HTMX POST success includes hx-swap-oob='true' on an element with id='studio-rail'."""
+        response = self.client.post(
+            "/syndication/events/new/",
+            {
+                "title": "OOB Rail Event",
+                "slug": "oob-rail-event",
+                "start": "2026-09-01 18:00",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            'hx-swap-oob="true"',
+            content,
+            "HTMX create response must contain hx-swap-oob='true' for the rail OOB swap.",
+        )
+        self.assertIn(
+            'id="studio-rail"',
+            content,
+            "HTMX create response must contain id='studio-rail' in the OOB element.",
+        )
+
+    def test_htmx_post_success_rail_oob_contains_new_event(self):
+        """The OOB rail fragment must contain the newly-created event's title."""
+        response = self.client.post(
+            "/syndication/events/new/",
+            {
+                "title": "Brand New Event",
+                "slug": "brand-new-event",
+                "start": "2026-09-01 18:00",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "Brand New Event",
+            content,
+            "The OOB rail fragment must include the newly-created event's title.",
+        )
+
+
+class PostCreateStandaloneHtmxOobRailTest(TestCase):
+    """
+    HTMX POST to post_create_standalone must include an OOB rail fragment
+    containing the newly-created post's headline. Same contract as event_create.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="poob_user", email="poob@test.com", password="pw")
+        self.profile = _make_profile("POob Org", "poob-org", user=self.user)
+        self.event = _make_event(self.profile, "POob Parent Event", "poob-parent-event")
+        self.client.force_login(self.user)
+
+    def test_htmx_post_success_includes_rail_oob_fragment(self):
+        """HTMX POST success includes hx-swap-oob='true' on an element with id='studio-rail'."""
+        response = self.client.post(
+            "/syndication/posts/new/",
+            {
+                "headline": "OOB Rail Post",
+                "body": "Post body content",
+                "event_id": str(self.event.pk),
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            'hx-swap-oob="true"',
+            content,
+            "HTMX post-create response must contain hx-swap-oob='true' for rail OOB swap.",
+        )
+        self.assertIn(
+            'id="studio-rail"',
+            content,
+            "HTMX post-create response must contain id='studio-rail' in the OOB element.",
+        )
+
+    def test_htmx_post_success_rail_oob_contains_new_post(self):
+        """The OOB rail fragment must contain the newly-created post's headline."""
+        response = self.client.post(
+            "/syndication/posts/new/",
+            {
+                "headline": "Fresh OOB Post Headline",
+                "body": "Post body content",
+                "event_id": str(self.event.pk),
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            "Fresh OOB Post Headline",
+            content,
+            "The OOB rail fragment must include the newly-created post's headline.",
+        )

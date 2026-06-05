@@ -12,7 +12,9 @@ Context variables required:
   publishables     — list of {"kind": "event"|"post", "obj": <instance>} dicts
   current_path     — request.path for active-row detection
 {% endcomment %}
-<aside class="hidden sm:flex flex-col shrink-0 w-[232px] pt-6 pb-20 border-r border-white/[0.09]"
+<aside id="studio-rail"
+       {% if oob %}hx-swap-oob="true"{% endif %}
+       class="hidden sm:flex flex-col shrink-0 w-[232px] pt-6 pb-20 border-r border-white/[0.09]"
        aria-label="{% trans "Publishables" %}">
   {% comment %}Profile-switcher slot (empty) — reserved for kb-5ok6{% endcomment %}
   <div class="studio-profile-switcher" aria-hidden="true"></div>

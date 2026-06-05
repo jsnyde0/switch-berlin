@@ -60,6 +60,47 @@ from syndication.services import (
 )
 
 # ---------------------------------------------------------------------------
+# Rail OOB helper (kb-96tn.6 gap closure)
+# ---------------------------------------------------------------------------
+
+
+def _render_rail_oob(request):
+    """
+    Render the studio rail partial with hx-swap-oob="true" so HTMX replaces
+    the <aside id="studio-rail"> element after an inline-create success response.
+
+    Returns the rendered OOB HTML string (to be appended to the main response body).
+    Returns empty string when the user has no profile claim (fail-soft — inline
+    create already succeeded; don't corrupt the response for a missing rail claim).
+
+    Mirrors the profile/publishables context-building in studio() and event_hub().
+    ADR-008 D2: one clear path — no separate context-builder abstraction; the
+    pattern is simple enough to inline (three-line clone, not third diverging caller).
+    """
+    from events.models import Event as _Event
+    from organizers.models import ProfileClaim
+
+    claim = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).select_related("profile").first()
+    if claim is None:
+        return ""
+
+    primary_profile = claim.profile
+    raw_publishables = get_publishables_for_profile(primary_profile)
+    publishables = [{"kind": "event" if isinstance(item, _Event) else "post", "obj": item} for item in raw_publishables]
+
+    return render_to_string(
+        "syndication/fragments/_studio_rail_oob.html",
+        {
+            "primary_profile": primary_profile,
+            "publishables": publishables,
+            "current_path": request.path,
+            "oob": True,
+        },
+        request=request,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Studio front door (kb-9f1h.1)
 # ---------------------------------------------------------------------------
 
@@ -162,16 +203,19 @@ def event_create(request):
                         )
                         return render(request, template, {"form": form})
                 if is_htmx:
-                    # HTMX success: tell the browser to load the event hub inline
-                    # via HX-Redirect so the rail stays visible (no full-page reload).
+                    # HTMX success: return the event hub fragment + an OOB rail
+                    # update so the left rail reflects the new event without a
+                    # full-page reload (kb-96tn.6 gap closure).
                     from django.urls import reverse
 
                     hub_url = reverse("syndication:event-hub", kwargs={"pk": event.pk})
-                    response = render(
-                        request,
+                    hub_html = render_to_string(
                         "syndication/event_hub_fragment.html",
                         {"event": event, "can_edit": can_edit(request.user, event)},
+                        request=request,
                     )
+                    rail_oob = _render_rail_oob(request)
+                    response = HttpResponse(hub_html + rail_oob, content_type="text/html")
                     response["HX-Push-Url"] = hub_url
                     return response
                 return redirect("syndication:event-hub", pk=event.pk)
@@ -963,11 +1007,13 @@ def post_create_standalone(request):
 
                 hub_url = reverse("syndication:post-hub", kwargs={"pk": post.pk})
                 user_can_edit = can_edit(request.user, post.event)
-                response = render(
-                    request,
+                hub_html = render_to_string(
                     "syndication/post_hub_fragment.html",
                     {"post": post, "event": post.event, "can_edit": user_can_edit},
+                    request=request,
                 )
+                rail_oob = _render_rail_oob(request)
+                response = HttpResponse(hub_html + rail_oob, content_type="text/html")
                 response["HX-Push-Url"] = hub_url
                 return response
             return redirect("syndication:post-hub", pk=post.pk)
