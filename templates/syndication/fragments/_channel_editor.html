@@ -1,0 +1,469 @@
+{% load i18n %}
+{% comment %}
+Per-channel body editor + CTA block — shared between event_syndication.html
+and post_syndication.html (kb-kgza.9 extraction).
+
+Renders the full channel panel for one projection: shared-content indicator,
+status gate, body form, channel preview, dirty banner, and publish CTAs.
+
+Context variables (required):
+  proj                  — PlatformProjection (select_related connection, content_version, sync_source)
+  row                   — projection row dict: {projection, body, render_error, is_dirty}
+  body                  — rendered body string (from row.body)
+  render_error          — bool (from row.render_error)
+  can_edit              — bool — user has edit permission
+  can_publish           — bool — user has publish permission
+  fragment_target       — HTMX target for full-fragment refresh
+                          (e.g. "#event-syndication" or "#post-syndication")
+  consumers_map         — {ContentVersion: [PlatformProjection, ...]} for shared-content cue
+  projection_rows       — all rows for the composer (used by sync picker option list)
+  resync_id_prefix      — Prefix between "resync-select-" and proj.pk in the resync <select> id.
+                          event_syndication passes "" → "resync-select-{{ proj.pk }}"
+                          post_syndication passes "post-" → "resync-select-post-{{ proj.pk }}"
+  copy_body_id_prefix   — Prefix for the copy-body <pre> id.
+                          event_syndication passes "copy-body-" → "copy-body-{{ proj.pk }}"
+                          post_syndication passes "copy-body-post-" → "copy-body-post-{{ proj.pk }}"
+  include_data_copy_body — bool; when True adds data-copy-body="{{ proj.pk }}" to the Copy button.
+                           event_syndication passes True; post_syndication passes False.
+                           (Divergence note kb-kgza.9: the event composer button had this
+                           data-attribute for test selection; post did not.)
+  is_post_composer       — bool; when True uses "post" wording in textarea placeholders
+                           ("Write your FetLife post…", "Write your post…").
+                           When absent/False uses "listing" wording.
+                           (Divergence note kb-kgza.9: event uses "listing", post uses "post".)
+
+Optional (event-composer-only):
+  show_switch_event_form — bool; when True (and proj.connection.platform == 'switch'
+                           and proj.kind == 'listing'), render the EventForm card
+                           instead of the freeform textarea.  post_syndication must
+                           NOT pass this (or pass False).
+  event_form             — EventForm instance (required when show_switch_event_form is True)
+  event                  — Event object (required when show_switch_event_form is True)
+
+Sub-region boundaries (LATER BEADS EDIT THESE):
+  (a) Status-gate region  ← kb-kgza.3 edits the guard condition
+      starts: {% if can_edit and proj.status == 'draft' %}
+      ends:   {% endif %} (after the mb-7 div)
+  (b) Body-form region    ← kb-kgza.2 rewires the form action
+      the <form action="{% url 'syndication:version-edit' ... %}"> textarea form
+  (c) Publish + Re-publish CTA region  ← kb-kgza.3 / kb-kgza.6 edit labels/conditions
+      starts: {% if can_edit or can_publish %}
+      ends:   {% endif %} (closing the CTA div)
+{% endcomment %}
+{% comment %}Shared-content indicator — same in both composers.
+Shows when this channel's CV is shared across multiple channels.{% endcomment %}
+{% if consumers_map %}
+{% for cv, consumers in consumers_map.items %}
+{% if cv.pk == proj.content_version.pk and consumers|length > 1 %}
+<div class="flex items-start gap-2 px-3 py-2.5 mb-4" style="background: rgba(52, 211, 153, 0.05); border: 1px solid rgba(52, 211, 153, 0.16)">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shrink-0 mt-1"></span>
+<span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-emerald-400/80 leading-relaxed">
+{% trans "Live on" %}
+{% for consumer in consumers %}
+{{ consumer.connection.platform }}
+{% if not forloop.last %},{% endif %}
+{% endfor %}
+<span class="text-emerald-400/45">· {% trans "editing here updates all these channels" %}</span>
+</span>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+{% comment %}--- (a) STATUS-GATE REGION --- kb-kgza.3 edits this guard condition.{% endcomment %}
+{% if can_edit and proj.status == 'draft' %}
+<div class="mb-7">
+{% if show_switch_event_form and proj.connection.platform == 'switch' and proj.kind == 'listing' %}
+{% comment %}Switch listing: event-composer-only path. Uses EventForm inputs inside a
+      styled card (edit-in-place). Sync controls are separate from the event-edit form
+      since they operate on the ContentVersion, not event fields.
+      F4 (kb-lprn lesson): three-state badge — must match _sync_bar.html.
+      Switch is the canonical home (ADR-010 D1) so it is normally state (i).
+      State (i)  canonical CV + sync_source NULL → "Shared"
+      State (ii) own CV + sync_source SET        → "Synced from <peer>"
+State (iii) own CV + sync_source NULL      → "Custom"{% endcomment %}
+<div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+{% if proj.content_version.name == "canonical" and not proj.sync_source %}
+{% comment %}State (i): Switch on canonical CV — "Shared" badge + optional count.
+F3: count uses "Shared across N channels" wording (N = total sharers).{% endcomment %}
+<form method="post" action="{% url 'syndication:projection-customize' pk=proj.pk %}" hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}" hx-target="{{ fragment_target }}" hx-swap="outerHTML">
+{% csrf_token %}
+{% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+<input type="hidden" name="selected_pk" :value="selectedPk">
+<button type="submit" class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group" title="{% trans 'Click to customize this channel independently' %}">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
+<span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/50 group-hover:text-base-content/75 transition-colors">{% trans "Shared" %}</span>
+{% if consumers_map %}
+{% with cv_pk=proj.content_version.pk %}
+{% for cv, cv_consumers in consumers_map.items %}
+{% if cv.pk == cv_pk and cv_consumers|length > 1 %}
+<span class="kb-mono text-[9px] text-emerald-400/55 group-hover:text-emerald-400/75 transition-colors">{% blocktrans with n=cv_consumers|length %}· Shared across {{ n }} channels{% endblocktrans %}</span>
+{% endif %}
+{% endfor %}
+{% endwith %}
+{% endif %}
+<span class="kb-mono text-[9px] text-base-content/25 group-hover:text-base-content/45 transition-colors">{% trans "Customize" %} →</span>
+</button>
+</form>
+{% elif proj.sync_source %}
+{% comment %}State (ii): own CV + sync_source set — "Synced from <peer>".
+Unusual for Switch (ADR-010 D1) but must render correctly if it occurs.{% endcomment %}
+<div class="flex items-center gap-2">
+<span class="flex items-center gap-2 px-2.5 py-1.5 border border-emerald-400/20" style="background: rgba(52,211,153,0.04)">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0"></span>
+<span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-emerald-400/80">
+{% trans "Synced from" %} {{ proj.sync_source.connection.platform }}
+</span>
+<span class="kb-mono text-[9px] text-emerald-400/40">{% trans "· editing detaches" %}</span>
+</span>
+<form method="post" action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-target="{{ fragment_target }}" hx-swap="outerHTML">
+{% csrf_token %}
+{% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+<input type="hidden" name="selected_pk" :value="selectedPk">
+<button type="submit" class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors" title="{% trans 'Reset to canonical content' %}">
+↩ {% trans "Reset" %}
+</button>
+</form>
+</div>
+{% else %}
+{% comment %}State (iii): own CV + sync_source NULL — "Custom".{% endcomment %}
+<div class="flex items-center gap-2">
+<span class="flex items-center gap-2 px-2.5 py-1.5 border border-amber-300/20" style="background: rgba(251,191,36,0.04)">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-300/60 shrink-0"></span>
+<span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/70">{% trans "Custom" %}</span>
+</span>
+<form method="post" action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-target="{{ fragment_target }}" hx-swap="outerHTML">
+{% csrf_token %}
+{% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+<input type="hidden" name="selected_pk" :value="selectedPk">
+<button type="submit" class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors" title="{% trans 'Reset to synced canonical content' %}">
+↩ {% trans "Reset to synced" %}
+</button>
+</form>
+</div>
+{% endif %}
+</div>
+{% comment %}Autosave: hx-swap="none" + debounced trigger keeps focus.
+A subtle "Saved" indicator updates via hx-on::after-request without DOM replacement.{% endcomment %}
+<form method="post" action="{% url 'syndication:event-edit' pk=event.pk %}" hx-post="{% url 'syndication:event-edit' pk=event.pk %}" hx-swap="none" hx-trigger="input changed delay:600ms from:input, input changed delay:600ms from:textarea, input changed delay:600ms from:select" hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
+{% csrf_token %}
+{% comment %}Styled Switch listing card containing event form inputs.
+        The card mirrors the Switch preview styling from _channel_preview.html
+so the edit surface feels like the listing itself.{% endcomment %}
+<div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07)" class="px-4 pt-3 pb-4 mb-5">
+<div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5)"></div>
+{% comment %}Core event fields: title, description, start, end{% endcomment %}
+<div class="flex flex-col gap-3">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.title.id_for_label }}">
+{{ event_form.title.label }}
+</label>
+{{ event_form.title }}
+{% if event_form.title.errors %}
+<p class="text-red-400 text-xs mt-0.5">{{ event_form.title.errors|join:", " }}</p>
+{% endif %}
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.start.id_for_label }}">
+{{ event_form.start.label }}
+</label>
+{{ event_form.start }}
+{% if event_form.start.errors %}
+<p class="text-red-400 text-xs mt-0.5">{{ event_form.start.errors|join:", " }}</p>
+{% endif %}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.end.id_for_label }}">
+{{ event_form.end.label }}
+</label>
+{{ event_form.end }}
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.description.id_for_label }}">
+{{ event_form.description.label }}
+</label>
+{{ event_form.description }}
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.dress_code.id_for_label }}">
+{{ event_form.dress_code.label }}
+</label>
+{{ event_form.dress_code }}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.age_restriction.id_for_label }}">
+{{ event_form.age_restriction.label }}
+</label>
+{{ event_form.age_restriction }}
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.tickets_url.id_for_label }}">
+{{ event_form.tickets_url.label }}
+</label>
+{{ event_form.tickets_url }}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.slug.id_for_label }}">
+{{ event_form.slug.label }}
+</label>
+{{ event_form.slug }}
+{% if event_form.slug.errors %}
+<p class="text-red-400 text-xs mt-0.5">{{ event_form.slug.errors|join:", " }}</p>
+{% endif %}
+</div>
+{% comment %}D-IA3 (kb-96tn.2): venue is now a visible inline-editable field.{% endcomment %}
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.venue.id_for_label }}">
+{{ event_form.venue.label }}
+</label>
+{{ event_form.venue }}
+{% if event_form.venue.errors %}
+<p class="text-red-400 text-xs mt-0.5">{{ event_form.venue.errors|join:", " }}</p>
+{% endif %}
+</div>
+</div>
+</div>
+{% comment %}FIX 2 (ADR-008 D3): carry ALL fields not visually rendered as hidden inputs
+        so the POST always includes every field and update_event never silently wipes them.
+        Visible fields: title, start, end, description, dress_code, age_restriction, tickets_url, slug, venue.
+        Hidden fields carry the current event values to preserve them through a partial edit.
+        kb-96tn.2 D-IA3: venue is now visible above; removed from hidden list here.{% endcomment }
+        {{ event_form.tags }}
+        {{ event_form.content_warnings }}
+        {{ event_form.capacity }}
+        {{ event_form.visibility }}
+        {{ event_form.language }}
+        {{ event_form.is_free }}
+        {{ event_form.price_min_cents }}
+        {{ event_form.price_max_cents }}
+        {{ event_form.currency }}
+        {{ event_form.sliding_scale }}
+        {{ event_form.price_description }}
+        {{ event_form.external_url }}
+        {{ event_form.registration_required }}
+        {{ event_form.registration_url }}
+        {{ event_form.registration_email }}
+        {{ event_form.category }}
+        {% comment %}D6: No explicit Save button — autosave handles persistence.
+A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomment %}
+<div class="flex items-center gap-3 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06)">
+<span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25" x-show="autosaveSaved" x-cloak>{% trans "Saved" %}</span>
+</div>
+</form>
+{% else %}
+{% comment %}--- (b) BODY-FORM REGION --- kb-kgza.2 rewires the form action here.
+      Non-Switch-listing: sync control bar + freeform textarea editor.
+      Single-source-of-truth via _sync_bar.html (kb-lprn Repair 1).
+The badge div carries id="sync-bar-proj-<pk>" so version_edit can OOB-swap it.{% endcomment %}
+<div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+{% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target=fragment_target consumers_map=consumers_map only %}
+{% comment %}Cycle-guard picker (kb-ide0.4 bullet 6): only INDEPENDENT projections
+(sync_source IS NULL) are offerable as sync sources.{% endcomment %}
+{% if projection_rows|length > 1 %}
+{% include "syndication/fragments/_sync_picker.html" with proj=proj projection_rows=projection_rows fragment_target=fragment_target resync_id_prefix=resync_id_prefix only %}
+{% endif %}
+</div>
+{% comment %}Bubble-as-editor — the styled textarea IS the platform-skinned
+preview surface. Autosave: hx-swap="none" + debounced trigger keeps focus intact.{% endcomment %}
+<form method="post" action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}" hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}" hx-swap="none" hx-trigger="input changed delay:600ms from:textarea[name='body']" hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
+{% csrf_token %}
+{% comment %}Platform-skinned bubble container wraps the textarea.
+Each skin matches _channel_preview.html's visual treatment.{% endcomment %}
+{% if proj.connection.platform == 'telegram' %}
+{% comment %}Telegram: chat bubble — teal-dark background, rounded corners.{% endcomment %}
+<div class="px-4 pt-3 pb-4 mb-5" style="background: rgb(33 150 243 / 0.05); border: 1px solid rgb(33 150 243 / 0.14)">
+{% if proj.connection.destination_id %}
+<p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(33 150 243 / 0.5)">
+{{ proj.connection.destination_id }}
+</p>
+{% endif %}
+<div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-sm" style="background: rgb(33 150 243 / 0.18); border: 1px solid rgb(33 150 243 / 0.22)">
+<textarea name="body" class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(210 228 248); padding: 0; resize: vertical; field-sizing: content" placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
+<p class="kb-mono text-[8px] text-right mt-1.5" style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
+</div>
+</div>
+{% elif proj.connection.platform == 'fetlife' %}
+{% comment %}FetLife: gothic dark — warm-purple body text, dense type.{% endcomment %}
+<div class="px-4 pt-3 pb-4 mb-5" style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07)">
+{% if proj.connection.destination_id %}
+<p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(167 139 250 / 0.45)">
+{{ proj.connection.destination_id }}
+</p>
+{% endif %}
+<textarea name="body" class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(210 165 230 / 0.72); padding: 0; resize: vertical; field-sizing: content" placeholder="{% if is_post_composer %}{% trans "Write your FetLife post…" %}{% else %}{% trans "Write your FetLife listing…" %}{% endif %}">{{ body }}</textarea>
+</div>
+{% elif proj.connection.platform == 'switch' %}
+{% comment %}Switch: editorial serif — fuchsia hairline accent, editorial type.
+          Note: this case is reached only for Switch promotion projections (post composer).
+Switch LISTING projections use the EventForm card above (event composer only).{% endcomment %}
+<div class="px-4 pt-3 pb-4 mb-5"
+     style="background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.07)">
+  <div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5)"></div>
+  {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
+    <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+       style="color: rgb(248 113 196 / 0.4)">{{ proj.connection.destination_id }}</p>
+  {% endif %}
+  <textarea name="body"
+            class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 kb-display leading-relaxed whitespace-pre-wrap break-words"
+            style="color: rgb(230 225 240 / 0.70);
+                   font-size: 13px;
+                   font-variation-settings: 'opsz' 48, 'SOFT' 50;
+                   padding: 0;
+                   resize: vertical;
+                   field-sizing: content"
+            placeholder="{% trans "Write your Switch post…" %}">{{ body }}</textarea>
+</div>
+{% else %}
+{% comment %}Generic: plain mono treatment for unknown platforms.{% endcomment %}
+<div class="px-4 pt-3 pb-4 mb-5"
+     style="background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.07)">
+  {% if proj.connection.destination_id %}
+    <p class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/30 mb-2">
+      {{ proj.connection.destination_id }}
+    </p>
+  {% endif %}
+  <textarea name="body"
+            class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] text-base-content/55 leading-relaxed font-mono whitespace-pre-wrap break-words"
+            style="padding: 0;
+                   resize: vertical;
+                   field-sizing: content"
+            placeholder="{% if is_post_composer %}{% trans "Write your post…" %}{% else %}{% trans "Write your listing…" %}{% endif %}">{{ body }}</textarea>
+</div>
+{% endif %}
+{% comment %}D6: No explicit Save button — autosave handles persistence.
+        D-IA4 (kb-96tn.3): "Edited"/"Agent" provenance labels removed from inline —
+status is now surfaced via the channel pill's status dot (ADR-016 D5).{% endcomment %}
+<div class="flex items-center gap-3 pt-3"
+     style="border-top: 1px solid rgba(255,255,255,0.06)">
+  <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
+        x-show="autosaveSaved"
+        x-cloak>{% trans "Saved" %}</span>
+</div>
+</form>
+{% endif %}
+</div>
+{% endif %}
+{% comment %}--- end (a) STATUS-GATE REGION ---{% endcomment %}
+{% comment %}Render_error + non-draft preview via _channel_preview.html.
+kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endcomment %}
+{% if render_error and proj.status == 'draft' %}
+  {% comment %}ADR-008 D3: render failure must be structurally distinct.{% endcomment %}
+  <div class="mb-6">
+    <div style="background: rgba(255,255,255,0.025);
+                border: 1px solid rgba(255,255,255,0.07)">
+      {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+    </div>
+  </div>
+{% elif proj.status != 'draft' %}
+  {% comment %}Published / ready / failed: content appears ONCE via the channel preview.
+  The old 'Body' label + raw text duplicate is removed (kb-96tn.2).{% endcomment %}
+  <div class="mb-6">
+    <div style="background: rgba(255,255,255,0.025);
+                border: 1px solid rgba(255,255,255,0.07)">
+      {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+    </div>
+  </div>
+  {% comment %}kb-96tn.5: dirty banner container — id="channel-dirty-<pk>" for OOB-swap
+  by version_edit (no-reload dirty update). The inner div is conditional on is_dirty.{% endcomment %}
+  <div id="channel-dirty-{{ proj.pk }}">
+    {% if row.is_dirty %}
+      <div class="flex items-start gap-2 px-3 py-2.5 mb-4"
+           data-testid="dirty-banner"
+           style="background: rgba(251,146,60,0.06);
+                  border: 1px solid rgba(251,146,60,0.22)">
+        <span class="w-1.5 h-1.5 rounded-full bg-orange-400/80 shrink-0 mt-1"></span>
+        <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-orange-400/80 leading-relaxed">
+          {% trans "Edited — re-publish to update the live post" %}
+        </span>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+{% comment %}--- (c) PUBLISH + RE-PUBLISH CTA REGION --- kb-kgza.3 / kb-kgza.6 edit here.{% endcomment %}
+{% if can_edit or can_publish %}
+  <div class="flex items-center gap-2 flex-wrap pt-4"
+       style="border-top: 1px solid rgba(255,255,255,0.07)">
+    {% comment %}D6: One Publish / Re-publish CTA — drives internal draft→ready→published
+    sequence or re-freezes dirty published projections. No separate Approve gate.{% endcomment %}
+    {% comment %}kb-96tn.5: Re-publish CTA for dirty published projections.{% endcomment %}
+    {% if row.is_dirty and can_publish %}
+      <form method="post"
+            action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
+        <button type="submit"
+                class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]"
+                style="border-color: rgba(251,146,60,0.5)">{% trans "Re-publish" %}</button>
+      </form>
+    {% endif %}
+    {% if proj.status == 'draft' and can_publish %}
+      <form method="post"
+            action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
+        <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
+      </form>
+    {% endif %}
+    {% if proj.status == 'ready' and can_publish %}
+      <form method="post"
+            action="{% url 'syndication:projection-publish' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
+        <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
+      </form>
+      {% if proj.connection.platform == 'fetlife' %}
+        <div x-data="{ copied: false }" class="flex items-center">
+          <pre id="{{ copy_body_id_prefix }}{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
+          <button type="button"
+                  {% if include_data_copy_body %}data-copy-body="{{ proj.pk }}"{% endif %}
+                  @click="navigator.clipboard.writeText(document.getElementById('{{ copy_body_id_prefix }}{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
+                  class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
+                  x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">{% trans "Copy" %}</button>
+        </div>
+      {% endif %}
+      <form method="post"
+            action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
+        <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
+      </form>
+    {% endif %}
+    {% if proj.status == 'failed' %}
+      {% comment %}Retry via approve_projection (draft→ready) — still valid for failed projections.{% endcomment %}
+      <form method="post"
+            action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+            hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+            hx-target="{{ fragment_target }}"
+            hx-swap="outerHTML">
+        {% csrf_token %}
+        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+        <input type="hidden" name="selected_pk" :value="selectedPk">
+        <button type="submit"
+                class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
+          {% trans "Retry" %}
+        </button>
+      </form>
+    {% endif %}
+  </div>
+{% endif %}
+{% comment %}--- end (c) PUBLISH + RE-PUBLISH CTA REGION ---{% endcomment %}
