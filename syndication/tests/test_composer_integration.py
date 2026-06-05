@@ -268,8 +268,7 @@ class ComposerConjunctionTest(TestCase):
         self.assertNotIn(
             ">Body<",
             content,
-            "event_syndication fragment must NOT have a 'Body' section label "
-            "(double-render kb-96tn.2 fix).",
+            "event_syndication fragment must NOT have a 'Body' section label (double-render kb-96tn.2 fix).",
         )
 
     def test_b2_event_syndication_no_preview_label_for_draft_fetlife(self):
@@ -284,8 +283,7 @@ class ComposerConjunctionTest(TestCase):
         self.assertNotIn(
             ">Preview<",
             content,
-            "event_syndication fragment must NOT have a 'Preview' section label "
-            "(double-render kb-96tn.2 fix).",
+            "event_syndication fragment must NOT have a 'Preview' section label (double-render kb-96tn.2 fix).",
         )
 
     def test_b2_event_syndication_venue_field_not_hidden(self):

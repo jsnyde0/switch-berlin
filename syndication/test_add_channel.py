@@ -226,9 +226,7 @@ class ReconcileProjectionsServiceTest(TestCase):
         from syndication.services import reconcile_projections
 
         conn1 = _make_connection(self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"])
-        conn2 = _make_connection(
-            self.profile, platform="tickettailor", destination_id="tt-acc", kinds=["listing"]
-        )
+        conn2 = _make_connection(self.profile, platform="tickettailor", destination_id="tt-acc", kinds=["listing"])
 
         created = reconcile_projections(self.event)
 
@@ -256,12 +254,8 @@ class ReconcileProjectionsServiceTest(TestCase):
         """reconcile_projections returns ONLY the newly-created projections (not existing ones)."""
         from syndication.services import add_projection, reconcile_projections
 
-        conn_existing = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"]
-        )
-        conn_new = _make_connection(
-            self.profile, platform="tickettailor", destination_id="tt-acc", kinds=["listing"]
-        )
+        conn_existing = _make_connection(self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"])
+        conn_new = _make_connection(self.profile, platform="tickettailor", destination_id="tt-acc", kinds=["listing"])
 
         # Pre-create one
         add_projection(self.event, conn_existing)
@@ -275,9 +269,7 @@ class ReconcileProjectionsServiceTest(TestCase):
         """reconcile_projections skips disabled connections."""
         from syndication.services import reconcile_projections
 
-        _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"], enabled=False
-        )
+        _make_connection(self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"], enabled=False)
 
         created = reconcile_projections(self.event)
 
@@ -314,9 +306,7 @@ class AddChannelViewTest(TestCase):
         self.user = _make_vouched_user(username="add_ch_user", email="add_ch@test.com", password="x")
         self.profile = _make_profile(name="Add Ch Profile", slug="add-ch-profile", user=self.user)
         self.event = _make_event(self.profile)
-        self.conn = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"]
-        )
+        self.conn = _make_connection(self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"])
         self.client = Client()
         self.client.force_login(self.user)
 
@@ -331,9 +321,7 @@ class AddChannelViewTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         # Projection was created
-        self.assertTrue(
-            PlatformProjection.objects.filter(source_event=self.event, connection=self.conn).exists()
-        )
+        self.assertTrue(PlatformProjection.objects.filter(source_event=self.event, connection=self.conn).exists())
 
     def test_add_channel_response_contains_platform_name(self):
         """HTMX response contains the new channel's platform name (fetlife)."""
@@ -371,9 +359,7 @@ class AddChannelViewTest(TestCase):
         response = self.client.post(url, data={"connection_pk": self.conn.pk}, HTTP_HX_REQUEST="true")
         self.assertEqual(response.status_code, 200)
         # Still exactly one projection
-        self.assertEqual(
-            PlatformProjection.objects.filter(source_event=self.event, connection=self.conn).count(), 1
-        )
+        self.assertEqual(PlatformProjection.objects.filter(source_event=self.event, connection=self.conn).count(), 1)
 
 
 # ---------------------------------------------------------------------------
@@ -393,9 +379,7 @@ class RemoveChannelViewTest(TestCase):
         self.user = _make_vouched_user(username="rm_ch_user", email="rm_ch@test.com", password="x")
         self.profile = _make_profile(name="Rm Ch Profile", slug="rm-ch-profile", user=self.user)
         self.event = _make_event(self.profile)
-        self.conn = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"]
-        )
+        self.conn = _make_connection(self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"])
         # Create a draft projection to remove
         from syndication.services import add_projection
 
@@ -514,9 +498,7 @@ class AddChannelDropdownContextTest(TestCase):
         """
         from syndication.services import add_projection
 
-        conn_projected = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"]
-        )
+        conn_projected = _make_connection(self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"])
         conn_not_projected = _make_connection(
             self.profile, platform="tickettailor", destination_id="tt-acc", kinds=["listing"]
         )
@@ -571,9 +553,7 @@ class AddChannelPostViewTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(
-            PlatformProjection.objects.filter(source_post=self.post, connection=self.conn).exists()
-        )
+        self.assertTrue(PlatformProjection.objects.filter(source_post=self.post, connection=self.conn).exists())
 
     def test_add_channel_post_response_contains_platform_name(self):
         """HTMX response for add_channel_post contains the new channel's platform name (telegram)."""
@@ -609,9 +589,7 @@ class AddChannelPostViewTest(TestCase):
         self.client.post(url, data={"connection_pk": self.conn.pk}, HTTP_HX_REQUEST="true")
         response = self.client.post(url, data={"connection_pk": self.conn.pk}, HTTP_HX_REQUEST="true")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            PlatformProjection.objects.filter(source_post=self.post, connection=self.conn).count(), 1
-        )
+        self.assertEqual(PlatformProjection.objects.filter(source_post=self.post, connection=self.conn).count(), 1)
 
     def test_add_channel_post_creates_promotion_kind_projection(self):
         """add_channel_post creates a PROMOTION-kind projection (not listing)."""
@@ -651,9 +629,7 @@ class PostSyndicationAvailableConnectionsTest(TestCase):
         fragment_post_syndication view includes 'available_connections' in context
         — enabled promotion connections without a projection yet for this post.
         """
-        conn = _make_connection(
-            self.profile, platform="telegram", destination_id="tg-channel", kinds=["promotion"]
-        )
+        conn = _make_connection(self.profile, platform="telegram", destination_id="tg-channel", kinds=["promotion"])
         url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -691,9 +667,7 @@ class PostSyndicationAvailableConnectionsTest(TestCase):
         Listing-only connections (kinds=['listing']) are excluded from
         available_connections in the post fragment (posts only show promotion channels).
         """
-        listing_conn = _make_connection(
-            self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"]
-        )
+        listing_conn = _make_connection(self.profile, platform="fetlife", destination_id="fl-user", kinds=["listing"])
         url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)

@@ -197,9 +197,7 @@ def event_create(request):
                     except ValidationError as exc:
                         form.add_error("cover_image", "; ".join(exc.messages))
                         template = (
-                            "syndication/event_create_fragment.html"
-                            if is_htmx
-                            else "syndication/event_create.html"
+                            "syndication/event_create_fragment.html" if is_htmx else "syndication/event_create.html"
                         )
                         return render(request, template, {"form": form})
                 if is_htmx:
