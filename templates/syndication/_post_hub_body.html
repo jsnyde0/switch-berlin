@@ -13,9 +13,9 @@ Context variables required:
                  the link is a plain <a href> — ADR-008 D3: no silent fallback.
 {% endcomment %}
 <div class="w-full pt-4 pb-16" x-data="{}">
-  {# kb-96tn.9: The composer bar (pills · breadcrumb · publish) now lives INSIDE
-     the post_syndication fragment below — where Alpine x-data + projection data
-     are both available. The shell renders no separate bar. #}
+  {% comment %}kb-96tn.9: The composer bar (pills · breadcrumb · publish) now lives
+  INSIDE the post_syndication fragment below — where Alpine x-data + projection
+  data are both available. The shell renders no separate bar.{% endcomment %}
   <section id="post-syndication"
            hx-get="{% url 'syndication:fragment-post-syndication' pk=post.pk %}{% if studio_swap %}?studio=1{% endif %}"
            hx-trigger="load"
