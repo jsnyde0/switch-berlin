@@ -313,13 +313,24 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                             <p class="text-red-400 text-xs mt-0.5">{{ event_form.slug.errors|join:", " }}</p>
                           {% endif %}
                         </div>
+                        {% comment %}D-IA3 (kb-96tn.2): venue is now a visible inline-editable field.
+                        Removed from carry-only hidden list in the view so it renders with its
+                        default NumberInput widget — matches the other inline fields' styling.{% endcomment %}
+                        <div class="flex flex-col gap-1">
+                          <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30"
+                                 for="{{ event_form.venue.id_for_label }}">{{ event_form.venue.label }}</label>
+                          {{ event_form.venue }}
+                          {% if event_form.venue.errors %}
+                            <p class="text-red-400 text-xs mt-0.5">{{ event_form.venue.errors|join:", " }}</p>
+                          {% endif %}
+                        </div>
                       </div>
                     </div>
                     {% comment %}FIX 2 (ADR-008 D3): carry ALL fields not visually rendered as hidden inputs
                     so the POST always includes every field and update_event never silently wipes them.
-                    Visible fields: title, start, end, description, dress_code, age_restriction, tickets_url, slug.
-                    Hidden fields carry the current event values to preserve them through a partial edit.{% endcomment %}
-                    {{ event_form.venue }}
+                    Visible fields: title, start, end, description, dress_code, age_restriction, tickets_url, slug, venue.
+                    Hidden fields carry the current event values to preserve them through a partial edit.
+                    kb-96tn.2 D-IA3: venue is now visible above; removed from hidden list here.{% endcomment }
                     {{ event_form.tags }}
                     {{ event_form.content_warnings }}
                     {{ event_form.capacity }}
@@ -337,271 +348,300 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                     {{ event_form.registration_email }}
                     {{ event_form.category }}
                     {% comment %}D6: No explicit Save button — autosave handles persistence.
-                    A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomment %}
-                    <div class="flex items-center gap-3 pt-3"
-                         style="border-top: 1px solid rgba(255,255,255,0.06)">
-                      <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
-                            x-show="autosaveSaved"
-                            x-cloak>{% trans "Saved" %}</span>
-                    </div>
-                  </form>
-                {% else %}
-                  {% comment %}Non-Switch-listing: sync control bar — three render states via _sync_bar.html partial.
+A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomment %}
+<div class="flex items-center gap-3 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06)">
+<span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25" x-show="autosaveSaved" x-cloak>{% trans "Saved" %}</span>
+</div>
+</form>
+{% else %}
+{% comment %}Non-Switch-listing: sync control bar — three render states via _sync_bar.html partial.
                   (i)  canonical CV + sync_source NULL → "Shared" (edits broadcast to all sharers)
                   (ii) own CV + sync_source SET        → "Synced from <peer> · editing detaches"
                   (iii) own CV + sync_source NULL      → "Custom"
                   Single-source-of-truth via _sync_bar.html (kb-lprn Repair 1).
                   The badge div carries id="sync-bar-proj-<pk>" so version_edit can
-                  OOB-swap it (kb-lprn server-driven badge update).{% endcomment %}
-                  <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3"
-                       style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-                    {% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target="#event-syndication" consumers_map=consumers_map only %}
-                    {% comment %}Cycle-guard picker (kb-ide0.4 bullet 6): only INDEPENDENT projections
+OOB-swap it (kb-lprn server-driven badge update).{% endcomment %}
+<div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+{% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target="#event-syndication" consumers_map=consumers_map only %}
+{% comment %}Cycle-guard picker (kb-ide0.4 bullet 6): only INDEPENDENT projections
                     (sync_source IS NULL) are offerable as sync sources. A projection synced from
                     another channel is itself downstream — allowing it as a source would create
                     A→B→C transitive chains (cycle guard enforced backend; UI pre-filters for UX).
                     Uses source_projection_pk path so sync_source is set on the target (backend
-                    then enforces the cycle guard as the backstop). ADR-008 D3: fail loud.{% endcomment %}
-                    {% if projection_rows|length > 1 %}
-                      {% comment %}Discard-confirm modal (kb-ide0.4 bullet 5): when this channel
+then enforces the cycle guard as the backstop). ADR-008 D3: fail loud.{% endcomment %}
+{% if projection_rows|length > 1 %}
+{% comment %}Discard-confirm modal (kb-ide0.4 bullet 5): when this channel
                       is in state (iii) custom (own CV, sync_source NULL), re-syncing would
                       overwrite local edits. An Alpine x-data wrapper provides the confirmResync
                       state; clicking the source picker trigger opens the modal instead of
                       submitting immediately. Cancel → nothing. Confirm → POST proceeds.
                       The section root already has x-data; we give the picker its own x-data
-                      so the open state is scoped per-channel and doesn't bleed between tabs.{% endcomment %}
-                      <div x-data="{ confirmResync: false, pendingSourcePk: null }"
-                           class="flex items-center gap-1.5 ml-auto">
-                        {% comment %}State (iii): custom channel — modal fires before re-sync.
+so the open state is scoped per-channel and doesn't bleed between tabs.{% endcomment %}
+<div x-data="{ confirmResync: false, pendingSourcePk: null }" class="flex items-center gap-1.5 ml-auto">
+{% comment %}State (iii): custom channel — modal fires before re-sync.
                         State (i)/(ii): canonical/synced — submit directly (no local edits to lose).
-                        "Custom" = own CV + sync_source IS NULL (content_version.name != canonical).{% endcomment %}
-                        {% if proj.sync_source == None and proj.content_version.name != "canonical" %}
-                          {% comment %}State (iii): has own edits — discard-confirm modal required.{% endcomment %}
-                          <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Sync from" %}</span>
-                          <div class="relative">
-                            <select id="resync-select-{{ proj.pk }}"
-                                    @change="pendingSourcePk = $event.target.value; confirmResync = true"
-                                    class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
-                              <option value="">{% trans "— choose —" %}</option>
-                              {% for other_row in projection_rows %}
-                                {% if other_row.projection.pk != proj.pk and not other_row.projection.sync_source %}
-                                  <option value="{{ other_row.projection.pk }}">
-                                    {{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
-                                  </option>
-                                {% endif %}
-                              {% endfor %}
-                            </select>
-                            <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28"
-                                  aria-hidden="true">
-                              <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
-                                <path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-                              </svg>
-                            </span>
-                          </div>
-                          {% comment %}Discard modal — shown when confirmResync is true.
-                          ADR-008 D3: never silently overwrite local edits.{% endcomment %}
-                          <div x-show="confirmResync"
-                               x-cloak
-                               class="fixed inset-0 z-50 flex items-center justify-center"
-                               style="background: rgba(0,0,0,0.6)">
-                            <div class="px-6 py-5 max-w-sm w-full"
-                                 style="background: rgb(18 10 28);
-                                        border: 1px solid rgba(255,255,255,0.12)">
-                              <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/80 mb-3">
-                                {% trans "Discard your edits?" %}
-                              </p>
-                              <p class="text-[12px] text-base-content/50 mb-5 leading-relaxed">
-                                {% trans "Re-syncing will replace your custom content for this channel with a snapshot from the chosen source. Your current edits will be lost." %}
-                              </p>
-                              <div class="flex items-center gap-3">
-                                <form method="post"
-                                      action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-                                      hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-                                      hx-target="#event-syndication"
-                                      hx-swap="outerHTML"
-                                      @submit="confirmResync = false">
-                                  {% csrf_token %}
-                                  <input type="hidden" name="source_projection_pk" :value="pendingSourcePk">
-                                  <button type="submit"
-                                          class="kb-mono text-[10px] uppercase tracking-[0.14em] text-rose-400/80 hover:text-rose-400 px-3 py-1.5 border border-rose-400/30 hover:border-rose-400/60 transition-colors">
-                                    {% trans "Discard and re-sync" %}
-                                  </button>
-                                </form>
-                                <button type="button"
-                                        @click="confirmResync = false; pendingSourcePk = null; document.getElementById('resync-select-{{ proj.pk }}').value = ''"
-                                        class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/40 hover:text-base-content/70 transition-colors">
-                                  {% trans "Cancel" %}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        {% else %}
-                          {% comment %}State (i)/(ii): canonical or synced — no local edits, submit directly.{% endcomment %}
-                          <form method="post"
-                                action="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-                                hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}"
-                                hx-target="#event-syndication"
-                                hx-swap="outerHTML"
-                                class="flex items-center gap-1.5">
-                            {% csrf_token %}
-                            <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
-                            <div class="relative">
-                              <select name="source_projection_pk"
-                                      class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
-                                {% for other_row in projection_rows %}
-                                  {% if other_row.projection.pk != proj.pk and not other_row.projection.sync_source %}
-                                    <option value="{{ other_row.projection.pk }}">
-                                      {{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
-                                    </option>
-                                  {% endif %}
-                                {% endfor %}
-                              </select>
-                              <span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28"
-                                    aria-hidden="true">
-                                <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
-                                  <path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                              </span>
-                            </div>
-                            <button type="submit"
-                                    class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/25 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
-                              {% trans "Apply" %}
-                            </button>
-                          </form>
-                        {% endif %}
-                      </div>
-                    {% endif %}
+"Custom" = own CV + sync_source IS NULL (content_version.name != canonical).{% endcomment %}
+{% if proj.sync_source == None and proj.content_version.name != "canonical" %}
+{% comment %}State (iii): has own edits — discard-confirm modal required.{% endcomment %}
+<span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Sync from" %}</span>
+<div class="relative">
+<select id="resync-select-{{ proj.pk }}" @change="pendingSourcePk = $event.target.value; confirmResync = true" class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
+<option value="">{% trans "— choose —" %}</option>
+{% for other_row in projection_rows %}
+{% if other_row.projection.pk != proj.pk and not other_row.projection.sync_source %}
+<option value="{{ other_row.projection.pk }}">
+{{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
+</option>
+{% endif %}
+{% endfor %}
+</select>
+<span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28" aria-hidden="true">
+<svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+<path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
+</span>
+</div>
+{% comment %}Discard modal — shown when confirmResync is true.
+ADR-008 D3: never silently overwrite local edits.{% endcomment %}
+<div x-show="confirmResync" x-cloak class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.6)">
+<div class="px-6 py-5 max-w-sm w-full" style="background: rgb(18 10 28); border: 1px solid rgba(255,255,255,0.12)">
+<p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/80 mb-3">
+{% trans "Discard your edits?" %}
+</p>
+<p class="text-[12px] text-base-content/50 mb-5 leading-relaxed">
+{% trans "Re-syncing will replace your custom content for this channel with a snapshot from the chosen source. Your current edits will be lost." %}
+</p>
+<div class="flex items-center gap-3">
+<form method="post" action="{% url 'syndication:version-copy-from' pk=proj.pk %}" hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}" hx-target="#event-syndication" hx-swap="outerHTML" @submit="confirmResync = false">
+{% csrf_token %}
+<input type="hidden" name="source_projection_pk" :value="pendingSourcePk">
+<button type="submit" class="kb-mono text-[10px] uppercase tracking-[0.14em] text-rose-400/80 hover:text-rose-400 px-3 py-1.5 border border-rose-400/30 hover:border-rose-400/60 transition-colors">
+{% trans "Discard and re-sync" %}
+</button>
+</form>
+<button type="button" @click="confirmResync = false; pendingSourcePk = null; document.getElementById('resync-select-{{ proj.pk }}').value = ''" class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/40 hover:text-base-content/70 transition-colors">
+{% trans "Cancel" %}
+</button>
+</div>
+</div>
+</div>
+{% else %}
+{% comment %}State (i)/(ii): canonical or synced — no local edits, submit directly.{% endcomment %}
+<form method="post" action="{% url 'syndication:version-copy-from' pk=proj.pk %}" hx-post="{% url 'syndication:version-copy-from' pk=proj.pk %}" hx-target="#event-syndication" hx-swap="outerHTML" class="flex items-center gap-1.5">
+{% csrf_token %}
+<span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
+<div class="relative">
+<select name="source_projection_pk" class="kb-mono text-[9px] pl-1.5 pr-4 py-0.5 border border-white/10 bg-black/20 text-base-content/45 focus:outline-none focus:border-fuchsia-300/30 appearance-none cursor-pointer">
+{% for other_row in projection_rows %}
+{% if other_row.projection.pk != proj.pk and not other_row.projection.sync_source %}
+<option value="{{ other_row.projection.pk }}">
+{{ other_row.projection.connection.platform }} / {{ other_row.projection.get_kind_display }} · {{ other_row.projection.connection.destination_id|truncatechars:14 }}
+</option>
+{% endif %}
+{% endfor %}
+</select>
+<span class="pointer-events-none absolute inset-y-0 right-1 flex items-center text-base-content/28" aria-hidden="true">
+<svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+<path d="M1.5 3L4 5.5L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
+</span>
+</div>
+<button type="submit" class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/25 hover:text-base-content/55 px-1.5 py-0.5 border border-white/8 hover:border-white/20 transition-colors">
+{% trans "Apply" %}
+</button>
+</form>
+{% endif %}
+</div>
+{% endif %}
+</div>
+{% comment %}kb-96tn.2: Bubble-as-editor — the styled textarea IS the platform-skinned
+                  preview surface. No separate stacked read-only preview below. Mirrors the post
+                  composer's approach (post_syndication.html D2). Autosave: hx-swap="none" +
+debounced trigger keeps focus intact.{% endcomment %}
+<form method="post" action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}" hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}" hx-swap="none" hx-trigger="input changed delay:600ms from:textarea[name='body']" hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
+{% csrf_token %}
+{% comment %}Platform-skinned bubble container wraps the textarea.
+Each skin matches _channel_preview.html's visual treatment.{% endcomment %}
+{% if proj.connection.platform == 'telegram' %}
+{% comment %}Telegram: chat bubble — teal-dark background, rounded corners.{% endcomment %}
+<div class="px-4 pt-3 pb-4 mb-5" style="background: rgb(33 150 243 / 0.05); border: 1px solid rgb(33 150 243 / 0.14)">
+{% if proj.connection.destination_id %}
+<p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(33 150 243 / 0.5)">
+{{ proj.connection.destination_id }}
+</p>
+{% endif %}
+<div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-sm" style="background: rgb(33 150 243 / 0.18); border: 1px solid rgb(33 150 243 / 0.22)">
+<textarea name="body" class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(210 228 248); padding: 0; resize: vertical; field-sizing: content" placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
+                    <p class="kb-mono text-[8px] text-right mt-1.5"
+                       style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
                   </div>
-                  {% comment %}Autosave: hx-swap="none" + debounced trigger keeps focus intact.{% endcomment %}
-                  <form method="post"
-                        action="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
-                        hx-post="{% url 'syndication:version-edit' pk=proj.content_version.pk %}"
-                        hx-swap="none"
-                        hx-trigger="input changed delay:600ms from:textarea[name='body']"
-                        hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
-                    {% csrf_token %}
-                    <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 block mb-3">
-                      {% trans "Body" %}
-                    </label>
-                    <textarea name="body"
-                              class="kb-textarea w-full min-h-[180px] resize-y"
-                              style="padding-left: 0;
-                                     padding-right: 0"
-                              placeholder="{% trans "Write the post body for this channel…" %}">{{ body }}</textarea>
-                    {% comment %}D6: No explicit Save button — autosave handles persistence.{% endcomment %}
-                    <div class="flex items-center gap-3 mt-4 pt-3"
-                         style="border-top: 1px solid rgba(255,255,255,0.06)">
-                      <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
-                            x-show="autosaveSaved"
-                            x-cloak>{% trans "Saved" %}</span>
-                      {% if proj.content_version.provenance == 'manual' %}
-                        <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-sky-400/45">{% trans "Edited" %}</span>
-                      {% elif proj.content_version.provenance == 'agent_supplied' %}
-                        <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-violet-400/45">{% trans "Agent" %}</span>
-                      {% endif %}
-                    </div>
-                  </form>
-                {% endif %}
-              </div>
-            {% endif %}
-            {% if proj.status != 'draft' %}
-              <div class="mb-6">
-                <p class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/28 mb-3">{% trans "Body" %}</p>
-                <div class="kb-mono text-[11px] text-base-content/55 leading-relaxed whitespace-pre-wrap border-b pb-4"
-                     style="border-bottom-color: rgba(255,255,255,0.07)">{{ body }}</div>
-              </div>
-            {% endif %}
-            {% if proj.connection.platform != 'switch' or proj.kind != 'listing' or proj.status != 'draft' %}
-              <div class="mb-6">
-                <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 mb-3">{% trans "Preview" %}</p>
-                <div style="background: rgba(255,255,255,0.025);
-                            border: 1px solid rgba(255,255,255,0.07)">
-                  {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
                 </div>
-              </div>
-            {% endif %}
-            {% if can_edit or can_publish %}
-              <div class="flex items-center gap-2 flex-wrap pt-4"
-                   style="border-top: 1px solid rgba(255,255,255,0.07)">
-                {% comment %}D6: One Publish CTA — drives internal draft→ready→published sequence.
-                No separate Approve gate for the solo flow.{% endcomment %}
-                {% if proj.status == 'draft' and can_publish %}
-                  <form method="post"
-                        action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
-                    {% csrf_token %}
-                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-                    <input type="hidden" name="selected_pk" :value="selectedPk">
-                    <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
-                  </form>
-                {% endif %}
-                {% if proj.status == 'ready' and can_publish %}
-                  <form method="post"
-                        action="{% url 'syndication:projection-publish' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
-                    {% csrf_token %}
-                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-                    <input type="hidden" name="selected_pk" :value="selectedPk">
-                    <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
-                  </form>
-                  {% if proj.connection.platform == 'fetlife' %}
-                    <div x-data="{ copied: false }" class="flex items-center">
-                      <pre id="copy-body-{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
-                      <button type="button"
-                              data-copy-body="{{ proj.pk }}"
-                              @click="navigator.clipboard.writeText(document.getElementById('copy-body-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
-                              class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
-                              x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">
-                        {% trans "Copy" %}
-                      </button>
-                    </div>
+              {% elif proj.connection.platform == 'fetlife' %}
+                {% comment %}FetLife: gothic dark — warm-purple body text, dense type.{% endcomment %}
+                <div class="px-4 pt-3 pb-4 mb-5"
+                     style="background: rgba(255,255,255,0.025);
+                            border: 1px solid rgba(255,255,255,0.07)">
+                  {% if proj.connection.destination_id %}
+                    <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+                       style="color: rgb(167 139 250 / 0.45)">{{ proj.connection.destination_id }}</p>
                   {% endif %}
-                  <form method="post"
-                        action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
-                    {% csrf_token %}
-                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-                    <input type="hidden" name="selected_pk" :value="selectedPk">
-                    <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
-                  </form>
-                {% endif %}
-                {% if proj.status == 'failed' %}
-                  {% comment %}Retry via approve_projection (draft→ready) — still valid for failed projections.{% endcomment %}
-                  <form method="post"
-                        action="{% url 'syndication:projection-approve' pk=proj.pk %}"
-                        hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
-                        hx-target="#event-syndication"
-                        hx-swap="outerHTML">
-                    {% csrf_token %}
-                    {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-                    <input type="hidden" name="selected_pk" :value="selectedPk">
-                    <button type="submit"
-                            class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
-                      {% trans "Retry" %}
-                    </button>
-                  </form>
+                  <textarea name="body"
+                            class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+                            style="color: rgb(210 165 230 / 0.72);
+                                   padding: 0;
+                                   resize: vertical;
+                                   field-sizing: content"
+                            placeholder="{% trans "Write your FetLife listing…" %}">{{ body }}</textarea>
+                </div>
+              {% else %}
+                {% comment %}Generic: plain mono treatment for unknown platforms.{% endcomment %}
+                <div class="px-4 pt-3 pb-4 mb-5"
+                     style="background: rgba(255,255,255,0.025);
+                            border: 1px solid rgba(255,255,255,0.07)">
+                  {% if proj.connection.destination_id %}
+                    <p class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/30 mb-2">
+                      {{ proj.connection.destination_id }}
+                    </p>
+                  {% endif %}
+                  <textarea name="body"
+                            class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] text-base-content/55 leading-relaxed font-mono whitespace-pre-wrap break-words"
+                            style="padding: 0;
+                                   resize: vertical;
+                                   field-sizing: content"
+                            placeholder="{% trans "Write your listing…" %}">{{ body }}</textarea>
+                </div>
+              {% endif %}
+              {% comment %}D6: No explicit Save button — autosave handles persistence.{% endcomment %}
+              <div class="flex items-center gap-3 pt-3"
+                   style="border-top: 1px solid rgba(255,255,255,0.06)">
+                <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
+                      x-show="autosaveSaved"
+                      x-cloak>{% trans "Saved" %}</span>
+                {% if proj.content_version.provenance == 'manual' %}
+                  <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-sky-400/45">{% trans "Edited" %}</span>
+                {% elif proj.content_version.provenance == 'agent_supplied' %}
+                  <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-violet-400/45">{% trans "Agent" %}</span>
                 {% endif %}
               </div>
-            {% endif %}
+            </form>
+          {% endif %}
+        </div>
+      {% endif %}
+      {% comment %}kb-96tn.2: Kill the BODY+PREVIEW double-render.
+            Old pattern: published channels rendered a 'Body' raw-text block THEN a separate
+            'Preview' block of the same content. Draft non-switch channels rendered a
+            textarea editor THEN the same 'Preview' block below.
+            New pattern:
+            - Draft channels with successful render: the editable bubble IS the preview (above).
+              No separate Preview block when rendering succeeds.
+            - Draft channels with render_error: show the error block (ADR-008 D3: fail loud,
+              render_error surfaces via _channel_preview.html's kb-tag-error treatment).
+            - Published / ready / failed / other non-draft: show the preview ONCE (via
+              _channel_preview.html). No redundant 'Body' label block.
+            Exception: Switch listing in draft renders the EventForm card (not the bubble+textarea
+      pattern) — also no separate Preview block (the card IS the listing).{% endcomment %}
+      {% if render_error and proj.status == 'draft' %}
+        {% comment %}ADR-008 D3: render failure must be structurally distinct. For draft
+              channels (where the editable bubble normally IS the preview), a render error must
+              still be surfaced visually using the kb-tag-error treatment from _channel_preview.html.
+              The error is shown in addition to (not instead of) the editor so the user can fix
+        the content that caused the render failure.{% endcomment %}
+        <div class="mb-6">
+          <div style="background: rgba(255,255,255,0.025);
+                      border: 1px solid rgba(255,255,255,0.07)">
+            {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
           </div>
-        {% endwith %}
-      {% endfor %}
-    {% else %}
-      <div class="py-8">
-        <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/35 mb-5">
-          {% trans "No projections yet" %}
-        </p>
-        {% if can_edit and has_promotion_connections %}
-          <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
-             class="kb-btn-secondary text-[10px] inline-block">{% trans "Add promo post" %}</a>
-        {% endif %}
-      </div>
-    {% endif %}
-  </section>
+        </div>
+      {% elif proj.status != 'draft' %}
+        {% comment %}Published / ready / failed: content appears ONCE via the channel preview.
+        The old 'Body' label + raw text duplicate is removed (kb-96tn.2).{% endcomment %}
+        <div class="mb-6">
+          <div style="background: rgba(255,255,255,0.025);
+                      border: 1px solid rgba(255,255,255,0.07)">
+            {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+          </div>
+        </div>
+      {% endif %}
+      {% if can_edit or can_publish %}
+        <div class="flex items-center gap-2 flex-wrap pt-4"
+             style="border-top: 1px solid rgba(255,255,255,0.07)">
+          {% comment %}D6: One Publish CTA — drives internal draft→ready→published sequence.
+          No separate Approve gate for the solo flow.{% endcomment %}
+          {% if proj.status == 'draft' and can_publish %}
+            <form method="post"
+                  action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+                  hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+                  hx-target="#event-syndication"
+                  hx-swap="outerHTML">
+              {% csrf_token %}
+              {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+              <input type="hidden" name="selected_pk" :value="selectedPk">
+              <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
+            </form>
+          {% endif %}
+          {% if proj.status == 'ready' and can_publish %}
+            <form method="post"
+                  action="{% url 'syndication:projection-publish' pk=proj.pk %}"
+                  hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
+                  hx-target="#event-syndication"
+                  hx-swap="outerHTML">
+              {% csrf_token %}
+              {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+              <input type="hidden" name="selected_pk" :value="selectedPk">
+              <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
+            </form>
+            {% if proj.connection.platform == 'fetlife' %}
+              <div x-data="{ copied: false }" class="flex items-center">
+                <pre id="copy-body-{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
+                <button type="button"
+                        data-copy-body="{{ proj.pk }}"
+                        @click="navigator.clipboard.writeText(document.getElementById('copy-body-{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
+                        class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
+                        x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">{% trans "Copy" %}</button>
+              </div>
+            {% endif %}
+            <form method="post"
+                  action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+                  hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+                  hx-target="#event-syndication"
+                  hx-swap="outerHTML">
+              {% csrf_token %}
+              {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+              <input type="hidden" name="selected_pk" :value="selectedPk">
+              <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
+            </form>
+          {% endif %}
+          {% if proj.status == 'failed' %}
+            {% comment %}Retry via approve_projection (draft→ready) — still valid for failed projections.{% endcomment %}
+            <form method="post"
+                  action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+                  hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+                  hx-target="#event-syndication"
+                  hx-swap="outerHTML">
+              {% csrf_token %}
+              {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+              <input type="hidden" name="selected_pk" :value="selectedPk">
+              <button type="submit"
+                      class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
+                {% trans "Retry" %}
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% endwith %}
+{% endfor %}
+{% else %}
+<div class="py-8">
+  <p class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/35 mb-5">
+    {% trans "No projections yet" %}
+  </p>
+  {% if can_edit and has_promotion_connections %}
+    <a href="{% url 'syndication:post-create' event_pk=event.pk %}"
+       class="kb-btn-secondary text-[10px] inline-block">{% trans "Add promo post" %}</a>
+  {% endif %}
+</div>
+{% endif %}
+</section>
 {% endwith %}

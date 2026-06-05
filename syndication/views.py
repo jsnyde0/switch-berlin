@@ -514,8 +514,10 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     # Override here (not in EventForm) so the full edit page keeps its visible widgets.
     from django.forms import HiddenInput as _HiddenInput
 
+    # kb-96tn.2 D-IA3: venue is surfaced as a visible inline-editable field in the
+    # Switch listing card — removed from carry-only hidden list. All other carry
+    # fields remain hidden (data preservation without visible widget).
     for _carry_field in (
-        "venue",
         "tags",
         "content_warnings",
         "capacity",
