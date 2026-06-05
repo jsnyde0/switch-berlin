@@ -870,3 +870,374 @@ class DetachAndEditDirtyOOBFlagTest(TestCase):
             "never processes the OOB swap (FIX C: pass oob=True to _channel_dirty_oob context).\n"
             f"Actual span tag found: {span_tag!r}",
         )
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 (kb-kgza.3 adversarial repair): master/source tab edit of a published
+#         post succeeds (no action_error), all sharing consumers become dirty,
+#         frozen_content is unchanged.
+# ---------------------------------------------------------------------------
+
+
+class MasterTabPublishedEditTest(TestCase):
+    """
+    FIX 1 (kb-kgza.3): Editing the master/source tab of a PUBLISHED post via
+    version-edit MUST succeed (no action_error in the response fragment).
+
+    Root cause: version_edit called edit_version WITHOUT _allow_edit_after_publish,
+    so the all-consumers-non-draft guard raised ValueError → action_error on every
+    autosave. This is the "user types and every keystroke-batch returns an error"
+    scenario.
+
+    Per ADR-016 D5: editing a shared/canonical CV whose consumers are published is
+    ALLOWED — it broadcasts → all sharers become is_dirty True, frozen_content
+    (the published snapshot) stays UNCHANGED = no corruption.
+
+    Assertions:
+    - HTTP response must not contain "Action failed" (no action_error).
+    - ALL sharing consumers must have is_dirty == True (DB-state).
+    - Each consumer's frozen_content must be UNCHANGED by the edit.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="master_pub_edit_user",
+            email="master_pub_edit@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("Master Pub Edit Org", "master-pub-edit-org", user=self.user)
+        self.event = _make_event(self.profile, "Master Pub Edit Event", "master-pub-edit-event")
+        self.post = Post.objects.create(
+            event=self.event,
+            headline="Master Pub Edit Post",
+            body="Original body",
+        )
+        self.conn_telegram = _make_connection(self.profile, "telegram", "tg-master-pub-edit", ["promotion"])
+        self.conn_fetlife = _make_connection(self.profile, "fetlife", "fl-master-pub-edit", ["promotion"])
+        self.canonical_cv = _make_canonical_cv_for_post(self.post, body="canonical published body")
+
+        # Both projections are PUBLISHED sharing the canonical CV
+        self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.canonical_cv, status="published")
+        self.tg_proj.frozen_content = {"body": "canonical published body"}
+        self.tg_proj.save(update_fields=["frozen_content", "updated_at"])
+
+        self.fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.canonical_cv, status="published")
+        self.fl_proj.frozen_content = {"body": "canonical published body"}
+        self.fl_proj.save(update_fields=["frozen_content", "updated_at"])
+
+        self.client.force_login(self.user)
+
+    def test_master_tab_edit_of_published_post_succeeds_no_action_error(self):
+        """
+        POST to version-edit on the canonical CV of a fully-published post must
+        NOT return an action_error. The user types → autosave fires → must succeed.
+
+        This is the "editable textarea that errors on every keystroke" bug — it must
+        be fixed so editing actually works.
+        """
+        url = reverse("syndication:version-edit", kwargs={"pk": self.canonical_cv.pk})
+        response = self.client.post(url, {"body": "updated master body"}, HTTP_HX_REQUEST="true")
+
+        self.assertIn(
+            response.status_code,
+            [200, 302],
+            f"Master tab edit on published post must not 500 (got {response.status_code})",
+        )
+
+        content = response.content.decode()
+        self.assertNotIn(
+            "Action failed",
+            content,
+            "Master tab edit of published post must NOT return action_error — "
+            "the 'Action failed' banner must not appear in the response. "
+            "This guards against the version_edit guard raising ValueError for "
+            "all-consumers-non-draft canonical CV edit.",
+        )
+
+    def test_master_tab_edit_of_published_post_all_consumers_become_dirty(self):
+        """
+        After editing the canonical CV of a published post, ALL sharing consumers
+        must have is_dirty == True (DB-state).
+
+        ADR-016 D5: editing a shared CV broadcasts → all consumers' effective body
+        changes while their frozen_content stays at the publish-time snapshot.
+        """
+        url = reverse("syndication:version-edit", kwargs={"pk": self.canonical_cv.pk})
+        self.client.post(url, {"body": "updated master — all become dirty"}, HTTP_HX_REQUEST="true")
+
+        self.tg_proj.refresh_from_db()
+        self.fl_proj.refresh_from_db()
+
+        self.assertTrue(
+            self.tg_proj.is_dirty,
+            "Telegram projection must be is_dirty=True after master tab edit of published canonical.",
+        )
+        self.assertTrue(
+            self.fl_proj.is_dirty,
+            "FetLife projection must be is_dirty=True after master tab edit of published canonical.",
+        )
+
+    def test_master_tab_edit_of_published_post_frozen_content_unchanged(self):
+        """
+        After editing the canonical CV of a published post, each consumer's
+        frozen_content must be UNCHANGED (DB-state).
+
+        ADR-016 D5 / A2 freeze: frozen_content is the published snapshot.
+        Editing the live CV makes the projection dirty but must NOT mutate
+        frozen_content — that would silently corrupt the published snapshot.
+        """
+        frozen_tg_before = self.tg_proj.frozen_content.copy()
+        frozen_fl_before = self.fl_proj.frozen_content.copy()
+
+        url = reverse("syndication:version-edit", kwargs={"pk": self.canonical_cv.pk})
+        self.client.post(url, {"body": "edit — frozen_content must stay"}, HTTP_HX_REQUEST="true")
+
+        self.tg_proj.refresh_from_db()
+        self.fl_proj.refresh_from_db()
+
+        self.assertEqual(
+            self.tg_proj.frozen_content,
+            frozen_tg_before,
+            "Telegram frozen_content must be UNCHANGED after master tab edit.",
+        )
+        self.assertEqual(
+            self.fl_proj.frozen_content,
+            frozen_fl_before,
+            "FetLife frozen_content must be UNCHANGED after master tab edit.",
+        )
+
+
+class MasterTabPublishedEditCorruptionSafetyTest(TestCase):
+    """
+    FIX 1 corruption safety: when a published projection has frozen_content=None
+    (a genuine invariant violation), the guard must still raise loudly.
+
+    A published + null frozen_content projection is corrupt data, not a legitimate
+    edit-after-publish case. The guard must NOT be silently bypassed for it.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="corrupt_guard_user",
+            email="corrupt_guard@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("Corrupt Guard Org", "corrupt-guard-org", user=self.user)
+        self.event = _make_event(self.profile, "Corrupt Guard Event", "corrupt-guard-event")
+        self.post = Post.objects.create(
+            event=self.event,
+            headline="Corrupt Guard Post",
+            body="Corrupt body",
+        )
+        self.conn_fetlife = _make_connection(self.profile, "fetlife", "fl-corrupt-guard", ["promotion"])
+        self.canonical_cv = _make_canonical_cv_for_post(self.post, body="canonical body")
+
+        # CORRUPT state: published projection with frozen_content=None
+        self.fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.canonical_cv, status="published")
+        # Deliberately leave frozen_content=None (the corrupt state)
+        # (PlatformProjection.frozen_content defaults to None)
+
+        self.client.force_login(self.user)
+
+    def test_master_tab_edit_published_null_frozen_content_surfaces_error(self):
+        """
+        Editing the canonical CV when a published consumer has frozen_content=None
+        must NOT silently succeed — it must surface a loud error (action_error in
+        the HTMX response, or a ValueError raised to the view).
+
+        A published projection with frozen_content=None is a corrupt invariant
+        (ADR-008 D3: fail loud). The guard must not be bypassed for this case.
+        """
+        url = reverse("syndication:version-edit", kwargs={"pk": self.canonical_cv.pk})
+        response = self.client.post(url, {"body": "corrupt edit attempt"}, HTTP_HX_REQUEST="true")
+
+        # Must not 500 (the error must be surfaced, not crashed)
+        self.assertIn(
+            response.status_code,
+            [200, 302],
+            f"Must not 500 on corrupt state (got {response.status_code})",
+        )
+
+        content = response.content.decode()
+        # Must surface the error — "Action failed" or equivalent error indicator
+        self.assertIn(
+            "Action failed",
+            content,
+            "Editing a canonical CV with a published+null-frozen_content consumer must "
+            "surface an action_error — the guard must fail loud for genuine corruption. "
+            "(ADR-008 D3: fail loud, never silent fallback)",
+        )
+
+
+class MasterTabPublishedTemplateGatingTest(TestCase):
+    """
+    FIX 1 template gate: the master/source panel editor in post_syndication.html
+    must be gated with source_editable (via the published policy) so it is
+    INTENTIONALLY editable for published posts — not always-on-but-broken.
+
+    For a PUBLISHED post (all consumers published, policy=dirty_then_republish),
+    the master/source tab must render the editable textarea (with the version-edit
+    form action) — same as it does for draft posts.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="master_pub_tmpl_user",
+            email="master_pub_tmpl@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("Master Pub Tmpl Org", "master-pub-tmpl-org", user=self.user)
+        self.event = _make_event(self.profile, "Master Pub Tmpl Event", "master-pub-tmpl-event")
+        self.post = Post.objects.create(
+            event=self.event,
+            headline="Master Pub Tmpl Post",
+            body="Master pub template body",
+        )
+        self.conn_telegram = _make_connection(self.profile, "telegram", "tg-master-pub-tmpl", ["promotion"])
+        self.canonical_cv = _make_canonical_cv_for_post(self.post, body="canonical tmpl body")
+
+        # PUBLISHED projection sharing the canonical CV
+        self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.canonical_cv, status="published")
+        self.tg_proj.frozen_content = {"body": "canonical tmpl body"}
+        self.tg_proj.save(update_fields=["frozen_content", "updated_at"])
+
+        self.client.force_login(self.user)
+
+    def test_master_source_tab_shows_editable_textarea_for_published_post(self):
+        """
+        When ALL projections of a post are published (all consumers published),
+        the master/source tab must still render the editable textarea — including
+        the version-edit form action.
+
+        This confirms the template gate is `source_editable` (policy-threaded from
+        the view) rather than always-on. The textarea must be present and the form
+        must post to version-edit.
+        """
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        expected_version_edit_url = reverse(
+            "syndication:version-edit",
+            kwargs={"pk": self.canonical_cv.pk},
+        )
+        self.assertIn(
+            expected_version_edit_url,
+            content,
+            "Master/source tab must show the editable form (version-edit action) for a "
+            "published post — the textarea must be present and intentionally editable, "
+            "not absent or read-only. Gate must be source_editable (policy-gated), "
+            "not always-on-but-broken.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# FIX 2 (kb-kgza.3 adversarial repair): Published+editable projection renders
+#         sync controls (Customize for state-i, Reset for state-iii) inside editor.
+# ---------------------------------------------------------------------------
+
+
+class PublishedEditableSyncControlsTest(TestCase):
+    """
+    FIX 2 (kb-kgza.3): For a published+editable projection, the sync controls
+    (Customize for state-i, Reset for state-iii) must render INSIDE the opened
+    editor.
+
+    Old contract (now obsolete under D5): Customize/Reset must NOT appear for
+    published projections.
+    New contract (ADR-016 D5): published projections are editable, so the sync
+    controls correctly render inside the opened editor.
+
+    This test documents the now-INTENDED behavior so the contract change is
+    covered, not silent.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="pub_sync_ctrl_user",
+            email="pub_sync_ctrl@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("Pub Sync Ctrl Org", "pub-sync-ctrl-org", user=self.user)
+        self.event = _make_event(self.profile, "Pub Sync Ctrl Event", "pub-sync-ctrl-event")
+        self.post = Post.objects.create(
+            event=self.event,
+            headline="Pub Sync Ctrl Post",
+            body="Pub sync ctrl body",
+        )
+        # FetLife supports dirty_then_republish policy
+        self.conn_fetlife = _make_connection(self.profile, "fetlife", "fl-pub-sync-ctrl", ["promotion"])
+        self.canonical_cv = _make_canonical_cv_for_post(self.post, body="canonical sync ctrl body")
+        self.client.force_login(self.user)
+
+    def test_state_i_published_projection_customize_renders_in_editor(self):
+        """
+        A published projection in state (i) — sharing the canonical CV (sync_source NULL,
+        name=canonical) — must render the Customize button inside the channel editor.
+
+        State (i): content_version.name == 'canonical' + sync_source NULL.
+        ADR-016 D5: published + editable → editor is open → sync controls visible.
+        """
+        # Create state-i projection: sharing canonical CV
+        fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.canonical_cv, status="published")
+        fl_proj.frozen_content = {"body": "canonical sync ctrl body"}
+        fl_proj.save(update_fields=["frozen_content", "updated_at"])
+
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        customize_url = reverse("syndication:projection-customize", kwargs={"pk": fl_proj.pk})
+        self.assertIn(
+            customize_url,
+            content,
+            "Customize button must appear for a published+editable state-i projection "
+            "(sharing the canonical CV). Old contract was 'no Customize for published' — "
+            "new D5 contract is 'editor is open for published+editable, sync controls visible'.",
+        )
+
+    def test_state_iii_published_projection_reset_renders_in_editor(self):
+        """
+        A published projection in state (iii) — own CV + sync_source NULL (Custom) —
+        must render the Reset button inside the channel editor.
+
+        State (iii): own CV + sync_source NULL.
+        ADR-016 D5: published + editable → editor is open → Reset control visible.
+        """
+        # Create a separate independent CV (state iii)
+        own_cv = ContentVersion.objects.create(
+            post=self.post,
+            name="custom-fl",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+            body="custom fl body",
+        )
+        fl_proj = PlatformProjection.objects.create(
+            connection=self.conn_fetlife,
+            kind=PlatformProjection.Kind.PROMOTION,
+            status="published",
+            source_post=self.post,
+            content_version=own_cv,
+            sync_source=None,  # state iii: own CV, no sync_source
+        )
+        fl_proj.frozen_content = {"body": "custom fl body"}
+        fl_proj.save(update_fields=["frozen_content", "updated_at"])
+
+        url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        reset_url = reverse("syndication:projection-reset-to-canonical", kwargs={"pk": fl_proj.pk})
+        self.assertIn(
+            reset_url,
+            content,
+            "Reset button must appear for a published+editable state-iii projection "
+            "(own CV + sync_source NULL). Old contract was 'no Reset for published' — "
+            "new D5 contract is 'editor is open for published+editable, sync controls visible'.",
+        )

@@ -1166,8 +1166,8 @@ def edit_version(user, version, _allow_edit_after_publish=False, **fields):
     # at least one draft consumer means the live row is still being read.
     # Exception: _allow_edit_after_publish=True skips this guard for the
     # detach-and-edit-published path (ADR-016 D5 — dirty, but not corrupt).
+    all_consumers = list(version.projections.all())
     if not _allow_edit_after_publish:
-        all_consumers = list(version.projections.all())
         if all_consumers:
             draft_consumers = [p for p in all_consumers if p.status == PlatformProjection.Status.DRAFT]
             if not draft_consumers:
@@ -1178,6 +1178,23 @@ def edit_version(user, version, _allow_edit_after_publish=False, **fields):
                     "(ready/published/failed). Every consumer has frozen content. "
                     "(ADR-008 D3: fail loud — no live readers of this version)"
                 )
+    else:
+        # _allow_edit_after_publish=True: the guard is bypassed for the
+        # edit-after-publish flow (ADR-016 D5). Fail loud only on genuine
+        # corruption: a published projection with frozen_content=None is an
+        # invariant violation — its published snapshot is missing, so allowing
+        # the edit would silently corrupt the re-publish flow. Raise here.
+        corrupt = [
+            p for p in all_consumers if p.status == PlatformProjection.Status.PUBLISHED and p.frozen_content is None
+        ]
+        if corrupt:
+            corrupt_pks = [p.pk for p in corrupt]
+            raise ValueError(
+                f"Cannot edit ContentVersion {version.pk!r} with _allow_edit_after_publish: "
+                f"published consumer projections {corrupt_pks!r} have frozen_content=None "
+                "— invariant violation (ADR-008 D3: fail loud — missing published snapshot). "
+                "frozen_content must be set at draft→ready and must not be cleared for published rows."
+            )
 
     update_fields = []
     for field, value in fields.items():

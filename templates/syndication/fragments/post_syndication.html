@@ -217,7 +217,13 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
   Allows editing the post's canonical ContentVersion body directly.{% endcomment %}
   <div x-show="selectedPk === 'source'" x-cloak>
     {% if source_row.content_version %}
-      {% if can_edit %}
+      {% comment %}kb-kgza.3 FIX 1: Gate the master/source panel editor on both can_edit
+      AND source_editable (threaded from the view via edit_after_publish_policy).
+      For published posts (all consumers non-draft), source_editable is True only when
+      all platforms support dirty_then_republish — making the textarea INTENTIONALLY
+      editable (not always-on-but-broken). The view's version_edit passes
+      _allow_edit_after_publish=True for the published-broadcast case so the POST works.{% endcomment %}
+      {% if can_edit and source_editable %}
         <div class="mb-7">
           <div class="flex items-center gap-2 px-2.5 py-1.5 mb-5 pb-3 border-b"
                style="border-bottom-color: rgba(255,255,255,0.07)">

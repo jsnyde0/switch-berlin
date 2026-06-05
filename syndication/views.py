@@ -888,6 +888,34 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         "body": source_body,
     }
 
+    # kb-kgza.3 FIX 1: Compute source_editable — gates the master/source panel
+    # editor in post_syndication.html so it is INTENTIONALLY editable rather than
+    # always-on-but-broken.
+    #
+    # The master/source tab editor is editable when:
+    #   (a) No projections yet — no consumers, the canonical CV can always be edited.
+    #   (b) At least one draft consumer — the regular pre-publish editing path.
+    #   (c) All consumers are non-draft AND the edit_after_publish policy for all
+    #       channels is dirty_then_republish — the edit-after-publish broadcast path
+    #       (ADR-016 D5). The view fix passes _allow_edit_after_publish=True in this
+    #       case; the template gate ensures the textarea is shown intentionally.
+    #
+    # source_editable = False only when all consumers are non-draft AND at least one
+    # channel's policy disallows post-publish editing (no such platform at V0, but
+    # the seam is explicit per ADR-003 cheap foresight).
+    if not projections:
+        # No projection consumers yet — canonical CV can be freely edited.
+        source_editable = True
+    elif any(p.status == PlatformProjection.Status.DRAFT for p in projections):
+        # At least one draft consumer — standard editing path, always allowed.
+        source_editable = True
+    else:
+        # All consumers are non-draft (published/ready/failed).
+        # Editable only when all projections' platforms support dirty_then_republish.
+        source_editable = all(
+            edit_after_publish_policy(proj.connection.platform) == "dirty_then_republish" for proj in projections
+        )
+
     # kb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
     # re-opens the same channel tab. The action POSTs (customize/reset/duplicate)
     # submit selected_pk as a hidden input; we read it from POST (or GET fallback),
@@ -943,6 +971,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
             "source_row": source_row,
             "selected_pk": selected_pk,
             "available_connections": available_connections,
+            "source_editable": source_editable,
         },
     )
 
@@ -1598,8 +1627,16 @@ def version_edit(request, pk):
     POST body: body (and optionally headline, imagery, cta, voice).
     HTMX-aware: returns refreshed syndication fragment on HX-Request.
     ADR-008 D3: PermissionError → 403; ValueError (frozen consumers) → fail loud.
+
+    Edit-after-publish (ADR-016 D5 / kb-kgza.3): when ALL consumers of the CV are
+    non-draft (published/ready/failed), this is the legitimate master/source-tab
+    edit-after-publish flow. The edit broadcasts to all sharers → they become dirty
+    (frozen_content snapshot unchanged = no corruption). Pass _allow_edit_after_publish=True
+    to bypass the all-consumers-non-draft guard in edit_version. The service-level
+    corruption guard (published + null frozen_content) remains active even with the
+    bypass — genuine invariant violations still fail loud.
     """
-    from syndication.models import ContentVersion
+    from syndication.models import ContentVersion, PlatformProjection
 
     version = get_object_or_404(ContentVersion, pk=pk)
 
@@ -1612,8 +1649,18 @@ def version_edit(request, pk):
         if field_name in request.POST:
             fields[field_name] = request.POST[field_name]
 
+    # Determine whether to bypass the all-consumers-non-draft guard.
+    # When all consumers are non-draft, this is the master/source-tab edit-after-publish
+    # flow (ADR-016 D5): editing the canonical CV dirties all sharers, frozen_content
+    # stays unchanged. Pass _allow_edit_after_publish=True so the guard does not block
+    # the legitimate broadcast-and-dirty operation.
+    _consumers = list(version.projections.all())
+    _allow_edit_after_publish = bool(_consumers) and all(
+        p.status != PlatformProjection.Status.DRAFT for p in _consumers
+    )
+
     try:
-        edit_version(user=request.user, version=version, **fields)
+        edit_version(user=request.user, version=version, _allow_edit_after_publish=_allow_edit_after_publish, **fields)
     except PermissionError:
         return render(request, "syndication/403.html", {}, status=403)
     except ValueError as exc:
