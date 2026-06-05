@@ -230,10 +230,12 @@ class EditAfterPublishPolicyTest(TestCase):
         grep -r 'edit_after_publish' must find exactly ONE resolution site in the
         syndication code. Policy must be concentrated, not duplicated.
         """
+        import os
         import subprocess
 
+        syndication_dir = os.path.dirname(os.path.abspath(__file__))
         result = subprocess.run(
-            ["grep", "-r", "edit_after_publish", "/Users/jonat/code/personal/kinky-bubbles/syndication/"],
+            ["grep", "-r", "edit_after_publish", syndication_dir],
             capture_output=True,
             text=True,
         )
