@@ -52,7 +52,9 @@ Context variables required:
       <div x-show="open"
            x-cloak
            @click.outside="open = false"
-           class="absolute right-0 top-full mt-1 w-44 rounded border border-white/[0.09] bg-[#111] shadow-xl z-50">
+           class="absolute right-0 top-full mt-1 w-44 z-50"
+           style="background: rgb(18 10 28);
+                  border: 1px solid rgba(255,255,255,0.12)">
         <button type="button"
                 class="w-full text-left kb-mono text-[10px] uppercase tracking-[0.14em] px-3 py-2.5 text-base-content/70 hover:text-base-content hover:bg-white/[0.05] transition-colors"
                 hx-get="{% url 'syndication:event-create' %}"
