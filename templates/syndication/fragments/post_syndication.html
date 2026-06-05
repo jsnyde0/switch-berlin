@@ -45,7 +45,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
     with its own overflow-x-auto. The CTAs (including the "…" dropdown) are siblings of the
     pill list — outside the overflow-x-auto — so the absolute-positioned dropdown popup is
     not clipped. DOM order: pills first → "Master copy" appears before any dropdown content,
-    preserving test assertions on DOM ordering (test_source_tab_appears_before_other_channel_tabs).{% endcomment %}
+  preserving test assertions on DOM ordering (test_source_tab_appears_before_other_channel_tabs).{% endcomment %}
   <div class="flex items-center gap-2 mb-5 pb-1">
     <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto"
          role="tablist"
@@ -124,10 +124,9 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                x-cloak
                @click.outside="kebabOpen = false"
                class="absolute right-0 top-full mt-1 z-30 min-w-[200px] py-1"
-               style="background: rgb(18 10 28); border: 1px solid rgba(255,255,255,0.12)">
-            <p class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/30 px-3 py-1.5">
-              {% trans "Channels" %}
-            </p>
+               style="background: rgb(18 10 28);
+                      border: 1px solid rgba(255,255,255,0.12)">
+            <p class="kb-mono text-[8px] uppercase tracking-[0.18em] text-base-content/30 px-3 py-1.5">{% trans "Channels" %}</p>
             {% for row in projection_rows %}
               {% with proj=row.projection %}
                 <div class="flex items-center gap-2 px-3 py-1.5 hover:bg-white/4 transition-colors">
@@ -192,7 +191,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
             {% if not projection_rows and not available_connections %}
               <p class="kb-mono text-[8px] text-base-content/25 px-3 py-2">
                 {% trans "No connections available." %}
-                <a href="{% url 'syndication:connections-list' %}" class="text-fuchsia-300/60 hover:text-fuchsia-300 underline">{% trans "Add one" %}</a>
+                <a href="{% url 'syndication:connections-list' %}"
+                   class="text-fuchsia-300/60 hover:text-fuchsia-300 underline">{% trans "Add one" %}</a>
               </p>
             {% endif %}
           </div>
