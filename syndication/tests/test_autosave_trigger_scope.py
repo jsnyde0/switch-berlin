@@ -105,3 +105,44 @@ class ChannelAutosaveTriggerScopeTest(SimpleTestCase):
                     "the trigger binds to the form's own descendants."
                 ),
             )
+
+
+class SyndicationTemplatesAutosaveTriggerScopeTest(SimpleTestCase):
+    """
+    Directory-level canary (kb-kgza.14): NO autosave hx-trigger anywhere under
+    templates/syndication/ may use a document-scoped `from:` selector.
+
+    kb-kgza.12 fixed the two triggers in _channel_editor.html but missed the
+    post-composer Master-copy form in fragments/post_syndication.html, which
+    carried the identical document-scoped `from:textarea[name='body']` and thus
+    the same over-broadcast + data-loss bug. This whole-directory scan ensures
+    the class cannot reappear in ANY composer template, not just the one file
+    the original guard checked.
+    """
+
+    def test_no_document_scoped_from_selector_in_any_syndication_template(self):
+        syndication_templates = Path(settings.BASE_DIR) / "templates" / "syndication"
+
+        # Any hx-trigger that carries a `from:` selector is document-scoped in
+        # HTMX and fires across sibling forms on the same page.
+        broken_pattern = re.compile(r'hx-trigger="[^"]*from:[^"]*"')
+
+        offenders: list[str] = []
+        for html_file in sorted(syndication_templates.rglob("*.html")):
+            source = html_file.read_text(encoding="utf-8")
+            for match in broken_pattern.findall(source):
+                rel = html_file.relative_to(settings.BASE_DIR)
+                offenders.append(f"{rel}: {match}")
+
+        self.assertEqual(
+            offenders,
+            [],
+            msg=(
+                "Found document-scoped `from:` selector(s) in autosave "
+                "hx-trigger attributes under templates/syndication/. These "
+                "fire every matching sibling form per keystroke, racing "
+                "detach-and-edit and dropping typed content (kb-kgza.12/.14 "
+                "root cause).\n" + "\n".join(offenders) + "\nFix: remove the `from:` selector so the trigger binds "
+                "to its own form's descendants."
+            ),
+        )

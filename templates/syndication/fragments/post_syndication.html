@@ -236,7 +236,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                 action="{% url 'syndication:version-edit' pk=source_row.content_version.pk %}"
                 hx-post="{% url 'syndication:version-edit' pk=source_row.content_version.pk %}"
                 hx-swap="none"
-                hx-trigger="input changed delay:600ms from:textarea[name='body']"
+                hx-trigger="input changed delay:600ms"
                 hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
             {% csrf_token %}
             <div class="px-4 pt-3 pb-4 mb-5"
