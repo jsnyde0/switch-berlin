@@ -368,16 +368,22 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
     </div>
   </div>
 {% elif proj.status != 'draft' %}
-  {% comment %}Published / ready / failed: content appears ONCE via the channel preview.
+  {% comment %}Published / ready / failed: content appears ONCE.
+  When editable (kb-kgza.3 policy gate): only the textarea (in the STATUS-GATE block
+  above) renders — suppress the read-only preview to avoid a stale duplicate (kb-kgza.10 C).
+  When NOT editable (e.g. ready/failed — no edit policy): still show the preview.
   The old 'Body' label + raw text duplicate is removed (kb-96tn.2).{% endcomment %}
-  <div class="mb-6">
-    <div style="background: rgba(255,255,255,0.025);
-                border: 1px solid rgba(255,255,255,0.07)">
-      {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+  {% if not editable %}
+    <div class="mb-6">
+      <div style="background: rgba(255,255,255,0.025);
+                  border: 1px solid rgba(255,255,255,0.07)">
+        {% include "syndication/fragments/_channel_preview.html" with proj=proj body=body render_error=render_error full_content=True %}
+      </div>
     </div>
-  </div>
+  {% endif %}
   {% comment %}kb-96tn.5: dirty banner container — id="channel-dirty-<pk>" for OOB-swap
-  by version_edit (no-reload dirty update). The inner div is conditional on is_dirty.{% endcomment %}
+  by version_edit (no-reload dirty update). The inner div is conditional on is_dirty.
+  kb-kgza.10 A: banner now uses _dirty_label.html snippet (single source, platform-aware).{% endcomment %}
   <div id="channel-dirty-{{ proj.pk }}">
     {% if row.is_dirty %}
       <div class="flex items-start gap-2 px-3 py-2.5 mb-4"
@@ -386,14 +392,7 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
                   border: 1px solid rgba(251,146,60,0.22)">
         <span class="w-1.5 h-1.5 rounded-full bg-orange-400/80 shrink-0 mt-1"></span>
         <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-orange-400/80 leading-relaxed">
-          {% comment %}kb-kgza.6: per-channel honest dirty banner.
-          FetLife has no publishing API — "update the live post" is misleading.
-          Switch/Telegram actually posted externally — "update the live post" is honest.{% endcomment %}
-          {% if proj.connection.platform == 'fetlife' %}
-            {% trans "Edited — re-publish to update your FetLife post manually" %}
-          {% else %}
-            {% trans "Edited — re-publish to update the live post" %}
-          {% endif %}
+          {% include "syndication/fragments/_dirty_label.html" with proj=proj only %}
         </span>
       </div>
     {% endif %}
@@ -427,85 +426,98 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
     {% endif %}
   {% endif %}
 {% endif %}
-{% comment %}--- (c) PUBLISH + RE-PUBLISH CTA REGION --- kb-kgza.3 / kb-kgza.6 edit here.{% endcomment %}
+{% comment %}--- (c) PUBLISH + RE-PUBLISH CTA REGION --- kb-kgza.3 / kb-kgza.6 edit here.
+kb-kgza.10 B: wrapped in #channel-cta-<pk> for OOB-swap by the dirty-state OOB
+partial (_channel_dirty_oob.html) so Re-publish CTA appears after a live dirty
+edit without a full page reload.{% endcomment %}
 {% if can_edit or can_publish %}
-  <div class="flex items-center gap-2 flex-wrap pt-4"
-       style="border-top: 1px solid rgba(255,255,255,0.07)">
-    {% comment %}D6: One Publish / Re-publish CTA — drives internal draft→ready→published
-    sequence or re-freezes dirty published projections. No separate Approve gate.{% endcomment %}
-    {% comment %}kb-96tn.5: Re-publish CTA for dirty published projections.{% endcomment %}
+  <div id="channel-cta-{{ proj.pk }}">
     {% if row.is_dirty and can_publish %}
-      <form method="post"
-            action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
-            hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
-            hx-target="{{ fragment_target }}"
-            hx-swap="outerHTML">
-        {% csrf_token %}
-        <input type="hidden" name="selected_pk" :value="selectedPk">
-        <button type="submit"
-                class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]"
-                style="border-color: rgba(251,146,60,0.5)">{% trans "Re-publish" %}</button>
-      </form>
-    {% endif %}
-    {% if proj.status == 'draft' and can_publish %}
-      <form method="post"
-            action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
-            hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
-            hx-target="{{ fragment_target }}"
-            hx-swap="outerHTML">
-        {% csrf_token %}
-        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-        <input type="hidden" name="selected_pk" :value="selectedPk">
-        <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
-      </form>
-    {% endif %}
-    {% if proj.status == 'ready' and can_publish %}
-      <form method="post"
-            action="{% url 'syndication:projection-publish' pk=proj.pk %}"
-            hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
-            hx-target="{{ fragment_target }}"
-            hx-swap="outerHTML">
-        {% csrf_token %}
-        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-        <input type="hidden" name="selected_pk" :value="selectedPk">
-        <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
-      </form>
-      {% if proj.connection.platform == 'fetlife' %}
-        <div x-data="{ copied: false }" class="flex items-center">
-          <pre id="{{ copy_body_id_prefix }}{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
-          <button type="button"
-                  {% if include_data_copy_body %}data-copy-body="{{ proj.pk }}"{% endif %}
-                  @click="navigator.clipboard.writeText(document.getElementById('{{ copy_body_id_prefix }}{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
-                  class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
-                  x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">{% trans "Copy" %}</button>
-        </div>
-      {% endif %}
-      <form method="post"
-            action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
-            hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
-            hx-target="{{ fragment_target }}"
-            hx-swap="outerHTML">
-        {% csrf_token %}
-        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-        <input type="hidden" name="selected_pk" :value="selectedPk">
-        <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
-      </form>
-    {% endif %}
-    {% if proj.status == 'failed' %}
-      {% comment %}Retry via approve_projection (draft→ready) — still valid for failed projections.{% endcomment %}
-      <form method="post"
-            action="{% url 'syndication:projection-approve' pk=proj.pk %}"
-            hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
-            hx-target="{{ fragment_target }}"
-            hx-swap="outerHTML">
-        {% csrf_token %}
-        {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
-        <input type="hidden" name="selected_pk" :value="selectedPk">
-        <button type="submit"
-                class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
-          {% trans "Retry" %}
-        </button>
-      </form>
+      <div class="flex items-center gap-2 flex-wrap pt-4"
+           style="border-top: 1px solid rgba(255,255,255,0.07)">
+        {% comment %}D6: One Publish / Re-publish CTA — drives internal draft→ready→published
+        sequence or re-freezes dirty published projections. No separate Approve gate.{% endcomment %}
+        {% comment %}kb-96tn.5: Re-publish CTA for dirty published projections.{% endcomment %}
+        <form method="post"
+              action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+              hx-target="{{ fragment_target }}"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <input type="hidden" name="selected_pk" :value="selectedPk">
+          <button type="submit"
+                  class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]"
+                  style="border-color: rgba(251,146,60,0.5)">{% trans "Re-publish" %}</button>
+        </form>
+      </div>
+    {% elif proj.status == 'draft' and can_publish %}
+      <div class="flex items-center gap-2 flex-wrap pt-4"
+           style="border-top: 1px solid rgba(255,255,255,0.07)">
+        <form method="post"
+              action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
+              hx-target="{{ fragment_target }}"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          <input type="hidden" name="selected_pk" :value="selectedPk">
+          <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
+        </form>
+      </div>
+    {% elif proj.status == 'ready' and can_publish %}
+      <div class="flex items-center gap-2 flex-wrap pt-4"
+           style="border-top: 1px solid rgba(255,255,255,0.07)">
+        <form method="post"
+              action="{% url 'syndication:projection-publish' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-publish' pk=proj.pk %}"
+              hx-target="{{ fragment_target }}"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          <input type="hidden" name="selected_pk" :value="selectedPk">
+          <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
+        </form>
+        {% if proj.connection.platform == 'fetlife' %}
+          <div x-data="{ copied: false }" class="flex items-center">
+            <pre id="{{ copy_body_id_prefix }}{{ proj.pk }}" class="sr-only">{% if body %}{{ body }}{% endif %}</pre>
+            <button type="button"
+                    {% if include_data_copy_body %}data-copy-body="{{ proj.pk }}"{% endif %}
+                    @click="navigator.clipboard.writeText(document.getElementById('{{ copy_body_id_prefix }}{{ proj.pk }}').textContent).then(() => { copied = true; setTimeout(() => copied = false, 2000); })"
+                    class="kb-btn-secondary text-[9px] px-4 py-2.5 min-h-[44px]"
+                    x-text="copied ? '{% trans "Copied!" %}' : '{% trans "Copy" %}'">{% trans "Copy" %}</button>
+          </div>
+        {% endif %}
+        <form method="post"
+              action="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-mark-published' pk=proj.pk %}"
+              hx-target="{{ fragment_target }}"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          <input type="hidden" name="selected_pk" :value="selectedPk">
+          <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
+        </form>
+      </div>
+    {% elif proj.status == 'failed' %}
+      <div class="flex items-center gap-2 flex-wrap pt-4"
+           style="border-top: 1px solid rgba(255,255,255,0.07)">
+        {% comment %}Retry via approve_projection (draft→ready) — still valid for failed projections.{% endcomment %}
+        <form method="post"
+              action="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-post="{% url 'syndication:projection-approve' pk=proj.pk %}"
+              hx-target="{{ fragment_target }}"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          <input type="hidden" name="selected_pk" :value="selectedPk">
+          <button type="submit"
+                  class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">
+            {% trans "Retry" %}
+          </button>
+        </form>
+      </div>
+    {% else %}
+      <div></div>
     {% endif %}
   </div>
 {% endif %}

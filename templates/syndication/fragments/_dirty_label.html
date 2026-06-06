@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}
+Single-source dirty-label snippet (kb-kgza.10).
+
+Renders the platform-aware dirty-state label: FetLife has no publishing API so
+the wording must reflect that the user must post manually; every other platform
+has a real external post that can be updated via Re-publish.
+
+Required context:
+  proj — PlatformProjection (select_related connection)
+
+Used at:
+  - syndication/fragments/_channel_dirty_oob.html  (tooltip + banner)
+  - syndication/fragments/_channel_editor.html      (full-render dirty banner)
+  - syndication/fragments/event_syndication.html    (tab-dot tooltip)
+  - syndication/fragments/post_syndication.html     (tab-dot tooltip)
+
+ADR-008 D2: extraction justified — fifth caller (all five sites differed after
+kb-kgza.6 fixed _channel_editor.html but left the other four with generic copy).
+ADR-008 D3: no surface that lies — FetLife "update the live post" is dishonest.
+{% endcomment %}
+{% if proj.connection.platform == 'fetlife' %}
+  {% trans "Edited — re-publish to update your FetLife post manually" %}
+{% else %}
+  {% trans "Edited — re-publish to update the live post" %}
+{% endif %}

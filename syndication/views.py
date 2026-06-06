@@ -1523,6 +1523,10 @@ def projection_detach_and_edit(request, pk):
                 _is_dirty = _policy == "dirty_then_republish"
             else:
                 _is_dirty = False
+            # kb-kgza.10 B: compute can_publish so the OOB partial can render the
+            # Re-publish CTA region (#channel-cta-<pk>) without a full page reload.
+            _publishable = _resolve_projection_event(proj)
+            _user_can_publish = can_publish(request.user, _publishable)
             _oob_fragments.append(
                 render_to_string(
                     "syndication/fragments/_channel_dirty_oob.html",
@@ -1533,6 +1537,8 @@ def projection_detach_and_edit(request, pk):
                         # processes the dirty pill/banner OOB swap client-side.
                         # version_edit passes oob=True (views.py ~1651-1655); detach-and-edit
                         # was missing it, leaving the dirty indicator un-updated after detach.
+                        "can_publish": _user_can_publish,
+                        "fragment_target": _target,
                     },
                     request=request,
                 )
@@ -1720,19 +1726,47 @@ def version_edit(request, pk):
             # channel-dirty OOB fragments so the pill dot updates live.
             # Only published projections can be dirty (is_dirty gates on status).
             # ADR-016 D5 / ADR-003: gate the affordance through edit_after_publish_policy.
-            # ADR-008 D3: do NOT catch ValueError from is_dirty — let it propagate.
-            # Any ValueError here is a data-integrity violation, not a recoverable condition.
+            #
+            # FOLD 1 (kb-kgza.10, review Finding 2): per-row containment for the
+            # broadcast loop.  This loop iterates EVERY projection sharing the edited
+            # ContentVersion — a corrupt sibling (e.g. source_event=None) must not
+            # abort the autosave of the channel the user is actually editing.
+            # Mirror the board-render loop pattern (fragment_event_syndication ~517):
+            # catch ValueError per row, log, skip the CTA OOB for that row only.
+            # (ADR-008 D3 "render visible error state" for a loop, not a single subject.)
             if _proj.status == PlatformProjection.Status.PUBLISHED and _proj.frozen_content is not None:
-                _content_is_dirty = _proj.is_dirty
-                if _content_is_dirty:
-                    _policy = edit_after_publish_policy(_proj.connection.platform)
-                    _is_dirty = _policy == "dirty_then_republish"
-                else:
-                    _is_dirty = False
+                try:
+                    _content_is_dirty = _proj.is_dirty
+                    if _content_is_dirty:
+                        _policy = edit_after_publish_policy(_proj.connection.platform)
+                        _is_dirty = _policy == "dirty_then_republish"
+                    else:
+                        _is_dirty = False
+                    # kb-kgza.10 B: compute can_publish so the OOB partial can render the
+                    # Re-publish CTA region (#channel-cta-<pk>) without a full page reload.
+                    # Only computed for projections whose CTA OOB fragment is being emitted.
+                    _publishable = _resolve_projection_event(_proj)
+                    _user_can_publish = can_publish(request.user, _publishable)
+                except ValueError as _dirty_exc:
+                    # Per-row containment: corrupt sibling degrades only its own CTA row.
+                    # Log and skip the dirty-state OOB for this projection.
+                    _views_logger.warning(
+                        "version_edit: skipping dirty-state OOB for projection %r "
+                        "(corrupt data — sibling must not break active edit): %s",
+                        _proj.pk,
+                        _dirty_exc,
+                    )
+                    continue
                 _oob_fragments.append(
                     render_to_string(
                         "syndication/fragments/_channel_dirty_oob.html",
-                        {"proj": _proj, "is_dirty": _is_dirty, "oob": True},
+                        {
+                            "proj": _proj,
+                            "is_dirty": _is_dirty,
+                            "oob": True,
+                            "can_publish": _user_can_publish,
+                            "fragment_target": _target,
+                        },
                         request=request,
                     )
                 )

@@ -94,7 +94,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                 id="channel-dot-<pk>" enables OOB-swap by version_edit (no-reload dirty update).{% endcomment %}
                 <span id="channel-dot-{{ proj.pk }}"
                       class="w-1.5 h-1.5 rounded-full shrink-0 {% if row.is_dirty %}bg-orange-400{% elif proj.status == 'draft' %}bg-amber-400{% elif proj.status == 'ready' %}bg-sky-400{% elif proj.status == 'published' or proj.status == 'live' %}bg-emerald-400{% elif proj.status == 'failed' %}bg-rose-400{% else %}bg-base-content/20{% endif %}"
-                      {% if row.is_dirty %}title="{% trans "Edited — re-publish to update the live post" %}"{% endif %}></span>
+                      {% if row.is_dirty %}title="{% include 'syndication/fragments/_dirty_label.html' with proj=proj only %}"{% endif %}></span>
                 {% comment %}Platform name — platform-colored.
                 Destination ID as sr-only so tests + accessibility see it without visual clutter.{% endcomment %}
                 <span class="kb-mono text-[9px] uppercase tracking-[0.18em] font-semibold {% if proj.connection.platform == 'telegram' %}text-sky-400 {% elif proj.connection.platform == 'fetlife' %}text-pink-400 {% elif proj.connection.platform == 'switch' %}text-fuchsia-300 {% else %}text-base-content/55{% endif %}">
