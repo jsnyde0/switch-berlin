@@ -2157,8 +2157,10 @@ class VersionDuplicateEndpointTest(TestCase):
 class VersionCopyFromEndpointTest(TestCase):
     """
     F1: The 'version-copy-from' endpoint must exist, repoint the target
-    projection at a NEW independent copy of the source version, and enforce
-    the can_edit authz gate (non-claimant → 403).
+    projection at a NEW independent copy of the source version (via
+    source_projection_pk — the only supported path since ADR-008 D1 deletion
+    of the legacy source_version_pk path), and enforce the can_edit authz gate
+    (non-claimant → 403).
     """
 
     def setUp(self):
@@ -2175,28 +2177,71 @@ class VersionCopyFromEndpointTest(TestCase):
         self.client.force_login(self.user)
 
     def test_copy_from_endpoint_returns_refreshed_fragment(self):
-        """POST version-copy-from returns the refreshed syndication fragment."""
+        """
+        POST version-copy-from (source_projection_pk) returns the refreshed syndication
+        fragment containing the COPIED content from the source projection.
+
+        Adversarial-review Finding 3 (kb-kgza.13): the previous assertion `assertIn("<", content)`
+        was hollow — ANY HTML response (including an error page) satisfies it.
+
+        Strengthened to assert:
+        (a) The response contains the source projection's copied body text — proving the
+            copy-from actually produced the right content, not just any HTML.
+        (b) The response contains the target channel's connection info (destination_id) —
+            proving it's the correct syndication fragment for THIS event's channels, not
+            a generic error page.
+
+        The source CV is given a distinctive body before the copy so we can uniquely
+        identify it in the rendered fragment output.  After copy-from, the target projection
+        holds a NEW independent CV with the copied body; render_projection for the draft
+        target returns that cv.body directly.
+
+        Asserts on response.content, NOT response.context (documented hollow-test trap).
+        """
         proj_src = _make_listing_projection(self.conn, self.event)
         proj_tgt = _make_listing_projection(self.conn2, self.event)
 
+        # Set a distinctive body on the source CV so we can identify it in the response.
+        src_cv = proj_src.content_version
+        src_cv.body = "COPYFROM-UNIQUE-BODY-MARKER-99z"
+        src_cv.save(update_fields=["body"])
+
         response = self.client.post(
             f"/syndication/projections/{proj_tgt.pk}/copy-from/",
-            data={"source_version_pk": str(proj_src.content_version_id)},
+            data={"source_projection_pk": str(proj_src.pk)},
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("projections", response.context)
+        content = response.content.decode()
+
+        # (a) The copied body from the source must appear in the rendered fragment.
+        # After copy-from, proj_tgt has a new CV whose body is a copy of src_cv.body.
+        # render_projection for a draft projection returns cv.body when non-null.
+        self.assertIn(
+            "COPYFROM-UNIQUE-BODY-MARKER-99z",
+            content,
+            "copy-from response fragment must contain the source projection's copied body — "
+            "proves the correct content was transferred, not just that some HTML was returned.",
+        )
+
+        # (b) The target channel's connection info must also appear — proves this is the
+        # right syndication fragment for the event's channels, not a generic page.
+        self.assertIn(
+            "sw-copyfrom-2",
+            content,
+            "copy-from response fragment must contain the target channel's destination_id "
+            "(sw-copyfrom-2) — proves it's the correct syndication fragment, not an error page.",
+        )
 
     def test_copy_from_endpoint_repoints_projection_at_new_version(self):
         """POST version-copy-from repoints the target projection at a new independent version."""
         proj_src = _make_listing_projection(self.conn, self.event)
         proj_tgt = _make_listing_projection(self.conn2, self.event)
         old_tgt_cv_pk = proj_tgt.content_version_id
-        src_cv_pk = proj_src.content_version_id
 
         self.client.post(
             f"/syndication/projections/{proj_tgt.pk}/copy-from/",
-            data={"source_version_pk": str(src_cv_pk)},
+            data={"source_projection_pk": str(proj_src.pk)},
             HTTP_HX_REQUEST="true",
         )
         proj_tgt.refresh_from_db()
@@ -2208,7 +2253,7 @@ class VersionCopyFromEndpointTest(TestCase):
         )
         self.assertNotEqual(
             proj_tgt.content_version_id,
-            src_cv_pk,
+            proj_src.content_version_id,
             "copy-from must create a NEW independent row, not point at source version",
         )
 
@@ -2220,7 +2265,7 @@ class VersionCopyFromEndpointTest(TestCase):
         stranger_client.force_login(self.stranger)
         response = stranger_client.post(
             f"/syndication/projections/{proj_tgt.pk}/copy-from/",
-            data={"source_version_pk": str(proj_src.content_version_id)},
+            data={"source_projection_pk": str(proj_src.pk)},
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(

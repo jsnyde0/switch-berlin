@@ -97,6 +97,17 @@ def transition_status(projection: PlatformProjection, new_status: str) -> None:
         # ADR-008 D3: fail loud if the effective content cannot be derived.
         projection.frozen_content = _materialize_effective_fields(projection)
         projection.save(update_fields=["status", "frozen_content", "updated_at"])
+    elif from_status == "ready" and new_status == "published":
+        # ADR-016 D5: re-freeze at ready→published so published frozen_content
+        # reflects the current effective content, not the ready-time snapshot.
+        # This is necessary when the source ContentVersion is edited AFTER
+        # consumers reach 'ready' (permitted by version_edit's
+        # _allow_edit_after_publish=True path). Without this re-freeze, the
+        # published frozen_content would be stale (the ready-time snapshot).
+        # republish_projection (services.py) already re-freezes for re-publish;
+        # this branch closes the gap for FIRST-publish only.
+        projection.frozen_content = _materialize_effective_fields(projection)
+        projection.save(update_fields=["status", "frozen_content", "updated_at"])
     elif new_status == "draft":
         # Re-opening (ready→draft or failed→draft): clear frozen_content so
         # the draft tracks the live canonical again.

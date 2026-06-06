@@ -39,7 +39,6 @@ from syndication.services import (
     add_projection,
     approve_projection,
     content_version_consumers_map,
-    copy_from,
     copy_to,
     create_event,
     create_post,
@@ -1515,11 +1514,10 @@ def projection_detach_and_edit(request, pk):
             )
         ]
         # Also emit OOB dirty-state for published projections (ADR-016 D5).
+        # ADR-008 D3: do NOT catch ValueError from is_dirty — let it propagate.
+        # Any ValueError here is a data-integrity violation, not a recoverable condition.
         if proj.status == PlatformProjection.Status.PUBLISHED and proj.frozen_content is not None:
-            try:
-                _content_is_dirty = proj.is_dirty
-            except ValueError:
-                _content_is_dirty = False
+            _content_is_dirty = proj.is_dirty
             if _content_is_dirty:
                 _policy = edit_after_publish_policy(proj.connection.platform)
                 _is_dirty = _policy == "dirty_then_republish"
@@ -1722,11 +1720,10 @@ def version_edit(request, pk):
             # channel-dirty OOB fragments so the pill dot updates live.
             # Only published projections can be dirty (is_dirty gates on status).
             # ADR-016 D5 / ADR-003: gate the affordance through edit_after_publish_policy.
+            # ADR-008 D3: do NOT catch ValueError from is_dirty — let it propagate.
+            # Any ValueError here is a data-integrity violation, not a recoverable condition.
             if _proj.status == PlatformProjection.Status.PUBLISHED and _proj.frozen_content is not None:
-                try:
-                    _content_is_dirty = _proj.is_dirty
-                except ValueError:
-                    _content_is_dirty = False  # Invariant violation — don't crash the autosave
+                _content_is_dirty = _proj.is_dirty
                 if _content_is_dirty:
                     _policy = edit_after_publish_policy(_proj.connection.platform)
                     _is_dirty = _policy == "dirty_then_republish"
@@ -1780,58 +1777,39 @@ def version_copy_from(request, pk):
     Copy-from: repoint the target projection at a NEW independent copy taken
     from a source (mint a new row from source, FK the projection to it).
 
-    POST only. Two mutually exclusive POST params:
-    - source_projection_pk (preferred, kb-ide0.4): copies from a peer PlatformProjection
-      and sets projection.sync_source = that peer (snapshot + persisted pointer).
-      Enforces cycle guard: raises ValueError if source projection has non-null
-      sync_source (ADR-008 D3 fail-loud — backend-enforced, not UI-only).
-    - source_version_pk (legacy, kb-wz8m.5): copies from a bare ContentVersion
-      (no sync_source update — backward compatible with existing copy-from UI).
+    POST only. Takes source_projection_pk (kb-ide0.4): copies from a peer
+    PlatformProjection and sets projection.sync_source = that peer
+    (snapshot + persisted pointer). Enforces cycle guard: raises ValueError if
+    source projection has non-null sync_source (ADR-008 D3 fail-loud —
+    backend-enforced, not UI-only).
+
+    ADR-008 D1: the legacy source_version_pk (bare ContentVersion copy) path
+    was deleted — it was unreachable from all templates (all forms use
+    source_projection_pk). No backward-compat shim at V0.
 
     HTMX-aware: returns refreshed syndication fragment on HX-Request.
     ADR-008 D3: PermissionError → 403; ValueError → surfaced as action_error.
     """
-    from syndication.models import ContentVersion
-
     projection = get_object_or_404(PlatformProjection, pk=pk)
 
     if request.method != "POST":
         return _publishable_hub_redirect(projection)
 
-    # --- Preferred path: source_projection_pk (sync with persisted pointer) ---
     source_projection_pk = request.POST.get("source_projection_pk", "").strip()
-    if source_projection_pk:
-        source_proj = get_object_or_404(PlatformProjection, pk=source_projection_pk)
-        try:
-            sync_projection_from(user=request.user, target=projection, source=source_proj)
-        except PermissionError:
-            return render(request, "syndication/403.html", {}, status=403)
-        except ValueError as exc:
-            # Cycle guard violation or cross-event error — fail loud (ADR-008 D3).
-            if request.headers.get("HX-Request"):
-                return _publishable_fragment_response(request, projection, action_error=str(exc))
-            return _publishable_hub_redirect(projection)
-
+    if not source_projection_pk:
         if request.headers.get("HX-Request"):
             return _publishable_fragment_response(request, projection)
         return _publishable_hub_redirect(projection)
 
-    # --- Legacy path: source_version_pk (bare ContentVersion copy, no sync_source) ---
-    source_version_pk = request.POST.get("source_version_pk", "").strip()
-    if not source_version_pk:
-        if request.headers.get("HX-Request"):
-            return _publishable_fragment_response(request, projection)
-        return _publishable_hub_redirect(projection)
-
-    source_version = get_object_or_404(ContentVersion, pk=source_version_pk)
-
+    source_proj = get_object_or_404(PlatformProjection, pk=source_projection_pk)
     try:
-        copy_from(user=request.user, projection=projection, source_version=source_version)
+        sync_projection_from(user=request.user, target=projection, source=source_proj)
     except PermissionError:
         return render(request, "syndication/403.html", {}, status=403)
-    except ValueError:
+    except ValueError as exc:
+        # Cycle guard violation or cross-event error — fail loud (ADR-008 D3).
         if request.headers.get("HX-Request"):
-            return _publishable_fragment_response(request, projection)
+            return _publishable_fragment_response(request, projection, action_error=str(exc))
         return _publishable_hub_redirect(projection)
 
     if request.headers.get("HX-Request"):
