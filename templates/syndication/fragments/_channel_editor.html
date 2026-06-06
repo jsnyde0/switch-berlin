@@ -386,11 +386,46 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
                   border: 1px solid rgba(251,146,60,0.22)">
         <span class="w-1.5 h-1.5 rounded-full bg-orange-400/80 shrink-0 mt-1"></span>
         <span class="kb-mono text-[9px] uppercase tracking-[0.16em] text-orange-400/80 leading-relaxed">
-          {% trans "Edited — re-publish to update the live post" %}
+          {% comment %}kb-kgza.6: per-channel honest dirty banner.
+          FetLife has no publishing API — "update the live post" is misleading.
+          Switch/Telegram actually posted externally — "update the live post" is honest.{% endcomment %}
+          {% if proj.connection.platform == 'fetlife' %}
+            {% trans "Edited — re-publish to update your FetLife post manually" %}
+          {% else %}
+            {% trans "Edited — re-publish to update the live post" %}
+          {% endif %}
         </span>
       </div>
     {% endif %}
   </div>
+  {% comment %}kb-kgza.6: per-channel published status note.
+  FetLife: no publishing API — content must be posted manually.
+  Switch own-page: publishing makes the event live on switch.berlin (DB-driven, real).
+  Telegram: publishing calls the Bot API and sends to the channel (real).
+  Only shown when proj.status is published (non-draft is handled by the outer elif).{% endcomment %}
+  {% if proj.status == 'published' %}
+    {% if proj.connection.platform == 'fetlife' %}
+      <div class="flex items-start gap-2 px-3 py-2.5 mb-4"
+           data-testid="fetlife-publish-note"
+           style="background: rgba(167,139,250,0.04);
+                  border: 1px solid rgba(167,139,250,0.14)">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400/60 shrink-0 mt-1"></span>
+        <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-violet-400/70 leading-relaxed">
+          {% trans "FetLife has no publishing API — post content manually on FetLife" %}
+        </span>
+      </div>
+    {% elif proj.connection.platform == 'switch' %}
+      <div class="flex items-start gap-2 px-3 py-2.5 mb-4"
+           data-testid="switch-publish-note"
+           style="background: rgba(52,211,153,0.04);
+                  border: 1px solid rgba(52,211,153,0.14)">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0 mt-1"></span>
+        <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-emerald-400/70 leading-relaxed">
+          {% trans "Published to your Switch page" %}
+        </span>
+      </div>
+    {% endif %}
+  {% endif %}
 {% endif %}
 {% comment %}--- (c) PUBLISH + RE-PUBLISH CTA REGION --- kb-kgza.3 / kb-kgza.6 edit here.{% endcomment %}
 {% if can_edit or can_publish %}
