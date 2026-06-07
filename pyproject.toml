@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     # Core Django
-    "django>=6.0.5",
+    "django>=6.0.6",
     "dj-database-url>=3.0",
     "django-environ>=0.12",
     "psycopg[binary]>=3.2",
