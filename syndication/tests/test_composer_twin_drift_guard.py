@@ -75,7 +75,12 @@ def _all_syndication_html_files() -> list[Path]:
 
 # ---------------------------------------------------------------------------
 # ALLOWLIST — the ONLY permitted twin-tell comments in templates/syndication/.
-# Each entry is (relative_path_str, verbatim_fragment_that_must_appear_in_that_file).
+# Each entry is (relative_path_suffix, verbatim_fragment_that_must_appear_on_the_specific_line).
+#
+# The allowlist is matched at the OCCURRENCE level: both the file path suffix
+# AND the fragment must appear on the SAME LINE that triggered the hit.  This
+# prevents a single allowlisted occurrence from silently covering a second,
+# illegitimate twin-tell comment that happens to be in the same file.
 #
 # _channel_editor.html carries an inline mirror of _sync_bar.html inside the
 # Switch listing event-composer path.  The EventForm card cannot use
@@ -122,25 +127,41 @@ class TwinTellCommentGuardTest(SimpleTestCase):
         """
         Scanning all templates/syndication/**/*.html for twin-tell comment
         idioms must yield only the allowlisted Switch-badge exception.
+
+        The allowlist is matched at the level of the specific OCCURRENCE (file
+        + the stripped line containing the idiom), not the file as a whole.
+        This means a second distinct twin-tell comment in _channel_editor.html
+        — even though the allowlisted one is present in the same file — will
+        still trip this test.  A file-level match would silently swallow any
+        number of illegitimate comments once one allowlisted comment existed.
         """
         syndication_dir = _syndication_templates_dir()
 
-        # Build a list of (rel_path_str, matched_phrase) for every hit.
+        # Build a set of (rel_path_str, stripped_line) for every hit.
+        # Using a set deduplicates multiple idioms matching the same line.
         offenders: list[tuple[str, str]] = []
+        seen: set[tuple[str, str]] = set()
         for html_file in _all_syndication_html_files():
-            source = html_file.read_text(encoding="utf-8")
+            lines = html_file.read_text(encoding="utf-8").splitlines()
             rel = str(html_file.relative_to(syndication_dir.parent.parent))
-            for idiom in _TWIN_TELL_IDIOMS:
-                if idiom.lower() in source.lower():
-                    # Check if this hit is covered by the allowlist.
-                    # Allowlist entries are (rel_path_suffix, expected_fragment).
-                    rel_for_match = str(html_file.relative_to(syndication_dir.parent))
-                    if not any(
-                        rel_for_match.endswith(allow_path)
-                        and allow_fragment.lower() in source.lower()
-                        for allow_path, allow_fragment in _ALLOWLISTED_TWIN_TELL
-                    ):
-                        offenders.append((rel, idiom))
+            rel_for_match = str(html_file.relative_to(syndication_dir.parent))
+            for line in lines:
+                line_lower = line.lower()
+                for idiom in _TWIN_TELL_IDIOMS:
+                    if idiom.lower() in line_lower:
+                        hit = (rel, line.strip())
+                        if hit in seen:
+                            continue
+                        seen.add(hit)
+                        # Check if this SPECIFIC occurrence (file + line) is
+                        # covered by an allowlist entry.  The allowlist fragment
+                        # must appear in THIS LINE, not just anywhere in the file.
+                        if not any(
+                            rel_for_match.endswith(allow_path)
+                            and allow_fragment.lower() in line.lower()
+                            for allow_path, allow_fragment in _ALLOWLISTED_TWIN_TELL
+                        ):
+                            offenders.append((rel, line.strip()))
 
         self.assertEqual(
             offenders,
@@ -149,8 +170,8 @@ class TwinTellCommentGuardTest(SimpleTestCase):
                 "Found unapproved twin-tell comment idiom(s) in syndication "
                 "templates.  These indicate a hand-copied widget that must be "
                 "kept in manual sync — a drift hazard.\n\n"
-                "Offenders (file, matched idiom):\n"
-                + "\n".join(f"  {f}: {i!r}" for f, i in offenders)
+                "Offenders (file, offending line):\n"
+                + "\n".join(f"  {f}:\n    {line!r}" for f, line in offenders)
                 + "\n\n"
                 "Fix: replace the inline copy with "
                 "{%% include 'syndication/fragments/<widget>.html' %%}.\n"
@@ -238,13 +259,20 @@ class WidgetIncludeOnlyGuardTest(SimpleTestCase):
 
     def test_breadcrumb_not_inlined_in_composers(self):
         """
-        _breadcrumb.html's distinctive signature is the 'tracking-[0.2em]'
-        Tailwind class on the Studio mono span.  This letter-spacing value is
-        specific to the breadcrumb's "Studio" label and does not appear
-        elsewhere in syndication templates.
+        _breadcrumb.html's distinctive signature is the Django template tag
+        assignment '{% url 'syndication:studio' as studio_root_url %}'.
+        This tag is the first thing the breadcrumb renders: it resolves the
+        Studio root URL into a local variable used by all the anchor/HTMX
+        attrs that follow.  Any file that re-inlines the breadcrumb must carry
+        this tag assignment, so it is both necessary AND sufficient as a
+        structural fingerprint.
+
+        Deliberately NOT using a cosmetic Tailwind value (e.g. 'tracking-[0.2em]')
+        because a benign restyle (changing letter-spacing) would spuriously break
+        the guard.  The url-name assignment is semantic and survives restyling.
         """
         self._assert_signature_in_exactly_one_file(
-            signature="tracking-[0.2em]",
+            signature="'syndication:studio' as studio_root_url",
             expected_file_suffix="_breadcrumb.html",
             widget_name="_breadcrumb",
         )
