@@ -60,6 +60,8 @@ from syndication.services import (
     update_event,
 )
 
+_views_logger = _views_logger_mod.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Rail OOB helper (kb-96tn.6 gap closure)
 # ---------------------------------------------------------------------------
@@ -338,6 +340,77 @@ def event_hub_edit(request, pk):
                         },
                     )
             if request.headers.get("HX-Request"):
+                # kb-nexw.2: emit OOB dirty-banner + Re-publish CTA for each
+                # published LISTING projection of this event so the dirty state
+                # reaches the DOM even though hx-swap="none" discards the
+                # main response body (EventForm autosave autosave pattern).
+                #
+                # The full fragment_event_syndication() returned previously was
+                # silently discarded by HTMX — the OOB swap is the only path
+                # that survives hx-swap="none" (mirrors projection_detach_and_edit
+                # ~1498-1546 and version_edit ~1684-1773).
+                #
+                # Per-row try/except ValueError containment (mirrors version_edit
+                # ~1737-1759): a corrupt sibling must not abort the active edit.
+                _published_listing_projs = list(
+                    PlatformProjection.objects.filter(
+                        source_event=event,
+                        kind=PlatformProjection.Kind.LISTING,
+                        status=PlatformProjection.Status.PUBLISHED,
+                        frozen_content__isnull=False,
+                    ).select_related(
+                        "connection",
+                        "content_version",
+                        "source_event",
+                        "source_event__venue",
+                        "sync_source",
+                        "sync_source__connection",
+                    )
+                )
+                _oob_fragments = []
+                for _proj in _published_listing_projs:
+                    _target = "#event-syndication"
+                    _oob_fragments.append(
+                        render_to_string(
+                            "syndication/fragments/_sync_bar.html",
+                            {"proj": _proj, "fragment_target": _target, "oob": True},
+                            request=request,
+                        )
+                    )
+                    try:
+                        _content_is_dirty = _proj.is_dirty
+                        if _content_is_dirty:
+                            _policy = edit_after_publish_policy(_proj.connection.platform)
+                            _is_dirty = _policy == "dirty_then_republish"
+                        else:
+                            _is_dirty = False
+                        _publishable = _resolve_projection_event(_proj)
+                        _user_can_publish = can_publish(request.user, _publishable)
+                    except ValueError as _dirty_exc:
+                        _views_logger.warning(
+                            "event_hub_edit: skipping dirty-state OOB for projection %r "
+                            "(corrupt data — sibling must not break active edit): %s",
+                            _proj.pk,
+                            _dirty_exc,
+                        )
+                        continue
+                    _oob_fragments.append(
+                        render_to_string(
+                            "syndication/fragments/_channel_dirty_oob.html",
+                            {
+                                "proj": _proj,
+                                "is_dirty": _is_dirty,
+                                "oob": True,
+                                "can_publish": _user_can_publish,
+                                "fragment_target": _target,
+                            },
+                            request=request,
+                        )
+                    )
+                if _oob_fragments:
+                    return HttpResponse("\n".join(_oob_fragments), content_type="text/html")
+                # No published listing projections — fall back to full fragment refresh
+                # (non-published events have no dirty state to surface via OOB).
                 return fragment_event_syndication(request, pk=event.pk)
             return redirect("syndication:event-hub", pk=event.pk)
     else:
@@ -1287,9 +1360,6 @@ def _publishable_fragment_response_for_cv(request, content_version, action_error
     if event is not None:
         return fragment_event_syndication(request, pk=event.pk, action_error=action_error)
     return fragment_post_syndication(request, pk=post.pk, action_error=action_error)
-
-
-_views_logger = _views_logger_mod.getLogger(__name__)
 
 
 def _projection_transition_error_response(request, exc, proj):

@@ -500,6 +500,132 @@ class RepublishRefreezeTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# 7. event_hub_edit on a published Switch listing → OOB dirty banner + Re-publish CTA
+# ---------------------------------------------------------------------------
+
+
+class EventHubEditPublishedSwitchListingOOBTest(TestCase):
+    """
+    POST an HTMX request to syndication:event-edit (event_hub_edit) for an Event
+    with a published Switch LISTING projection on the canonical ContentVersion.
+    The autosave form uses hx-swap="none" so HTMX discards the response body —
+    OOB fragments are the ONLY path to the DOM.
+
+    Acceptance criteria (bead kb-nexw.2):
+    - The response body CONTAINS hx-swap-oob fragments for:
+        #channel-dirty-<pk>  (dirty banner)
+        #channel-cta-<pk>    (Re-publish CTA)
+    - The published projection render returns frozen_content (not the updated live title),
+      locking ADR-016 D2 / ADR-008 D3 published-freeze immutability.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(
+            username="switch_hub_edit_user",
+            email="switch_hub_edit@test.com",
+            password="pw",
+        )
+        self.profile = _make_profile("Switch Hub Edit Org", "switch-hub-edit-org", user=self.user)
+        self.event = _make_event(self.profile, "Switch Published Event", "switch-published-event")
+        # Switch listing connection
+        self.conn_switch = _make_connection(self.profile, "switch", "sw-hub-edit", ["listing"])
+        # Canonical CV for the event
+        self.cv = _make_canonical_cv_for_event(self.event, body="Original switch listing body")
+        # Create the listing projection on the canonical CV (no customization —
+        # this is the canonical path event_hub_edit touches)
+        self.proj = _make_listing_projection(self.conn_switch, self.event, self.cv, status="draft")
+        # Publish the projection (freeze it)
+        _publish_projection(self.proj, frozen_body="Original switch listing body")
+        self.proj.refresh_from_db()
+        self.client.force_login(self.user)
+
+    def _post_event_edit(self, title):
+        """POST an HTMX autosave to event-edit with a changed title."""
+        url = reverse("syndication:event-edit", kwargs={"pk": self.event.pk})
+        return self.client.post(
+            url,
+            {
+                "title": title,
+                "slug": self.event.slug,
+                "start": self.event.start.strftime("%Y-%m-%dT%H:%M"),
+            },
+            HTTP_HX_REQUEST="true",
+        )
+
+    def test_event_hub_edit_published_switch_listing_returns_oob_dirty_banner(self):
+        """
+        POST event-edit with a changed title: the response body must contain the
+        hx-swap-oob fragment for #channel-dirty-<pk> (dirty banner).
+
+        FAILS before fix: event_hub_edit returns fragment_event_syndication() which
+        is discarded by hx-swap="none"; no OOB element is emitted — the full fragment
+        contains id="channel-dirty-<pk>" but NOT with hx-swap-oob="true", so it is
+        silently discarded by HTMX.
+        """
+        response = self._post_event_edit(title="Updated Switch Event Title")
+        content = response.content.decode()
+
+        # The full fragment response contains the ID but without hx-swap-oob="true".
+        # Only a properly-emitted OOB response has BOTH the id AND hx-swap-oob="true"
+        # in the same element. Assert the FULL response is a lean OOB payload
+        # (not the multi-KB full fragment) AND contains both markers.
+        self.assertIn(
+            'hx-swap-oob="true"',
+            content,
+            f"Response must be an OOB payload (hx-swap-oob='true' present). Got content[:200]={content[:200]!r}",
+        )
+        self.assertIn(
+            f'id="channel-dirty-{self.proj.pk}"',
+            content,
+            "Response must contain hx-swap-oob fragment for #channel-dirty-<pk> "
+            f"(proj.pk={self.proj.pk}). Got content={content[:500]!r}",
+        )
+
+    def test_event_hub_edit_published_switch_listing_returns_oob_cta(self):
+        """
+        POST event-edit with a changed title: the response body must contain the
+        hx-swap-oob fragment for #channel-cta-<pk> (Re-publish CTA).
+        """
+        response = self._post_event_edit(title="Updated Switch Event Title")
+        content = response.content.decode()
+
+        self.assertIn(
+            'hx-swap-oob="true"',
+            content,
+            f"Response must be an OOB payload (hx-swap-oob='true' present). Got content[:200]={content[:200]!r}",
+        )
+        self.assertIn(
+            f'id="channel-cta-{self.proj.pk}"',
+            content,
+            "Response must contain hx-swap-oob fragment for #channel-cta-<pk> "
+            f"(proj.pk={self.proj.pk}). Got content={content[:500]!r}",
+        )
+
+    def test_published_render_returns_frozen_content_not_live_title(self):
+        """
+        After the event title is updated, render_projection for the published
+        projection must still return the frozen body (not the updated live canonical).
+
+        Locks ADR-016 D2 / ADR-008 D3: published content is immutable — the freeze
+        must NOT be silently invalidated by a live-canonical edit.
+        """
+        from syndication.engine import render_projection
+
+        self._post_event_edit(title="Updated Switch Event Title — should NOT appear in render")
+        self.proj.refresh_from_db()
+
+        rendered = render_projection(self.proj)
+        self.assertEqual(
+            rendered,
+            "Original switch listing body",
+            "Published projection render must return frozen_content body, NOT the updated "
+            f"live canonical. Got rendered={rendered!r}, "
+            f"frozen_content={self.proj.frozen_content!r}",
+        )
+
+
+# ---------------------------------------------------------------------------
 # 6. Policy gate: non-default policy suppresses editor for published projections
 # ---------------------------------------------------------------------------
 
