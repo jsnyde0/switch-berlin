@@ -157,8 +157,7 @@ class TwinTellCommentGuardTest(SimpleTestCase):
                         # covered by an allowlist entry.  The allowlist fragment
                         # must appear in THIS LINE, not just anywhere in the file.
                         if not any(
-                            rel_for_match.endswith(allow_path)
-                            and allow_fragment.lower() in line.lower()
+                            rel_for_match.endswith(allow_path) and allow_fragment.lower() in line.lower()
                             for allow_path, allow_fragment in _ALLOWLISTED_TWIN_TELL
                         ):
                             offenders.append((rel, line.strip()))
@@ -222,10 +221,7 @@ class WidgetIncludeOnlyGuardTest(SimpleTestCase):
                 f"expected exactly 1 (its own partial).\n\n"
                 f"Signature: {signature!r}\n\n"
                 f"Files containing the signature:\n"
-                + "\n".join(
-                    f"  {f.relative_to(syndication_dir.parent.parent)}"
-                    for f in matches
-                )
+                + "\n".join(f"  {f.relative_to(syndication_dir.parent.parent)}" for f in matches)
                 + "\n\n"
                 f"This means '{widget_name}' markup has been re-inlined into "
                 f"a composer template instead of referenced via "

@@ -533,9 +533,7 @@ class StateTwoSnapshotLabelTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user = _make_user(
-            username="nexw3_state2", email="nexw3@test.com", password="pw"
-        )
+        self.user = _make_user(username="nexw3_state2", email="nexw3@test.com", password="pw")
         self.profile = _make_profile("Nexw3 Org", "nexw3-org", user=self.user)
         self.event = _make_event(self.profile, "Nexw3 Event", "nexw3-event")
         self.canonical_cv = _make_canonical_cv(event=self.event)
@@ -556,9 +554,7 @@ class StateTwoSnapshotLabelTest(TestCase):
         )
 
         # FetLife projection: state (i) — canonical CV, no sync_source
-        self.fl_proj = _make_listing_projection(
-            self.conn_fetlife, self.event, self.canonical_cv
-        )
+        self.fl_proj = _make_listing_projection(self.conn_fetlife, self.event, self.canonical_cv)
 
         # Switch own CV (peer-synced snapshot from FetLife)
         self.switch_cv = ContentVersion.objects.create(
@@ -602,8 +598,7 @@ class StateTwoSnapshotLabelTest(TestCase):
         self.assertIn(
             "Copied from",
             rendered,
-            "kb-nexw.3: _sync_bar.html state (ii) must render 'Copied from' "
-            f"(snapshot label). Got: {rendered!r}",
+            f"kb-nexw.3: _sync_bar.html state (ii) must render 'Copied from' (snapshot label). Got: {rendered!r}",
         )
         self.assertNotIn(
             "Synced from",
@@ -638,14 +633,12 @@ class StateTwoSnapshotLabelTest(TestCase):
         self.assertIn(
             "won't follow later edits",
             rendered,
-            "kb-nexw.3: _sync_bar.html state (ii) sub-label must read "
-            f"'won't follow later edits'. Got: {rendered!r}",
+            f"kb-nexw.3: _sync_bar.html state (ii) sub-label must read 'won't follow later edits'. Got: {rendered!r}",
         )
         self.assertNotIn(
             "editing detaches",
             rendered,
-            "kb-nexw.3: _sync_bar.html state (ii) must NOT say 'editing detaches'. "
-            f"Got: {rendered!r}",
+            f"kb-nexw.3: _sync_bar.html state (ii) must NOT say 'editing detaches'. Got: {rendered!r}",
         )
 
     def test_channel_editor_inline_twin_state_ii_shows_copied_from(self):
@@ -656,9 +649,7 @@ class StateTwoSnapshotLabelTest(TestCase):
         The switch_proj is already in state (ii) (own CV + sync_source set).
         The event-syndication fragment renders the Switch listing inline badge.
         """
-        url = reverse(
-            "syndication:fragment-event-syndication", kwargs={"pk": self.event.pk}
-        )
+        url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -681,9 +672,7 @@ class StateTwoSnapshotLabelTest(TestCase):
         (b) _channel_editor.html inline Switch badge (twin): state-(ii) sub-label
         must read "won't follow later edits" in the event-syndication response.
         """
-        url = reverse(
-            "syndication:fragment-event-syndication", kwargs={"pk": self.event.pk}
-        )
+        url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -720,24 +709,19 @@ class StateTwoSnapshotLabelTwinParityGuardTest(TestCase):
 
         from django.conf import settings
 
-        return (Path(settings.BASE_DIR) / "templates" / rel_path).read_text(
-            encoding="utf-8"
-        )
+        return (Path(settings.BASE_DIR) / "templates" / rel_path).read_text(encoding="utf-8")
 
     def test_sync_bar_contains_copied_from_not_synced_from_in_markup(self):
         """
         _sync_bar.html must contain "Copied from" in functional markup
         and must NOT contain "Synced from" outside of comment blocks.
         """
-        content = self._get_template_content(
-            "syndication/fragments/_sync_bar.html"
-        )
+        content = self._get_template_content("syndication/fragments/_sync_bar.html")
 
         self.assertIn(
             "Copied from",
             content,
-            "kb-nexw.3: _sync_bar.html must contain 'Copied from' (snapshot label) "
-            "in state (ii) markup.",
+            "kb-nexw.3: _sync_bar.html must contain 'Copied from' (snapshot label) in state (ii) markup.",
         )
         # Check "Synced from" does not appear outside of {% comment %} blocks.
         # We check for the trans tag form used in functional markup.
@@ -753,9 +737,7 @@ class StateTwoSnapshotLabelTwinParityGuardTest(TestCase):
         _channel_editor.html inline twin must contain "Copied from" and must NOT
         contain the old "Synced from" trans tag in functional markup.
         """
-        content = self._get_template_content(
-            "syndication/fragments/_channel_editor.html"
-        )
+        content = self._get_template_content("syndication/fragments/_channel_editor.html")
 
         self.assertIn(
             "Copied from",
