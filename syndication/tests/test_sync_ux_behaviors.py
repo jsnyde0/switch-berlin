@@ -944,18 +944,19 @@ class OOBSyncBarOnAutosavePostDetachTest(TestCase):
 class PostInlineSyncBarStateIITest(TestCase):
     """
     Inline post_syndication fragment test: a promotion projection in state (ii)
-    (own CV + sync_source SET) must render "Synced from <platform>" in the inline
+    (own CV + sync_source SET) must render "Copied from <platform>" in the inline
     sync bar, NOT "Custom".
 
     Before Repair 1, the post_syndication.html inline only had two branches:
       canonical → "Synced"
       else      → "Custom"
     so a state-(ii) projection (own CV, not canonical) would render "Custom"
-    incorrectly, causing badge oscillation (OOB says "Synced from X", next full
+    incorrectly, causing badge oscillation (OOB says "Copied from X", next full
     fragment render says "Custom").
 
     After Repair 1 (shared _sync_bar.html partial with three states), the inline
-    must render "Synced from fetlife" for a state-(ii) telegram-sourced FetLife projection.
+    must render "Copied from telegram" for a state-(ii) telegram-sourced FetLife projection.
+    (Label relabeled to "Copied from" by kb-nexw.3 — snapshot semantics, not live-sync.)
 
     Assertions on response.content (NOT response.context).
     """
@@ -1010,27 +1011,28 @@ class PostInlineSyncBarStateIITest(TestCase):
         )
         self.client.force_login(self.user)
 
-    def test_post_inline_sync_bar_state_ii_shows_synced_from(self):
+    def test_post_inline_sync_bar_state_ii_shows_copied_from(self):
         """
         GET the post_syndication fragment — the inline sync bar for the FetLife
         projection (state ii: own CV + sync_source set) must render
-        "Synced from telegram", NOT "Custom".
+        "Copied from telegram", NOT "Custom".
 
         Falsifiable: before Repair 1 (two-branch post inline), the FetLife projection
         in state (ii) falls into the else-branch and renders "Custom". After Repair 1
-        (shared three-state partial), it renders "Synced from telegram".
+        (shared three-state partial), it renders "Copied from telegram".
+        (Label relabeled "Synced from" → "Copied from" by kb-nexw.3 for snapshot semantics.)
         """
         url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        # State (ii) must render "Synced from" (with the source platform name)
+        # State (ii) must render "Copied from" (snapshot label, with the source platform name)
         self.assertIn(
-            "Synced from",
+            "Copied from",
             content,
             "Post inline sync bar for state-(ii) projection (own CV + sync_source set) "
-            "must show 'Synced from' — not 'Custom'. Before Repair 1 it incorrectly "
+            "must show 'Copied from' — not 'Custom'. Before Repair 1 it incorrectly "
             "fell into the else-branch and showed 'Custom'.",
         )
 

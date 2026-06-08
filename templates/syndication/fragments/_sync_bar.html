@@ -19,7 +19,7 @@ Context variables:
 
 States:
   (i)  canonical CV + sync_source NULL → "Shared" (edits broadcast to N channels)
-  (ii) own CV + sync_source SET        → "Synced from <peer> · editing detaches"
+  (ii) own CV + sync_source SET        → "Copied from <peer> · snapshot, won't follow later edits"
   (iii) own CV + sync_source NULL      → "Custom" + Reset to synced button
 {% endcomment %}
 <div id="sync-bar-proj-{{ proj.pk }}"
@@ -61,15 +61,15 @@ States:
       </form>
     {% endwith %}
   {% elif proj.sync_source %}
-    {% comment %}State (ii): own CV + sync_source set → Synced from peer channel; editing detaches{% endcomment %}
+    {% comment %}State (ii): own CV + sync_source set → Copied from peer channel; one-time snapshot, won't follow later edits{% endcomment %}
     <div class="flex items-center gap-2">
       <span class="flex items-center gap-2 px-2.5 py-1.5 border border-emerald-400/20"
             style="background: rgba(52,211,153,0.04)">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0"></span>
         <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-emerald-400/80">
-          {% trans "Synced from" %} {{ proj.sync_source.connection.platform }}
+          {% trans "Copied from" %} {{ proj.sync_source.connection.platform }}
         </span>
-        <span class="kb-mono text-[9px] text-emerald-400/40">{% trans "· editing detaches" %}</span>
+        <span class="kb-mono text-[9px] text-emerald-400/40">{% trans "· snapshot, won't follow later edits" %}</span>
       </span>
       <form method="post"
             action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}"

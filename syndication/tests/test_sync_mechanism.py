@@ -492,8 +492,8 @@ class SnapshotNoPropagationTest(TestCase):
 class ThreeRenderStatesTemplateTest(TestCase):
     """
     The event_syndication template must render the correct state indicator for:
-    (i)  sync_source IS NULL AND content_version IS the shared canonical → "Synced from canonical"
-    (ii) sync_source IS NOT NULL → "Synced from <channel>"
+    (i)  sync_source IS NULL AND content_version IS the shared canonical → "Shared"
+    (ii) sync_source IS NOT NULL → "Copied from <channel>" (kb-nexw.3 snapshot label)
     (iii) own content_version AND sync_source IS NULL (was once synced, now detached) → "Custom"
 
     Assertions on response.content, NOT response.context.
@@ -536,9 +536,10 @@ class ThreeRenderStatesTemplateTest(TestCase):
         # Switch is on canonical → shows "Shared" indicator (edits broadcast to all sharers)
         self.assertIn("Shared", content)
 
-    def test_state_ii_sync_source_set_shows_synced_from_channel(self):
+    def test_state_ii_sync_source_set_shows_copied_from_channel(self):
         """
-        State (ii): projection has its own CV + sync_source set → shows "Synced from <channel>".
+        State (ii): projection has its own CV + sync_source set → shows "Copied from <channel>"
+        (kb-nexw.3 snapshot label — old label "Synced from" overstated live-sync semantics).
         """
         source = _make_projection(self.conn_switch, self.event, self.cv)
         target_cv = ContentVersion.objects.create(
@@ -557,8 +558,8 @@ class ThreeRenderStatesTemplateTest(TestCase):
         )
         response = self._get_fragment(self.event)
         content = response.content.decode()
-        # State (ii): FetLife is synced from Switch → shows "Synced from" label
-        self.assertIn("Synced from", content)
+        # State (ii): FetLife is a snapshot from Switch → shows "Copied from" label
+        self.assertIn("Copied from", content)
 
     def test_state_iii_detached_shows_custom_indicator(self):
         """
@@ -584,10 +585,10 @@ class ThreeRenderStatesTemplateTest(TestCase):
         # State (iii): FetLife has own CV and no sync_source → shows "Custom"
         self.assertIn("Custom", content)
 
-    def test_state_ii_shows_editing_detaches_label(self):
+    def test_state_ii_shows_snapshot_sub_label(self):
         """
-        kb-shzi.5: State (ii) sync bar must include 'editing detaches' so the user
-        understands the behavioral consequence before editing.
+        kb-nexw.3: State (ii) sync bar must include 'won't follow later edits' to
+        surface the snapshot semantics (replaces old 'editing detaches' from kb-shzi.5).
         """
         source = _make_projection(self.conn_switch, self.event, self.cv)
         target_cv = ContentVersion.objects.create(
@@ -607,9 +608,9 @@ class ThreeRenderStatesTemplateTest(TestCase):
         response = self._get_fragment(self.event)
         content = response.content.decode()
         self.assertIn(
-            "editing detaches",
+            "won't follow later edits",
             content,
-            "State (ii) sync bar must show 'editing detaches' to surface the behavioral consequence (kb-shzi.5)",
+            "State (ii) sync bar must show 'won't follow later edits' (snapshot semantics, kb-nexw.3)",
         )
 
     def test_state_i_shows_shared_label_not_synced(self):

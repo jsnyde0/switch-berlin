@@ -275,10 +275,11 @@ class EventSyncPickerCanonicalStateTest(TestCase):
 
 class EventSyncPickerSyncedStateTest(TestCase):
     """
-    Sync picker in event_syndication.html for a synced-from-peer (state ii) channel.
+    Sync picker in event_syndication.html for a peer-snapshot (state ii) channel.
 
     State (ii): projection has sync_source set (own CV, sync_source NOT NULL).
-    The picker renders 'Synced from <platform>' + '· editing detaches'.
+    The picker renders 'Copied from <platform>' + '· snapshot, won't follow later edits'
+    (kb-nexw.3 — relabeled from 'Synced from' to surface snapshot semantics).
     """
 
     def setUp(self):
@@ -301,19 +302,19 @@ class EventSyncPickerSyncedStateTest(TestCase):
         self.url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
         self.client.force_login(self.user)
 
-    def test_synced_from_badge_present(self):
-        """State (ii): 'Synced from' badge must be visible."""
+    def test_copied_from_badge_present(self):
+        """State (ii): 'Copied from' badge must be visible (kb-nexw.3 snapshot label)."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn("Synced from", content)
+        self.assertIn("Copied from", content)
 
-    def test_editing_detaches_text_present(self):
-        """State (ii): '· editing detaches' hint must be visible."""
+    def test_snapshot_sub_label_present(self):
+        """State (ii): '· snapshot, won't follow later edits' hint must be visible (kb-nexw.3)."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn("editing detaches", content)
+        self.assertIn("won't follow later edits", content)
 
     def test_reset_button_present(self):
         """State (ii): Reset button must be present for synced channels."""
