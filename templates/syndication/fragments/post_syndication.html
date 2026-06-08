@@ -25,7 +25,9 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
   {% else %}
     'source'
   {% endif %}
-  , autosaveSaved: false }" x-on:kb:autosaved.document="autosaveSaved = true; setTimeout(() => autosaveSaved = false, 2000)">
+  , validKeys: ['source'
+  {% for row in projection_rows %}, {{ row.projection.pk }}{% endfor %}
+  ], setTab(key) { this.selectedPk = key; const u = new URL(window.location.href); u.searchParams.set('channel', key); history.replaceState({}, '', u); }, autosaveSaved: false }" x-init="(() => { const raw = new URLSearchParams(window.location.search).get('channel'); const urlKey = raw === 'source' ? 'source' : (raw && !isNaN(parseInt(raw)) ? parseInt(raw) : null); if (urlKey !== null && validKeys.includes(urlKey)) selectedPk = urlKey; })()" x-on:kb:autosaved.document="autosaveSaved = true; setTimeout(() => autosaveSaved = false, 2000)">
   {% if action_error %}
     <div class="mb-5 px-4 py-3 border border-error/35 bg-error/8">
       <div class="flex items-start gap-3">
@@ -59,7 +61,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
               role="tab"
               data-testid="channel-pill"
               :aria-selected="selectedPk === 'source'"
-              @click="selectedPk = 'source'"
+              @click="setTab('source')"
               class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 transition-all duration-150 focus-visible:outline-none border"
               :class="selectedPk === 'source' ? 'border-fuchsia-300/40 bg-fuchsia-300/10' : 'border-white/12 bg-transparent hover:border-white/25'">
         <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-fuchsia-300/60"></span>
@@ -74,7 +76,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                   data-status="{{ proj.status }}"
                   title="{{ proj.connection.platform }}{% if proj.connection.destination_id %} · {{ proj.connection.destination_id }}{% endif %} ({{ proj.status }})"
                   :aria-selected="selectedPk === {{ proj.pk }}"
-                  @click="selectedPk = {{ proj.pk }}"
+                  @click="setTab({{ proj.pk }})"
                   class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 transition-all duration-150 focus-visible:outline-none border"
                   :class="selectedPk === {{ proj.pk }} ? '{% if proj.connection.platform == 'telegram' %}border-sky-400/40 bg-sky-400/10{% elif proj.connection.platform == 'fetlife' %}border-pink-400/40 bg-pink-400/10{% elif proj.connection.platform == 'switch' %}border-fuchsia-300/40 bg-fuchsia-300/10{% else %}border-white/20 bg-white/8{% endif %}' : 'border-white/12 bg-transparent hover:border-white/25'">
             {% comment %}Status dot — single resolution point (kb-96tn.3).
