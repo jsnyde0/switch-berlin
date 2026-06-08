@@ -1124,6 +1124,13 @@ def reset_to_canonical(user, projection):
             ) from exc
 
     projection.content_version = canonical_cv
+    # Clear peer-sync pointer so the projection lands in ADR-016 D2 state (i):
+    # canonical-CV + sync_source NULL.  Without this, resetting a peer-synced
+    # channel left it in the invalid intermediate (canonical-CV + non-null
+    # sync_source) — which made the _sync_bar render "Synced from <peer>"
+    # forever, preventing the user from returning to master. (kb-nexw.1)
+    if projection.sync_source_id is not None:
+        detach_sync_source(projection)
     projection.save(update_fields=["content_version", "updated_at"])
 
 

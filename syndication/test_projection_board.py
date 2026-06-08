@@ -1884,6 +1884,49 @@ class VersionOpEndpointTest(TestCase):
             "reset-to-canonical must repoint projection at the canonical version",
         )
 
+    def test_reset_to_canonical_clears_sync_source(self):
+        """reset_to_canonical must clear sync_source (ADR-016 D2 state i).
+
+        Regression guard: the bug was that reset_to_canonical repointed
+        content_version to canonical but left sync_source non-null, trapping
+        the projection in an invalid intermediate state (canonical-CV +
+        non-null sync_source).  After reset, the projection must land in
+        ADR-016 D2 state (i): content_version == canonical AND sync_source IS NULL.
+        """
+        from syndication.services import reset_to_canonical as svc_reset
+        from syndication.services import sync_projection_from as svc_sync_from
+
+        canonical_cv = _make_content_version(self.event, name="canonical")
+        # source projection (must have sync_source NULL to be a legal source)
+        proj_source = _make_listing_projection(self.conn, self.event)
+        # target projection that will be peer-synced
+        proj_target = _make_listing_projection(self.conn2, self.event)
+
+        # Peer-sync target FROM source → proj_target gets own CV + sync_source set
+        svc_sync_from(user=self.user, target=proj_target, source=proj_source)
+        proj_target.refresh_from_db()
+        self.assertIsNotNone(
+            proj_target.sync_source_id,
+            "precondition: sync_source must be set after sync_projection_from",
+        )
+
+        # Now reset to canonical
+        svc_reset(user=self.user, projection=proj_target)
+        proj_target.refresh_from_db()
+
+        # (a) content_version must point at canonical
+        self.assertEqual(
+            proj_target.content_version_id,
+            canonical_cv.pk,
+            "reset_to_canonical must repoint content_version to the canonical version",
+        )
+        # (b) sync_source must be cleared (ADR-016 D2 state i)
+        self.assertIsNone(
+            proj_target.sync_source,
+            "reset_to_canonical must clear sync_source so the projection lands in "
+            "ADR-016 D2 state (i): canonical-CV + sync_source NULL",
+        )
+
     def test_copy_to_endpoint_returns_refreshed_fragment(self):
         """POST copy-to-projections returns the refreshed syndication fragment."""
         proj_src = _make_listing_projection(self.conn, self.event)
