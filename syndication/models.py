@@ -462,9 +462,9 @@ class PlatformProjection(models.Model):
     #
     # Three render states:
     #   (i) content_version IS the shared canonical row AND sync_source IS NULL
-    #       → "Synced from canonical" (default)
+    #       → "Shared" (synced live from canonical — default)
     #  (ii) own content_version AND sync_source IS NOT NULL
-    #       → "Synced from <that peer channel>"
+    #       → "Copied from <that peer channel>" (one-time snapshot — won't follow later edits)
     # (iii) own content_version AND sync_source IS NULL
     #       → "Custom / detached"
     #
