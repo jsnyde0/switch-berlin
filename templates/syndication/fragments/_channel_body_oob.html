@@ -1,0 +1,117 @@
+{% load i18n %}
+{% comment %}
+OOB partial for the channel body textarea wrapper (kb-ciqf).
+
+Emitted by version_edit, event_hub_edit, and projection_detach_and_edit when a
+shared canonical CV changes, so sibling channel body textareas update WITHOUT a
+full page reload.
+
+When oob=True: the wrapper carries hx-swap-oob="true" so HTMX processes it
+even when the main swap is "none" (autosave form pattern).
+
+Context variables:
+  proj              — PlatformProjection (select_related connection, content_version)
+  body              — str; the rendered body for this projection (from render_projection)
+  fragment_target   — HTMX hx-target for full-fragment refresh on form submit
+  is_post_composer  — bool; True for post composer (uses "post" wording in placeholders)
+  oob               — bool; when True adds hx-swap-oob="true" to the wrapper div
+
+HARD CONSTRAINT: only swap the body textarea wrapper — never swap a region the
+user is actively typing in. The calling view MUST skip emitting this fragment
+for the projection whose form triggered the request (cursor protection, kb-ciqf).
+{% endcomment %}
+<div id="channel-body-wrapper-{{ proj.pk }}"
+     {% if oob %}hx-swap-oob="true"{% endif %}>
+  <form method="post"
+        action="{% url 'syndication:projection-detach-and-edit' pk=proj.pk %}"
+        hx-post="{% url 'syndication:projection-detach-and-edit' pk=proj.pk %}"
+        hx-swap="none"
+        hx-trigger="input changed delay:600ms"
+        hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
+    {% csrf_token %}
+    {% if proj.connection.platform == 'telegram' %}
+      {% comment %}Telegram: chat bubble skin.{% endcomment %}
+      <div class="px-4 pt-3 pb-4 mb-5"
+           style="background: rgb(33 150 243 / 0.05);
+                  border: 1px solid rgb(33 150 243 / 0.14)">
+        {% if proj.connection.destination_id %}
+          <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+             style="color: rgb(33 150 243 / 0.5)">{{ proj.connection.destination_id }}</p>
+        {% endif %}
+        <div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-sm"
+             style="background: rgb(33 150 243 / 0.18);
+                    border: 1px solid rgb(33 150 243 / 0.22)">
+          <textarea name="body"
+                    class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+                    style="color: rgb(210 228 248);
+                           padding: 0;
+                           resize: vertical;
+                           field-sizing: content"
+                    placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
+          <p class="kb-mono text-[8px] text-right mt-1.5"
+             style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
+        </div>
+      </div>
+    {% elif proj.connection.platform == 'fetlife' %}
+      {% comment %}FetLife: gothic dark skin.{% endcomment %}
+      <div class="px-4 pt-3 pb-4 mb-5"
+           style="background: rgba(255,255,255,0.025);
+                  border: 1px solid rgba(255,255,255,0.07)">
+        {% if proj.connection.destination_id %}
+          <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+             style="color: rgb(167 139 250 / 0.45)">{{ proj.connection.destination_id }}</p>
+        {% endif %}
+        <textarea name="body"
+                  class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+                  style="color: rgb(210 165 230 / 0.72);
+                         padding: 0;
+                         resize: vertical;
+                         field-sizing: content"
+                  placeholder="{% if is_post_composer %}{% trans "Write your FetLife post…" %}{% else %}{% trans "Write your FetLife listing…" %}{% endif %}">{{ body }}</textarea>
+      </div>
+    {% elif proj.connection.platform == 'switch' %}
+      {% comment %}Switch: editorial serif skin. Reached only for Switch promotion projections.{% endcomment %}
+      <div class="px-4 pt-3 pb-4 mb-5"
+           style="background: rgba(255,255,255,0.025);
+                  border: 1px solid rgba(255,255,255,0.07)">
+        <div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5)"></div>
+        {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
+          <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+             style="color: rgb(248 113 196 / 0.4)">{{ proj.connection.destination_id }}</p>
+        {% endif %}
+        <textarea name="body"
+                  class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 kb-display leading-relaxed whitespace-pre-wrap break-words"
+                  style="color: rgb(230 225 240 / 0.70);
+                         font-size: 13px;
+                         font-variation-settings: 'opsz' 48, 'SOFT' 50;
+                         padding: 0;
+                         resize: vertical;
+                         field-sizing: content"
+                  placeholder="{% trans "Write your Switch post…" %}">{{ body }}</textarea>
+      </div>
+    {% else %}
+      {% comment %}Generic: plain mono treatment for unknown platforms.{% endcomment %}
+      <div class="px-4 pt-3 pb-4 mb-5"
+           style="background: rgba(255,255,255,0.025);
+                  border: 1px solid rgba(255,255,255,0.07)">
+        {% if proj.connection.destination_id %}
+          <p class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/30 mb-2">
+            {{ proj.connection.destination_id }}
+          </p>
+        {% endif %}
+        <textarea name="body"
+                  class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] text-base-content/55 leading-relaxed font-mono whitespace-pre-wrap break-words"
+                  style="padding: 0;
+                         resize: vertical;
+                         field-sizing: content"
+                  placeholder="{% if is_post_composer %}{% trans "Write your post…" %}{% else %}{% trans "Write your listing…" %}{% endif %}">{{ body }}</textarea>
+      </div>
+    {% endif %}
+    <div class="flex items-center gap-3 pt-3"
+         style="border-top: 1px solid rgba(255,255,255,0.06)">
+      <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25"
+            x-show="autosaveSaved"
+            x-cloak>{% trans "Saved" %}</span>
+    </div>
+  </form>
+</div>

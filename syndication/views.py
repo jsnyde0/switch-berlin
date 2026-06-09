@@ -104,6 +104,56 @@ def _render_rail_oob(request):
 
 
 # ---------------------------------------------------------------------------
+# Sibling body OOB helper (kb-ciqf)
+# ---------------------------------------------------------------------------
+
+
+def _render_sibling_body_oob_fragments(request, projections, *, skip_pk=None, is_post_composer=False):
+    """
+    Render OOB body-wrapper fragments for a list of projections, skipping the one
+    with pk == skip_pk (cursor protection: do NOT clobber the textarea the user
+    is actively typing in).
+
+    Each fragment targets `#channel-body-wrapper-<pk>` with hx-swap-oob="true"
+    so HTMX replaces the body form content in non-active tabs without a reload.
+
+    Per-row try/except ValueError containment mirrors version_edit lines ~1807-1829
+    (ADR-008 D3: a corrupt sibling must not abort the active edit).
+
+    Returns a list of rendered OOB HTML strings (to be joined into the response).
+    """
+    from syndication.engine import render_projection
+
+    fragments = []
+    for proj in projections:
+        if skip_pk is not None and proj.pk == skip_pk:
+            continue
+        try:
+            body = render_projection(proj)
+        except ValueError as _exc:
+            _views_logger.warning(
+                "_render_sibling_body_oob_fragments: skipping body OOB for projection %r "
+                "(render_projection failed — sibling must not break active edit): %s",
+                proj.pk,
+                _exc,
+            )
+            continue
+        fragments.append(
+            render_to_string(
+                "syndication/fragments/_channel_body_oob.html",
+                {
+                    "proj": proj,
+                    "body": body,
+                    "is_post_composer": is_post_composer,
+                    "oob": True,
+                },
+                request=request,
+            )
+        )
+    return fragments
+
+
+# ---------------------------------------------------------------------------
 # Studio front door (kb-9f1h.1)
 # ---------------------------------------------------------------------------
 
@@ -352,12 +402,12 @@ def event_hub_edit(request, pk):
                 #
                 # Per-row try/except ValueError containment (mirrors version_edit
                 # ~1737-1759): a corrupt sibling must not abort the active edit.
-                _published_listing_projs = list(
+                # kb-ciqf Fix 1: query ALL listing projections for this event so we
+                # can emit body OOBs for track-live channels (not just published ones).
+                _all_listing_projs = list(
                     PlatformProjection.objects.filter(
                         source_event=event,
                         kind=PlatformProjection.Kind.LISTING,
-                        status=PlatformProjection.Status.PUBLISHED,
-                        frozen_content__isnull=False,
                     ).select_related(
                         "connection",
                         "content_version",
@@ -367,6 +417,11 @@ def event_hub_edit(request, pk):
                         "sync_source__connection",
                     )
                 )
+                _published_listing_projs = [
+                    _p
+                    for _p in _all_listing_projs
+                    if _p.status == PlatformProjection.Status.PUBLISHED and _p.frozen_content is not None
+                ]
                 _oob_fragments = []
                 for _proj in _published_listing_projs:
                     _target = "#event-syndication"
@@ -407,11 +462,20 @@ def event_hub_edit(request, pk):
                             request=request,
                         )
                     )
-                if _oob_fragments:
-                    return HttpResponse("\n".join(_oob_fragments), content_type="text/html")
-                # No published listing projections — fall back to full fragment refresh
-                # (non-published events have no dirty state to surface via OOB).
-                return fragment_event_syndication(request, pk=event.pk)
+                # kb-ciqf Fix 1: emit body OOBs for all non-switch listing projections
+                # (Switch listing uses the EventForm card, not a textarea). The event
+                # master edit updates Event fields, so track-live channels recompose from
+                # the updated event. OOB body updates surface the new content live without
+                # a reload. The Switch EventForm is the edited entity — no skip_pk needed.
+                _body_oob_projs = [_p for _p in _all_listing_projs if _p.connection.platform != "switch"]
+                _oob_fragments.extend(
+                    _render_sibling_body_oob_fragments(
+                        request,
+                        _body_oob_projs,
+                        is_post_composer=False,
+                    )
+                )
+                return HttpResponse("\n".join(_oob_fragments), content_type="text/html")
             return redirect("syndication:event-hub", pk=event.pk)
     else:
         # Include ALL editable fields so edit-load round-trips stored values.
@@ -1613,7 +1677,54 @@ def projection_detach_and_edit(request, pk):
                     request=request,
                 )
             )
-        return HttpResponse("\n".join(_oob_fragments))
+        # kb-ciqf Fix 1: emit body OOBs for sibling projections still on the canonical
+        # CV (the projections that share the same publishable but were NOT the edited one).
+        # After detach, proj is on its own new CV; siblings still share the original CV.
+        # MUST skip proj itself (cursor protection: don't clobber the active textarea).
+        # Look up the CANONICAL CV for this publishable — siblings still pointing to it
+        # need body OOBs so their displayed content stays in sync (track-live or not).
+        from syndication.models import ContentVersion as _ContentVersion
+
+        _publishable_for_cv = _resolve_publishable_for_cv(proj.content_version)
+        if _publishable_for_cv is not None:
+            _event_for_sibling, _post_for_sibling = _publishable_for_cv
+            try:
+                if _post_for_sibling is not None:
+                    _canonical_cv = _ContentVersion.objects.get(post=_post_for_sibling, name="canonical")
+                    _sibling_projs = list(
+                        _canonical_cv.projections.select_related(
+                            "connection", "content_version", "source_post", "source_event"
+                        ).all()
+                    )
+                    _is_post_sibling = True
+                elif _event_for_sibling is not None:
+                    _canonical_cv = _ContentVersion.objects.get(event=_event_for_sibling, name="canonical")
+                    _sibling_projs = list(
+                        _canonical_cv.projections.select_related(
+                            "connection", "content_version", "source_event", "source_post"
+                        ).all()
+                    )
+                    _is_post_sibling = False
+                else:
+                    _sibling_projs = []
+                    _is_post_sibling = False
+                # Filter out switch-listing (EventForm, no textarea OOB needed)
+                _sibling_body_projs = [
+                    _p
+                    for _p in _sibling_projs
+                    if not (_p.kind == PlatformProjection.Kind.LISTING and _p.connection.platform == "switch")
+                ]
+                _oob_fragments.extend(
+                    _render_sibling_body_oob_fragments(
+                        request,
+                        _sibling_body_projs,
+                        skip_pk=proj.pk,  # Do NOT clobber the just-edited textarea
+                        is_post_composer=_is_post_sibling,
+                    )
+                )
+            except _ContentVersion.DoesNotExist:
+                pass  # No canonical CV — no siblings to notify (degenerate state)
+        return HttpResponse("\n".join(_oob_fragments), content_type="text/html")
     return _publishable_hub_redirect(proj)
 
 
@@ -1722,6 +1833,17 @@ def version_edit(request, pk):
     for field_name in ("body", "headline", "imagery", "cta", "voice"):
         if field_name in request.POST:
             fields[field_name] = request.POST[field_name]
+
+    # kb-ciqf Fix 2: guard against writing body to an event canonical CV via this
+    # view. ADR-016 D2: the intended model is that editing an event's MASTER updates
+    # Event MODEL FIELDS (via update_event / event_hub_edit), leaving the canonical
+    # CV body NULL so it stays track-live. Any body write on the event canonical
+    # freezes recomposition — dependents never follow further master edits.
+    # The version_edit view is for POST master-copy tabs (not event canons).
+    # Strip "body" at the view level so even direct URL access cannot freeze it.
+    # (Service-level edit_version remains general — test helpers call it directly.)
+    if version.name == "canonical" and version.event_id is not None:
+        fields.pop("body", None)
 
     # Determine whether to bypass the all-consumers-non-draft guard.
     # When all consumers are non-draft, this is the master/source-tab edit-after-publish
@@ -1840,6 +1962,25 @@ def version_edit(request, pk):
                         request=request,
                     )
                 )
+        # kb-ciqf Fix 1: emit OOB body-wrapper fragments for all sibling projections
+        # that have a body textarea (non-switch-listing only — Switch listing uses
+        # the EventForm card, not a textarea). This updates sibling channel textareas
+        # live so the user sees the new master content without a full reload.
+        # The master copy form (version-edit) has no associated projection, so no
+        # skip_pk is needed — all body-form siblings should update.
+        _body_oob_projections = [
+            _p
+            for _p in _cv_projections
+            if not (_p.kind == PlatformProjection.Kind.LISTING and _p.connection.platform == "switch")
+        ]
+        _is_post_composer = any(_p.kind == PlatformProjection.Kind.PROMOTION for _p in _body_oob_projections)
+        _oob_fragments.extend(
+            _render_sibling_body_oob_fragments(
+                request,
+                _body_oob_projections,
+                is_post_composer=_is_post_composer,
+            )
+        )
         return HttpResponse("".join(_oob_fragments), content_type="text/html")
     return _publishable_hub_redirect_for_cv(version)
 

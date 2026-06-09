@@ -1991,36 +1991,101 @@ class VersionOpEndpointTest(TestCase):
             f"version_edit response must contain sync-bar anchor for projection {proj.pk}",
         )
 
-    def test_edit_version_endpoint_persists_body(self):
-        """POST edit-version persists body to ContentVersion."""
+    def test_edit_version_endpoint_persists_body_for_post_canonical(self):
+        """
+        POST edit-version persists body to a POST canonical ContentVersion.
+
+        kb-ciqf Fix 2: the version_edit VIEW strips body from EVENT canonical CVs
+        (track-live guard — event body comes from event fields, not the canonical CV).
+        But POST canonical CVs are intentionally mutable via the master-copy form.
+        This test uses a post-scoped canonical to verify body still persists for posts.
+        """
+        from syndication.models import ContentVersion, Post
+
+        post = Post.objects.create(event=self.event, headline="Test", body="original")
+        cv = ContentVersion.objects.create(
+            post=post,
+            name="canonical",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+            body="initial",
+        )
+        PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION,
+            status="draft",
+            connection=self.conn,
+            source_post=post,
+            content_version=cv,
+        )
+        cv_pk = cv.pk
+
+        self.client.post(
+            f"/syndication/versions/{cv_pk}/edit/",
+            data={"body": "New body from view"},
+            HTTP_HX_REQUEST="true",
+        )
+
+        cv_refreshed = ContentVersion.objects.get(pk=cv_pk)
+        self.assertEqual(cv_refreshed.body, "New body from view")
+
+    def test_edit_version_endpoint_does_not_write_body_to_event_canonical(self):
+        """
+        POST edit-version must NOT write body to an event canonical ContentVersion.
+
+        kb-ciqf Fix 2: the version_edit VIEW strips body from EVENT canonical CVs
+        to preserve track-live semantics (ADR-016 D2). Event body is composed from
+        live event fields at render time; writing to canonical.body freezes that.
+        The view-level guard strips body before calling edit_version.
+        """
         proj = _make_listing_projection(self.conn, self.event)
         cv_pk = proj.content_version_id
 
         self.client.post(
             f"/syndication/versions/{proj.content_version_id}/edit/",
-            data={"body": "New body from view"},
+            data={"body": "should not be written"},
             HTTP_HX_REQUEST="true",
         )
 
         from syndication.models import ContentVersion
 
         cv = ContentVersion.objects.get(pk=cv_pk)
-        self.assertEqual(cv.body, "New body from view")
+        self.assertIsNone(
+            cv.body,
+            "version_edit must NOT write body to an event canonical CV "
+            "(kb-ciqf Fix 2: track-live preservation — body stays NULL so "
+            "recomposition from live event fields continues to work).",
+        )
 
-    def test_edit_version_endpoint_flips_provenance_to_manual(self):
-        """POST edit-version flips ContentVersion.provenance to 'manual'."""
-        proj = _make_listing_projection(self.conn, self.event, provenance="rule_template")
-        cv_pk = proj.content_version_id
+    def test_edit_version_endpoint_flips_provenance_to_manual_for_post_canonical(self):
+        """
+        POST edit-version flips provenance to 'manual' for a POST canonical CV.
+
+        kb-ciqf Fix 2: for POST canonical CVs, body writes are allowed (master-copy
+        form). Provenance should flip to 'manual' on successful body write.
+        """
+        from syndication.models import ContentVersion, Post
+
+        post = Post.objects.create(event=self.event, headline="Prov Test", body="body")
+        cv = ContentVersion.objects.create(
+            post=post,
+            name="canonical",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+            body="initial body",
+        )
+        PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.PROMOTION,
+            status="draft",
+            connection=self.conn,
+            source_post=post,
+            content_version=cv,
+        )
 
         self.client.post(
-            f"/syndication/versions/{proj.content_version_id}/edit/",
+            f"/syndication/versions/{cv.pk}/edit/",
             data={"body": "human edit"},
             HTTP_HX_REQUEST="true",
         )
 
-        from syndication.models import ContentVersion
-
-        cv = ContentVersion.objects.get(pk=cv_pk)
+        cv.refresh_from_db()
         self.assertEqual(cv.provenance, "manual")
 
 

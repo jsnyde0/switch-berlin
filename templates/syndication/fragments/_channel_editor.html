@@ -272,6 +272,11 @@ The badge div carries id="sync-bar-proj-<pk>" so version_edit can OOB-swap it.{%
 {% include "syndication/fragments/_sync_picker.html" with proj=proj projection_rows=projection_rows fragment_target=fragment_target resync_id_prefix=resync_id_prefix only %}
 {% endif %}
 </div>
+{% comment %}channel-body-wrapper: stable OOB target for sibling body re-render (kb-ciqf).
+The id is stable regardless of Alpine tab visibility (x-cloak hides parent panel
+but this div is still in the DOM). Sibling body OOB fragments swap this wrapper
+so non-active-tab channels update without a reload.{% endcomment %}
+<div id="channel-body-wrapper-{{ proj.pk }}">
 {% comment %}Bubble-as-editor — the styled textarea IS the platform-skinned
 preview surface. Autosave: hx-swap="none" + debounced trigger keeps focus intact.
 kb-kgza.2: Per-channel body form posts to projection-detach-and-edit (projection-keyed)
@@ -354,6 +359,8 @@ status is now surfaced via the channel pill's status dot (ADR-016 D5).{% endcomm
         x-cloak>{% trans "Saved" %}</span>
 </div>
 </form>
+</div>
+{% comment %}end channel-body-wrapper (kb-ciqf OOB target){% endcomment %}
 {% endif %}
 </div>
 {% endif %}
