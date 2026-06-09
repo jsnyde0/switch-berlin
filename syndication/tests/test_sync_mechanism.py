@@ -1,15 +1,16 @@
 """
-TDD tests for the per-channel sync mechanism (kb-ide0.4).
+TDD tests for the per-channel sync mechanism (kb-s41r: live-share).
 
 Contract groups:
 (A) sync_source model field — nullable self-FK on PlatformProjection
-(B) sync_from service — snapshot copy + persisted sync_source pointer
-(C) detach — editing clears sync_source (no confirm needed)
-(D) re-sync — fires cycle-guard raise before copy_from
+(B) sync_from service — SHARES source's CV row (live-follow, NOT snapshot)
+(C) detach-on-edit — editing a synced channel forks it to its own CV + clears sync_source
+    WITHOUT mutating the shared row (master/siblings unaffected)
+(D) re-sync — re-shares source's CURRENT row; cycle-guard preserved
 (E) cycle guard — backend enforced: source whose sync_source is non-null raises
-(F) snapshot-no-propagation — editing SOURCE after downstream synced does NOT
-    change downstream content
-(G) three render states — template renders correct indicator per state
+(F) live-propagation — editing SOURCE after downstream synced DOES change downstream content
+    (shared row → single-row write-once-broadcast)
+(G) three render states — template renders correct indicator per state (live-follow label)
 (H) post composer Master copy anchor — first tab (ADR-010 D1 / kb-shzi.4)
 (I) sync endpoint — version_copy_from sets sync_source; cycle guard enforced
 
@@ -116,18 +117,13 @@ class SyncSourceModelFieldTest(TestCase):
     def test_sync_source_can_be_set_to_another_projection(self):
         """sync_source can point at another PlatformProjection (self-FK)."""
         source = _make_projection(self.conn_switch, self.event, self.cv)
-        # Make an independent CV for the target
-        target_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fetlife-copy",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
-        )
+        # Under live-share the target CAN share the same CV; here we test the FK itself
         target = PlatformProjection.objects.create(
             connection=self.conn_fetlife,
             kind="listing",
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            content_version=target_cv,
+            content_version=self.cv,
             sync_source=source,
         )
         fetched = PlatformProjection.objects.select_related("sync_source").get(pk=target.pk)
@@ -136,9 +132,10 @@ class SyncSourceModelFieldTest(TestCase):
     def test_sync_source_set_null_on_source_delete(self):
         """sync_source uses on_delete=SET_NULL — deleting the source nulls the pointer."""
         source = _make_projection(self.conn_switch, self.event, self.cv)
+        # Give target its own independent CV (post-detach state) so we can delete source
         target_cv = ContentVersion.objects.create(
             event=self.event,
-            name="fetlife-copy-2",
+            name="fetlife-detached",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
         target = PlatformProjection.objects.create(
@@ -149,11 +146,6 @@ class SyncSourceModelFieldTest(TestCase):
             content_version=target_cv,
             sync_source=source,
         )
-        # Delete the source projection — target.sync_source should become NULL
-        # We need to first remove the source's content_version reference constraints
-        # The source projection itself doesn't have a sync_source, so we can delete it.
-        # But source's content_version is the canonical CV shared by multiple projections —
-        # deleting source projection leaves the canonical CV intact.
         source.delete()
         target.refresh_from_db()
         self.assertIsNone(target.sync_source)
@@ -161,23 +153,22 @@ class SyncSourceModelFieldTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# (B) sync_from service — snapshot + persisted pointer
+# (B) sync_from service — SHARES source's CV row (live-follow)
 # ---------------------------------------------------------------------------
 
 
 class SyncFromServiceTest(TestCase):
     """
     sync_projection_from(user, target_projection, source_projection) service:
-    - copies source's current content_version into target (independent row)
+    - kb-s41r: target SHARES source's current content_version row (NOT a copy)
     - sets target.sync_source = source_projection
-    - does NOT propagate future source edits (snapshot semantics)
+    - a future source edit DOES propagate (shared row, single-write broadcast)
     """
 
     def setUp(self):
         self.user = _make_user(username="sync_svc_user", email="sync_svc@test.com", password="pw")
         self.profile = _make_profile("Sync Svc Org", "sync-svc-org", user=self.user)
         self.event = _make_event(self.profile, "Sync Svc Event", "sync-svc-event")
-        # _make_event already creates an EventOrganizer; no second creation needed
         self.cv = _make_canonical_cv(self.event)
         self.conn_switch = PlatformConnection.objects.create(
             organizer=self.profile,
@@ -192,7 +183,7 @@ class SyncFromServiceTest(TestCase):
             kinds=["listing", "promotion"],
         )
         self.source_proj = _make_projection(self.conn_switch, self.event, self.cv)
-        # Give source a non-null body so we can detect the copy
+        # Give source a non-null body so we can detect live-share
         self.cv.body = "Switch canonical body"
         self.cv.save(update_fields=["body", "updated_at"])
 
@@ -231,26 +222,35 @@ class SyncFromServiceTest(TestCase):
         target.refresh_from_db()
         self.assertEqual(target.sync_source_id, self.source_proj.pk)
 
-    def test_sync_from_creates_independent_copy(self):
-        """The new content_version is a NEW row, not the same object as source."""
+    def test_sync_from_shares_same_cv_row(self):
+        """
+        kb-s41r LIVE-SHARE: After sync_projection_from, target.content_version_id ==
+        source.content_version_id (same row, NOT a copy).
+        """
         from syndication.services import sync_projection_from
 
         target = self._target_proj()
         original_source_cv_pk = self.source_proj.content_version_id
         sync_projection_from(user=self.user, target=target, source=self.source_proj)
         target.refresh_from_db()
-        self.assertNotEqual(target.content_version_id, original_source_cv_pk)
+        self.assertEqual(
+            target.content_version_id,
+            original_source_cv_pk,
+            "kb-s41r: sync must SHARE the source's CV row (same PK), not mint a copy.",
+        )
 
 
 # ---------------------------------------------------------------------------
-# (C) Detach — editing clears sync_source
+# (C) Detach-on-edit — forks WITHOUT mutating the shared row
 # ---------------------------------------------------------------------------
 
 
-class DetachOnSyncSourceTest(TestCase):
+class DetachOnEditTest(TestCase):
     """
-    detach_sync_source(projection) clears sync_source without confirmation.
-    Used when a user edits a synced channel.
+    detach_and_edit(user, projection, **fields):
+    - When a synced channel shares the source's CV (live-share), editing it must
+      FORK it to a NEW independent CV and clear sync_source — WITHOUT mutating
+      the shared row (master + other followers unaffected).
     """
 
     def setUp(self):
@@ -258,6 +258,8 @@ class DetachOnSyncSourceTest(TestCase):
         self.profile = _make_profile("Detach Org", "detach-org", user=self.user)
         self.event = _make_event(self.profile, "Detach Event", "detach-event")
         self.cv = _make_canonical_cv(self.event)
+        self.cv.body = "master body"
+        self.cv.save(update_fields=["body", "updated_at"])
         self.conn_switch = PlatformConnection.objects.create(
             organizer=self.profile,
             platform="switch",
@@ -270,20 +272,138 @@ class DetachOnSyncSourceTest(TestCase):
             destination_id="fl-detach",
             kinds=["listing"],
         )
-        self.source = _make_projection(self.conn_switch, self.event, self.cv)
-        # Set up a synced target
-        target_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fl-copy",
-            body="copied body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        self.conn_telegram = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="tg-detach",
+            kinds=["promotion"],
         )
+        self.source = _make_projection(self.conn_switch, self.event, self.cv)
+        # Synced target SHARES source's canonical CV (live-share)
         self.target = PlatformProjection.objects.create(
             connection=self.conn_fetlife,
             kind="listing",
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            content_version=target_cv,
+            content_version=self.cv,  # SHARED row
+            sync_source=self.source,
+        )
+        # A sibling also shares the same CV (second follower)
+        self.sibling = PlatformProjection.objects.create(
+            connection=self.conn_telegram,
+            kind="listing",
+            status=PlatformProjection.Status.DRAFT,
+            source_event=self.event,
+            content_version=self.cv,  # SHARED row
+            sync_source=self.source,
+        )
+
+    def test_detach_and_edit_forks_to_new_cv(self):
+        """
+        After detach_and_edit, the target has a NEW independent CV (not the shared row).
+        """
+        from syndication.services import detach_and_edit
+
+        original_cv_pk = self.cv.pk
+        detach_and_edit(self.user, self.target, body="custom fetlife body")
+        self.target.refresh_from_db()
+        self.assertNotEqual(
+            self.target.content_version_id,
+            original_cv_pk,
+            "detach_and_edit must fork to a NEW CV, not stay on the shared row.",
+        )
+
+    def test_detach_and_edit_clears_sync_source(self):
+        """After detach_and_edit, sync_source is cleared to None."""
+        from syndication.services import detach_and_edit
+
+        detach_and_edit(self.user, self.target, body="custom fetlife body")
+        self.target.refresh_from_db()
+        self.assertIsNone(
+            self.target.sync_source_id,
+            "detach_and_edit must clear sync_source after forking.",
+        )
+
+    def test_detach_and_edit_does_not_mutate_master_cv(self):
+        """
+        CRITICAL: editing a synced channel must NOT change the master's (source's) content.
+        The shared row must remain untouched.
+        """
+        from syndication.services import detach_and_edit
+
+        detach_and_edit(self.user, self.target, body="custom fetlife body")
+        self.cv.refresh_from_db()
+        self.assertEqual(
+            self.cv.body,
+            "master body",
+            "detach_and_edit must NOT mutate the shared CV row (master's content must be unchanged).",
+        )
+
+    def test_detach_and_edit_does_not_mutate_sibling_cv(self):
+        """
+        Editing one synced channel must NOT affect a sibling that also shares the CV.
+        """
+        from syndication.services import detach_and_edit
+
+        detach_and_edit(self.user, self.target, body="custom fetlife body")
+        self.sibling.refresh_from_db()
+        self.sibling.content_version.refresh_from_db()
+        self.assertEqual(
+            self.sibling.content_version.body,
+            "master body",
+            "detach_and_edit must NOT mutate the sibling's shared CV.",
+        )
+        # Sibling still shares the canonical CV (unaffected)
+        self.assertEqual(
+            self.sibling.content_version_id,
+            self.cv.pk,
+            "Sibling must still share the original canonical CV after editing an unrelated channel.",
+        )
+
+    def test_detach_and_edit_target_body_is_custom_not_master(self):
+        """After detach_and_edit, the target's CV has the custom body."""
+        from syndication.services import detach_and_edit
+
+        detach_and_edit(self.user, self.target, body="custom fetlife body")
+        self.target.refresh_from_db()
+        self.target.content_version.refresh_from_db()
+        self.assertEqual(
+            self.target.content_version.body,
+            "custom fetlife body",
+        )
+
+
+class DetachSyncSourceClearTest(TestCase):
+    """
+    detach_sync_source(projection) clears sync_source without confirmation.
+    Used when the user edits a synced channel.
+    """
+
+    def setUp(self):
+        self.user = _make_user(username="detach_user2", email="detach2@test.com", password="pw")
+        self.profile = _make_profile("Detach Org2", "detach-org2", user=self.user)
+        self.event = _make_event(self.profile, "Detach Event2", "detach-event2")
+        self.cv = _make_canonical_cv(self.event)
+        self.conn_switch = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="switch",
+            destination_id="own-page2",
+            kinds=["listing"],
+        )
+        self.conn_fetlife = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="fetlife",
+            destination_id="fl-detach2",
+            kinds=["listing"],
+        )
+        self.source = _make_projection(self.conn_switch, self.event, self.cv)
+        # Target shares the source's CV (live-share)
+        self.target = PlatformProjection.objects.create(
+            connection=self.conn_fetlife,
+            kind="listing",
+            status=PlatformProjection.Status.DRAFT,
+            source_event=self.event,
+            content_version=self.cv,
             sync_source=self.source,
         )
 
@@ -295,18 +415,9 @@ class DetachOnSyncSourceTest(TestCase):
         self.target.refresh_from_db()
         self.assertIsNone(self.target.sync_source)
 
-    def test_detach_leaves_content_version_unchanged(self):
-        """detach_sync_source does NOT change the content_version (independent copy stays)."""
-        from syndication.services import detach_sync_source
-
-        original_cv_pk = self.target.content_version_id
-        detach_sync_source(self.target)
-        self.target.refresh_from_db()
-        self.assertEqual(self.target.content_version_id, original_cv_pk)
-
 
 # ---------------------------------------------------------------------------
-# (D) Re-sync — cycle guard RAISES before copy_from
+# (D) Re-sync — cycle guard RAISES before re-share
 # ---------------------------------------------------------------------------
 
 
@@ -340,19 +451,13 @@ class ResyncCycleGuardTest(TestCase):
             kinds=["promotion"],
         )
         self.independent_proj = _make_projection(self.conn_switch, self.event, self.cv)
-        # fetlife syncs FROM switch (independent_proj)
-        fl_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fl-copy",
-            body="copied",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
-        )
+        # fetlife SHARES CV from switch (independent_proj) — live-share
         self.synced_proj = PlatformProjection.objects.create(
             connection=self.conn_fetlife,
             kind="listing",
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            content_version=fl_cv,
+            content_version=self.cv,  # shares canonical
             sync_source=self.independent_proj,
         )
 
@@ -414,20 +519,21 @@ class ResyncCycleGuardTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# (E) Snapshot-no-propagation — source edits don't bleed to downstream
+# (E) Live-propagation — source edits DO reach synced channels (shared row)
 # ---------------------------------------------------------------------------
 
 
-class SnapshotNoPropagationTest(TestCase):
+class LivePropagationTest(TestCase):
     """
-    After sync_projection_from, editing the SOURCE's content_version does NOT
-    change the downstream (synced) projection's content (no live propagation).
+    After sync_projection_from, editing the SOURCE's content_version DOES
+    change the downstream (synced) projection's content (live-follow).
+    This is the inverse of the old snapshot-no-propagation test.
     """
 
     def setUp(self):
-        self.user = _make_user(username="snapshot_user", email="snapshot@test.com", password="pw")
-        self.profile = _make_profile("Snapshot Org", "snapshot-org", user=self.user)
-        self.event = _make_event(self.profile, "Snapshot Event", "snapshot-event")
+        self.user = _make_user(username="liveprop_user", email="liveprop@test.com", password="pw")
+        self.profile = _make_profile("LiveProp Org", "liveprop-org", user=self.user)
+        self.event = _make_event(self.profile, "LiveProp Event", "liveprop-event")
         self.cv = _make_canonical_cv(self.event)
         self.cv.body = "original source body"
         self.cv.save(update_fields=["body", "updated_at"])
@@ -440,48 +546,96 @@ class SnapshotNoPropagationTest(TestCase):
         self.conn_fetlife = PlatformConnection.objects.create(
             organizer=self.profile,
             platform="fetlife",
-            destination_id="fl-snapshot",
+            destination_id="fl-liveprop",
+            kinds=["listing"],
+        )
+        self.conn_telegram = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="tg-liveprop",
             kinds=["listing"],
         )
         self.source = _make_projection(self.conn_switch, self.event, self.cv)
-        # Create target and sync it
+        # Create two targets and sync them
         target_cv = ContentVersion.objects.create(
             event=self.event,
-            name="fl-snapshot",
+            name="fl-liveprop",
             body="old fetlife content",
             provenance=ContentVersion.Provenance.RULE_TEMPLATE,
         )
-        self.target = PlatformProjection.objects.create(
+        self.target1 = PlatformProjection.objects.create(
             connection=self.conn_fetlife,
             kind="listing",
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
             content_version=target_cv,
         )
+        target2_cv = ContentVersion.objects.create(
+            event=self.event,
+            name="tg-liveprop",
+            body="old telegram content",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        self.target2 = PlatformProjection.objects.create(
+            connection=self.conn_telegram,
+            kind="listing",
+            status=PlatformProjection.Status.DRAFT,
+            source_event=self.event,
+            content_version=target2_cv,
+        )
 
-    def test_source_edit_does_not_propagate_to_synced_downstream(self):
+    def test_source_edit_propagates_to_synced_downstream(self):
         """
-        Editing source's CV body after a sync does NOT change target's CV body.
-        This verifies snapshot semantics (no live propagation).
+        kb-s41r LIVE-PROPAGATION: Editing source's CV body after sync DOES change
+        target's CV body (shared row — single-row write-once-broadcast).
         """
         from syndication.services import edit_version, sync_projection_from
 
-        # Step 1: sync target from source
-        sync_projection_from(user=self.user, target=self.target, source=self.source)
-        self.target.refresh_from_db()
-        downstream_cv_pk = self.target.content_version_id
-
-        # Capture synced body
-        downstream_cv = ContentVersion.objects.get(pk=downstream_cv_pk)
-        synced_body = downstream_cv.body
+        # Step 1: sync target from source (now shares the CV row)
+        sync_projection_from(user=self.user, target=self.target1, source=self.source)
+        self.target1.refresh_from_db()
 
         # Step 2: edit the SOURCE's content_version
         edit_version(user=self.user, version=self.source.content_version, body="UPDATED SOURCE BODY")
 
-        # Step 3: downstream's CV must NOT have changed
-        downstream_cv.refresh_from_db()
-        self.assertEqual(downstream_cv.body, synced_body)
-        self.assertNotEqual(downstream_cv.body, "UPDATED SOURCE BODY")
+        # Step 3: downstream's CV MUST reflect the update (same row)
+        self.target1.refresh_from_db()
+        self.target1.content_version.refresh_from_db()
+        self.assertEqual(
+            self.target1.content_version.body,
+            "UPDATED SOURCE BODY",
+            "kb-s41r: source edit must propagate to synced target (live-share, shared row).",
+        )
+
+    def test_source_edit_propagates_to_both_synced_channels(self):
+        """
+        kb-s41r: Two synced channels both follow master edit (FetLife + Telegram symptom fix).
+        """
+        from syndication.services import edit_version, sync_projection_from
+
+        # Sync both targets from source
+        sync_projection_from(user=self.user, target=self.target1, source=self.source)
+        sync_projection_from(user=self.user, target=self.target2, source=self.source)
+
+        # Edit the source
+        edit_version(user=self.user, version=self.source.content_version, body="BROADCAST UPDATE")
+
+        # Both must reflect the update
+        self.target1.refresh_from_db()
+        self.target1.content_version.refresh_from_db()
+        self.target2.refresh_from_db()
+        self.target2.content_version.refresh_from_db()
+
+        self.assertEqual(
+            self.target1.content_version.body,
+            "BROADCAST UPDATE",
+            "kb-s41r: first synced target must follow master edit.",
+        )
+        self.assertEqual(
+            self.target2.content_version.body,
+            "BROADCAST UPDATE",
+            "kb-s41r: second synced target must follow master edit (FetLife-updates-but-Telegram-doesn't symptom).",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -493,7 +647,7 @@ class ThreeRenderStatesTemplateTest(TestCase):
     """
     The event_syndication template must render the correct state indicator for:
     (i)  sync_source IS NULL AND content_version IS the shared canonical → "Shared"
-    (ii) sync_source IS NOT NULL → "Copied from <channel>" (kb-nexw.3 snapshot label)
+    (ii) sync_source IS NOT NULL → "Synced from <channel>" + "follows <source> edits"
     (iii) own content_version AND sync_source IS NULL (was once synced, now detached) → "Custom"
 
     Assertions on response.content, NOT response.context.
@@ -527,7 +681,6 @@ class ThreeRenderStatesTemplateTest(TestCase):
         """
         State (i): projection on canonical CV + sync_source NULL → shows "Shared" indicator.
         The Switch projection always starts on the canonical and has no sync_source.
-        Renamed "Synced" → "Shared" to surface the broadcast behavior (kb-shzi.5).
         """
         _make_projection(self.conn_switch, self.event, self.cv)
         response = self._get_fragment(self.event)
@@ -536,30 +689,25 @@ class ThreeRenderStatesTemplateTest(TestCase):
         # Switch is on canonical → shows "Shared" indicator (edits broadcast to all sharers)
         self.assertIn("Shared", content)
 
-    def test_state_ii_sync_source_set_shows_copied_from_channel(self):
+    def test_state_ii_sync_source_set_shows_synced_from_channel(self):
         """
-        State (ii): projection has its own CV + sync_source set → shows "Copied from <channel>"
-        (kb-nexw.3 snapshot label — old label "Synced from" overstated live-sync semantics).
+        State (ii): projection has sync_source set → shows "Synced from <channel>"
+        (kb-s41r live-follow label — replaces old "Copied from" snapshot label).
         """
         source = _make_projection(self.conn_switch, self.event, self.cv)
-        target_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fl-synced",
-            body="copied body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
-        )
+        # Under live-share, target shares the same CV
         PlatformProjection.objects.create(
             connection=self.conn_fetlife,
             kind="listing",
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            content_version=target_cv,
+            content_version=self.cv,  # shares source's CV
             sync_source=source,
         )
         response = self._get_fragment(self.event)
         content = response.content.decode()
-        # State (ii): FetLife is a snapshot from Switch → shows "Copied from" label
-        self.assertIn("Copied from", content)
+        # State (ii): FetLife follows Switch live → shows "Synced from" label
+        self.assertIn("Synced from", content)
 
     def test_state_iii_detached_shows_custom_indicator(self):
         """
@@ -585,32 +733,31 @@ class ThreeRenderStatesTemplateTest(TestCase):
         # State (iii): FetLife has own CV and no sync_source → shows "Custom"
         self.assertIn("Custom", content)
 
-    def test_state_ii_shows_snapshot_sub_label(self):
+    def test_state_ii_shows_live_follow_sub_label(self):
         """
-        kb-nexw.3: State (ii) sync bar must include 'won't follow later edits' to
-        surface the snapshot semantics (replaces old 'editing detaches' from kb-shzi.5).
+        kb-s41r: State (ii) sync bar must include a label indicating LIVE FOLLOW
+        (e.g. "follows" or "live"), NOT the old "won't follow later edits" snapshot copy.
         """
         source = _make_projection(self.conn_switch, self.event, self.cv)
-        target_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fl-synced-ii",
-            body="synced body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
-        )
         PlatformProjection.objects.create(
             connection=self.conn_fetlife,
             kind="listing",
             status=PlatformProjection.Status.DRAFT,
             source_event=self.event,
-            content_version=target_cv,
+            content_version=self.cv,  # shares source's CV
             sync_source=source,
         )
         response = self._get_fragment(self.event)
         content = response.content.decode()
         self.assertIn(
+            "follows",
+            content,
+            "State (ii) sync bar must show 'follows' (live-follow semantics, kb-s41r)",
+        )
+        self.assertNotIn(
             "won't follow later edits",
             content,
-            "State (ii) sync bar must show 'won't follow later edits' (snapshot semantics, kb-nexw.3)",
+            "State (ii) sync bar must NOT show old snapshot copy 'won't follow later edits'",
         )
 
     def test_state_i_shows_shared_label_not_synced(self):
@@ -811,6 +958,23 @@ class SyncEndpointTest(TestCase):
         self.target_proj.refresh_from_db()
         self.assertEqual(self.target_proj.sync_source_id, self.source_proj.pk)
 
+    def test_copy_from_endpoint_shares_source_cv_row(self):
+        """
+        kb-s41r: POST to version-copy-from must make target SHARE source's CV row,
+        not mint an independent copy.
+        """
+        original_source_cv_pk = self.source_proj.content_version_id
+        self.client.post(
+            self._url(self.target_proj.pk),
+            {"source_projection_pk": self.source_proj.pk},
+        )
+        self.target_proj.refresh_from_db()
+        self.assertEqual(
+            self.target_proj.content_version_id,
+            original_source_cv_pk,
+            "kb-s41r: endpoint must make target SHARE source's CV row (same PK), not copy.",
+        )
+
     def test_copy_from_endpoint_cycle_guard_rejects_synced_source(self):
         """
         POST to version-copy-from where source has sync_source set must fail
@@ -818,8 +982,6 @@ class SyncEndpointTest(TestCase):
         The endpoint must surface an error — not silently sync from a chained source.
         """
         # Make source_proj itself synced (non-null sync_source)
-        self.source_proj.sync_source = self.source_proj  # self-reference not realistic
-        # More realistic: make a third projection the source's source
         third_cv = ContentVersion.objects.create(
             event=self.event,
             name="third-cv",

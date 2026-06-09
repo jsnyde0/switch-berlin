@@ -44,7 +44,6 @@ from syndication.services import (
     create_post,
     customize,
     detach_and_edit,
-    detach_sync_source,
     duplicate,
     edit_after_publish_policy,
     edit_version,
@@ -1864,14 +1863,14 @@ def version_edit(request, pk):
             return _publishable_fragment_response_for_cv(request, version, action_error=str(exc))
         return _publishable_hub_redirect_for_cv(version)
 
-    # Acceptance bullet 4: detach-on-edit.
-    # If any projection pointing at this version has sync_source set, clear it now.
-    # The content already diverged (edit_version just mutated it); persisting the
-    # detach makes the state consistent: own CV + sync_source NULL → "Custom".
-    # No auth re-gate: edit_version above already confirmed can_edit authority.
-    _synced_consumers = list(version.projections.filter(sync_source__isnull=False))
-    for _proj in _synced_consumers:
-        detach_sync_source(_proj)
+    # kb-s41r FIX 1: under live-share, version_edit is the MASTER/SOURCE edit path.
+    # Followers share this CV row — editing it broadcasts to them automatically.
+    # Do NOT detach followers here: their sync_source must stay intact so they
+    # continue rendering "Synced from <source>" (live-follow state).
+    # Detach-on-edit only applies when a FOLLOWER edits its own per-channel tab
+    # via projection_detach_and_edit — that path is handled in detach_and_edit().
+    # (Removed the old snapshot-era detach block that called detach_sync_source on
+    # every synced consumer after a master edit — wrong under live-share.)
 
     if request.headers.get("HX-Request"):
         # kb-lprn: server-driven OOB badge update.

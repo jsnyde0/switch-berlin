@@ -995,23 +995,28 @@ def copy_to(user, source_version, target_projections):
 
 def sync_projection_from(user, target, source):
     """
-    Sync a target projection FROM a source projection (kb-ide0.4 D4).
+    Sync a target projection FROM a source projection (kb-s41r live-share).
 
-    Mechanism: snapshot + persisted pointer (ADR-016 D2 evolved):
+    Mechanism: live-share + persisted pointer (ADR-016 D2 re-resolved 2026-06-09):
     1. Cycle guard (ADR-008 D3 fail-loud): RAISE if source.sync_source is non-null.
        A projection is a legal sync source iff its own sync_source IS NULL.
        This prevents A→B→C chains (which would create implicit transitive coupling).
-    2. Copy source's CURRENT content_version into target as an INDEPENDENT new row
-       (calls the existing copy_from op).
-    3. Set target.sync_source = source (persisted pointer for reload survival + UI state).
+    2. Auth gate: user must be able to edit target's event (can_edit seam).
+    3. SHARE source's current content_version row with the target (same FK, no copy).
+       A source/master edit then broadcasts to all sharers automatically via the
+       existing single-row write-once-broadcast + kb-ciqf live-OOB sibling re-render.
+    4. Set target.sync_source = source (persisted pointer for reload survival + UI state).
 
-    NO live propagation: source edits after this call do NOT flow to target.
-    This is intentional — ToS-divergent destinations want divergence.
+    LIVE propagation: source edits after this call DO flow to target (shared row).
+    Divergence happens by detach-on-edit (detach_and_edit mints a new CV and clears
+    sync_source), NOT by snapshot.
 
-    Gate: user must be able to edit target's event (can_edit seam via copy_from).
+    Gate: user must be able to edit target's event (can_edit seam).
 
-    Returns the new ContentVersion minted for the target.
+    Returns the source's ContentVersion (now shared by target).
     """
+    from syndication.authz import can_edit
+
     # Cycle guard (ADR-008 D3 — fail loud, backend-enforced, not UI-only).
     if source.sync_source_id is not None:
         raise ValueError(
@@ -1022,14 +1027,22 @@ def sync_projection_from(user, target, source):
             "(ADR-008 D3: fail loud — cycle guard, backend-enforced)"
         )
 
-    # One-time snapshot: copy source's current content_version to target.
-    new_cv = copy_from(user=user, projection=target, source_version=source.content_version)
+    # Auth gate (mirrors copy_from's gate — ADR-017 D2).
+    event = _resolve_projection_event(target)
+    if not can_edit(user, event):
+        raise PermissionError(
+            f"User {user} cannot sync projection {target.pk!r} (event '{event}'). (ADR-017 D2)"
+        )
 
-    # Persist the pointer so the state survives reload.
+    # Live-share: point target at the SAME content_version row as source (no copy).
+    # A master edit on the source CV now reaches all sharers automatically.
+    target.content_version = source.content_version
+
+    # Persist the sync_source pointer so the state survives reload.
     target.sync_source = source
-    target.save(update_fields=["sync_source", "updated_at"])
+    target.save(update_fields=["content_version", "sync_source", "updated_at"])
 
-    return new_cv
+    return source.content_version
 
 
 def detach_sync_source(projection):
@@ -1238,14 +1251,22 @@ def detach_and_edit(user, projection, **fields):
     consumer projection. Any of these cases means a customize is required
     before editing.
 
-    FIX B (kb-kgza.2): if the projection has sync_source set (state ii: own CV
-    + sync_source SET), clear it after detach so the result is a clean state-iii
-    (own CV + sync_source NULL), as ADR-016 D2 mandates.
+    FIX B (kb-kgza.2): if the projection has sync_source set (state ii — shares
+    source's CV, sync_source SET), clear it after forking so the result is a
+    clean state-iii (own CV + sync_source NULL), as ADR-016 D2 mandates.
+
+    FIX 2 (kb-s41r): if the edited projection IS itself a source (it has live
+    followers — other projections with sync_source pointing at it), re-point
+    those followers to the NEW CV after the fork so they stay in sync. A
+    follower must never be left on the source's old stale CV while still showing
+    "Synced from … follows live" (ADR-008 D3 — fail-loud on data integrity;
+    stale-under-live-label is the exact failure the owner reported twice).
 
     Procedure:
-    1. If the projection shares its CV (state i or multi-consumer), call
-       customize(user, projection) — mints a new independent CV, repoints the
-       FK. Clear sync_source if set (→ state iii).
+    1. If the projection shares its CV (state i or state ii multi-consumer), call
+       customize(user, projection) — mints a new independent CV, repoints the FK.
+       Re-point any live followers (sync_dependents) to the new CV (FIX 2).
+       Clear sync_source if set (→ state iii).
     2. If already on its own independent CV (state iii), skip customize.
        Clear sync_source if set (state ii → state iii).
     3. Call edit_version(user, cv, **fields) — applies body/headline/etc. edits.
@@ -1269,15 +1290,36 @@ def detach_and_edit(user, projection, **fields):
     needs_customize = current_cv.name == "canonical" or consumer_count > 1
 
     if needs_customize:
+        # kb-s41r FIX 2: find live followers (projections whose sync_source points at
+        # THIS projection) BEFORE forking, so we can re-point them to the new CV.
+        # A live follower A (sync_source=B) currently shares B's CV. When B forks,
+        # A must be brought along to B's new CV — otherwise A stays on B's OLD
+        # (stale) CV while its badge still says "Synced from B · follows … live",
+        # the exact "synced channel shows stale content" failure.
+        # We collect by projection FK (sync_dependents), not by CV, so we only
+        # re-point channels that FOLLOW this specific projection (not all CV sharers).
+        _live_followers = list(projection.sync_dependents.all())
+
         cv = customize(user, projection)
         # Refresh so content_version FK resolves to the newly minted CV.
         projection.refresh_from_db()
+
+        # Re-point each live follower to the new CV so they stay in sync.
+        # Their sync_source remains set — they keep following this projection's new row.
+        if _live_followers:
+            new_cv = projection.content_version
+            from syndication.models import PlatformProjection as _PP
+            _PP.objects.filter(pk__in=[f.pk for f in _live_followers]).update(
+                content_version=new_cv
+            )
     else:
         # Already on an independent CV — edit in place, no new row.
         cv = current_cv
 
     # FIX B: clear sync_source if set (state ii → state iii).
     # ADR-016 D2: detached = own CV + sync_source NULL.
+    # Note: this clears sync_source on the EDITED projection (follower editing its own
+    # per-channel tab). The live_followers above are NOT cleared — they keep following.
     if projection.sync_source_id is not None:
         detach_sync_source(projection)
 

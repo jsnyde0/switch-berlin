@@ -275,11 +275,11 @@ class EventSyncPickerCanonicalStateTest(TestCase):
 
 class EventSyncPickerSyncedStateTest(TestCase):
     """
-    Sync picker in event_syndication.html for a peer-snapshot (state ii) channel.
+    Sync picker in event_syndication.html for a live-follow (state ii) channel.
 
-    State (ii): projection has sync_source set (own CV, sync_source NOT NULL).
-    The picker renders 'Copied from <platform>' + '· snapshot, won't follow later edits'
-    (kb-nexw.3 — relabeled from 'Synced from' to surface snapshot semantics).
+    State (ii): projection has sync_source set (shares source CV, sync_source NOT NULL).
+    The picker renders 'Synced from <platform>' + '· follows source edits live'
+    (kb-s41r — live-follow semantics; replaces old kb-nexw.3 snapshot label).
     """
 
     def setUp(self):
@@ -291,30 +291,26 @@ class EventSyncPickerSyncedStateTest(TestCase):
         self.conn_fl = _make_connection(self.profile, "fetlife", "fl-sync-ii", ["listing"])
         self.canonical_cv = _make_canonical_cv(event=self.event, body="switch body for state ii")
         self.switch_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
-        # FetLife has its own CV, synced from switch (state ii)
-        self.fl_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fl-sync-ii-cv",
-            body="copied switch body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        # FetLife shares switch's canonical CV (live-share, state ii)
+        self.fl_proj = _make_listing_projection(
+            self.conn_fl, self.event, self.canonical_cv, sync_source=self.switch_proj
         )
-        self.fl_proj = _make_listing_projection(self.conn_fl, self.event, self.fl_cv, sync_source=self.switch_proj)
         self.url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
         self.client.force_login(self.user)
 
-    def test_copied_from_badge_present(self):
-        """State (ii): 'Copied from' badge must be visible (kb-nexw.3 snapshot label)."""
+    def test_synced_from_badge_present(self):
+        """State (ii): 'Synced from' badge must be visible (kb-s41r live-follow label)."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn("Copied from", content)
+        self.assertIn("Synced from", content)
 
-    def test_snapshot_sub_label_present(self):
-        """State (ii): '· snapshot, won't follow later edits' hint must be visible (kb-nexw.3)."""
+    def test_live_follow_sub_label_present(self):
+        """State (ii): '· follows source edits live' hint must be visible (kb-s41r)."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn("won't follow later edits", content)
+        self.assertIn("follows", content)
 
     def test_reset_button_present(self):
         """State (ii): Reset button must be present for synced channels."""
@@ -756,14 +752,15 @@ class PostChannelEditorPublishedTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Post composer: sync picker — state (i) canonical/shared (Copy-from direct)
+# Post composer: sync picker — state (i) canonical/shared (Sync-from direct)
 # ---------------------------------------------------------------------------
 
 
 class PostSyncPickerCanonicalStateTest(TestCase):
     """
     Sync picker in post_syndication.html for canonical/synced state (state i/ii).
-    The 'Copy from' form renders directly (no discard modal).
+    The 'Sync from' form renders directly (no discard modal).
+    (Label changed from 'Copy from' to 'Sync from' by kb-s41r — shares, not copies.)
     """
 
     def setUp(self):
@@ -785,11 +782,12 @@ class PostSyncPickerCanonicalStateTest(TestCase):
         self.client.force_login(self.user)
 
     def test_copy_from_label_present(self):
-        """State (i/ii): 'Copy from' label must be present (no modal for state i)."""
+        """State (i/ii): 'Sync from' label must be present (no modal for state i/ii).
+        (kb-s41r: label changed from 'Copy from' to 'Sync from' — live-share semantics.)"""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn("Copy from", content)
+        self.assertIn("Sync from", content)
 
     def test_copy_from_apply_button_present(self):
         """State (i/ii): 'Apply' button must be present."""

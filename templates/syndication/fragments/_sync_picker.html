@@ -22,9 +22,9 @@ States:
   (iii) own CV + sync_source NULL (content_version.name != "canonical")
         → discard-confirm modal required before re-sync.
         Label: "Sync from"
-  (i)/(ii) canonical CV OR own CV + sync_source set
-        → submit directly, no confirmation.
-        Label: "Copy from"
+  (i)/(ii) canonical CV OR sync_source set (shares source's CV)
+        → submit directly, no confirmation (no local edits to lose).
+        Label: "Sync from" (matches state iii — shares, not copies)
 
 kb-kgza.4 fixes:
   Bug 1: both copy-from forms now carry <input name="selected_pk"> so
@@ -92,7 +92,7 @@ kb-kgza.4 fixes:
           {% trans "Discard your edits?" %}
         </p>
         <p class="text-[12px] text-base-content/50 mb-5 leading-relaxed">
-          {% trans "Re-syncing will replace your custom content for this channel with a snapshot from the chosen source. Your current edits will be lost." %}
+          {% trans "Re-syncing will discard this channel's custom content and follow the chosen source again. Your current edits will be lost." %}
         </p>
         <div class="flex items-center gap-3">
           <form method="post"
@@ -129,7 +129,7 @@ kb-kgza.4 fixes:
           hx-swap="outerHTML"
           class="flex items-center gap-1.5">
       {% csrf_token %}
-      <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Copy from" %}</span>
+      <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Sync from" %}</span>
       <input type="hidden" name="selected_pk" :value="selectedPk">
       <div class="relative">
         <select name="source_projection_pk"

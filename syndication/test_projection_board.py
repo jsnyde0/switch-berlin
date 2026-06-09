@@ -2341,11 +2341,36 @@ class VersionCopyFromEndpointTest(TestCase):
             "(sw-copyfrom-2) — proves it's the correct syndication fragment, not an error page.",
         )
 
-    def test_copy_from_endpoint_repoints_projection_at_new_version(self):
-        """POST version-copy-from repoints the target projection at a new independent version."""
+    def test_copy_from_endpoint_repoints_projection_to_share_source_cv(self):
+        """
+        POST version-copy-from repoints the target projection to SHARE the source's CV row.
+        kb-s41r live-share: target.content_version_id == source.content_version_id (same row).
+
+        Note: proj_tgt is given its own independent CV first (not the canonical) so that
+        assertNotEqual(old_tgt_cv_pk, src_cv_pk) is meaningful.
+        """
+        from syndication.models import ContentVersion
+
         proj_src = _make_listing_projection(self.conn, self.event)
-        proj_tgt = _make_listing_projection(self.conn2, self.event)
+
+        # Give the target its own distinct CV (not the shared canonical) so we can detect
+        # that copy-from repoints it to the source's canonical CV.
+        own_cv = ContentVersion.objects.create(
+            event=self.event,
+            name="tgt-own-cv",
+            provenance="rule_template",
+        )
+        proj_tgt = PlatformProjection.objects.create(
+            kind=PlatformProjection.Kind.LISTING,
+            status="draft",
+            connection=self.conn2,
+            source_event=self.event,
+            content_version=own_cv,
+        )
         old_tgt_cv_pk = proj_tgt.content_version_id
+
+        # Sanity: they start on different CVs
+        self.assertNotEqual(old_tgt_cv_pk, proj_src.content_version_id)
 
         self.client.post(
             f"/syndication/projections/{proj_tgt.pk}/copy-from/",
@@ -2357,12 +2382,12 @@ class VersionCopyFromEndpointTest(TestCase):
         self.assertNotEqual(
             proj_tgt.content_version_id,
             old_tgt_cv_pk,
-            "copy-from must repoint projection at a new version (not the old one)",
+            "copy-from must repoint projection away from its old CV",
         )
-        self.assertNotEqual(
+        self.assertEqual(
             proj_tgt.content_version_id,
             proj_src.content_version_id,
-            "copy-from must create a NEW independent row, not point at source version",
+            "kb-s41r: copy-from must make target SHARE the source's CV row (live-follow, not independent copy)",
         )
 
     def test_copy_from_endpoint_authz_non_claimant_gets_403(self):

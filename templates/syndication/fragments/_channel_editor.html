@@ -84,7 +84,7 @@ inlines policy logic (ADR-003 cheap foresight seam).{% endcomment %}
       F4 (kb-lprn lesson): three-state badge — must match _sync_bar.html.
       Switch is the canonical home (ADR-010 D1) so it is normally state (i).
       State (i)  canonical CV + sync_source NULL → "Shared"
-      State (ii) own CV + sync_source SET        → "Copied from <peer> · snapshot, won't follow later edits"
+      State (ii) sync_source SET (shares source CV) → "Synced from <peer> · follows source edits live"
 State (iii) own CV + sync_source NULL      → "Custom"{% endcomment %}
 <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
 {% if proj.content_version.name == "canonical" and not proj.sync_source %}
@@ -110,16 +110,16 @@ F3: count uses "Shared across N channels" wording (N = total sharers).{% endcomm
 </button>
 </form>
 {% elif proj.sync_source %}
-{% comment %}State (ii): own CV + sync_source set — "Copied from <peer>".
+{% comment %}State (ii): sync_source set — "Synced from <peer>" (live-follow, kb-s41r).
 Unusual for Switch (ADR-010 D1) but must render correctly if it occurs.
-One-time snapshot — source's later edits do NOT propagate (ADR-016 D2).{% endcomment %}
+Live-share — source's later edits DO propagate (ADR-016 D2 re-resolved 2026-06-09).{% endcomment %}
 <div class="flex items-center gap-2">
 <span class="flex items-center gap-2 px-2.5 py-1.5 border border-emerald-400/20" style="background: rgba(52,211,153,0.04)">
 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0"></span>
 <span class="kb-mono text-[10px] uppercase tracking-[0.14em] text-emerald-400/80">
-{% trans "Copied from" %} {{ proj.sync_source.connection.platform }}
+{% trans "Synced from" %} {{ proj.sync_source.connection.platform }}
 </span>
-<span class="kb-mono text-[9px] text-emerald-400/40">{% trans "· snapshot, won't follow later edits" %}</span>
+<span class="kb-mono text-[9px] text-emerald-400/40">{% trans "· follows source edits live" %}</span>
 </span>
 <form method="post" action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-target="{{ fragment_target }}" hx-swap="outerHTML">
 {% csrf_token %}

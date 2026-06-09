@@ -455,28 +455,33 @@ class PlatformProjection(models.Model):
         ),
     )
 
-    # Sync-source self-FK (kb-ide0.4 D4 — snapshot + persisted pointer mechanism).
-    # ADR-016 D2 evolved: a nullable FK to the source PlatformProjection within
-    # the same publishable's projection set. Records which channel this one
-    # last synced FROM (snapshot at sync time; no live propagation).
+    # Sync-source self-FK (kb-s41r live-share mechanism — ADR-016 D2 re-resolved 2026-06-09).
+    # A nullable FK to the source PlatformProjection within the same publishable's
+    # projection set. Records which channel this one syncs FROM (live-share: shares
+    # the source's content_version row; source edits propagate automatically).
     #
     # Three render states:
     #   (i) content_version IS the shared canonical row AND sync_source IS NULL
     #       → "Shared" (synced live from canonical — default)
-    #  (ii) own content_version AND sync_source IS NOT NULL
-    #       → "Copied from <that peer channel>" (one-time snapshot — won't follow later edits)
+    #  (ii) sync_source IS NOT NULL (shares source's content_version row)
+    #       → "Synced from <that peer channel> · follows source edits live"
     # (iii) own content_version AND sync_source IS NULL
     #       → "Custom / detached"
     #
-    # Detach: clear sync_source when the user edits the channel (no confirm).
-    # Re-sync: discard-confirm → copy_from again + re-set sync_source.
+    # LIVE propagation: a source edit writes to the shared CV row and reaches all
+    # followers automatically (single-row write-once-broadcast + kb-ciqf OOB sibling
+    # re-render). No snapshot copy needed.
+    # Detach-on-edit: when a FOLLOWER edits its per-channel body, it forks to its own
+    # new CV (customize) and sync_source is cleared → state (iii). This is the only
+    # path that diverges a channel; editing the SOURCE does NOT detach followers.
+    # Re-sync: discard-confirm → re-share the source's current row + re-set sync_source.
     # Cycle guard (backend): a projection is a legal source iff its own
     # sync_source IS NULL. Service raises if asked to sync from a non-null-source
     # projection (ADR-008 D3 fail-loud).
     #
     # on_delete=SET_NULL: deleting the source projection nulls this pointer
-    # (the synced channel keeps its independent content_version, just loses
-    # the recorded link — graceful degradation to "Custom" state).
+    # (the synced channel keeps its own forked content_version if detached, or falls
+    # back to the canonical if still sharing — graceful degradation).
     sync_source = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -484,8 +489,9 @@ class PlatformProjection(models.Model):
         blank=True,
         related_name="sync_dependents",
         help_text=(
-            "The source PlatformProjection this one last synced FROM (snapshot-plus-pointer). "
-            "NULL = not synced (canonical or custom). Non-null = synced from that peer. "
+            "The source PlatformProjection this one syncs FROM (live-share: shares source's "
+            "content_version row; source edits propagate live). "
+            "NULL = not synced (canonical or custom). Non-null = live-following that peer. "
             "A projection is a legal sync source iff its OWN sync_source IS NULL (cycle guard)."
         ),
     )

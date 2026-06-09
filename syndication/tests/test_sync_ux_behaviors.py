@@ -110,9 +110,15 @@ def _make_promotion_projection(conn, post, cv, sync_source=None):
 
 class DetachOnEditEventComposerTest(TestCase):
     """
-    POST to version-edit on a projection whose sync_source IS NOT NULL must:
-    1. Clear sync_source (projection.sync_source becomes None after the edit).
+    kb-s41r (live-share): A follower projection in state (ii) (shares source's CV,
+    sync_source NOT NULL) that edits its own per-channel body must:
+    1. Detach — fork to its own independent CV (clear sync_source).
     2. Re-render the event_syndication fragment showing "Custom" indicator.
+
+    Under live-share, the correct edit path for a follower is
+    projection_detach_and_edit (NOT version-edit on the shared CV, which is the
+    master/source path). Test setup uses live-share state: follower shares the
+    canonical CV.
 
     Acceptance bullet 4 — event composer side.
     """
@@ -140,34 +146,31 @@ class DetachOnEditEventComposerTest(TestCase):
         )
         self.source_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
 
-        # FetLife has its own CV and is synced from switch (state ii)
-        self.fl_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fl-detach-edit-cv",
-            body="copied switch body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        # kb-s41r live-share: FetLife SHARES canonical CV (not its own snapshot CV)
+        self.fl_proj = _make_listing_projection(
+            self.conn_fetlife, self.event, self.canonical_cv, sync_source=self.source_proj
         )
-        self.fl_proj = _make_listing_projection(self.conn_fetlife, self.event, self.fl_cv, sync_source=self.source_proj)
         self.client.force_login(self.user)
 
     def test_edit_synced_projection_clears_sync_source(self):
         """
-        POST to version-edit on a synced projection clears sync_source.
+        POST to projection-detach-and-edit on a live-share follower clears sync_source.
+        Under live-share, follower edits its per-channel body via this endpoint.
         Assertion: after the POST, projection.sync_source is None.
         """
-        url = reverse("syndication:version-edit", kwargs={"pk": self.fl_cv.pk})
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
         self.client.post(url, {"body": "edited content — now custom"})
         self.fl_proj.refresh_from_db()
         self.assertIsNone(self.fl_proj.sync_source)
 
     def test_edit_synced_projection_fragment_shows_custom(self):
         """
-        After POSTing version-edit on a synced projection, the re-rendered
-        fragment response carries "Custom" indicator (state iii).
+        After POSTing projection-detach-and-edit on a live-share follower, the
+        OOB sync-bar response carries "Custom" indicator (state iii).
         Assertion on response.content.
         """
-        url = reverse("syndication:version-edit", kwargs={"pk": self.fl_cv.pk})
-        # Use HTMX header so the view returns the fragment (not a redirect)
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
+        # Use HTMX header so the view returns OOB fragments (not a redirect)
         response = self.client.post(
             url,
             {"body": "edited content — now custom"},
@@ -179,14 +182,21 @@ class DetachOnEditEventComposerTest(TestCase):
 
     def test_edit_unsynced_projection_does_not_touch_sync_source(self):
         """
-        POST to version-edit on a projection with sync_source NULL (already custom)
-        must NOT change anything about sync_source (no spurious write).
+        POST to projection-detach-and-edit on a projection with sync_source NULL
+        (already custom) must NOT change anything about sync_source.
         """
-        # Detach first so fl_proj starts with sync_source=None
+        # Put fl_proj in state iii: own CV + sync_source NULL
+        own_cv = ContentVersion.objects.create(
+            event=self.event,
+            name="fl-already-custom",
+            body="already custom body",
+            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        )
+        self.fl_proj.content_version = own_cv
         self.fl_proj.sync_source = None
-        self.fl_proj.save(update_fields=["sync_source", "updated_at"])
+        self.fl_proj.save(update_fields=["content_version", "sync_source", "updated_at"])
 
-        url = reverse("syndication:version-edit", kwargs={"pk": self.fl_cv.pk})
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
         self.client.post(url, {"body": "further edit"})
         self.fl_proj.refresh_from_db()
         self.assertIsNone(self.fl_proj.sync_source)
@@ -199,9 +209,13 @@ class DetachOnEditEventComposerTest(TestCase):
 
 class DetachOnEditPostComposerTest(TestCase):
     """
-    POST to version-edit on a post-composer projection whose sync_source IS NOT NULL must:
-    1. Clear sync_source.
+    kb-s41r (live-share): A post-composer follower projection in state (ii) (shares
+    source's CV, sync_source NOT NULL) that edits its own per-channel body must:
+    1. Clear sync_source (detach to state iii).
     2. Re-render the post_syndication fragment showing "Custom" indicator.
+
+    Under live-share, the follower edits via projection_detach_and_edit.
+    Test setup uses live-share state: FetLife shares Telegram's CV.
 
     Acceptance bullet 4 — post composer side.
     """
@@ -231,40 +245,30 @@ class DetachOnEditPostComposerTest(TestCase):
             kinds=["promotion"],
         )
 
-        # Telegram is the "source" projection (synced from canonical; no sync_source itself)
-        self.tg_cv = ContentVersion.objects.create(
-            post=self.post,
-            name="tg-detach-edit-cv",
-            body="telegram-copy",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
-        )
-        self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.tg_cv)
+        # Telegram is the "source" projection (on canonical CV; no sync_source itself)
+        self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.source_cv)
 
-        # FetLife is synced FROM telegram (state ii — has sync_source)
-        self.fl_cv = ContentVersion.objects.create(
-            post=self.post,
-            name="fl-detach-edit-post-cv",
-            body="fetlife-copy",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        # kb-s41r live-share: FetLife SHARES telegram's CV (same row)
+        self.fl_proj = _make_promotion_projection(
+            self.conn_fetlife, self.post, self.source_cv, sync_source=self.tg_proj
         )
-        self.fl_proj = _make_promotion_projection(self.conn_fetlife, self.post, self.fl_cv, sync_source=self.tg_proj)
         self.client.force_login(self.user)
 
     def test_post_composer_edit_synced_projection_clears_sync_source(self):
         """
-        POST to version-edit on a synced post-composer projection clears sync_source.
+        POST to projection-detach-and-edit on a live-share follower (post) clears sync_source.
         """
-        url = reverse("syndication:version-edit", kwargs={"pk": self.fl_cv.pk})
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
         self.client.post(url, {"body": "custom fetlife content"})
         self.fl_proj.refresh_from_db()
         self.assertIsNone(self.fl_proj.sync_source)
 
     def test_post_composer_edit_synced_projection_fragment_shows_custom(self):
         """
-        After POSTing version-edit on a synced post projection, the re-rendered
-        fragment shows "Custom" indicator.
+        After POSTing projection-detach-and-edit on a live-share follower (post),
+        the OOB response shows "Custom" indicator.
         """
-        url = reverse("syndication:version-edit", kwargs={"pk": self.fl_cv.pk})
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
         response = self.client.post(
             url,
             {"body": "custom fetlife content"},
@@ -609,16 +613,16 @@ class DiscardConfirmModalPostComposerTest(TestCase):
 
 class OOBSyncBarOnAutosaveDetachTest(TestCase):
     """
-    (M) Detach case: POST to version-edit on a channel with sync_source SET
-    (own CV, state ii — "Synced from <peer>") must return a response whose
+    (M) Detach case: POST to projection-detach-and-edit on a live-share follower
+    (state ii — sync_source SET, shares source's CV) must return a response whose
     CONTENT contains:
     - hx-swap-oob="true" (the server-driven OOB fragment mechanism)
     - A sync-bar element keyed by projection pk (id="sync-bar-proj-<pk>")
     - "Custom" text inside that OOB fragment (the server confirms detach)
 
-    This is falsifiable: before the fix, version_edit returns a full-fragment
-    response with hx-swap=none; the OOB mechanism is absent from the content.
-    After the fix, the OOB sync-bar fragment is present in the response.
+    kb-s41r live-share: setup uses follower sharing canonical CV (not own snapshot CV).
+    The correct detach path for a follower is projection_detach_and_edit (per-projection
+    PK endpoint), NOT version-edit on the shared CV (that's the master path).
 
     Assertions on response.content (NOT response.context).
     """
@@ -646,29 +650,25 @@ class OOBSyncBarOnAutosaveDetachTest(TestCase):
         )
         self.source_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
 
-        # FetLife has its OWN CV and is synced from switch (state ii — "Synced from switch")
-        self.fl_cv = ContentVersion.objects.create(
-            event=self.event,
-            name="fl-oob-detach-cv",
-            body="copied switch body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
+        # kb-s41r live-share: FetLife SHARES canonical CV (not own snapshot CV)
+        self.fl_proj = _make_listing_projection(
+            self.conn_fetlife, self.event, self.canonical_cv, sync_source=self.source_proj
         )
-        self.fl_proj = _make_listing_projection(self.conn_fetlife, self.event, self.fl_cv, sync_source=self.source_proj)
         self.client.force_login(self.user)
 
     def test_autosave_detach_response_contains_oob_sync_bar_with_custom(self):
         """
-        POST to version-edit for the FetLife CV (which has sync_source set)
+        POST to projection-detach-and-edit for the FetLife projection (live-share follower)
         must return response content containing:
         1. hx-swap-oob="true" — the OOB mechanism is present
         2. id="sync-bar-proj-<fl_proj.pk>" — the per-projection anchor
         3. "Custom" — the server-confirmed detach badge text
 
-        Falsifiable: before the fix the response is a full page fragment
-        with no hx-swap-oob attribute in the content. After the fix the OOB
-        sync-bar element is present.
+        Under live-share, the follower edits via projection-detach-and-edit (its
+        projection PK), not version-edit on the shared CV. That forks it to own CV
+        and clears sync_source → the OOB sync-bar must show "Custom".
         """
-        url = reverse("syndication:version-edit", kwargs={"pk": self.fl_cv.pk})
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
         response = self.client.post(
             url,
             {"body": "edited — now custom"},
@@ -808,19 +808,16 @@ class OOBSyncBarOnAutosaveBroadcastTest(TestCase):
 
 class OOBSyncBarOnAutosavePostDetachTest(TestCase):
     """
-    (M) Post/promotion detach case: POST to version-edit on a PROMOTION projection
-    that is in state (ii) — own CV + sync_source SET ("Synced from <peer>") — must
-    return a response whose CONTENT contains:
+    (M) Post/promotion detach case: POST to projection-detach-and-edit on a
+    live-share follower PROMOTION projection (state ii — sync_source SET, shares
+    source's CV) must return a response whose CONTENT contains:
     - hx-swap-oob="true" (the OOB mechanism)
     - id="sync-bar-proj-<pk>" for the post projection
     - "Custom" badge text (server confirms detach after edit)
-    - The POST fragment target "#post-syndication" in the OOB fragment (Customize/Reset
-      forms must point at the correct full-fragment target, not #event-syndication)
+    - The POST fragment target "#post-syndication" in the OOB fragment
 
-    This exercises the path repaired by Repair 1 (three-state post inline badge):
-    before Repair 1 the OOB partial already has 3 states, but if the partial were
-    missing state-(ii), a re-render of the INLINE post fragment (not OOB) would
-    oscillate between "Synced from peer" (OOB) and "Custom" (inline fallback).
+    kb-s41r live-share: setup uses follower sharing telegram's CV (not own snapshot CV).
+    Under live-share, follower edits via projection_detach_and_edit.
 
     The test covers the OOB response path. A separate inline assertion verifies
     the three-state fix in the rendered post fragment (see
@@ -865,40 +862,29 @@ class OOBSyncBarOnAutosavePostDetachTest(TestCase):
         # Telegram projection: state (i) — on canonical CV (the "source")
         self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.canonical_cv)
 
-        # FetLife projection: state (ii) — own CV + sync_source = telegram (Synced from telegram)
-        self.fl_cv = ContentVersion.objects.create(
-            post=self.post,
-            name="fl-post-detach-cv",
-            body="copied telegram body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
-        )
+        # kb-s41r live-share: FetLife SHARES telegram's CV (same row, not own snapshot)
         self.fl_proj = _make_promotion_projection(
             self.conn_fetlife,
             self.post,
-            self.fl_cv,
+            self.canonical_cv,
             sync_source=self.tg_proj,
         )
         self.client.force_login(self.user)
 
     def test_autosave_post_detach_response_contains_oob_custom_with_post_target(self):
         """
-        POST to version-edit for the FetLife promotion CV (state ii — sync_source set)
-        must return response content with:
+        POST to projection-detach-and-edit for the FetLife promotion projection
+        (live-share follower, state ii) must return response content with:
         1. hx-swap-oob="true" — OOB mechanism present
         2. id="sync-bar-proj-<fl_proj.pk>" — per-projection anchor for the post projection
         3. "Custom" — server confirms detach badge
         4. "#post-syndication" — the full-fragment target in the Customize/Reset forms
            (not "#event-syndication", since this is a PROMOTION projection)
 
-        Falsifiable: if the OOB partial only has two branches (canonical → Synced,
-        else → Custom), a state-(ii) projection (sync_source set) that has its own
-        CV would ALSO render as "Custom" in the OOB response — the test would pass.
-        But the inline post fragment (which DID only have two branches before Repair 1)
-        would mis-render "Custom" instead of "Synced from peer" on the next full
-        fragment refresh, causing oscillation. The companion inline test
-        (test_post_inline_sync_bar_state_ii_shows_synced_from) locks the inline fix.
+        Under live-share, a follower edits via projection-detach-and-edit (its projection
+        PK endpoint). That forks it to a new CV and clears sync_source → OOB shows "Custom".
         """
-        url = reverse("syndication:version-edit", kwargs={"pk": self.fl_cv.pk})
+        url = reverse("syndication:projection-detach-and-edit", kwargs={"pk": self.fl_proj.pk})
         response = self.client.post(
             url,
             {"body": "edited fl post — now custom"},
@@ -944,19 +930,19 @@ class OOBSyncBarOnAutosavePostDetachTest(TestCase):
 class PostInlineSyncBarStateIITest(TestCase):
     """
     Inline post_syndication fragment test: a promotion projection in state (ii)
-    (own CV + sync_source SET) must render "Copied from <platform>" in the inline
+    (sync_source SET) must render "Synced from <platform>" in the inline
     sync bar, NOT "Custom".
 
     Before Repair 1, the post_syndication.html inline only had two branches:
       canonical → "Synced"
       else      → "Custom"
     so a state-(ii) projection (own CV, not canonical) would render "Custom"
-    incorrectly, causing badge oscillation (OOB says "Copied from X", next full
+    incorrectly, causing badge oscillation (OOB says "Synced from X", next full
     fragment render says "Custom").
 
     After Repair 1 (shared _sync_bar.html partial with three states), the inline
-    must render "Copied from telegram" for a state-(ii) telegram-sourced FetLife projection.
-    (Label relabeled to "Copied from" by kb-nexw.3 — snapshot semantics, not live-sync.)
+    must render "Synced from telegram" for a state-(ii) telegram-sourced FetLife projection.
+    (Label updated to "Synced from" by kb-s41r — live-follow semantics.)
 
     Assertions on response.content (NOT response.context).
     """
@@ -996,43 +982,37 @@ class PostInlineSyncBarStateIITest(TestCase):
         # Telegram: state (i) — shares canonical CV
         self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.canonical_cv)
 
-        # FetLife: state (ii) — own CV + sync_source = telegram
-        self.fl_cv = ContentVersion.objects.create(
-            post=self.post,
-            name="fl-state2-cv",
-            body="synced-from-telegram body",
-            provenance=ContentVersion.Provenance.RULE_TEMPLATE,
-        )
+        # kb-s41r live-share: FetLife SHARES telegram's canonical CV (state ii)
         self.fl_proj = _make_promotion_projection(
             self.conn_fetlife,
             self.post,
-            self.fl_cv,
+            self.canonical_cv,
             sync_source=self.tg_proj,
         )
         self.client.force_login(self.user)
 
-    def test_post_inline_sync_bar_state_ii_shows_copied_from(self):
+    def test_post_inline_sync_bar_state_ii_shows_synced_from(self):
         """
         GET the post_syndication fragment — the inline sync bar for the FetLife
-        projection (state ii: own CV + sync_source set) must render
-        "Copied from telegram", NOT "Custom".
+        projection (state ii: sync_source set) must render
+        "Synced from telegram", NOT "Custom".
 
         Falsifiable: before Repair 1 (two-branch post inline), the FetLife projection
         in state (ii) falls into the else-branch and renders "Custom". After Repair 1
-        (shared three-state partial), it renders "Copied from telegram".
-        (Label relabeled "Synced from" → "Copied from" by kb-nexw.3 for snapshot semantics.)
+        (shared three-state partial), it renders "Synced from telegram".
+        (Label updated to "Synced from" by kb-s41r — live-follow semantics.)
         """
         url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        # State (ii) must render "Copied from" (snapshot label, with the source platform name)
+        # State (ii) must render "Synced from" (live-follow label, with the source platform name)
         self.assertIn(
-            "Copied from",
+            "Synced from",
             content,
-            "Post inline sync bar for state-(ii) projection (own CV + sync_source set) "
-            "must show 'Copied from' — not 'Custom'. Before Repair 1 it incorrectly "
+            "Post inline sync bar for state-(ii) projection (sync_source set) "
+            "must show 'Synced from' — not 'Custom'. Before Repair 1 it incorrectly "
             "fell into the else-branch and showed 'Custom'.",
         )
 
@@ -1051,4 +1031,277 @@ class PostInlineSyncBarStateIITest(TestCase):
             content,
             "Post inline sync bar must NOT show 'Custom' badge for a state-(ii) projection "
             "(own CV + sync_source set). The projection is synced from a peer, not detached.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 (kb-s41r) — master edit must NOT detach followers (view-layer)
+# ---------------------------------------------------------------------------
+
+
+class MasterEditDoesNotDetachFollowersTest(TestCase):
+    """
+    FIX 1 (kb-s41r): POSTing to version-edit on the MASTER/SOURCE content version
+    must NOT detach follower projections. Under live-share, followers share the
+    source's CV row — editing the source broadcasts to all sharers without clearing
+    their sync_source.
+
+    Before fix: views.py lines 1867-1874 called detach_sync_source on every
+    synced consumer after edit_version, mislabeling all followers as "Custom"
+    after the first master edit.
+    After fix: that block is removed; followers keep their sync_source intact.
+
+    Assertions on response.content (NOT response.context).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="fix1_master_edit", email="fix1@test.com", password="pw")
+        self.profile = _make_profile("Fix1 Org", "fix1-org", user=self.user)
+        self.event = _make_event(self.profile, "Fix1 Event", "fix1-event")
+        self.canonical_cv = _make_canonical_cv(event=self.event)
+        self.canonical_cv.body = "original master body"
+        self.canonical_cv.save(update_fields=["body", "updated_at"])
+
+        self.conn_switch = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="switch",
+            destination_id="own-page-fix1",
+            kinds=["listing"],
+        )
+        self.conn_fetlife = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="fetlife",
+            destination_id="fl-fix1",
+            kinds=["listing"],
+        )
+        self.conn_telegram = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="tg-fix1",
+            kinds=["listing"],
+        )
+
+        # Master/source: switch projection on canonical CV (sync_source=None)
+        self.master_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
+
+        # Follower 1 (FetLife): shares canonical CV, sync_source=master_proj (live-share)
+        self.fl_proj = _make_listing_projection(
+            self.conn_fetlife, self.event, self.canonical_cv, sync_source=self.master_proj
+        )
+
+        # Follower 2 (Telegram): shares canonical CV, sync_source=master_proj (live-share)
+        self.tg_proj = _make_listing_projection(
+            self.conn_telegram, self.event, self.canonical_cv, sync_source=self.master_proj
+        )
+
+        self.client.force_login(self.user)
+
+    def test_master_edit_does_not_clear_follower_sync_source(self):
+        """
+        FIX 1: POST to version-edit on the master/source CV must NOT detach followers.
+        After the edit, each follower's sync_source must still be set.
+
+        This is the view-layer regression test — catches the detach block in views.py
+        that snapshot-era logic put in but live-share makes wrong.
+        """
+        # POST to the MASTER's CV (the canonical) — version_edit path
+        url = reverse("syndication:version-edit", kwargs={"pk": self.canonical_cv.pk})
+        # Use non-HTMX so it redirects (simpler — we check DB state, not content)
+        self.client.post(url, {"headline": "Updated master headline"})
+
+        self.fl_proj.refresh_from_db()
+        self.tg_proj.refresh_from_db()
+
+        self.assertIsNotNone(
+            self.fl_proj.sync_source_id,
+            "FIX 1: master edit must NOT detach FetLife follower — sync_source must stay set.",
+        )
+        self.assertIsNotNone(
+            self.tg_proj.sync_source_id,
+            "FIX 1: master edit must NOT detach Telegram follower — sync_source must stay set.",
+        )
+
+    def test_master_edit_followers_still_render_synced_from(self):
+        """
+        FIX 1: After a master edit, the event-syndication fragment must still
+        render "Synced from" for followers (not "Custom").
+        """
+        url = reverse("syndication:version-edit", kwargs={"pk": self.canonical_cv.pk})
+        response = self.client.post(
+            url,
+            {"headline": "Updated master headline"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+
+        self.assertIn(
+            "Synced from",
+            content,
+            "FIX 1: after master edit, followers must still render 'Synced from' — "
+            f"not 'Custom'. Content excerpt: {content[:3000]!r}",
+        )
+
+    def test_master_edit_body_reflected_in_followers(self):
+        """
+        FIX 1 / live-share verification: after a master edit, follower projections
+        see the updated body (shared CV row).
+        """
+        url = reverse("syndication:version-edit", kwargs={"pk": self.canonical_cv.pk})
+        self.client.post(url, {"headline": "broadcast headline"})
+
+        self.canonical_cv.refresh_from_db()
+        # followers share the same CV row — refresh their CV
+        self.fl_proj.refresh_from_db()
+        fl_cv = self.fl_proj.content_version
+        fl_cv.refresh_from_db()
+
+        self.assertEqual(
+            fl_cv.pk,
+            self.canonical_cv.pk,
+            "FIX 1: follower must share the master's CV row after master edit.",
+        )
+
+
+# ---------------------------------------------------------------------------
+# FIX 2 (kb-s41r) — source channel detach-and-edit brings followers along
+# ---------------------------------------------------------------------------
+
+
+class SourceDetachAndEditBringsFollowersAlongTest(TestCase):
+    """
+    FIX 2 (kb-s41r): when the SOURCE channel (B) is edited via
+    projection_detach_and_edit (it shares a CV with its own follower A), B forks
+    to a new CV. A must be re-pointed at B's NEW CV so A continues to follow B's
+    latest content. A must NOT be left on B's OLD (stale) CV.
+
+    Before fix: detach_and_edit just called customize(user, B) without re-pointing A.
+    A was left on the old CV while B's badge still said "Synced from B · follows … live".
+    After fix: detach_and_edit re-points A (and any other follower of B) to the new CV.
+
+    Assertions on DB state + rendered body.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = _make_user(username="fix2_source_edit", email="fix2@test.com", password="pw")
+        self.profile = _make_profile("Fix2 Org", "fix2-org", user=self.user)
+        self.event = _make_event(self.profile, "Fix2 Event", "fix2-event")
+        self.canonical_cv = _make_canonical_cv(event=self.event)
+        self.canonical_cv.body = "original canonical body"
+        self.canonical_cv.save(update_fields=["body", "updated_at"])
+
+        self.conn_switch = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="switch",
+            destination_id="own-page-fix2",
+            kinds=["listing"],
+        )
+        self.conn_fetlife = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="fetlife",
+            destination_id="fl-fix2",
+            kinds=["listing"],
+        )
+        self.conn_telegram = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="tg-fix2",
+            kinds=["listing"],
+        )
+
+        # Master (switch): shares canonical CV, no sync_source
+        self.master_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
+
+        # Source B (FetLife): shares canonical CV, no sync_source — will be edited
+        self.fetlife_proj = _make_listing_projection(self.conn_fetlife, self.event, self.canonical_cv)
+
+        # Follower A (Telegram): shares canonical CV, sync_source=FetLife (follows FetLife)
+        self.telegram_proj = _make_listing_projection(
+            self.conn_telegram, self.event, self.canonical_cv, sync_source=self.fetlife_proj
+        )
+
+        self.client.force_login(self.user)
+
+    def test_source_detach_edit_follower_not_stranded_on_stale_cv(self):
+        """
+        FIX 2: When source B (FetLife) is edited via projection_detach_and_edit,
+        follower A (Telegram) must NOT be stranded on B's old pre-edit content.
+        A must follow B's NEW content after the edit.
+        """
+        from syndication.services import detach_and_edit
+
+        detach_and_edit(self.user, self.fetlife_proj, body="FetLife custom body")
+
+        # Follower A (Telegram) must see the updated content — same CV as B's new one
+        self.telegram_proj.refresh_from_db()
+        self.telegram_proj.content_version.refresh_from_db()
+
+        self.assertEqual(
+            self.telegram_proj.content_version.body,
+            "FetLife custom body",
+            "FIX 2: follower A must follow source B's new content after B is edited. "
+            "A must NOT be stranded on B's stale pre-edit CV.",
+        )
+
+    def test_source_detach_edit_follower_still_has_sync_source(self):
+        """
+        FIX 2: After source B is edited, follower A must still have sync_source set
+        (pointing at B). A should remain in live-follow state, not be detached to Custom.
+        """
+        from syndication.services import detach_and_edit
+
+        detach_and_edit(self.user, self.fetlife_proj, body="FetLife custom body")
+
+        self.telegram_proj.refresh_from_db()
+
+        self.assertIsNotNone(
+            self.telegram_proj.sync_source_id,
+            "FIX 2: follower A's sync_source must still be set after source B is edited.",
+        )
+        self.assertEqual(
+            self.telegram_proj.sync_source_id,
+            self.fetlife_proj.pk,
+            "FIX 2: follower A's sync_source must still point at B (FetLife) after B's edit.",
+        )
+
+    def test_source_detach_edit_follower_shares_sources_new_cv(self):
+        """
+        FIX 2: After source B is edited, follower A must share B's NEW CV row
+        (same content_version PK as B's new fork, not B's old canonical CV).
+        """
+        from syndication.services import detach_and_edit
+
+        old_cv_pk = self.fetlife_proj.content_version_id
+
+        detach_and_edit(self.user, self.fetlife_proj, body="FetLife custom body")
+
+        self.fetlife_proj.refresh_from_db()
+        self.telegram_proj.refresh_from_db()
+
+        new_cv_pk = self.fetlife_proj.content_version_id
+        self.assertNotEqual(new_cv_pk, old_cv_pk, "B must have forked to a new CV")
+
+        self.assertEqual(
+            self.telegram_proj.content_version_id,
+            new_cv_pk,
+            "FIX 2: follower A must share B's NEW forked CV row, not B's old CV.",
+        )
+
+    def test_source_detach_edit_other_channels_not_affected(self):
+        """
+        FIX 2: The master channel (Switch — on canonical CV, no sync_source) must
+        NOT be re-pointed by B's fork. Only B's own followers get re-pointed.
+        """
+        from syndication.services import detach_and_edit
+
+        original_master_cv_pk = self.master_proj.content_version_id
+        detach_and_edit(self.user, self.fetlife_proj, body="FetLife custom body")
+        self.master_proj.refresh_from_db()
+
+        self.assertEqual(
+            self.master_proj.content_version_id,
+            original_master_cv_pk,
+            "FIX 2: master's CV must NOT be changed when an unrelated source is edited.",
         )
