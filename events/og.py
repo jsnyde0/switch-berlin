@@ -1,9 +1,10 @@
 """
-OG-card image resolution for Switch events (kb-6d7o.1).
+OG-card image resolution for Switch events (kb-6d7o).
 
-Single resolution point per ADR-003 cheap-foresight: both the public og:image tag
-and the studio preview (kb-6d7o.D) consume card_image_url(), so preview == reality
-at zero extra cost.
+Single resolution point per ADR-003 cheap-foresight: both the live event-page
+og:image tag (events/views.py event_detail) and the studio preview consume
+card_image_url(), so preview == reality is structurally guaranteed — not a
+coincidence of parallel implementations.
 
 ADR-008 D3: "event has no cover" is a fact — intentional branding default, NOT a
 synthesised/zero-filled cover.

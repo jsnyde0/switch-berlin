@@ -19,6 +19,7 @@ from reviews.models import Review
 from venues.serializers import venue_to_geojson
 
 from .models import Attendance, Event, Tag
+from .og import card_image_url
 
 _VALID_SORT_OPTIONS = {"date", "trending", "lowest_rated", "most_reviewed"}
 _RATING_SORT_OPTIONS = {"lowest_rated", "most_reviewed"}
@@ -291,6 +292,7 @@ def event_detail(request, org_slug, event_slug):
     context = {
         "event": event,
         "cover_image": cover_image,
+        "og_card_image_url": card_image_url(event, request),
         "user_going": user_going,
         "attendance": attendance,
         "event_past": event_past,

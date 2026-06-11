@@ -1,5 +1,6 @@
 """Tests for OG meta tags on event detail page — gated on PUBLIC_READ_ENABLED."""
 
+import re
 import struct
 import tempfile
 import zlib
@@ -209,3 +210,97 @@ class CardImageUrlResolverTest(TestCase):
         url = card_image_url(self.event, self.request)
         self.assertIn("og-default.png", url)
         self.assertTrue(url.startswith("http"))
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class LivePageOGImageEqualsResolverTest(TestCase):
+    """
+    The live event-detail page's rendered og:image content must be byte-EQUAL
+    to card_image_url(event, request) — for both cover and no-cover events.
+
+    This proves the single resolution point (ADR-003): the live page and the
+    studio preview both consume card_image_url(), so preview == reality is
+    structurally guaranteed.
+    """
+
+    def setUp(self):
+        self.organizer = Profile.objects.create(
+            name="Equality Org",
+            slug="equality-org",
+            status="approved",
+        )
+        self.event = Event.objects.create(
+            title="Equality Night",
+            slug="equality-night",
+            organizer=self.organizer,
+            start=timezone.now() + timezone.timedelta(days=3),
+            status="published",
+            description="Equality resolution test event.",
+        )
+        self.url = f"/events/{self.organizer.slug}/{self.event.slug}/"
+
+    def _get_with_flag(self, flag_value):
+        with patch(
+            "a_core.context_processors.get_flag",
+            return_value=flag_value,
+        ):
+            return self.client.get(self.url)
+
+    def _extract_og_image_content(self, response):
+        """Extract the content attribute from <meta property="og:image" ...> in the HTML."""
+        html = response.content.decode("utf-8")
+        # Match <meta property="og:image" content="..." />
+        m = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', html)
+        self.assertIsNotNone(m, "og:image meta tag not found in rendered HTML")
+        return m.group(1)
+
+    def _create_cover_image(self):
+        cover = EventImage(event=self.event, is_cover=True, order=0)
+        cover.image.save("cover.png", _uploaded_png(), save=True)
+        return cover
+
+    def test_live_og_image_equals_resolver_for_cover_event(self):
+        """
+        For a cover event, the rendered og:image content is byte-EQUAL to
+        card_image_url(event, request).
+        """
+        from events.og import card_image_url
+
+        self._create_cover_image()
+        response = self._get_with_flag(True)
+        self.assertEqual(response.status_code, 200)
+
+        rendered_url = self._extract_og_image_content(response)
+        resolver_url = card_image_url(self.event, response.wsgi_request)
+
+        self.assertEqual(
+            rendered_url,
+            resolver_url,
+            msg=(
+                f"Live og:image ({rendered_url!r}) does not equal "
+                f"card_image_url() ({resolver_url!r}) — parallel implementation detected."
+            ),
+        )
+
+    def test_live_og_image_equals_resolver_for_no_cover_event(self):
+        """
+        For a no-cover event, the rendered og:image content is byte-EQUAL to
+        card_image_url(event, request).
+        """
+        from events.og import card_image_url
+
+        # No cover image created — uses default
+        response = self._get_with_flag(True)
+        self.assertEqual(response.status_code, 200)
+
+        rendered_url = self._extract_og_image_content(response)
+        resolver_url = card_image_url(self.event, response.wsgi_request)
+
+        self.assertEqual(
+            rendered_url,
+            resolver_url,
+            msg=(
+                f"Live og:image ({rendered_url!r}) does not equal "
+                f"card_image_url() ({resolver_url!r}) — parallel implementation detected."
+            ),
+        )

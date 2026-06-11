@@ -676,9 +676,10 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         rendered_rows[proj.pk] = body
         # kb-6d7o.3: For Telegram projections, compute the card image URL so the
         # Telegram branch of _channel_preview.html can render the link-preview card.
-        # Reuses events.og.card_image_url (ADR-003 single resolution point — same
-        # resolver as the live event page, so preview == reality is guaranteed
-        # structurally, not by integration).
+        # Uses events.og.card_image_url — the same resolver the live event-page
+        # og:image tag calls (ADR-003 single resolution point). preview == reality
+        # is structurally guaranteed: both paths call the same function, not a
+        # coincidence of parallel implementations.
         row_card_image_url = None
         if proj.connection.platform == "telegram":
             row_card_image_url = card_image_url(event, request)
