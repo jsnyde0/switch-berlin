@@ -8,7 +8,7 @@ status gate, body form, channel preview, dirty banner, and publish CTAs.
 
 Context variables (required):
   proj                  — PlatformProjection (select_related connection, content_version, sync_source)
-  row                   — projection row dict: {projection, body, render_error, is_dirty}
+  row                   — projection row dict: {projection, body, render_error, is_dirty, card_image_url}
   body                  — rendered body string (from row.body)
   render_error          — bool (from row.render_error)
   can_edit              — bool — user has edit permission

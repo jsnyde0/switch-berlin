@@ -28,6 +28,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 
 from events.models import Event
+from events.og import card_image_url
 from syndication.authz import can_edit, can_publish
 from syndication.forms import EventForm, PlatformConnectionForm, PostForm
 from syndication.models import PlatformConnection, PlatformProjection, Post
@@ -673,6 +674,14 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         else:
             editable = False  # draft: handled by the existing `can_edit and proj.status == 'draft'` gate
         rendered_rows[proj.pk] = body
+        # kb-6d7o.3: For Telegram projections, compute the card image URL so the
+        # Telegram branch of _channel_preview.html can render the link-preview card.
+        # Reuses events.og.card_image_url (ADR-003 single resolution point — same
+        # resolver as the live event page, so preview == reality is guaranteed
+        # structurally, not by integration).
+        row_card_image_url = None
+        if proj.connection.platform == "telegram":
+            row_card_image_url = card_image_url(event, request)
         projection_rows.append(
             {
                 "projection": proj,
@@ -680,6 +689,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
                 "render_error": render_error,
                 "is_dirty": is_dirty,
                 "editable": editable,
+                "card_image_url": row_card_image_url,
             }
         )
 

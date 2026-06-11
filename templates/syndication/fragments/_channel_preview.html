@@ -39,6 +39,32 @@
         <p class="kb-mono text-[8px] text-right mt-1.5"
            style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
       </div>
+      {# kb-6d7o.3: Telegram link-preview card — shown when card_image_url is wired
+         (event composer only; post composer rows omit card_image_url so no card renders).
+         Image = cover image or site default (card_image_url resolver, ADR-003 single
+         resolution point — same as the live event og:image tag, structural equality). #}
+      {% if row.card_image_url %}
+        <div data-testid="tg-link-preview-card"
+             class="mt-2 {% if full_content %}max-w-sm{% else %}max-w-xs{% endif %} overflow-hidden"
+             style="background: rgb(33 150 243 / 0.10);
+                    border: 1px solid rgb(33 150 243 / 0.22);
+                    border-radius: 0 0.75rem 0.75rem 0.75rem;
+                    border-left: 3px solid rgb(33 150 243 / 0.6)">
+          <img src="{{ row.card_image_url }}"
+               alt=""
+               class="w-full object-cover"
+               style="max-height: 120px; display: block"
+               loading="lazy">
+          <div class="px-2.5 py-2">
+            <p class="text-[11px] font-semibold leading-snug mb-0.5"
+               style="color: rgb(210 228 248)">{{ event.title }}</p>
+            {% if event.description %}
+              <p class="text-[10px] leading-relaxed line-clamp-2"
+                 style="color: rgb(120 160 200 / 0.75)">{{ event.description }}</p>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
     </div>
   {% elif proj.connection.platform == 'fetlife' %}
     {# FetLife: gothic dark platform — warm-purple body text, dense type #}
