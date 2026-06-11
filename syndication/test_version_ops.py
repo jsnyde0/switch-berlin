@@ -1679,10 +1679,10 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
         approve_projection(user=self.user, projection=proj_a)
         proj_a.refresh_from_db()
         self.assertEqual(proj_a.status, PlatformProjection.Status.READY)
-        self.assertEqual(
-            proj_a.frozen_content["body"],
-            "PUBLISH-BODY-CHAN-A",
-            "Precondition: proj_a must have its custom body frozen",
+        self.assertTrue(
+            proj_a.frozen_content["body"].startswith("PUBLISH-BODY-CHAN-A"),
+            "Precondition: proj_a must have its custom body frozen. "
+            f"Got body={proj_a.frozen_content['body']!r}",
         )
 
         # proj_b stays draft (unaffected)
@@ -1701,17 +1701,17 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
 
         # The payload text must be proj_a's OWN customized body
         actual_payload = mock_post.call_args.kwargs["json"]
-        self.assertEqual(
-            actual_payload["text"],
-            "PUBLISH-BODY-CHAN-A",
+        self.assertTrue(
+            actual_payload["text"].startswith("PUBLISH-BODY-CHAN-A"),
             "Per-channel publish must deliver proj_a's OWN frozen body to the adapter. "
-            "A routing swap would post proj_b's/canonical body — this assertion catches it.",
+            "A routing swap would post proj_b's/canonical body — this assertion catches it. "
+            f"Got text={actual_payload['text']!r}",
         )
 
         # proj_a must now be PUBLISHED
         proj_a.refresh_from_db()
         self.assertEqual(proj_a.status, PlatformProjection.Status.PUBLISHED)
-        self.assertEqual(proj_a.frozen_content["body"], "PUBLISH-BODY-CHAN-A")
+        self.assertTrue(proj_a.frozen_content["body"].startswith("PUBLISH-BODY-CHAN-A"))
 
         # proj_b must still be draft
         proj_b.refresh_from_db()
@@ -1762,8 +1762,8 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
         proj_b.refresh_from_db()
         self.assertEqual(proj_a.status, PlatformProjection.Status.READY)
         self.assertEqual(proj_b.status, PlatformProjection.Status.READY)
-        self.assertEqual(proj_a.frozen_content["body"], "BODY-CHAN-A")
-        self.assertEqual(proj_b.frozen_content["body"], "BODY-CHAN-B")
+        self.assertTrue(proj_a.frozen_content["body"].startswith("BODY-CHAN-A"))
+        self.assertTrue(proj_b.frozen_content["body"].startswith("BODY-CHAN-B"))
 
         # Capture payloads from httpx.post calls
         captured_payloads = []
@@ -1791,23 +1791,23 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
             "httpx.post must be called exactly twice — once per ready promotion projection",
         )
 
-        # Each call must carry the channel's OWN body
-        captured_texts = {p["text"] for p in captured_payloads}
-        self.assertIn(
-            "BODY-CHAN-A",
-            captured_texts,
-            "publish-all-ready must deliver proj_a's OWN body to the adapter",
+        # Each call must carry the channel's OWN body (URL suffix appended after).
+        captured_texts = [p["text"] for p in captured_payloads]
+        self.assertTrue(
+            any(t.startswith("BODY-CHAN-A") for t in captured_texts),
+            "publish-all-ready must deliver proj_a's OWN body to the adapter. "
+            f"Got captured_texts={captured_texts!r}",
         )
-        self.assertIn(
-            "BODY-CHAN-B",
-            captured_texts,
-            "publish-all-ready must deliver proj_b's OWN body to the adapter",
+        self.assertTrue(
+            any(t.startswith("BODY-CHAN-B") for t in captured_texts),
+            "publish-all-ready must deliver proj_b's OWN body to the adapter. "
+            f"Got captured_texts={captured_texts!r}",
         )
 
         # Both projections must be PUBLISHED
         proj_a.refresh_from_db()
         proj_b.refresh_from_db()
         self.assertEqual(proj_a.status, PlatformProjection.Status.PUBLISHED)
-        self.assertEqual(proj_a.frozen_content["body"], "BODY-CHAN-A")
+        self.assertTrue(proj_a.frozen_content["body"].startswith("BODY-CHAN-A"))
         self.assertEqual(proj_b.status, PlatformProjection.Status.PUBLISHED)
-        self.assertEqual(proj_b.frozen_content["body"], "BODY-CHAN-B")
+        self.assertTrue(proj_b.frozen_content["body"].startswith("BODY-CHAN-B"))

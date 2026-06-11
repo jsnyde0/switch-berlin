@@ -393,10 +393,10 @@ class E2EBoardFlowTest(TestCase):
         approve_projection(self.user, proj_1)
         proj_1.refresh_from_db()
         self.assertEqual(proj_1.status, PlatformProjection.Status.READY)
-        self.assertEqual(
-            proj_1.frozen_content["body"],
-            "CUSTOM-BODY-PROJ1",
-            "Precondition: proj_1 must have its custom body frozen at draft→ready.",
+        self.assertTrue(
+            proj_1.frozen_content["body"].startswith("CUSTOM-BODY-PROJ1"),
+            "Precondition: proj_1 must have its custom body frozen at draft→ready. "
+            f"Got frozen_body={proj_1.frozen_content['body']!r}",
         )
 
         # proj_2 must still be draft (unaffected by proj_1's approve).
@@ -427,11 +427,11 @@ class E2EBoardFlowTest(TestCase):
         # would FAIL, surfacing the routing bug.
         # httpx.post is called as httpx.post(url, json=payload) → kwargs["json"].
         actual_payload = mock_post.call_args.kwargs["json"]
-        self.assertEqual(
-            actual_payload["text"],
-            "CUSTOM-BODY-PROJ1",
-            "(3a) Telegram payload text must be proj_1's CUSTOMIZED body. "
-            "A routing swap would post proj_2's body — this assertion catches it.",
+        self.assertTrue(
+            actual_payload["text"].startswith("CUSTOM-BODY-PROJ1"),
+            "(3a) Telegram payload text must start with proj_1's CUSTOMIZED body. "
+            "A routing swap would post proj_2's body — this assertion catches it. "
+            f"Got text={actual_payload['text']!r}",
         )
 
         # Verify the payload is NOT proj_2's canonical body (explicit routing-swap catch).
@@ -453,10 +453,10 @@ class E2EBoardFlowTest(TestCase):
         )
 
         # (3b) frozen_content must be populated with the CUSTOMIZED body.
-        self.assertEqual(
-            proj_1.frozen_content["body"],
-            "CUSTOM-BODY-PROJ1",
-            "(3b) proj_1.frozen_content['body'] must be the customized body after publish.",
+        self.assertTrue(
+            proj_1.frozen_content["body"].startswith("CUSTOM-BODY-PROJ1"),
+            "(3b) proj_1.frozen_content['body'] must start with the customized body after publish. "
+            f"Got body={proj_1.frozen_content['body']!r}",
         )
 
         # (3b) external_id must be set (stamped by the real adapter from the mock response).
@@ -647,10 +647,10 @@ class E2EBoardFlowTest(TestCase):
         approve_projection(self.user, proj_1)
         proj_1.refresh_from_db()
         self.assertEqual(proj_1.status, PlatformProjection.Status.READY)
-        self.assertEqual(
-            proj_1.frozen_content["body"],
-            "COMBINED-CUSTOM-PROJ1",
-            "proj_1's frozen body must be the CUSTOMIZED value.",
+        self.assertTrue(
+            proj_1.frozen_content["body"].startswith("COMBINED-CUSTOM-PROJ1"),
+            "proj_1's frozen body must start with the CUSTOMIZED value. "
+            f"Got body={proj_1.frozen_content['body']!r}",
         )
 
         # proj_2 still draft
@@ -666,11 +666,11 @@ class E2EBoardFlowTest(TestCase):
         # A routing swap (delivering proj_2's content) would fail this assertion.
         # httpx.post is called as httpx.post(url, json=payload) → kwargs["json"].
         actual_payload = mock_post_step4.call_args.kwargs["json"]
-        self.assertEqual(
-            actual_payload["text"],
-            "COMBINED-CUSTOM-PROJ1",
-            "(4a) Telegram payload text must be proj_1's CUSTOMIZED body. "
-            "A routing swap would post proj_2's body — this assertion catches it.",
+        self.assertTrue(
+            actual_payload["text"].startswith("COMBINED-CUSTOM-PROJ1"),
+            "(4a) Telegram payload text must start with proj_1's CUSTOMIZED body. "
+            "A routing swap would post proj_2's body — this assertion catches it. "
+            f"Got text={actual_payload['text']!r}",
         )
         self.assertNotEqual(
             actual_payload["text"],
@@ -685,10 +685,10 @@ class E2EBoardFlowTest(TestCase):
             PlatformProjection.Status.PUBLISHED,
             "(4b) proj_1 must be PUBLISHED after real Telegram adapter publish.",
         )
-        self.assertEqual(
-            proj_1.frozen_content["body"],
-            "COMBINED-CUSTOM-PROJ1",
-            "(4b) frozen_content must be the customized body after publish.",
+        self.assertTrue(
+            proj_1.frozen_content["body"].startswith("COMBINED-CUSTOM-PROJ1"),
+            "(4b) frozen_content must start with the customized body after publish. "
+            f"Got body={proj_1.frozen_content['body']!r}",
         )
 
         # (4b) proj_2 must still be draft
@@ -938,10 +938,10 @@ class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
             PlatformProjection.Status.READY,
             "Precondition: proj_ready_1 must be READY",
         )
-        self.assertEqual(
-            proj_ready_1.frozen_content["body"],
-            "READY-BODY-1",
-            "Precondition: proj_ready_1 must have 'READY-BODY-1' frozen",
+        self.assertTrue(
+            proj_ready_1.frozen_content["body"].startswith("READY-BODY-1"),
+            "Precondition: proj_ready_1 must have 'READY-BODY-1' frozen. "
+            f"Got body={proj_ready_1.frozen_content['body']!r}",
         )
 
         # --- proj_ready_2: telegram promotion, READY on cv_2, body="READY-BODY-2" ---
@@ -966,10 +966,10 @@ class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
             PlatformProjection.Status.READY,
             "Precondition: proj_ready_2 must be READY",
         )
-        self.assertEqual(
-            proj_ready_2.frozen_content["body"],
-            "READY-BODY-2",
-            "Precondition: proj_ready_2 must have 'READY-BODY-2' frozen",
+        self.assertTrue(
+            proj_ready_2.frozen_content["body"].startswith("READY-BODY-2"),
+            "Precondition: proj_ready_2 must have 'READY-BODY-2' frozen. "
+            f"Got body={proj_ready_2.frozen_content['body']!r}",
         )
 
         # Capture the payload text per call so we can verify per-projection routing.
@@ -1044,18 +1044,19 @@ class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
             "httpx.post must be called exactly twice — once per ready Telegram projection",
         )
 
-        # The two captured payload texts must be exactly the two expected bodies
-        # (one "READY-BODY-1" and one "READY-BODY-2") regardless of call order.
-        captured_texts = {p["text"] for p in captured_payloads}
-        self.assertIn(
-            "READY-BODY-1",
-            captured_texts,
-            "Per-version routing: 'READY-BODY-1' must appear in the Telegram payloads",
+        # The two captured payload texts must contain the two expected bodies
+        # (one starting with "READY-BODY-1" and one starting with "READY-BODY-2"),
+        # regardless of call order. URL suffix is now appended after the body.
+        captured_texts = [p["text"] for p in captured_payloads]
+        self.assertTrue(
+            any(t.startswith("READY-BODY-1") for t in captured_texts),
+            "Per-version routing: a payload starting with 'READY-BODY-1' must appear in the Telegram payloads. "
+            f"Got captured_texts={captured_texts!r}",
         )
-        self.assertIn(
-            "READY-BODY-2",
-            captured_texts,
-            "Per-version routing: 'READY-BODY-2' must appear in the Telegram payloads",
+        self.assertTrue(
+            any(t.startswith("READY-BODY-2") for t in captured_texts),
+            "Per-version routing: a payload starting with 'READY-BODY-2' must appear in the Telegram payloads. "
+            f"Got captured_texts={captured_texts!r}",
         )
 
         # Stronger routing assertion: verify each ready projection was individually
@@ -1066,10 +1067,10 @@ class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
             PlatformProjection.Status.PUBLISHED,
             "proj_ready_1 must be PUBLISHED after publish_all_ready_projections",
         )
-        self.assertEqual(
-            proj_ready_1.frozen_content["body"],
-            "READY-BODY-1",
-            "proj_ready_1.frozen_content must be its own 'READY-BODY-1' (not swapped)",
+        self.assertTrue(
+            proj_ready_1.frozen_content["body"].startswith("READY-BODY-1"),
+            "proj_ready_1.frozen_content must start with its own 'READY-BODY-1' (not swapped). "
+            f"Got body={proj_ready_1.frozen_content['body']!r}",
         )
 
         proj_ready_2.refresh_from_db()
@@ -1078,8 +1079,8 @@ class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
             PlatformProjection.Status.PUBLISHED,
             "proj_ready_2 must be PUBLISHED after publish_all_ready_projections",
         )
-        self.assertEqual(
-            proj_ready_2.frozen_content["body"],
-            "READY-BODY-2",
-            "proj_ready_2.frozen_content must be its own 'READY-BODY-2' (not swapped)",
+        self.assertTrue(
+            proj_ready_2.frozen_content["body"].startswith("READY-BODY-2"),
+            "proj_ready_2.frozen_content must start with its own 'READY-BODY-2' (not swapped). "
+            f"Got body={proj_ready_2.frozen_content['body']!r}",
         )

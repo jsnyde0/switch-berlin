@@ -355,6 +355,7 @@ class TelegramPublishTransportRetryTest(TestCase):
     def setUp(self):
         self.profile = _make_profile(slug="tg-retry-org")
         self.event = _make_event(slug="tg-retry-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.post = _make_post(self.event)
         self.conn = _make_telegram_connection(self.profile)
         self.proj = _make_ready_promotion_projection(self.conn, self.post)
@@ -444,6 +445,7 @@ class TelegramPublishApiErrorTest(TestCase):
     def setUp(self):
         self.profile = _make_profile(slug="tg-apierr-org")
         self.event = _make_event(slug="tg-apierr-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.post = _make_post(self.event)
         self.conn = _make_telegram_connection(self.profile)
 
@@ -529,6 +531,7 @@ class TelegramPublishMalformed200Test(TestCase):
     def setUp(self):
         self.profile = _make_profile(slug="tg-malformed-org")
         self.event = _make_event(slug="tg-malformed-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.post = _make_post(self.event)
         self.conn = _make_telegram_connection(self.profile)
 
@@ -605,6 +608,7 @@ class TelegramPublishVisibilityAgnosticTest(TestCase):
         mock_post.return_value = _make_bot_api_success_response(message_id=55)
 
         event = _make_event(slug="tg-vis-unlisted", visibility="unlisted")
+        EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
         post = _make_post(event)
         proj = _make_ready_promotion_projection(self.conn, post)
 
@@ -621,6 +625,7 @@ class TelegramPublishVisibilityAgnosticTest(TestCase):
         mock_post.return_value = _make_bot_api_success_response(message_id=66)
 
         event = _make_event(slug="tg-vis-semi", visibility="semi_public")
+        EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
         post = _make_post(event)
         proj = _make_ready_promotion_projection(self.conn, post)
 
@@ -647,6 +652,7 @@ class TelegramPublishTokenResolutionTest(TestCase):
     def setUp(self):
         self.profile = _make_profile(slug="tg-token-org")
         self.event = _make_event(slug="tg-token-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.post = _make_post(self.event)
 
     @override_settings(TELEGRAM_BOT_TOKEN="settings-token")

@@ -478,10 +478,12 @@ class RepublishRefreezeTest(TestCase):
         self.client.post(republish_url, {}, HTTP_HX_REQUEST="true")
 
         self.proj.refresh_from_db()
+        frozen_body = self.proj.frozen_content.get("body", "")
         self.assertEqual(
-            self.proj.frozen_content.get("body"),
+            frozen_body,
             "Edited body — new content",
-            "Re-publish must re-materialize frozen_content to the new body. "
+            "Re-publish must re-materialize frozen_content to the new body exactly "
+            "(non-telegram promotion: no URL suffix appended). "
             f"Got frozen_content={self.proj.frozen_content!r}",
         )
 

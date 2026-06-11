@@ -496,6 +496,22 @@ class PlatformProjection(models.Model):
         ),
     )
 
+    # Publish revision counter (kb-6d7o.2 cache-bust mechanism).
+    # Incremented by 1 at each body-freeze that feeds a send:
+    #   - draft→ready transition (transition_status in engine.py)
+    #   - republish_projection re-materialize (services.py)
+    # NOT incremented on draft ContentVersion edits (ADR-016 D2 freeze rule).
+    # Embedded as ?v=<publish_rev> in the promotion body at each freeze so
+    # the URL the Telegram adapter sends carries the current rev.
+    publish_rev = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            "Publish revision counter. Incremented at each body-freeze that feeds a send "
+            "(draft→ready and republish_projection). Embedded as ?v=<rev> in the "
+            "promotion body so cached Telegram link previews can be busted."
+        ),
+    )
+
     # Frozen content snapshot (ADR-016 D2, kb-a4u.20 hybrid content model).
     # Null while status=draft (projection tracks live canonical via content_version).
     # Materialized at draft→ready transition: stores the full effective content

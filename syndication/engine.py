@@ -47,6 +47,9 @@ ADR-008 D4: retry policy seam — transport errors get ≤2 retries,
     lives in separate adapter beads.
 """
 
+from django.conf import settings
+from django.urls import reverse
+
 from syndication.cleaning import clean_for_platform
 from syndication.models import ContentVersion, PlatformConnection, PlatformProjection
 
@@ -95,8 +98,11 @@ def transition_status(projection: PlatformProjection, new_status: str) -> None:
         # canonical fields + ContentVersion explicit fields into frozen_content so
         # from-ready reads never touch the live canonical.
         # ADR-008 D3: fail loud if the effective content cannot be derived.
+        # kb-6d7o.2: bump publish_rev BEFORE materialization so the frozen body
+        # carries the bumped rev in the embedded versioned URL.
+        _bump_publish_rev(projection)
         projection.frozen_content = _materialize_effective_fields(projection)
-        projection.save(update_fields=["status", "frozen_content", "updated_at"])
+        projection.save(update_fields=["status", "frozen_content", "publish_rev", "updated_at"])
     elif from_status == "ready" and new_status == "published":
         # ADR-016 D5: re-freeze at ready→published so published frozen_content
         # reflects the current effective content, not the ready-time snapshot.
@@ -126,6 +132,30 @@ TRANSPORT_MAX_RETRIES = 2
 
 # Data-integrity errors (4xx/5xx, parse/schema mismatch): never retry.
 DATA_INTEGRITY_MAX_RETRIES = 0
+
+
+# ---------------------------------------------------------------------------
+# Publish-revision bump helper (kb-6d7o.2)
+# ---------------------------------------------------------------------------
+
+
+def _bump_publish_rev(projection: PlatformProjection) -> None:
+    """
+    Increment projection.publish_rev by 1 (in memory only — caller saves).
+
+    Called IMMEDIATELY BEFORE _materialize_effective_fields at the two
+    body-freeze sites that feed a send:
+      - draft→ready branch of transition_status
+      - republish_projection re-materialize (services.py)
+
+    NOT called at ready→published (that re-freeze is AFTER the Telegram send
+    — bumping there would desync the sent body's rev from the snapshot).
+    NOT called on draft ContentVersion edits (ADR-016 D2 freeze rule).
+
+    ADR-008 D2: thin helper, no abstraction beyond the minimum needed here.
+    ADR-008 D3: does NOT validate projection kind — callers own that gate.
+    """
+    projection.publish_rev = (projection.publish_rev or 0) + 1
 
 
 # ---------------------------------------------------------------------------
@@ -375,6 +405,13 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
     explicit fields applied (null field = use canonical).
     Analogous to _materialize_listing_fields for kind=promotion.
 
+    kb-6d7o.2: Appends the canonical Switch event URL with ?v=<publish_rev> to the
+    composed promotion body so it lands in frozen_content["body"] at every freeze.
+    The URL is built via reverse("event-detail", ...) + settings.SITE_URL + ?v=rev,
+    where rev is projection.publish_rev (already bumped before this call at draft→ready
+    and republish_projection). Route name is "event-detail" (hyphen — confirmed at
+    events/urls.py:12). ADR-008 D2: inline reverse, no premature extraction.
+
     ADR-008 D3: fail loud if source_post is missing.
     """
     post = projection.source_post
@@ -392,6 +429,39 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
         body = cv.body
     else:
         body = _compose_promotion_body(post, platform)
+
+    # kb-6d7o.2: For Telegram-only — embed the canonical Switch event URL with
+    # ?v=<publish_rev> as a link-preview cache-bust. Non-telegram platforms
+    # (FetLife, Switch, etc.) do NOT receive the URL suffix.
+    # ADR-008 D3: if the event or organizer slug is missing for a telegram
+    # promotion, raise loud — do not silently omit (silent omission = cache-bust
+    # silently fails with no error signal).
+    if projection.connection.platform == "telegram":
+        event = post.event
+        if event is None or not event.slug:
+            raise ValueError(
+                f"Cannot embed versioned URL for telegram promotion projection "
+                f"{projection.pk!r}: post.event is missing or has no slug. "
+                "A telegram promotion requires a linkable event. (ADR-008 D3: fail loud)"
+            )
+        organizer = getattr(event, "organizer", None)
+        if organizer is None or not organizer.slug:
+            raise ValueError(
+                f"Cannot embed versioned URL for telegram promotion projection "
+                f"{projection.pk!r}: event {event.pk!r} ({event.slug!r}) has no "
+                "organizer with a slug. A telegram promotion requires a linkable event. "
+                "(ADR-008 D3: fail loud)"
+            )
+        event_path = reverse(
+            "event-detail",
+            kwargs={
+                "org_slug": organizer.slug,
+                "event_slug": event.slug,
+            },
+        )
+        site_url = getattr(settings, "SITE_URL", "http://localhost:8000").rstrip("/")
+        versioned_url = f"{site_url}{event_path}?v={projection.publish_rev}"
+        body = f"{body}\n\n{versioned_url}"
 
     # For structured fields: ContentVersion explicit value overrides canonical.
     headline = cv.headline if cv.headline is not None else post.headline

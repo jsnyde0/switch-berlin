@@ -429,10 +429,10 @@ class PublishSeamViewTest(TestCase):
             PlatformProjection.Status.READY,
             "Precondition: proj_1 must be READY after approve.",
         )
-        self.assertEqual(
-            proj_1.frozen_content["body"],
-            divergent_body,
-            "Precondition: proj_1's frozen_content must carry the divergent body.",
+        self.assertTrue(
+            proj_1.frozen_content["body"].startswith(divergent_body),
+            "Precondition: proj_1's frozen_content must start with the divergent body. "
+            f"Got body={proj_1.frozen_content['body']!r}",
         )
 
         # channel 2 must still be DRAFT (approve for channel 1 must NOT affect it).
@@ -470,12 +470,12 @@ class PublishSeamViewTest(TestCase):
         # A routing swap would deliver the canonical body or channel 2's body.
         # httpx.post is called as httpx.post(url, json=payload) → kwargs["json"].
         actual_payload = mock_post.call_args.kwargs["json"]
-        self.assertEqual(
-            actual_payload["text"],
-            divergent_body,
-            "(a) Telegram payload text must be channel 1's OWN divergent body. "
+        self.assertTrue(
+            actual_payload["text"].startswith(divergent_body),
+            "(a) Telegram payload text must start with channel 1's OWN divergent body. "
             "A routing swap would post the canonical body — this assertion catches it. "
-            "ADR-016 D5: publish must route the channel's own frozen body.",
+            "ADR-016 D5: publish must route the channel's own frozen body. "
+            f"Got text={actual_payload['text']!r}",
         )
 
         # Explicit routing-swap catch: the payload must NOT be the canonical body.
@@ -493,10 +493,10 @@ class PublishSeamViewTest(TestCase):
             PlatformProjection.Status.PUBLISHED,
             "(b) channel 1 must be PUBLISHED after the publish view call.",
         )
-        self.assertEqual(
-            proj_1.frozen_content["body"],
-            divergent_body,
-            "(b) channel 1's frozen_content must be the divergent body after publish.",
+        self.assertTrue(
+            proj_1.frozen_content["body"].startswith(divergent_body),
+            "(b) channel 1's frozen_content must start with the divergent body after publish. "
+            f"Got body={proj_1.frozen_content['body']!r}",
         )
 
         # (c) channel 2 must still be DRAFT — untouched.
@@ -900,16 +900,17 @@ class PostScopedPublishAllReadyTest(TestCase):
         )
 
         # (a) Each channel was called with its OWN body.
-        called_texts = {call.kwargs["json"]["text"] for call in mock_post.call_args_list}
-        self.assertIn(
-            body_1,
-            called_texts,
-            "(a) Channel 1's adapter must be called with channel 1's OWN body.",
+        # URL suffix is now appended after the body, so check startswith.
+        called_texts = [call.kwargs["json"]["text"] for call in mock_post.call_args_list]
+        self.assertTrue(
+            any(t.startswith(body_1) for t in called_texts),
+            "(a) Channel 1's adapter must be called with channel 1's OWN body. "
+            f"Got called_texts={called_texts!r}",
         )
-        self.assertIn(
-            body_2,
-            called_texts,
-            "(a) Channel 2's adapter must be called with channel 2's OWN body.",
+        self.assertTrue(
+            any(t.startswith(body_2) for t in called_texts),
+            "(a) Channel 2's adapter must be called with channel 2's OWN body. "
+            f"Got called_texts={called_texts!r}",
         )
 
         # (b) Other post's projection and listing projection must remain DRAFT / READY

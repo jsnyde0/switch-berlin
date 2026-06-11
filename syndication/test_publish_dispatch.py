@@ -450,11 +450,15 @@ class PublishProjectionTelegramDispatchTest(TestCase):
         proj_1.refresh_from_db()
         proj_2.refresh_from_db()
 
-        self.assertEqual(
-            proj_1.frozen_content["body"], "CUSTOM-FOR-1", "Precondition: proj_1 must have custom body frozen"
+        self.assertTrue(
+            proj_1.frozen_content["body"].startswith("CUSTOM-FOR-1"),
+            "Precondition: proj_1 must have custom body frozen. "
+            f"Got body={proj_1.frozen_content['body']!r}",
         )
-        self.assertEqual(
-            proj_2.frozen_content["body"], "CONTENT-FOR-2", "Precondition: proj_2 must have distinct body frozen"
+        self.assertTrue(
+            proj_2.frozen_content["body"].startswith("CONTENT-FOR-2"),
+            "Precondition: proj_2 must have distinct body frozen. "
+            f"Got body={proj_2.frozen_content['body']!r}",
         )
 
         # Publish proj_1: adapter must receive proj_1 with "CUSTOM-FOR-1"
@@ -468,15 +472,14 @@ class PublishProjectionTelegramDispatchTest(TestCase):
 
         self.assertEqual(len(received_1), 1)
         self.assertEqual(received_1[0].pk, proj_1.pk, "Adapter must receive proj_1 (routing-swap catch)")
-        self.assertEqual(
-            render_projection(received_1[0]),
-            "CUSTOM-FOR-1",
+        self.assertTrue(
+            render_projection(received_1[0]).startswith("CUSTOM-FOR-1"),
             "Adapter must receive proj_1's customized body, not proj_2's/canonical "
-            "(routing-swap catch: if publish routed wrong projection, this fails)",
+            "(routing-swap catch: if publish routed wrong projection, this fails). "
+            f"Got body={render_projection(received_1[0])!r}",
         )
-        self.assertNotEqual(
-            render_projection(received_1[0]),
-            "CONTENT-FOR-2",
+        self.assertFalse(
+            render_projection(received_1[0]).startswith("CONTENT-FOR-2"),
             "Adapter must NOT receive proj_2's body (routing-swap catch)",
         )
 
@@ -491,10 +494,10 @@ class PublishProjectionTelegramDispatchTest(TestCase):
 
         self.assertEqual(len(received_2), 1)
         self.assertEqual(received_2[0].pk, proj_2.pk, "Adapter must receive proj_2 (routing-swap catch)")
-        self.assertEqual(
-            render_projection(received_2[0]),
-            "CONTENT-FOR-2",
-            "Adapter must receive proj_2's distinct body, not proj_1's custom content",
+        self.assertTrue(
+            render_projection(received_2[0]).startswith("CONTENT-FOR-2"),
+            "Adapter must receive proj_2's distinct body, not proj_1's custom content. "
+            f"Got body={render_projection(received_2[0])!r}",
         )
 
 

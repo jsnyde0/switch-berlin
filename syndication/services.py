@@ -1473,9 +1473,14 @@ def republish_projection(user, projection):
 
     # Re-materialize: capture the current effective content into frozen_content.
     # This is the re-freeze step that makes the dirty projection clean again.
+    # kb-6d7o.2: bump publish_rev BEFORE materialization so the frozen body carries
+    # the new ?v=<publish_rev> in the embedded versioned URL.
+    from syndication.engine import _bump_publish_rev
+
+    _bump_publish_rev(projection)
     new_frozen = _materialize_effective_fields(projection)
     projection.frozen_content = new_frozen
-    projection.save(update_fields=["frozen_content", "updated_at"])
+    projection.save(update_fields=["frozen_content", "publish_rev", "updated_at"])
 
     # Re-dispatch to platform adapter for push-API platforms.
     # For push-API: the adapter re-sends the content (implementation deferred —
