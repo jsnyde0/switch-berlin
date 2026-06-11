@@ -99,9 +99,11 @@ Logging into a user's account via an unofficial MTProto client (Telethon) places
 
 ### D4: The `saveDraft` tier is agent-side (a local client with the user's session), not server-side
 
-**Firmness: FLEXIBLE** — placement decision; revisit if a server-side session-custody model with acceptable security emerges.
+**Firmness: FLEXIBLE** — placement decision; revisit if a server-side session-custody model with acceptable security emerges. (Elaborated 2026-06-11 with the execution split, capability ladder, and sync seam below.)
 
 The `saveDraft` capability runs in the **agent/CLI on the user's own machine**, holding the user's MTProto session locally. The web UI orchestrates the cockpit (destination list, coverage tracking) but **structurally cannot** place drafts — only a client with the user's session can. The platform stays dual-surface (ADR-016 D3 co-equal API), but this specific capability is **agent-only** per ADR-011 D1 (agent-extended scope may be agent-only).
+
+**Execution split, capability ladder, and sync seam (the orchestration model):** the split between web and agent is *by tier, not by surface* — the web is the full orchestration cockpit (author, destination picker, trigger distribute, coverage), and it **directly executes the two tiers that need no session**: Bot API auto-post to own/admin channels and public deep-link prefills. Only the session-required tier (D1's private groups + forum topics via `saveDraft`) is handed to the user's local agent for execution. This yields a **capability ladder, not a wall**: a facilitator who connects nothing still reaches their own channel (bot) and public groups (deep-link) from the browser alone; connecting a local agent *unlocks* private-community + forum-topic reach. The agent syncs **only destination metadata** (ids, titles, types, topic ids, postability) up to the platform so the web picker can render the inventory — **never message content** in that direction. A server-held session that would make the private hop web-executable is **deferred behind explicit per-user opt-in + recorded risk acceptance** (it would concentrate every facilitator's full personal-account session on the platform — the breach surface D4 exists to avoid); it is not a V0 default.
 
 **Rationale:**
 
