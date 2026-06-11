@@ -682,3 +682,336 @@ class NonVouchedChainTest(TestCase):
             [401, 403],
             "Non-vouched user must be rejected at agents/token even with a valid credential",
         )
+
+
+# ---------------------------------------------------------------------------
+# Venue + tags API parity (kb-y209.3, ADR-016 D3)
+# ---------------------------------------------------------------------------
+
+
+def _get_identity_token_for_user(user):
+    """
+    Full pairing flow: register → redeem → token exchange.
+    Returns a fresh identity token for the given vouched user.
+    """
+    api_key = _register_and_get_api_key(user)
+    client = Client()
+    ex = client.post(
+        "/api/agents/token",
+        data=json.dumps({"api_key": api_key}),
+        content_type="application/json",
+    )
+    return json.loads(ex.content)["identity_token"]
+
+
+class EventVenueTagsApiParityTest(TestCase):
+    """
+    DB-round-trip tests for venue + tags on the event API (kb-y209.3).
+
+    ADR-016 D3 co-equal API parity: the HTTP API must accept and persist
+    venue (id) and tags (list of slugs) exactly as the web EventForm does.
+
+    Covers:
+    (a) POST with venue id → Event.venue persisted
+    (b) POST with tags slugs → Event.tags M2M persisted
+    (c) GET (EventOut) returns venue + tags written (read-back parity)
+    (d) POST/PATCH with invalid venue id → 4xx (ADR-008 D3: fail loud)
+    (e) PATCH with venue id → Event.venue updated
+    (f) PATCH with tags slugs → Event.tags M2M updated
+    """
+
+    def setUp(self):
+        from events.models import Tag
+        from venues.models import Venue
+
+        self.user = _make_vouched_user(
+            username="venue_tags_user",
+            email="venue_tags@test.com",
+            password="x",
+        )
+        from organizers.models import Profile, ProfileClaim
+
+        self.profile = Profile.objects.create(name="VT Profile", slug="vt-profile")
+        ProfileClaim.objects.create(profile=self.profile, user=self.user, verified_method="auto_self")
+
+        self.venue = Venue.objects.create(name="Test Venue", slug="test-venue")
+        self.tag1 = Tag.objects.create(slug="bdsm", label="BDSM", kind="theme")
+        self.tag2 = Tag.objects.create(slug="fetish", label="Fetish", kind="theme")
+
+        self.token = _get_identity_token_for_user(self.user)
+
+    # ------------------------------------------------------------------
+    # (a) POST with venue id → Event.venue persisted
+    # ------------------------------------------------------------------
+
+    def test_post_with_venue_id_persists_event_venue(self):
+        """
+        POST /api/events/ with venue id → Event.venue FK persisted to DB.
+
+        Invalidation guard: asserts DB state (event.venue), not just response schema.
+        """
+        from django.utils import timezone
+
+        from events.models import Event
+
+        client = Client()
+        payload = {
+            "title": "Venue Post Event",
+            "slug": "venue-post-event",
+            "start": timezone.now().isoformat(),
+            "venue": self.venue.pk,
+        }
+        response = client.post(
+            "/api/events/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        event = Event.objects.get(slug="venue-post-event")
+        self.assertEqual(
+            event.venue_id,
+            self.venue.pk,
+            f"Event.venue should be {self.venue.pk}, got {event.venue_id}",
+        )
+
+    # ------------------------------------------------------------------
+    # (b) POST with tags slugs → Event.tags M2M persisted
+    # ------------------------------------------------------------------
+
+    def test_post_with_tags_slugs_persists_event_tags(self):
+        """
+        POST /api/events/ with tags slugs → Event.tags M2M rows persisted.
+
+        Invalidation guard: asserts M2M DB state (event.tags.all()), not schema.
+        """
+        from django.utils import timezone
+
+        from events.models import Event
+
+        client = Client()
+        payload = {
+            "title": "Tags Post Event",
+            "slug": "tags-post-event",
+            "start": timezone.now().isoformat(),
+            "tags": ["bdsm", "fetish"],
+        }
+        response = client.post(
+            "/api/events/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        event = Event.objects.get(slug="tags-post-event")
+        persisted_slugs = set(event.tags.values_list("slug", flat=True))
+        self.assertEqual(
+            persisted_slugs,
+            {"bdsm", "fetish"},
+            f"Event.tags should be {{bdsm, fetish}}, got {persisted_slugs}",
+        )
+
+    # ------------------------------------------------------------------
+    # (c) GET (EventOut) returns venue + tags (read-back parity)
+    # ------------------------------------------------------------------
+
+    def test_get_event_out_returns_venue_and_tags(self):
+        """
+        GET /api/events/{id}/ returns venue_id + tags list that were written.
+
+        Read-back parity: what the API writes must be readable back via EventOut.
+        Invalidation guard: asserts round-trip (write via POST, read via GET),
+        not just Pydantic schema shape.
+        """
+        from django.utils import timezone
+
+        client = Client()
+
+        # Write the event with venue + tags via POST
+        post_payload = {
+            "title": "Readback Event",
+            "slug": "readback-event",
+            "start": timezone.now().isoformat(),
+            "venue": self.venue.pk,
+            "tags": ["bdsm"],
+        }
+        post_response = client.post(
+            "/api/events/",
+            data=json.dumps(post_payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertEqual(post_response.status_code, 201, post_response.content)
+        event_id = json.loads(post_response.content)["id"]
+
+        # Read it back via GET
+        get_response = client.get(
+            f"/api/events/{event_id}/",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertEqual(get_response.status_code, 200, get_response.content)
+        data = json.loads(get_response.content)
+
+        self.assertEqual(
+            data.get("venue_id"),
+            self.venue.pk,
+            f"EventOut.venue_id should be {self.venue.pk}, got {data.get('venue_id')}",
+        )
+        self.assertIn(
+            "tags",
+            data,
+            "EventOut should include a 'tags' field",
+        )
+        self.assertIn(
+            "bdsm",
+            data["tags"],
+            f"EventOut.tags should contain 'bdsm', got {data['tags']}",
+        )
+
+    # ------------------------------------------------------------------
+    # (d) POST with invalid venue id → 4xx (fail loud, ADR-008 D3)
+    # ------------------------------------------------------------------
+
+    def test_post_with_invalid_venue_id_fails_loud(self):
+        """
+        POST /api/events/ with an invalid/non-existent venue id → 4xx.
+
+        ADR-008 D3: fail loud on data integrity errors. Must NOT silently
+        drop the venue to None and create the event anyway.
+        """
+        from django.utils import timezone
+
+        from events.models import Event
+
+        client = Client()
+        payload = {
+            "title": "Invalid Venue Event",
+            "slug": "invalid-venue-event",
+            "start": timezone.now().isoformat(),
+            "venue": 99999,  # non-existent venue id
+        }
+        response = client.post(
+            "/api/events/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertIn(
+            response.status_code,
+            [400, 404, 422],
+            f"Invalid venue id should return 4xx, got {response.status_code}: {response.content}",
+        )
+        # Event must NOT have been created silently
+        self.assertFalse(
+            Event.objects.filter(slug="invalid-venue-event").exists(),
+            "Event must NOT be created when venue id is invalid (fail loud, ADR-008 D3)",
+        )
+
+    # ------------------------------------------------------------------
+    # (e) PATCH with venue id → Event.venue updated
+    # ------------------------------------------------------------------
+
+    def test_patch_with_venue_id_updates_event_venue(self):
+        """
+        PATCH /api/events/{id}/ with venue id → Event.venue FK updated in DB.
+        """
+        from django.utils import timezone
+
+        from syndication.services import create_event
+
+        event = create_event(
+            user=self.user,
+            title="Patch Venue Event",
+            slug="patch-venue-event",
+            start=timezone.now(),
+        )
+        self.assertIsNone(event.venue_id, "Event should start with no venue")
+
+        client = Client()
+        patch_response = client.patch(
+            f"/api/events/{event.pk}/",
+            data=json.dumps({"venue": self.venue.pk}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertEqual(patch_response.status_code, 200, patch_response.content)
+        event.refresh_from_db()
+        self.assertEqual(
+            event.venue_id,
+            self.venue.pk,
+            f"Event.venue should be updated to {self.venue.pk}, got {event.venue_id}",
+        )
+
+    # ------------------------------------------------------------------
+    # (f) PATCH with tags slugs → Event.tags M2M updated
+    # ------------------------------------------------------------------
+
+    def test_patch_with_tags_updates_event_tags(self):
+        """
+        PATCH /api/events/{id}/ with tags slugs → Event.tags M2M updated in DB.
+        """
+        from django.utils import timezone
+
+        from syndication.services import create_event
+
+        event = create_event(
+            user=self.user,
+            title="Patch Tags Event",
+            slug="patch-tags-event",
+            start=timezone.now(),
+        )
+        self.assertEqual(event.tags.count(), 0, "Event should start with no tags")
+
+        client = Client()
+        patch_response = client.patch(
+            f"/api/events/{event.pk}/",
+            data=json.dumps({"tags": ["bdsm"]}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertEqual(patch_response.status_code, 200, patch_response.content)
+        event.refresh_from_db()
+        persisted_slugs = set(event.tags.values_list("slug", flat=True))
+        self.assertEqual(
+            persisted_slugs,
+            {"bdsm"},
+            f"Event.tags should be {{bdsm}} after PATCH, got {persisted_slugs}",
+        )
+
+    # ------------------------------------------------------------------
+    # (g) PATCH with invalid venue id → 4xx (fail loud, ADR-008 D3)
+    # ------------------------------------------------------------------
+
+    def test_patch_with_invalid_venue_id_fails_loud(self):
+        """
+        PATCH /api/events/{id}/ with invalid venue id → 4xx (fail loud, ADR-008 D3).
+        """
+        from django.utils import timezone
+
+        from syndication.services import create_event
+
+        event = create_event(
+            user=self.user,
+            title="Patch Invalid Venue Event",
+            slug="patch-invalid-venue-event",
+            start=timezone.now(),
+        )
+
+        client = Client()
+        patch_response = client.patch(
+            f"/api/events/{event.pk}/",
+            data=json.dumps({"venue": 99999}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+        self.assertIn(
+            patch_response.status_code,
+            [400, 404, 422],
+            f"Invalid venue id in PATCH should return 4xx, got {patch_response.status_code}: {patch_response.content}",
+        )
+        # Event venue must NOT have changed
+        event.refresh_from_db()
+        self.assertIsNone(
+            event.venue_id,
+            "Event.venue must NOT be set when venue id is invalid (fail loud, ADR-008 D3)",
+        )

@@ -431,6 +431,8 @@ class EventCreateIn(Schema):
     registration_url: str = ""
     registration_email: str = ""
     category: str = ""
+    venue: int | None = None
+    tags: list[str] | None = None
 
 
 class EventUpdateIn(Schema):
@@ -465,6 +467,8 @@ class EventUpdateIn(Schema):
     registration_url: str | None = None
     registration_email: str | None = None
     category: str | None = None
+    venue: int | None = None
+    tags: list[str] | None = None
 
 
 class EventOut(Schema):
@@ -500,6 +504,8 @@ class EventOut(Schema):
     registration_url: str
     registration_email: str
     category: str
+    venue_id: int | None
+    tags: list[str]
 
 
 # --- Post schemas ---
@@ -545,6 +551,84 @@ def _stub_response_with_marker(request, detail: str) -> HttpResponse:
 
 
 # ---------------------------------------------------------------------------
+# Event field resolution helpers (venue-id → Venue, tag-slugs → Tag pks)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_venue(venue_id):
+    """
+    Resolve a venue id to a Venue instance.
+
+    ADR-008 D3: fail loud on unknown venue id — raises Http404 (→ 404 response).
+    Returns None if venue_id is None (venue is optional at draft time).
+
+    Mirrors syndication/forms.py clean_venue().
+    """
+    if venue_id is None:
+        return None
+    from django.http import Http404
+
+    from venues.models import Venue
+
+    try:
+        return Venue.objects.get(pk=venue_id)
+    except Venue.DoesNotExist:
+        raise Http404(f"Venue with id {venue_id} does not exist.") from None
+
+
+def _resolve_tag_pks(tag_slugs):
+    """
+    Resolve a list of tag slugs to a list of Tag PKs.
+
+    Unknown slugs are silently skipped (lenient — mirrors forms.py clean_tags).
+    Returns None if tag_slugs is None (tags not supplied → no-op in service).
+    """
+    if tag_slugs is None:
+        return None
+    from events.models import Tag
+
+    return list(Tag.objects.filter(slug__in=tag_slugs).values_list("pk", flat=True))
+
+
+def _event_to_dict(event):
+    """
+    Serialize an Event instance to a dict matching EventOut.
+
+    Centralises the field mapping used by events_list, events_create,
+    events_detail, and events_update — avoiding 4× repetition.
+    """
+    return {
+        "id": event.pk,
+        "title": event.title,
+        "slug": event.slug,
+        "start": event.start,
+        "end": event.end,
+        "description": event.description,
+        "status": event.status,
+        "visibility": event.visibility,
+        "dress_code": event.dress_code,
+        "content_warnings": event.content_warnings or [],
+        "age_restriction": event.age_restriction,
+        "capacity": event.capacity,
+        "language": event.language,
+        "is_free": event.is_free,
+        "price_min_cents": event.price_min_cents,
+        "price_max_cents": event.price_max_cents,
+        "currency": event.currency,
+        "sliding_scale": event.sliding_scale,
+        "price_description": event.price_description,
+        "external_url": event.external_url,
+        "tickets_url": event.tickets_url,
+        "registration_required": event.registration_required,
+        "registration_url": event.registration_url,
+        "registration_email": event.registration_email,
+        "category": event.category,
+        "venue_id": event.venue_id,
+        "tags": list(event.tags.values_list("slug", flat=True)),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Event CRUD endpoints
 # ---------------------------------------------------------------------------
 
@@ -572,36 +656,7 @@ def events_list(request):
     event_ids = EventOrganizer.objects.filter(profile_id__in=profile_ids).values_list("event_id", flat=True)
 
     events = Event.objects.filter(pk__in=event_ids).order_by("-start")
-    data = [
-        {
-            "id": e.pk,
-            "title": e.title,
-            "slug": e.slug,
-            "start": e.start,
-            "end": e.end,
-            "description": e.description,
-            "status": e.status,
-            "visibility": e.visibility,
-            "dress_code": e.dress_code,
-            "content_warnings": e.content_warnings or [],
-            "age_restriction": e.age_restriction,
-            "capacity": e.capacity,
-            "language": e.language,
-            "is_free": e.is_free,
-            "price_min_cents": e.price_min_cents,
-            "price_max_cents": e.price_max_cents,
-            "currency": e.currency,
-            "sliding_scale": e.sliding_scale,
-            "price_description": e.price_description,
-            "external_url": e.external_url,
-            "tickets_url": e.tickets_url,
-            "registration_required": e.registration_required,
-            "registration_url": e.registration_url,
-            "registration_email": e.registration_email,
-            "category": e.category,
-        }
-        for e in events
-    ]
+    data = [_event_to_dict(e) for e in events]
     return _actor_marker_response(request, data)
 
 
@@ -617,37 +672,27 @@ def events_create(request, body: EventCreateIn):
     Auth: identity token (agent) or session (web). ADR-016 D3/D6.
     Eager-creates draft listing projections per enabled listing-capable connection
     (ADR-016 D4).
+
+    Venue resolution (ADR-008 D3: fail loud on unknown id) and tag-slug resolution
+    (lenient skip of unknown slugs, mirroring forms.py clean_venue / clean_tags)
+    happen here before calling the service.
     """
     kwargs = body.dict(exclude_none=False)
+
+    # Resolve venue id → Venue instance (raises 404 on unknown id — ADR-008 D3).
+    venue_id = kwargs.pop("venue", None)
+    venue = _resolve_venue(venue_id)
+    if venue is not None:
+        kwargs["venue"] = venue
+
+    # Resolve tag slugs → Tag PKs (lenient: unknown slugs silently skipped).
+    tag_slugs = kwargs.pop("tags", None)
+    tag_pks = _resolve_tag_pks(tag_slugs)
+    if tag_pks is not None:
+        kwargs["tags"] = tag_pks
+
     event = create_event(user=request.auth, **kwargs)
-    data = {
-        "id": event.pk,
-        "title": event.title,
-        "slug": event.slug,
-        "start": event.start,
-        "end": event.end,
-        "description": event.description,
-        "status": event.status,
-        "visibility": event.visibility,
-        "dress_code": event.dress_code,
-        "content_warnings": event.content_warnings or [],
-        "age_restriction": event.age_restriction,
-        "capacity": event.capacity,
-        "language": event.language,
-        "is_free": event.is_free,
-        "price_min_cents": event.price_min_cents,
-        "price_max_cents": event.price_max_cents,
-        "currency": event.currency,
-        "sliding_scale": event.sliding_scale,
-        "price_description": event.price_description,
-        "external_url": event.external_url,
-        "tickets_url": event.tickets_url,
-        "registration_required": event.registration_required,
-        "registration_url": event.registration_url,
-        "registration_email": event.registration_email,
-        "category": event.category,
-    }
-    return _actor_marker_response(request, data, status=201)
+    return _actor_marker_response(request, _event_to_dict(event), status=201)
 
 
 @api.get(
@@ -668,34 +713,7 @@ def events_detail(request, event_id: int):
         # Raises PermissionError → handled by @api.exception_handler(PermissionError) → 403.
         # Same pattern as update_event/create_post service layer (ADR-008 D3, finding #2).
         raise PermissionError("Agent lacks authority over this event.")
-    data = {
-        "id": event.pk,
-        "title": event.title,
-        "slug": event.slug,
-        "start": event.start,
-        "end": event.end,
-        "description": event.description,
-        "status": event.status,
-        "visibility": event.visibility,
-        "dress_code": event.dress_code,
-        "content_warnings": event.content_warnings or [],
-        "age_restriction": event.age_restriction,
-        "capacity": event.capacity,
-        "language": event.language,
-        "is_free": event.is_free,
-        "price_min_cents": event.price_min_cents,
-        "price_max_cents": event.price_max_cents,
-        "currency": event.currency,
-        "sliding_scale": event.sliding_scale,
-        "price_description": event.price_description,
-        "external_url": event.external_url,
-        "tickets_url": event.tickets_url,
-        "registration_required": event.registration_required,
-        "registration_url": event.registration_url,
-        "registration_email": event.registration_email,
-        "category": event.category,
-    }
-    return _actor_marker_response(request, data)
+    return _actor_marker_response(request, _event_to_dict(event))
 
 
 @api.patch(
@@ -708,6 +726,10 @@ def events_update(request, event_id: int, body: EventUpdateIn):
     """
     Partially update an Event via the service layer (gated by can_edit seam).
     Only non-None fields are applied.
+
+    Venue resolution (ADR-008 D3: fail loud on unknown id) and tag-slug resolution
+    (lenient skip of unknown slugs, mirroring forms.py clean_venue / clean_tags)
+    happen here before calling the service.
     """
     from django.shortcuts import get_object_or_404
 
@@ -716,35 +738,22 @@ def events_update(request, event_id: int, body: EventUpdateIn):
     event = get_object_or_404(Event, pk=event_id)
     # Only pass non-None fields so unset optional fields don't zero-out existing values
     patch_kwargs = {k: v for k, v in body.dict().items() if v is not None}
+
+    # Resolve venue id → Venue instance (raises 404 on unknown id — ADR-008 D3).
+    if "venue" in patch_kwargs:
+        venue = _resolve_venue(patch_kwargs.pop("venue"))
+        if venue is not None:
+            patch_kwargs["venue"] = venue
+
+    # Resolve tag slugs → Tag PKs (lenient: unknown slugs silently skipped).
+    if "tags" in patch_kwargs:
+        tag_slugs = patch_kwargs.pop("tags")
+        tag_pks = _resolve_tag_pks(tag_slugs)
+        if tag_pks is not None:
+            patch_kwargs["tags"] = tag_pks
+
     event = update_event(user=request.auth, event=event, **patch_kwargs)
-    data = {
-        "id": event.pk,
-        "title": event.title,
-        "slug": event.slug,
-        "start": event.start,
-        "end": event.end,
-        "description": event.description,
-        "status": event.status,
-        "visibility": event.visibility,
-        "dress_code": event.dress_code,
-        "content_warnings": event.content_warnings or [],
-        "age_restriction": event.age_restriction,
-        "capacity": event.capacity,
-        "language": event.language,
-        "is_free": event.is_free,
-        "price_min_cents": event.price_min_cents,
-        "price_max_cents": event.price_max_cents,
-        "currency": event.currency,
-        "sliding_scale": event.sliding_scale,
-        "price_description": event.price_description,
-        "external_url": event.external_url,
-        "tickets_url": event.tickets_url,
-        "registration_required": event.registration_required,
-        "registration_url": event.registration_url,
-        "registration_email": event.registration_email,
-        "category": event.category,
-    }
-    return _actor_marker_response(request, data)
+    return _actor_marker_response(request, _event_to_dict(event))
 
 
 # ---------------------------------------------------------------------------
