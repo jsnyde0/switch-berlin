@@ -1,5 +1,5 @@
 {% extends "layouts/_default.html" %}
-{% load i18n event_tags %}
+{% load i18n event_tags static %}
 {% block title %}
   {{ event.title }} — Switch Berlin
 {% endblock title %}
@@ -12,6 +12,9 @@
     {% if cover_image %}
       <meta property="og:image"
             content="{{ request.scheme }}://{{ request.get_host }}{{ cover_image.image.url }}" />
+    {% else %}
+      <meta property="og:image"
+            content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-default.png' %}" />
     {% endif %}
     <meta property="og:url" content="{{ request.build_absolute_uri }}" />
   {% endif %}

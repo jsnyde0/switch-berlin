@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
 from events.models import Event, EventImage
@@ -146,8 +146,66 @@ class EventDetailOGImageTest(TestCase):
         self.assertIn("cover_image", response.context)
         self.assertEqual(response.context["cover_image"].pk, cover.pk)
 
-    def test_og_image_absent_when_no_cover(self):
-        """An event with no cover renders no og:image meta tag."""
+    def test_og_image_default_when_no_cover(self):
+        """An event with no cover renders og:image pointing at the site-level default asset."""
         response = self._get_with_flag(True)
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'property="og:image"')
+        self.assertContains(response, 'property="og:image"')
+        self.assertContains(response, "og-default.png")
+
+    def test_og_image_cover_url_when_cover_set(self):
+        """Cover event renders og:image with the absolute cover URL (rendered HTML check)."""
+        cover = self._create_cover_image()
+        response = self._get_with_flag(True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'property="og:image"')
+        self.assertContains(response, cover.image.url)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class CardImageUrlResolverTest(TestCase):
+    """events.og.card_image_url returns the right URL for cover and no-cover cases."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.request = self.factory.get("/")
+        # Simulate Django's request.scheme / get_host
+        self.request.META["SERVER_NAME"] = "testserver"
+        self.request.META["SERVER_PORT"] = "80"
+
+        self.organizer = Profile.objects.create(
+            name="Resolver Org",
+            slug="resolver-org",
+            status="approved",
+        )
+        self.event = Event.objects.create(
+            title="Resolver Night",
+            slug="resolver-night",
+            organizer=self.organizer,
+            start=timezone.now() + timezone.timedelta(days=3),
+            status="published",
+            description="Resolver test event.",
+        )
+
+    def _create_cover_image(self):
+        cover = EventImage(event=self.event, is_cover=True, order=0)
+        cover.image.save("cover.png", _uploaded_png(), save=True)
+        return cover
+
+    def test_resolver_returns_cover_url_when_cover_exists(self):
+        """card_image_url returns the absolute cover image URL when a cover is set."""
+        from events.og import card_image_url
+
+        cover = self._create_cover_image()
+        url = card_image_url(self.event, self.request)
+        # Must be absolute and contain the cover image path
+        self.assertIn(cover.image.url, url)
+        self.assertTrue(url.startswith("http"))
+
+    def test_resolver_returns_default_url_when_no_cover(self):
+        """card_image_url returns the site default absolute URL when no cover is set."""
+        from events.og import card_image_url
+
+        url = card_image_url(self.event, self.request)
+        self.assertIn("og-default.png", url)
+        self.assertTrue(url.startswith("http"))
