@@ -760,35 +760,9 @@ def fragment_event_syndication(request, pk, *, action_error=None):
             "category": event.category,
         }
     )
-    # kb-ide0.1 follow-up: the Switch listing card only visually surfaces ~8 listing-
-    # facing fields (title, start, end, description, dress_code, age_restriction,
-    # tickets_url, slug). The remaining carry-only fields must be rendered as true
-    # hidden inputs — present in the POST so no data loss, invisible in the card.
-    # Override here (not in EventForm) so the full edit page keeps its visible widgets.
-    from django.forms import HiddenInput as _HiddenInput
-
-    # kb-96tn.2 D-IA3: venue is surfaced as a visible inline-editable field in the
-    # Switch listing card — removed from carry-only hidden list. All other carry
-    # fields remain hidden (data preservation without visible widget).
-    for _carry_field in (
-        "tags",
-        "content_warnings",
-        "capacity",
-        "visibility",
-        "language",
-        "is_free",
-        "price_min_cents",
-        "price_max_cents",
-        "currency",
-        "sliding_scale",
-        "price_description",
-        "external_url",
-        "registration_required",
-        "registration_url",
-        "registration_email",
-        "category",
-    ):
-        event_form.fields[_carry_field].widget = _HiddenInput()
+    # kb-y209.1: all 16 previously-hidden fields are now rendered as editable widgets
+    # in progressive-disclosure sections in the Switch listing card. The HiddenInput
+    # override loop is removed — every field keeps its native widget.
 
     # kb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
     # re-opens the same channel tab. The action POSTs (customize/reset/duplicate)

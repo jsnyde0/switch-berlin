@@ -148,17 +148,26 @@ Live-share — source's later edits DO propagate (ADR-016 D2 re-resolved 2026-06
 </div>
 {% endif %}
 </div>
-{% comment %}Autosave: hx-swap="none" + debounced trigger keeps focus.
-A subtle "Saved" indicator updates via hx-on::after-request without DOM replacement.{% endcomment %}
+{% comment %}kb-y209.1: Typefully-aligned composer card.
+Autosave form handles all text/select/checkbox fields (hx-swap=none, debounced).
+Cover image uses a separate multipart form (cannot ride text autosave).
+Progressive disclosure sections (Alpine) surface secondary field groups.
+x-data root on the card wrapper survives HTMX swaps because Alpine re-initialises
+on the incoming fragment automatically (HTMX htmx:afterSwap + Alpine MutationObserver).{% endcomment %}
+<div x-data="{
+  showPricing: false,
+  showRegistration: false,
+  showDetails: false,
+  showLinks: false,
+  showTags: false
+}">
 <form method="post" action="{% url 'syndication:event-edit' pk=event.pk %}" hx-post="{% url 'syndication:event-edit' pk=event.pk %}" hx-swap="none" hx-trigger="input changed delay:600ms" hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
 {% csrf_token %}
-{% comment %}Styled Switch listing card containing event form inputs.
-        The card mirrors the Switch preview styling from _channel_preview.html
-so the edit surface feels like the listing itself.{% endcomment %}
-<div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07)" class="px-4 pt-3 pb-4 mb-5">
-<div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5)"></div>
-{% comment %}Core event fields: title, description, start, end{% endcomment %}
-<div class="flex flex-col gap-3">
+{% comment %}Styled Switch listing card — primary (always-visible) fields.{% endcomment %}
+<div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07)" class="px-4 pt-3 pb-0 mb-5">
+<div class="w-8 h-px mb-3" style="background: rgb(248 113 196 / 0.5)"></div>
+{% comment %}--- Primary fields (always visible) ---{% endcomment %}
+<div class="flex flex-col gap-3 pb-4">
 <div class="flex flex-col gap-1">
 <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.title.id_for_label }}">
 {{ event_form.title.label }}
@@ -231,34 +240,214 @@ so the edit surface feels like the listing itself.{% endcomment %}
 {% endif %}
 </div>
 </div>
+{% comment %}--- Disclosure toggle strip --- kb-y209.1 progressive disclosure{% endcomment %}
+<div class="flex flex-wrap gap-x-0 pt-0" style="border-top: 1px solid rgba(255,255,255,0.06)">
+<button type="button"
+  @click="showPricing = !showPricing"
+  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
+  :class="showPricing ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+  <span x-text="showPricing ? '— {% trans "Pricing" %}' : '+ {% trans "Pricing" %}'">+ {% trans "Pricing" %}</span>
+</button>
+<button type="button"
+  @click="showRegistration = !showRegistration"
+  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
+  :class="showRegistration ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+  <span x-text="showRegistration ? '— {% trans "Registration" %}' : '+ {% trans "Registration" %}'">+ {% trans "Registration" %}</span>
+</button>
+<button type="button"
+  @click="showDetails = !showDetails"
+  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
+  :class="showDetails ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+  <span x-text="showDetails ? '— {% trans "Details" %}' : '+ {% trans "Details" %}'">+ {% trans "Details" %}</span>
+</button>
+<button type="button"
+  @click="showLinks = !showLinks"
+  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
+  :class="showLinks ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+  <span x-text="showLinks ? '— {% trans "Links" %}' : '+ {% trans "Links" %}'">+ {% trans "Links" %}</span>
+</button>
+<button type="button"
+  @click="showTags = !showTags"
+  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
+  :class="showTags ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+  <span x-text="showTags ? '— {% trans "Tags" %}' : '+ {% trans "Tags" %}'">+ {% trans "Tags" %}</span>
+</button>
 </div>
-{% comment %}FIX 2 (ADR-008 D3): carry ALL fields not visually rendered as hidden inputs
-        so the POST always includes every field and update_event never silently wipes them.
-        Visible fields: title, start, end, description, dress_code, age_restriction, tickets_url, slug, venue.
-        Hidden fields carry the current event values to preserve them through a partial edit.
-        kb-96tn.2 D-IA3: venue is now visible above; removed from hidden list here.{% endcomment }
-        {{ event_form.tags }}
-        {{ event_form.content_warnings }}
-        {{ event_form.capacity }}
-        {{ event_form.visibility }}
-        {{ event_form.language }}
-        {{ event_form.is_free }}
-        {{ event_form.price_min_cents }}
-        {{ event_form.price_max_cents }}
-        {{ event_form.currency }}
-        {{ event_form.sliding_scale }}
-        {{ event_form.price_description }}
-        {{ event_form.external_url }}
-        {{ event_form.registration_required }}
-        {{ event_form.registration_url }}
-        {{ event_form.registration_email }}
-        {{ event_form.category }}
-        {% comment %}D6: No explicit Save button — autosave handles persistence.
+{% comment %}--- Pricing disclosure section ---{% endcomment %}
+<div x-show="showPricing" x-cloak style="border-top: 1px solid rgba(255,255,255,0.06)" class="px-0 pt-3 pb-4">
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-2.5">
+{% comment %}Hidden companion: ensures is_free is always present in POST so unchecking
+persists False (HTML checkbox is absent from POST when unchecked — without this
+companion the submitted_keys filter in views.py would drop the field entirely).
+The companion comes FIRST; CheckboxInput.value_from_datadict uses the LAST value
+from MultiValueDict, so checked→[false,on]→True, unchecked→[false]→False.
+ONLY in the main autosave form — the cover form does NOT carry these companions
+so the submitted_keys filter still preserves booleans for cover-only POSTs.{% endcomment %}
+<input type="hidden" name="is_free" value="false">
+{{ event_form.is_free }}
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 cursor-pointer" for="{{ event_form.is_free.id_for_label }}">
+{{ event_form.is_free.label }}
+</label>
+</div>
+<div class="flex items-center gap-2.5">
+<input type="hidden" name="sliding_scale" value="false">
+{{ event_form.sliding_scale }}
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 cursor-pointer" for="{{ event_form.sliding_scale.id_for_label }}">
+{{ event_form.sliding_scale.label }}
+</label>
+</div>
+<div class="grid gap-2" style="grid-template-columns: 1fr 1fr 80px">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.price_min_cents.id_for_label }}">
+{{ event_form.price_min_cents.label }}
+</label>
+{{ event_form.price_min_cents }}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.price_max_cents.id_for_label }}">
+{{ event_form.price_max_cents.label }}
+</label>
+{{ event_form.price_max_cents }}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.currency.id_for_label }}">
+{{ event_form.currency.label }}
+</label>
+{{ event_form.currency }}
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.price_description.id_for_label }}">
+{{ event_form.price_description.label }}
+</label>
+{{ event_form.price_description }}
+</div>
+</div>
+</div>
+{% comment %}--- Registration disclosure section ---{% endcomment %}
+<div x-show="showRegistration" x-cloak style="border-top: 1px solid rgba(255,255,255,0.06)" class="px-0 pt-3 pb-4">
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-2.5">
+{% comment %}Hidden companion for registration_required — same pattern as is_free above.{% endcomment %}
+<input type="hidden" name="registration_required" value="false">
+{{ event_form.registration_required }}
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30 cursor-pointer" for="{{ event_form.registration_required.id_for_label }}">
+{{ event_form.registration_required.label }}
+</label>
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.registration_url.id_for_label }}">
+{{ event_form.registration_url.label }}
+</label>
+{{ event_form.registration_url }}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.registration_email.id_for_label }}">
+{{ event_form.registration_email.label }}
+</label>
+{{ event_form.registration_email }}
+</div>
+</div>
+</div>
+{% comment %}--- Details disclosure section (visibility, language, capacity, content warnings, category) ---{% endcomment %}
+<div x-show="showDetails" x-cloak style="border-top: 1px solid rgba(255,255,255,0.06)" class="px-0 pt-3 pb-4">
+<div class="flex flex-col gap-3">
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.visibility.id_for_label }}">
+{{ event_form.visibility.label }}
+</label>
+{{ event_form.visibility }}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.language.id_for_label }}">
+{{ event_form.language.label }}
+</label>
+{{ event_form.language }}
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.capacity.id_for_label }}">
+{{ event_form.capacity.label }}
+</label>
+{{ event_form.capacity }}
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.category.id_for_label }}">
+{{ event_form.category.label }}
+</label>
+{{ event_form.category }}
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.content_warnings.id_for_label }}">
+{{ event_form.content_warnings.label }}
+</label>
+{{ event_form.content_warnings }}
+{% if event_form.content_warnings.errors %}
+<p class="text-red-400 text-xs mt-0.5">{{ event_form.content_warnings.errors|join:", " }}</p>
+{% endif %}
+</div>
+</div>
+</div>
+{% comment %}--- Links disclosure section (external_url) ---{% endcomment %}
+<div x-show="showLinks" x-cloak style="border-top: 1px solid rgba(255,255,255,0.06)" class="px-0 pt-3 pb-4">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.external_url.id_for_label }}">
+{{ event_form.external_url.label }}
+</label>
+{{ event_form.external_url }}
+</div>
+</div>
+{% comment %}--- Tags disclosure section ---{% endcomment %}
+<div x-show="showTags" x-cloak style="border-top: 1px solid rgba(255,255,255,0.06)" class="px-0 pt-3 pb-4">
+<div class="flex flex-col gap-1">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.tags.id_for_label }}">
+{{ event_form.tags.label }}
+</label>
+{{ event_form.tags }}
+</div>
+</div>
+{% comment %}D6: No explicit Save button — autosave handles persistence.
 A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomment %}
-<div class="flex items-center gap-3 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06)">
+<div class="flex items-center gap-3 px-0 py-2.5" style="border-top: 1px solid rgba(255,255,255,0.06)">
 <span class="kb-mono text-[8px] uppercase tracking-[0.16em] text-base-content/25" x-show="autosaveSaved" x-cloak>{% trans "Saved" %}</span>
 </div>
+</div>
 </form>
+{% comment %}--- Cover image: separate multipart form (cannot ride text autosave) --- kb-y209.1{% endcomment %}
+<form method="post"
+  action="{% url 'syndication:event-edit' pk=event.pk %}"
+  hx-post="{% url 'syndication:event-edit' pk=event.pk %}"
+  hx-encoding="multipart/form-data"
+  hx-swap="none"
+  hx-trigger="change"
+  hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
+{% csrf_token %}
+<div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-top: none" class="px-4 pb-3">
+<div class="flex flex-col gap-2 pt-3">
+<label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.cover_image.id_for_label }}">
+{% trans "Cover image" %}
+</label>
+{% comment %}Show existing cover thumbnail if present{% endcomment %}
+{% for img in event.images.all %}
+{% if img.is_cover %}
+<img src="{{ img.image.url }}" alt="{% trans "Current cover" %}" class="w-24 h-16 object-cover" style="border: 1px solid rgba(255,255,255,0.10)" loading="lazy">
+{% endif %}
+{% endfor %}
+{{ event_form.cover_image }}
+<p class="kb-mono text-[8px] text-base-content/25">{% trans "JPG, PNG, or WebP. Max 5 MiB. Upload replaces existing cover." %}</p>
+</div>
+</div>
+{% comment %}Also carry required fields so the POST is valid (title/slug/start required by EventForm).
+These carry the current values silently so the cover-only POST doesn't wipe fields.{% endcomment %}
+<input type="hidden" name="title" value="{{ event.title }}">
+<input type="hidden" name="slug" value="{{ event.slug }}">
+<input type="hidden" name="start" value="{{ event.start|date:'Y-m-d' }}T{{ event.start|date:'H:i' }}">
+</form>
+</div>
 {% else %}
 {% comment %}--- (b) BODY-FORM REGION --- kb-kgza.2 rewires the form action here.
       Non-Switch-listing: sync control bar + freeform textarea editor.
