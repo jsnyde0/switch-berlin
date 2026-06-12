@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "click>=8.4.1",
     "httpx>=0.28.1",
+    "telethon>=1.43.2",
     "tomli-w>=1.2.0",
 ]
 
@@ -24,6 +25,7 @@ packages = ["src/switch_cli"]
 dev = [
     "hatchling>=1.29.0",
     "pytest>=9.0.3",
+    "ruff>=0.15.17",
 ]
 
 [tool.pytest.ini_options]

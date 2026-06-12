@@ -29,7 +29,14 @@ import sys
 import click
 
 from switch_cli.client import APIError, AuthError, SwitchClient, redeem_pairing_token
-from switch_cli.config import ConfigError, load_base_url, save_base_url, save_config
+from switch_cli.config import ConfigError, load_base_url, load_config, save_base_url, save_config
+from switch_cli.telegram.session import (
+    QRLoginTimeoutError,
+    SessionCorruptError,
+    TelegramConfigError,
+    _get_config_dir,
+    run_connect,
+)
 
 
 def _output(data) -> None:
@@ -96,10 +103,7 @@ def pair(pairing_token: str, base_url: str):
         try:
             base_url = load_base_url()
         except (FileNotFoundError, ConfigError) as exc:
-            _error(
-                f"No --base-url given and none in config: {exc}. "
-                "Run `switch-cli configure --base-url <url>` first."
-            )
+            _error(f"No --base-url given and none in config: {exc}. Run `switch-cli configure --base-url <url>` first.")
     try:
         api_key = redeem_pairing_token(pairing_token=pairing_token, base_url=base_url)
     except AuthError as exc:
@@ -314,4 +318,55 @@ def list_projections():
         _error(str(exc))
     except APIError as exc:
         _error(f"API error {exc.status_code}: {exc.detail}")
+    _output(result)
+
+
+# ---------------------------------------------------------------------------
+# telegram group
+# ---------------------------------------------------------------------------
+
+
+@cli.group("telegram")
+def telegram():
+    """Telegram integration commands."""
+
+
+@telegram.command("connect")
+def telegram_connect():
+    """
+    Authenticate to Telegram via QR login and persist the session locally.
+
+    Reads api_id/api_hash from the [telegram] section of the switch-cli config.
+    Persists the returned StringSession to the config dir (~/.config/switch-cli/).
+    A second invocation reuses the stored session without re-login.
+
+    The session string is NEVER sent to any server (ADR-018 D4).
+    Fails loudly on QR timeout, missing creds, or corrupt session (ADR-008 D3).
+    """
+    try:
+        cfg = load_config()
+    except (FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+
+    tg_cfg = cfg.get("telegram")
+    if not tg_cfg or "api_id" not in tg_cfg or "api_hash" not in tg_cfg:
+        _error(
+            "Telegram api_id and api_hash are not configured. "
+            "Add a [telegram] section to your switch-cli config with api_id and api_hash. "
+            "Obtain these from https://my.telegram.org/apps ."
+        )
+
+    config_dir = _get_config_dir()
+    try:
+        result = run_connect(
+            api_id=int(tg_cfg["api_id"]),
+            api_hash=str(tg_cfg["api_hash"]),
+            config_dir=config_dir,
+        )
+    except TelegramConfigError as exc:
+        _error(str(exc))
+    except SessionCorruptError as exc:
+        _error(str(exc))
+    except QRLoginTimeoutError as exc:
+        _error(str(exc))
     _output(result)
