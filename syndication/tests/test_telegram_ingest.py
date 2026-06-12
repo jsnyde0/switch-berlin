@@ -22,6 +22,7 @@ from syndication.models import (
     IdentityToken,
     PlatformConnection,
     TelegramDialogType,
+    TelegramPostability,
 )
 
 
@@ -72,6 +73,47 @@ class TelegramDialogTypeChoicesTest(TestCase):
             canonical_values,
             "forum_group must NOT be in TelegramDialogType — it is NOT a postable "
             "destination (a forum group is not postable; only specific topics are).",
+        )
+
+
+class TelegramPostabilityChoicesTest(TestCase):
+    """
+    Cross-surface equality: TelegramPostability must define EXACTLY the canonical
+    set (bot, agent, public). A value outside this set must fail this test.
+
+    This is Finding 1 from the re-verify of kb-ru55.2 — the SINGLE resolution
+    point for the postability vocabulary. kb-sbhs's capability-ladder picker
+    reads this same set; any drift here silently breaks the picker (ADR-008 D3).
+    """
+
+    def test_canonical_postability_set_is_exactly_bot_agent_public(self):
+        """
+        The canonical TelegramPostability values must equal exactly:
+        {bot, agent, public}
+
+        This is a cross-surface equality assertion (not substring) per bead D1a
+        intent and commit e93c4ec pattern. A value like 'admin' not in this set
+        must cause this test to fail.
+        """
+        canonical_values = {v for v, _label in TelegramPostability.choices}
+        self.assertEqual(
+            canonical_values,
+            {"bot", "agent", "public"},
+            "TelegramPostability values must be exactly: bot, agent, public — "
+            "not a superset or subset. This set matches the capability-ladder tiers "
+            "documented in kb-sbhs D4 picker rendering.",
+        )
+
+    def test_divergent_value_admin_is_not_in_canonical_postability_set(self):
+        """
+        Explicitly assert a known-wrong value is NOT in the set.
+        This ensures the test cannot pass trivially with a superset.
+        """
+        canonical_values = {v for v, _label in TelegramPostability.choices}
+        self.assertNotIn(
+            "admin",
+            canonical_values,
+            "admin must NOT be in TelegramPostability — it is not a capability-ladder tier.",
         )
 
 
@@ -617,6 +659,74 @@ class TelegramInventoryIngestTest(TestCase):
             platform="telegram",
         ).count()
         self.assertEqual(count, 0, "No row must be created for a non-canonical type value")
+
+    # ----- Finding 1 (re-verify): non-canonical postability value rejected at ingest boundary -----
+
+    def test_non_canonical_postability_value_is_rejected_422(self):
+        """
+        A payload with a non-canonical postability value (e.g. 'bogus') must be
+        rejected with HTTP 422 at the API boundary — NOT stored.
+
+        Finding 1 (re-verify kb-ru55.2): postability was left soft (plain str).
+        Now constrained to TelegramPostability enum values: bot, agent, public.
+        A non-canonical value must be rejected loud (ADR-008 D3).
+        """
+        payload = [
+            {
+                "chat_id": "-1001111111111",
+                "title": "My Channel",
+                "type": "channel",
+                "postability": "bogus",  # NOT in canonical TelegramPostability set
+            },
+        ]
+        response = self._post_inventory(payload)
+        self.assertEqual(
+            response.status_code,
+            422,
+            f"Non-canonical postability 'bogus' must be rejected 422; got: {response.content}",
+        )
+
+    def test_non_canonical_postability_not_stored(self):
+        """
+        When a non-canonical postability value is rejected, no PlatformConnection row
+        must be created.
+        """
+        payload = [
+            {
+                "chat_id": "-1001111111111",
+                "title": "My Channel",
+                "type": "channel",
+                "postability": "bogus",
+            },
+        ]
+        self._post_inventory(payload)
+        count = PlatformConnection.objects.filter(
+            organizer=self.profile,
+            platform="telegram",
+        ).count()
+        self.assertEqual(count, 0, "No row must be created for a non-canonical postability value")
+
+    def test_valid_postability_agent_ingests_fine(self):
+        """
+        A payload with a valid postability value 'agent' must be accepted (HTTP 200).
+        Regression guard: ensuring the constraint doesn't over-block.
+        """
+        payload = [
+            {
+                "chat_id": "-1001111111111",
+                "title": "Private Group",
+                "type": "group",
+                "postability": "agent",
+            },
+        ]
+        response = self._post_inventory(payload)
+        self.assertEqual(response.status_code, 200, response.content)
+        conn = PlatformConnection.objects.get(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="-1001111111111",
+        )
+        self.assertEqual(conn.postability, "agent")
 
     # ----- Finding 4: response body shape pinned -----
 

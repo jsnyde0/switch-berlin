@@ -177,6 +177,17 @@ def ingest_telegram_inventory(user, inventory: list[dict]) -> dict:
     Returns a summary dict: {"upserted": int, "flagged": int}.
 
     Raises ValueError if any payload item contains a forbidden field.
+
+    NOTE — kinds=[] seam (by design, kb-ru55.2 Finding 2):
+    Synced rows are created with kinds=[] (the PlatformConnection default).
+    This means synced Telegram destinations are inventory-only — they are NOT
+    automatically promotion-enabled. _eager_create_promotion_projections skips
+    connections without "promotion" in kinds, so no projections are created
+    at ingest time. This is intentional: enabling a destination for promotion
+    (setting kinds=["promotion"]) is the connection-management / picker's
+    responsibility (kb-sbhs), NOT the ingest verb's. The sync step surfaces
+    the inventory; the user explicitly enables specific destinations via the
+    picker UI. Do NOT change this behavior here.
     """
     from organizers.models import ProfileClaim  # noqa: PLC0415
     from syndication.models import PlatformConnection  # noqa: PLC0415

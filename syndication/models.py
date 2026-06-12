@@ -71,6 +71,31 @@ class TelegramDialogType(models.TextChoices):
     FORUM_TOPIC = "forum_topic", _("Forum topic")
 
 
+class TelegramPostability(models.TextChoices):
+    """
+    Canonical Telegram postability / capability-ladder vocabulary
+    (kb-ru55.2 re-verify Finding 1 — SINGLE resolution point).
+
+    This is the ONLY definition of these values across the entire project.
+    The sync agent (kb-ru55.3) emits them, this model stores them, and kb-sbhs's
+    web picker renders the capability-ladder tier (kb-sbhs D4). Do NOT define a
+    local copy elsewhere — import this class directly.
+
+    Values match the three capability-ladder tiers (ADR-018 D1):
+      bot    → bot-accessible own/admin channels (Telegram Bot API is sufficient)
+      agent  → private groups + forum topics (requires agent/MTProto session)
+      public → deep-link only (not directly post-able; public link suffices)
+
+    This enum is the server-side guard: a non-canonical value at the ingest
+    boundary is rejected 422 (ADR-008 D3 fail loud). NULL is preserved for
+    non-Telegram connections (choices only constrain non-null values at ingest).
+    """
+
+    BOT = "bot", _("Bot")
+    AGENT = "agent", _("Agent")
+    PUBLIC = "public", _("Public")
+
+
 class PlatformConnection(models.Model):
     """
     A specific syndication destination owned by an organizer (ADR-016 D4).
@@ -188,6 +213,7 @@ class PlatformConnection(models.Model):
     )
     postability = models.CharField(
         max_length=50,
+        choices=TelegramPostability.choices,
         null=True,
         blank=True,
         default=None,
@@ -197,7 +223,8 @@ class PlatformConnection(models.Model):
             "'agent' (private groups + forum topics, requires agent session), "
             "'public' (deep-link only). "
             "null for non-Telegram connections. "
-            "Read by kb-sbhs D4 picker rendering."
+            "Read by kb-sbhs D4 picker rendering. "
+            "Constrained to TelegramPostability choices (single resolution point per kb-ru55.2 re-verify)."
         ),
     )
     flagged_missing = models.BooleanField(
