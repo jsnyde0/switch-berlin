@@ -236,6 +236,47 @@ class PlatformConnection(models.Model):
         ),
     )
 
+    # ---------------------------------------------------------------------------
+    # Names/tags overlay (kb-sbhs.1 — additive decoration metadata)
+    # Added via migration 0014_platformconnection_overlay_fields.
+    # ADR-008 D3 additive-only: defaults preserve prior visibility (None / []).
+    # ADR-003: audience-ready shape — a future Audiences feature reads this
+    # overlay without reshaping; no Audiences abstraction built here (ADR-008 D2).
+    # ADR-016 D4: overlay decorates PlatformConnection — no lighter-record bypass.
+    #
+    # friendly_name: display-only override for `title`. `title` is the synced
+    # source-of-truth; friendly_name is NEVER message content, NEVER replaces
+    # connection identity. NULL = no override; display falls back to `title`.
+    #
+    # theme_tags: list of organizer-defined theme tags for the picker tag-filter.
+    # Stored as JSON array; default=list means an empty [] for new rows.
+    # Never message content. Never a replacement for connection identity.
+    # ---------------------------------------------------------------------------
+
+    friendly_name = models.CharField(
+        max_length=300,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Display-only friendly name override for this destination (kb-sbhs.1). "
+            "NULL = no override; the picker falls back to `title`. "
+            "Never message content. Never replaces connection identity (ADR-016 D4). "
+            "`title` remains the synced source-of-truth — do NOT mutate or replace it."
+        ),
+    )
+    theme_tags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Organizer-defined theme tags for the picker tag-filter (kb-sbhs.1). "
+            "Stored as a JSON array of strings (e.g. ['munich', 'queer']). "
+            "Default = [] (empty list — additive-only, ADR-008 D3). "
+            "Never message content. Audience-ready shape (ADR-003): "
+            "a future Audiences feature reads this without reshaping."
+        ),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
