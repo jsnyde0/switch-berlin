@@ -25,7 +25,9 @@ from switch_cli.cli import cli
 from switch_cli.config import save_config
 from switch_cli.telegram.session import (
     SessionCorruptError,
+    TelegramConfigError,
     load_telegram_session,
+    run_connect,
     save_telegram_session,
 )
 
@@ -83,12 +85,19 @@ def fake_session_string():
 
 def _make_mock_qr_login(session_string: str):
     """
-    Return a mock TelegramClient and a mock QR-login result that yields
-    the given session_string once login() is awaited.
+    Return a mock TelegramClient and a mock QR-login result that mirrors the
+    real Telethon QRLogin object.
+
+    The real QRLogin (telethon/tl/custom/qrlogin.py) exposes:
+    - .url  — str property
+    - .wait(timeout=None) — async method that returns the logged-in User
+    There is NO .login() method on the real object; using .wait() here ensures
+    the mock boundary matches the real API, so a typo to the wrong method name
+    would cause AttributeError rather than a silent pass.
     """
-    mock_qr = MagicMock()
+    mock_qr = MagicMock(spec=["url", "wait"])
     mock_qr.url = "tg://some-qr-url"
-    mock_qr.login = AsyncMock(return_value=True)
+    mock_qr.wait = AsyncMock(return_value=MagicMock())  # returns a User-like object
 
     mock_client = MagicMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -96,7 +105,7 @@ def _make_mock_qr_login(session_string: str):
     mock_client.qr_login = AsyncMock(return_value=mock_qr)
     mock_client.is_connected = MagicMock(return_value=True)
 
-    # session.save() stores the string; session.save returns None
+    # session.save() stores the string
     mock_session = MagicMock()
     mock_session.save = MagicMock(return_value=session_string)
     mock_client.session = mock_session
@@ -113,9 +122,8 @@ class TestConnectInvokesQrLogin:
     """The connect command calls qr_login and saves the session."""
 
     def test_connect_calls_qr_login(self, runner, temp_config, fake_session_string):
-        """connect invokes TelegramClient.qr_login()."""
+        """connect invokes TelegramClient.qr_login() then awaits qr.wait()."""
         mock_client, mock_qr = _make_mock_qr_login(fake_session_string)
-        mock_qr.login.return_value = True
         mock_client.session.save.return_value = fake_session_string
 
         with patch("switch_cli.telegram.session.TelegramClient", return_value=mock_client):
@@ -123,6 +131,8 @@ class TestConnectInvokesQrLogin:
 
         assert result.exit_code == 0, result.output
         mock_client.qr_login.assert_awaited_once()
+        # Must call qr.wait(), not the non-existent qr.login()
+        mock_qr.wait.assert_awaited_once()
 
     def test_connect_persists_session_to_config_dir(self, runner, temp_config, fake_session_string):
         """connect writes the StringSession to the config dir after QR login."""
@@ -253,43 +263,48 @@ class TestSessionReuse:
 class TestNoSessionInServerPayload:
     """The StringSession MUST NOT appear in any server-bound payload (FIRM)."""
 
-    def test_session_string_not_in_switch_api_payload(self, runner, temp_config, fake_session_string):
+    def test_session_module_has_no_http_imports(self):
         """
-        When connect posts any data to the Switch API, the session string
-        must not appear in the request body.
+        Structural guard (ADR-018 D4 / D2 FIRM): the session module MUST NOT
+        import any HTTP-client module (httpx, requests, SwitchClient, etc.).
 
-        This test captures all httpx calls made during connect and asserts
-        none of their bodies contain the session string.
+        This is a REAL guard — if someone adds an httpx/requests import to
+        session.py the test will fail, unlike the previous vacuous approach of
+        capturing HTTP calls when connect makes zero HTTP calls.
+
+        We scan the AST of session.py to assert no HTTP-capable name is imported.
+        An AST scan catches the structural violation at the earliest possible
+        point regardless of runtime code paths.
         """
-        import os
+        import ast
+        import importlib.util
+        import pathlib
 
-        config_dir = os.path.dirname(os.environ["SWITCH_CLI_CONFIG"])
-        # Pre-persist session so connect will run the reuse path
-        save_telegram_session(config_dir=config_dir, session_string=fake_session_string)
+        session_src = pathlib.Path(importlib.util.find_spec("switch_cli.telegram.session").origin).read_text()
+        tree = ast.parse(session_src)
 
-        mock_client = MagicMock()
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = AsyncMock(return_value=False)
-        mock_client.is_connected = MagicMock(return_value=True)
+        forbidden_modules = {"httpx", "requests", "aiohttp", "urllib.request"}
+        forbidden_names = {"SwitchClient", "httpx", "requests", "aiohttp"}
 
-        captured_requests = []
-
-        import httpx
-
-        def mock_send(request, **kwargs):
-            captured_requests.append(request)
-            return httpx.Response(200, json={"ok": True})
-
-        with patch("switch_cli.telegram.session.TelegramClient", return_value=mock_client):
-            with patch("httpx.Client.send", side_effect=mock_send):
-                runner.invoke(cli, ["telegram", "connect"])
-
-        # Verify no captured request body contains the session string
-        for req in captured_requests:
-            body_text = req.content.decode("utf-8", errors="replace")
-            assert fake_session_string not in body_text, (
-                f"Session string leaked into server-bound payload: {body_text[:200]}"
-            )
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    top = alias.name.split(".")[0]
+                    assert top not in forbidden_modules, (
+                        f"session.py imports HTTP module '{alias.name}' — "
+                        "the StringSession must NEVER reach a server-bound payload (D2 FIRM)"
+                    )
+            elif isinstance(node, ast.ImportFrom):
+                mod = (node.module or "").split(".")[0]
+                assert mod not in forbidden_modules, (
+                    f"session.py imports from HTTP module '{node.module}' — "
+                    "the StringSession must NEVER reach a server-bound payload (D2 FIRM)"
+                )
+                for alias in node.names:
+                    assert alias.name not in forbidden_names, (
+                        f"session.py imports forbidden name '{alias.name}' from '{node.module}' — "
+                        "the StringSession must NEVER reach a server-bound payload (D2 FIRM)"
+                    )
 
     def test_session_file_contains_only_session_string(self, temp_config, fake_session_string):
         """
@@ -322,6 +337,21 @@ class TestFailLoud:
         assert result.exit_code != 0, "Expected non-zero exit for missing Telegram creds"
         # Error message must mention the missing config
         assert "api_id" in result.output or "api_hash" in result.output or "telegram" in result.output.lower()
+
+    def test_run_connect_raises_telegram_config_error_on_missing_api_id(self, tmp_path):
+        """
+        run_connect() itself must raise TelegramConfigError when api_id is 0/None
+        (Finding 3 — the contract documented in the docstring must be enforced
+        inside run_connect, not only in cli.py, so sibling callers kb-ru55.3/.4
+        get the same protection).
+        """
+        with pytest.raises(TelegramConfigError):
+            run_connect(api_id=0, api_hash="deadbeef", config_dir=str(tmp_path))
+
+    def test_run_connect_raises_telegram_config_error_on_missing_api_hash(self, tmp_path):
+        """run_connect() raises TelegramConfigError when api_hash is empty."""
+        with pytest.raises(TelegramConfigError):
+            run_connect(api_id=12345, api_hash="", config_dir=str(tmp_path))
 
     def test_load_session_raises_on_corrupt_data(self, temp_config):
         """load_telegram_session raises SessionCorruptError when file is not a valid session."""

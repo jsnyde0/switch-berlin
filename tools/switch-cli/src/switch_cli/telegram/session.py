@@ -92,12 +92,17 @@ async def qr_connect(api_id: int, api_hash: str, config_dir: str) -> dict:
 
     The returned session string is NEVER passed to any HTTP endpoint
     (ADR-018 D4 / D2 FIRM). It lives only in the local file.
+
+    Real Telethon QRLogin API (telethon/tl/custom/qrlogin.py):
+    - client.qr_login() returns a QRLogin object with .url and .wait()
+    - await qr.wait() blocks until the QR is scanned and returns the User
+    - There is NO .login() method — the correct method is .wait()
     """
     try:
         async with TelegramClient(StringSession(), api_id, api_hash) as client:
             qr = await client.qr_login()
             print(f"\nScan this QR URL in Telegram: {qr.url}\n", file=sys.stderr)
-            await qr.login()
+            await qr.wait()
             session_string = client.session.save()
             save_telegram_session(config_dir=config_dir, session_string=session_string)
             return {"connected": True, "reused": False}
@@ -128,10 +133,18 @@ def run_connect(api_id: int, api_hash: str, config_dir: str) -> dict:
     2. Otherwise: run the QR-login flow and persist the new session.
 
     Raises:
-    - TelegramConfigError if api_id/api_hash are absent.
+    - TelegramConfigError if api_id/api_hash are absent (ADR-008 D3).
+      Guard is enforced HERE so sibling callers (kb-ru55.3/.4) get the same
+      protection; cli.py also validates, but the contract lives in run_connect.
     - SessionCorruptError if session file is corrupt (ADR-008 D3).
     - QRLoginTimeoutError if QR scan times out (ADR-008 D3).
     """
+    if not api_id or not api_hash:
+        raise TelegramConfigError(
+            "Telegram api_id and api_hash are required. "
+            "Add a [telegram] section to your switch-cli config with api_id and api_hash. "
+            "Obtain these from https://my.telegram.org/apps ."
+        )
     existing = load_telegram_session(config_dir=config_dir)
     if existing is not None:
         return asyncio.run(reuse_session(api_id=api_id, api_hash=api_hash, session_string=existing))
