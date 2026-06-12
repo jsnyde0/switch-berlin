@@ -1546,7 +1546,7 @@ def destination_select(request, pk):
     Returns 200 (HTMX-aware: renders the updated picker row) or 400 on guard failure.
     """
     from organizers.models import ProfileClaim
-    from syndication.models import AgentCredential, TelegramDialogType
+    from syndication.models import AgentCredential, TelegramDialogType, TelegramPostability
 
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -1591,9 +1591,9 @@ def destination_select(request, pk):
     if request.headers.get("HX-Request"):
         # Re-derive display flags for the partial
         conn.display_name = conn.friendly_name or conn.title or conn.destination_id
-        conn.is_agent_tier = conn.postability == "agent"
-        conn.is_bot_tier = conn.postability == "bot"
-        conn.is_public_tier = conn.postability == "public"
+        conn.is_agent_tier = conn.postability == TelegramPostability.AGENT
+        conn.is_bot_tier = conn.postability == TelegramPostability.BOT
+        conn.is_public_tier = conn.postability == TelegramPostability.PUBLIC
         conn.is_locked = (conn.is_agent_tier and not agent_connected) or conn.flagged_missing
         conn.is_selected = "promotion" in conn.kinds
 
@@ -1665,16 +1665,16 @@ def destination_overlay(request, pk):
 
     if request.headers.get("HX-Request"):
         # Return the updated picker row partial for inline swap
-        from syndication.models import AgentCredential, TelegramDialogType
+        from syndication.models import AgentCredential, TelegramDialogType, TelegramPostability
 
         agent_connected = AgentCredential.objects.filter(
             user=request.user, enabled=True
         ).exists()
 
         conn.display_name = conn.friendly_name or conn.title or conn.destination_id
-        conn.is_agent_tier = conn.postability == "agent"
-        conn.is_bot_tier = conn.postability == "bot"
-        conn.is_public_tier = conn.postability == "public"
+        conn.is_agent_tier = conn.postability == TelegramPostability.AGENT
+        conn.is_bot_tier = conn.postability == TelegramPostability.BOT
+        conn.is_public_tier = conn.postability == TelegramPostability.PUBLIC
         conn.is_locked = (conn.is_agent_tier and not agent_connected) or conn.flagged_missing
         conn.is_selected = "promotion" in (conn.kinds or [])
         picker_row_is_topic = (conn.type == TelegramDialogType.FORUM_TOPIC)
