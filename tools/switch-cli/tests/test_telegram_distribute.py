@@ -46,6 +46,7 @@ from click.testing import CliRunner
 from switch_cli.cli import cli
 from switch_cli.config import save_config
 from switch_cli.telegram.session import save_telegram_session
+from telethon import TelegramClient
 
 # ---------------------------------------------------------------------------
 # Test 1: AST structural firewall
@@ -59,24 +60,54 @@ class TestASTFirewall:
     getattr(client, 'send'+'_message') tricks).
 
     This test walks the AST of draft.py and asserts:
-    - No attribute access (.send_message, .send, .send_file) on any object.
-    - No function call with a name matching send_message/send_file.
+    - No attribute access (.send_message, .send, .send_file, .forward_messages)
+      on any object.
+    - No function call with a name matching send_message/send_file/forward_messages.
     The Draft.set_message path (saveDraft via SaveDraftRequest) is ALLOWED.
     The Draft.send() method is forbidden from existing within draft.py.
+
+    Telethon TelegramClient send-equivalent audit (outbound delivery to a chat):
+    - send_message (telethon/client/messages.py:627) — sends a text/media message
+    - send_file (telethon/client/uploads.py:113) — sends a file/photo/album to a chat
+    - forward_messages (telethon/client/messages.py:946) — forwards existing messages
+      to another chat; counts as an outbound send and toward spam-ban surface
+    - send (Draft.send, telethon/tl/custom/draft.py:155) — sends the draft as a
+      message via send_message; must never be called on the Draft object
+    - send_photo / send_document — NOT real TelegramClient methods (confirmed by
+      inspection of telethon/client/); they are chat permission flags in types/,
+      kept in AUTO_SEND_NAMES as defense-in-depth against future aliases
+    - send_read_acknowledge (telethon/client/messages.py:1340) — marks messages as
+      read only; NOT an outbound send (no content delivered), not forbidden
+    - inline_query (telethon/client/bots.py) — queries for inline results; NOT a
+      content-delivery send, not forbidden
     """
 
-    AUTO_SEND_NAMES = {"send_message", "send_file", "send_photo", "send_document"}
+    AUTO_SEND_NAMES = {
+        "send_message",    # TelegramClient.send_message — sends text/media to a chat
+        "send_file",       # TelegramClient.send_file — sends a file/photo/album to a chat
+        "send_photo",      # defense-in-depth: not a real method today, guard future aliases
+        "send_document",   # defense-in-depth: not a real method today, guard future aliases
+        "forward_messages",  # TelegramClient.forward_messages — forwards messages to a chat
+    }
     # "send" alone is too broad (could be used in other contexts), but
     # within the placement module we forbid attribute access named "send"
-    # on any chained call that looks like client.send.
-    FORBIDDEN_ATTRIBUTE_NAMES = {"send_message", "send_file", "send_photo", "send_document", "send"}
+    # on any chained call that looks like client.send or draft.send.
+    FORBIDDEN_ATTRIBUTE_NAMES = {
+        "send_message",    # TelegramClient.send_message — sends text/media to a chat
+        "send_file",       # TelegramClient.send_file — sends a file/photo/album to a chat
+        "send_photo",      # defense-in-depth: not a real method today, guard future aliases
+        "send_document",   # defense-in-depth: not a real method today, guard future aliases
+        "forward_messages",  # TelegramClient.forward_messages — forwards messages (outbound send)
+        "send",            # Draft.send() — calls send_message internally, must never be invoked
+    }
 
     def test_draft_module_has_no_auto_send_calls(self):
         """
         AST-walk draft.py: assert no attribute access or call to any auto-send method.
-        This proves structurally that NO code path can reach sendMessage.
+        This proves structurally that NO code path can reach sendMessage or forward_messages.
 
-        Can fail: if anyone adds client.send_message(...) or Draft.send() to draft.py.
+        Can fail: if anyone adds client.send_message(...), client.forward_messages(...),
+        or Draft.send() to draft.py.
         """
         source_path = Path(inspect.getfile(draft_module))
         source = source_path.read_text()
@@ -84,14 +115,14 @@ class TestASTFirewall:
 
         violations = []
         for node in ast.walk(tree):
-            # Catch attribute access: obj.send_message, obj.send_file, etc.
+            # Catch attribute access: obj.send_message, obj.forward_messages, obj.send, etc.
             if isinstance(node, ast.Attribute):
                 if node.attr in self.FORBIDDEN_ATTRIBUTE_NAMES:
                     violations.append(
                         f"Line {node.lineno}: attribute access '.{node.attr}' "
                         f"(potential auto-send — ADR-018 D2 FIRM)"
                     )
-            # Catch function calls by name (e.g. send_message(...))
+            # Catch function calls by name (e.g. send_message(...), forward_messages(...))
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name) and node.func.id in self.AUTO_SEND_NAMES:
                     violations.append(
@@ -123,6 +154,32 @@ class TestASTFirewall:
         assert found_violation, (
             "AST scanner failed to detect 'client.send_message(...)' — "
             "the structural firewall test is vacuous!"
+        )
+
+    def test_ast_firewall_detects_forward_messages(self):
+        """
+        Canary specific to forward_messages: verify the AST scanner catches
+        client.forward_messages(...) if it were added to draft.py.
+
+        forward_messages delivers messages to a chat (outbound send) and counts
+        toward Telegram's spam-ban surface — it is NOT a draft operation.
+        A refactor adding it would be a FIRM ADR-018 D2 violation.
+        """
+        malicious_source = "import telethon\nclient.forward_messages(entity, messages)\n"
+        tree = ast.parse(malicious_source)
+
+        found_violation = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr in self.FORBIDDEN_ATTRIBUTE_NAMES:
+                found_violation = True
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id in self.AUTO_SEND_NAMES:
+                    found_violation = True
+
+        assert found_violation, (
+            "AST scanner failed to detect 'client.forward_messages(...)' — "
+            "forward_messages is an outbound send (ADR-018 D2 FIRM) and the "
+            "structural firewall must catch it!"
         )
 
 
@@ -240,9 +297,9 @@ class TestEmptyDraftPrivateGroup:
 
         empty_draft = _make_mock_draft(is_empty=True)
 
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(return_value=empty_draft)
-        mock_client.send_message = AsyncMock()  # should NOT be called
+        mock_client.send_message = AsyncMock()  # spec'd: real method, should NOT be called
 
         results = await distribute(
             client=mock_client,
@@ -281,9 +338,9 @@ class TestEmptyDraftPrivateGroup:
             }
         ]
         empty_draft = _make_mock_draft(is_empty=True)
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(return_value=empty_draft)
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         await distribute(
             client=mock_client,
@@ -293,6 +350,47 @@ class TestEmptyDraftPrivateGroup:
         )
 
         mock_client.send_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_forward_messages_not_called_for_group(self):
+        """
+        Behavioral firewall: forward_messages must never be called.
+
+        forward_messages delivers messages to a chat (outbound send) and counts
+        toward Telegram's spam-ban surface — it is NOT a draft operation.
+        spec=TelegramClient ensures this assertion is structurally sound: a bare
+        MagicMock() auto-creates any attribute AND records calls faithfully, so
+        assert_not_called() would work even on a bare mock for a never-invoked
+        method. The real value of spec=TelegramClient is that accessing a
+        misspelled or renamed attribute (e.g. forward_message without the trailing
+        's', or a future API rename) raises AttributeError immediately instead of
+        silently auto-creating a new attribute — preventing the assertion from
+        drifting into vacuity if the method name ever changes.
+        """
+        from switch_cli.telegram.draft import distribute
+
+        inventory = [
+            {
+                "chat_id": "-1002222222222",
+                "title": "Secret Group",
+                "type": "group",
+                "topic_id": None,
+                "postability": "agent",
+            }
+        ]
+        empty_draft = _make_mock_draft(is_empty=True)
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(return_value=empty_draft)
+        mock_client.forward_messages = AsyncMock()  # spec'd: real method, must never fire
+
+        await distribute(
+            client=mock_client,
+            message="test",
+            dests=["-1002222222222"],
+            postable_inventory=inventory,
+        )
+
+        mock_client.forward_messages.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -333,9 +431,9 @@ class TestEmptyDraftForumTopic:
         dests = [f"-1003333333333:{topic_id}"]
 
         empty_draft = _make_mock_draft(is_empty=True)
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(return_value=empty_draft)
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         results = await distribute(
             client=mock_client,
@@ -379,9 +477,9 @@ class TestEmptyDraftForumTopic:
             }
         ]
         empty_draft = _make_mock_draft(is_empty=True)
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(return_value=empty_draft)
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         await distribute(
             client=mock_client,
@@ -391,6 +489,48 @@ class TestEmptyDraftForumTopic:
         )
 
         mock_client.send_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_forward_messages_not_called_for_forum_topic(self):
+        """
+        Behavioral firewall: forward_messages must never be called for forum topics.
+
+        forward_messages delivers messages to a chat (outbound send) and counts
+        toward Telegram's spam-ban surface — it is NOT a draft operation.
+        spec=TelegramClient ensures this assertion is structurally sound: a bare
+        MagicMock() auto-creates any attribute AND records calls faithfully, so
+        assert_not_called() would work even on a bare mock for a never-invoked
+        method. The real value of spec=TelegramClient is that accessing a
+        misspelled or renamed attribute (e.g. forward_message without the trailing
+        's', or a future API rename) raises AttributeError immediately instead of
+        silently auto-creating a new attribute — preventing the assertion from
+        drifting into vacuity if the method name ever changes.
+        """
+        from switch_cli.telegram.draft import distribute
+
+        topic_id = 101
+        inventory = [
+            {
+                "chat_id": "-1003333333333",
+                "title": "General Discussion",
+                "type": "forum_topic",
+                "topic_id": topic_id,
+                "postability": "agent",
+            }
+        ]
+        empty_draft = _make_mock_draft(is_empty=True)
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(return_value=empty_draft)
+        mock_client.forward_messages = AsyncMock()  # spec'd: real method, must never fire
+
+        await distribute(
+            client=mock_client,
+            message="test",
+            dests=[f"-1003333333333:{topic_id}"],
+            postable_inventory=inventory,
+        )
+
+        mock_client.forward_messages.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -421,9 +561,9 @@ class TestPreExistingDraft:
             }
         ]
         existing_draft = _make_mock_draft(is_empty=False)
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(return_value=existing_draft)
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         results = await distribute(
             client=mock_client,
@@ -459,9 +599,9 @@ class TestPreExistingDraft:
             }
         ]
         existing_draft = _make_mock_draft(is_empty=False)
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(return_value=existing_draft)
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         results = await distribute(
             client=mock_client,
@@ -498,9 +638,9 @@ class TestMultiDestPlacement:
         empty_draft_group = _make_mock_draft(is_empty=True)
         empty_draft_topic = _make_mock_draft(is_empty=True)
 
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(side_effect=[empty_draft_group, empty_draft_topic])
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         dests = ["-1002222222222", "-1003333333333:101"]
 
@@ -554,9 +694,9 @@ class TestMultiDestPlacement:
         empty_draft = _make_mock_draft(is_empty=True)
         existing_draft = _make_mock_draft(is_empty=False)
 
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock(side_effect=[empty_draft, existing_draft])
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         dests = ["-1002222222222", "-1003333333333:101"]
 
@@ -597,9 +737,9 @@ class TestDestNotInInventoryFailsLoud:
 
         inventory = _make_postable_inventory()
 
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock()
-        mock_client.send_message = AsyncMock()
+        mock_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         with pytest.raises(UnknownDestinationError, match="-9999999999"):
             await distribute(
@@ -620,7 +760,7 @@ class TestDestNotInInventoryFailsLoud:
 
         inventory = _make_postable_inventory()
 
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=TelegramClient)
         mock_client.get_drafts = AsyncMock()
 
         with pytest.raises(UnknownDestinationError):
@@ -656,11 +796,11 @@ class TestDistributeCommand:
         inventory = _make_postable_inventory()
         empty_draft = _make_mock_draft(is_empty=True)
 
-        mock_tg_client = MagicMock()
+        mock_tg_client = MagicMock(spec=TelegramClient)
         mock_tg_client.__aenter__ = AsyncMock(return_value=mock_tg_client)
         mock_tg_client.__aexit__ = AsyncMock(return_value=False)
         mock_tg_client.get_drafts = AsyncMock(return_value=empty_draft)
-        mock_tg_client.send_message = AsyncMock()
+        mock_tg_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
         with patch("switch_cli.telegram.draft.enumerate_postable_dialogs", AsyncMock(return_value=inventory)):
             with patch("switch_cli.telegram.draft.build_authenticated_client", return_value=mock_tg_client):
