@@ -6,11 +6,15 @@ TDD discipline: RED → GREEN → REFACTOR.
 All tests follow the sibling-bug lesson: use spec=-constrained mocks or
 real Telethon types so the mock cannot invent a non-existent method.
 
-Acceptance criteria (bead kb-ru55.4):
+Acceptance criteria (bead kb-ru55.4 / kb-ru55.8):
 1. AST firewall: draft.py has NO reference to send_message/send/auto-send variants
    (structural scan via ast.walk — catches even getattr tricks).
 2. Empty-draft private group → saveDraft called; send_message NOT called.
-3. Empty-draft forum topic → saveDraft called WITH reply_to top_msg_id; send_message NOT called.
+3. Empty-draft forum topic → draft.set_message(text=message) called (same as group path),
+   NO reply_to kwarg, NO SaveDraftRequest/InputReplyToMessage. Rationale: Telegram Desktop
+   does NOT render topic-pinned drafts (top_msg_id set) — confirmed live 2026-06-12.
+   Forum drafts are placed at the FORUM LEVEL (reply_to=None); topic routing is conveyed
+   via the distribute result. True per-topic pinning is a deferred follow-up.
 4. Pre-existing draft → saveDraft NOT called; status=skipped-pre-existing-draft.
 5. Multi-dest placement set (≥1 private group + ≥1 forum topic) → both placed.
 6. --dest not in postable set → fails loud (ADR-008 D3).
@@ -299,18 +303,20 @@ class TestEmptyDraftPrivateGroup:
 class TestEmptyDraftForumTopic:
     """
     For a forum topic with an empty draft:
-    - saveDraft (draft.set_message) is called WITH reply_to=top_msg_id.
+    - draft.set_message(text=message) is called — same as the plain-group path.
+    - NO reply_to kwarg, NO SaveDraftRequest/InputReplyToMessage.
     - client.send_message is NOT called (ADR-018 D2 FIRM).
 
-    Forum-topic placement uses reply_to=top_msg_id (the topic's message ID).
-    Real API: Draft.set_message(text=..., reply_to=<topic_id>)
-    Which in turn calls SaveDraftRequest(peer=..., message=...,
-    reply_to=InputReplyToMessage(reply_to_msg_id=top_msg_id, top_msg_id=top_msg_id))
+    D3 (FLEXIBLE, ADR-018 D1): forum drafts are placed at the FORUM LEVEL
+    (reply_to=None), same as groups. Telegram Desktop does NOT render topic-pinned
+    drafts (top_msg_id) — confirmed live 2026-06-12 — so topic-pinning is intentionally
+    NOT used; the intended topic is conveyed via the distribute result for the human to
+    route. True per-topic pinning is a deferred follow-up.
     """
 
     @pytest.mark.asyncio
-    async def test_forum_topic_calls_save_draft_with_reply_to(self):
-        """Forum topic → set_message called with reply_to=topic_id."""
+    async def test_forum_topic_calls_set_message_at_forum_level(self):
+        """Forum topic → draft.set_message(text=message) called, NO reply_to, NO SaveDraftRequest."""
         from switch_cli.telegram.draft import distribute
 
         topic_id = 101
@@ -338,17 +344,17 @@ class TestEmptyDraftForumTopic:
             postable_inventory=inventory,
         )
 
-        # set_message was called
+        # Forum path: draft.set_message must be called with text=message, NO reply_to kwarg
         empty_draft.set_message.assert_called_once()
         call_kwargs = empty_draft.set_message.call_args
-
-        # reply_to must be set to the topic_id
-        reply_to_arg = call_kwargs.kwargs.get("reply_to") or (
-            call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
-        )
-        assert reply_to_arg == topic_id, (
-            f"Forum topic draft must pass reply_to={topic_id}, got reply_to={reply_to_arg}. "
-            f"Full call: {call_kwargs}"
+        # Must have text=message
+        assert call_kwargs.kwargs.get("text") == message or (
+            call_kwargs.args and call_kwargs.args[0] == message
+        ), f"set_message called with wrong args: {call_kwargs}"
+        # Must NOT have reply_to (forum-level draft, not topic-pinned)
+        assert "reply_to" not in call_kwargs.kwargs, (
+            f"reply_to must NOT be passed for forum drafts (topic-pinned drafts are invisible "
+            f"in Telegram Desktop — confirmed live 2026-06-12). Got: {call_kwargs.kwargs}"
         )
 
         # send_message must not be called
@@ -482,7 +488,7 @@ class TestMultiDestPlacement:
 
     @pytest.mark.asyncio
     async def test_multi_dest_places_both_group_and_topic(self):
-        """Multi-dest: private group + forum topic → both placed, no send_message."""
+        """Multi-dest: private group + forum topic → both placed via set_message, no send_message."""
         from switch_cli.telegram.draft import distribute
 
         inventory = _make_postable_inventory()
@@ -520,16 +526,19 @@ class TestMultiDestPlacement:
         assert topic_result["status"] == "placed"
         assert topic_result["topic_id"] == 101
 
-        # set_message called twice (once per destination)
+        # Both group and forum topic drafts: set_message called once each (same path)
         assert empty_draft_group.set_message.call_count == 1
         assert empty_draft_topic.set_message.call_count == 1
 
-        # Forum topic call has reply_to=topic_id
-        topic_call = empty_draft_topic.set_message.call_args
-        reply_to_arg = topic_call.kwargs.get("reply_to") or (
-            topic_call.args[1] if len(topic_call.args) > 1 else None
+        # Forum topic draft: set_message called with text=message, NO reply_to kwarg
+        topic_call_kwargs = empty_draft_topic.set_message.call_args
+        assert topic_call_kwargs.kwargs.get("text") == message or (
+            topic_call_kwargs.args and topic_call_kwargs.args[0] == message
+        ), f"set_message called with wrong args: {topic_call_kwargs}"
+        assert "reply_to" not in topic_call_kwargs.kwargs, (
+            f"reply_to must NOT be passed for forum drafts (topic-pinned drafts not visible "
+            f"in Telegram Desktop — confirmed live 2026-06-12). Got: {topic_call_kwargs.kwargs}"
         )
-        assert reply_to_arg == 101, f"Forum topic must have reply_to=101, got {reply_to_arg}"
 
         # FIRM firewall: send_message never called
         mock_client.send_message.assert_not_called()

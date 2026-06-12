@@ -4,12 +4,17 @@ Telegram multi-destination draft placement for switch-cli.
 Decisions:
 - D1 (FIRM, ADR-018 D2): draft-only firewall. This module NEVER calls
   sendMessage or any auto-send Telethon method. Placement is exclusively via
-  Draft.set_message() → SaveDraftRequest. Verified structurally via AST-parse
+  Draft.set_message() → SaveDraftRequest for all destinations (both plain groups
+  and forum topics). Verified structurally via AST-parse
   (test_telegram_distribute.py TestASTFirewall) AND behaviorally via mock-not-called
   across all branches.
 - D2 (FLEXIBLE, ADR-018 D4 / ADR-008 D3): getDraft-before-saveDraft per destination.
   Pre-existing draft (non-empty) → record skipped-pre-existing-draft, warn, no clobber.
-- D3 (FLEXIBLE): forum-topic placement via reply_to=top_msg_id passed to Draft.set_message.
+- D3 (FLEXIBLE, ADR-018 D1): forum drafts are placed at the FORUM LEVEL (reply_to=None),
+  same as groups. Telegram Desktop does NOT render topic-pinned drafts (top_msg_id) —
+  confirmed live 2026-06-12 — so topic-pinning is intentionally NOT used; the intended
+  topic is conveyed via the distribute result for the human to route. True per-topic
+  pinning is a deferred follow-up.
 - D4 (FIRM, ADR-008 D3): --dest not in the postable inventory → fail loud via
   UnknownDestinationError. No silent skip.
 
@@ -17,8 +22,6 @@ Real Telethon Draft API (confirmed from source):
 - telethon/tl/custom/draft.py, line 101: Draft.is_empty property
 - telethon/tl/custom/draft.py, line 107: Draft.set_message(text, reply_to=0, ...)
   which calls SaveDraftRequest internally.
-- For forum-topic placement: Draft.set_message(text=..., reply_to=<topic_msg_id>)
-  — Telethon wraps it into InputReplyToMessage(reply_to_msg_id=top_msg_id).
 - client.get_drafts(entity) returns a single Draft when entity is given (line 318).
 """
 
@@ -89,7 +92,11 @@ async def _place_draft(
 
     D1 (FIRM, ADR-018 D2): NEVER calls send_message or any auto-send method.
     D2 (ADR-008 D3): pre-existing draft → skip with skipped-pre-existing-draft, no clobber.
-    D3: forum-topic placement → Draft.set_message(text=..., reply_to=<topic_id>).
+    D3 (FLEXIBLE, ADR-018 D1): forum drafts placed at the FORUM LEVEL (reply_to=None),
+    same as groups. Telegram Desktop does NOT render topic-pinned drafts (top_msg_id set)
+    — confirmed live 2026-06-12 — so topic-pinning is intentionally NOT used; the intended
+    topic is conveyed via the distribute result for the human to route. True per-topic
+    pinning is a deferred follow-up.
 
     Returns a dict with keys: chat_id, topic_id, status.
     """
@@ -118,12 +125,12 @@ async def _place_draft(
             "status": "skipped-pre-existing-draft",
         }
 
-    # saveDraft (D1 FIRM: via Draft.set_message → SaveDraftRequest only)
-    # For forum topics: reply_to=topic_id so Telethon creates InputReplyToMessage
-    if topic_id is not None:
-        await draft.set_message(text=message, reply_to=topic_id)
-    else:
-        await draft.set_message(text=message)
+    # saveDraft (D1 FIRM: Draft.set_message → SaveDraftRequest — no send path)
+    # Same path for both plain groups and forum topics (reply_to=None for both).
+    # Forum-level draft (no reply_to) is visible in Telegram Desktop; topic-pinned
+    # drafts (top_msg_id set) are NOT rendered by Telegram Desktop — confirmed live
+    # 2026-06-12 (ADR-018 D1, D3 FLEXIBLE). Per-topic pinning is a deferred follow-up.
+    await draft.set_message(text=message)
 
     return {
         "chat_id": chat_id_str,
