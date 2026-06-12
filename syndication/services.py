@@ -149,6 +149,118 @@ def exchange_api_key_for_identity_token(raw_api_key: str):
 
 
 # ---------------------------------------------------------------------------
+# Telegram inventory ingest service (kb-ru55.2)
+# ---------------------------------------------------------------------------
+
+# Fields that must NEVER appear in an inventory payload (ADR-018 D4, bead D2).
+# A payload carrying any of these is rejected loud (HTTP 422) — fail loud,
+# never silently strip (ADR-008 D3).
+_FORBIDDEN_PAYLOAD_FIELDS = frozenset({"session_string", "access_hash", "content"})
+
+
+def ingest_telegram_inventory(user, inventory: list[dict]) -> dict:
+    """
+    Upsert one PlatformConnection per postable Telegram destination for the
+    authenticated user's organizer profile.
+
+    Contract (kb-ru55.2):
+    - Each item in inventory must NOT carry session_string, access_hash, or content
+      (ADR-018 D4 / bead D2). Raises ValueError on violation — caller returns 422.
+    - One PlatformConnection per {organizer, platform="telegram", destination_id,
+      topic_id} tuple. topic_id set for forum_topic rows, null for others.
+    - Re-sync is idempotent: update_or_create with {destination_id, topic_id} key.
+    - A destination present in a prior sync but absent from the current payload
+      is FLAGGED (flagged_missing=True), not deleted (ADR-008 D3, bead D3).
+    - NO server-side credential is stored (ADR-018 D4). credentials JSONField
+      is left at its default (empty dict).
+
+    Returns a summary dict: {"upserted": int, "flagged": int}.
+
+    Raises ValueError if any payload item contains a forbidden field.
+    """
+    from organizers.models import ProfileClaim  # noqa: PLC0415
+    from syndication.models import PlatformConnection  # noqa: PLC0415
+
+    # --- Step 1: validate payload (fail loud on forbidden fields) ---
+    for item in inventory:
+        bad_fields = _FORBIDDEN_PAYLOAD_FIELDS & set(item.keys())
+        if bad_fields:
+            sorted_bad = sorted(bad_fields)
+            raise ValueError(
+                f"Inventory payload must not carry credential or content fields. "
+                f"Forbidden field(s) present: {sorted_bad}. "
+                f"ADR-018 D4 / bead D2: the server stores metadata only; "
+                f"session credentials live agent-side."
+            )
+
+    # --- Step 2: resolve the organizer profile for this user ---
+    # Use the first active ProfileClaim (same pattern as events_list / event posts).
+    profile = (
+        ProfileClaim.objects.filter(user=user, rejected_at__isnull=True)
+        .select_related("profile")
+        .first()
+    )
+    if profile is None:
+        raise ValueError(
+            f"User {user!r} has no active ProfileClaim — cannot associate "
+            "inventory with an organizer. Claim an organizer profile first."
+        )
+    organizer = profile.profile
+
+    # --- Step 3: build the set of destination keys in this sync ---
+    # Key: (destination_id, topic_id) — this is the natural identity for a postable row.
+    incoming_keys: set[tuple] = set()
+
+    upserted = 0
+    for item in inventory:
+        chat_id = str(item["chat_id"])
+        topic_id = item.get("topic_id", None)
+        # topic_id must be set for forum_topic, null for others.
+        # The agent already ensures this, but normalise defensively.
+        if item.get("type") == "forum_topic" and topic_id is None:
+            raise ValueError(
+                f"forum_topic row for chat_id={chat_id!r} is missing topic_id. "
+                "Each forum_topic must carry a topic_id (top_msg_id)."
+            )
+        incoming_keys.add((chat_id, topic_id))
+
+        defaults = {
+            "title": item.get("title"),
+            "type": item.get("type"),
+            "postability": item.get("postability"),
+            "flagged_missing": False,  # present in this sync → un-flag
+        }
+        # topic_id is part of the lookup key for forum_topic rows.
+        # For non-forum rows, topic_id is None — still part of the lookup to avoid
+        # confusing a re-created forum_topic with an existing non-topic row.
+        PlatformConnection.objects.update_or_create(
+            organizer=organizer,
+            platform="telegram",
+            destination_id=chat_id,
+            topic_id=topic_id,
+            defaults=defaults,
+        )
+        upserted += 1
+
+    # --- Step 4: flag destinations absent from this sync (ADR-008 D3) ---
+    # Find all telegram rows for this organizer NOT in the current payload.
+    existing_qs = PlatformConnection.objects.filter(
+        organizer=organizer,
+        platform="telegram",
+    )
+    flagged = 0
+    for conn in existing_qs:
+        key = (conn.destination_id, conn.topic_id)
+        if key not in incoming_keys:
+            if not conn.flagged_missing:
+                conn.flagged_missing = True
+                conn.save(update_fields=["flagged_missing", "updated_at"])
+                flagged += 1
+
+    return {"upserted": upserted, "flagged": flagged}
+
+
+# ---------------------------------------------------------------------------
 # Identity token validation (used by Ninja auth callable)
 # ---------------------------------------------------------------------------
 

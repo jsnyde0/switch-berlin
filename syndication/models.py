@@ -44,6 +44,33 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
+class TelegramDialogType(models.TextChoices):
+    """
+    Canonical Telegram dialog-type vocabulary (kb-ru55.2 D1a — SINGLE resolution point).
+
+    This is the ONLY definition of these values across the entire project.
+    The sync agent (kb-ru55.3) emits them, this model stores them, and kb-sbhs's
+    web picker categorises by them. Do NOT define a local copy in kb-sbhs or in
+    any CLI child — import this class directly.
+
+    Values match kb-sbhs D3's tree categorisation:
+      channel     → Channels bucket
+      group       → Groups bucket
+      supergroup  → Groups bucket (Telegram supergroup is a group variant)
+      forum_topic → Forums → Topics leaf (one row per topic, NOT one per forum)
+
+    NOTE: forum_topic, not forum_group. A Telegram forum GROUP is NOT a postable
+    destination — only specific forum TOPICS are. Storing 'forum_group' here would
+    be an enum-vocabulary-drift from kb-sbhs's picker (adr-enum-vocabulary-drift-
+    invisible-per-bead anti-pattern). Do NOT add forum_group.
+    """
+
+    CHANNEL = "channel", _("Channel")
+    GROUP = "group", _("Group")
+    SUPERGROUP = "supergroup", _("Supergroup")
+    FORUM_TOPIC = "forum_topic", _("Forum topic")
+
+
 class PlatformConnection(models.Model):
     """
     A specific syndication destination owned by an organizer (ADR-016 D4).
@@ -62,6 +89,18 @@ class PlatformConnection(models.Model):
     - Ticket Tailor → listing
     - Telegram channel → promotion
     - FetLife → both (listing + promotion)
+
+    Telegram-specific fields (kb-ru55.2 — metadata-only ingest):
+    - topic_id: nullable BigIntegerField for forum_topic rows (top_msg_id).
+    - type: TelegramDialogType choice — the canonical vocabulary for the dialog type.
+    - title: human-readable dialog name as synced from Telegram.
+    - postability: capability-ladder tier (e.g. 'bot', 'agent', 'public').
+    - flagged_missing: set True when a destination is absent from a later sync
+      (ADR-008 D3 — fail loud: flag, never silently delete).
+
+    No server-side session credential — ADR-018 D4: the agent holds the session;
+    the server receives only metadata. No access_hash, session_string, or message
+    content is stored here.
     """
 
     organizer = models.ForeignKey(
@@ -103,6 +142,70 @@ class PlatformConnection(models.Model):
             "Projection kinds this connection supports: 'listing', 'promotion', or both. "
             "e.g. ['listing'] for Switch/TT, ['promotion'] for Telegram, "
             "['listing', 'promotion'] for FetLife."
+        ),
+    )
+
+    # ---------------------------------------------------------------------------
+    # Telegram-specific metadata fields (kb-ru55.2 — metadata-only ingest)
+    # Added via migration 0011_platformconnection_telegram_metadata.
+    # These fields are ONLY populated for platform='telegram' rows.
+    # NO server-side credential (access_hash, session_string) is stored here
+    # per ADR-018 D4: the agent is the sole session holder.
+    # ---------------------------------------------------------------------------
+
+    topic_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Telegram forum-topic ID (top_msg_id). Set only for type=forum_topic rows. "
+            "null for channels, groups, and supergroups. "
+            "ADR-018 D4: no server-side session credential."
+        ),
+    )
+    type = models.CharField(
+        max_length=20,
+        choices=TelegramDialogType.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Telegram dialog type (kb-ru55.2 D1a canonical vocabulary). "
+            "Matches TelegramDialogType: channel | group | supergroup | forum_topic. "
+            "null for non-Telegram connections."
+        ),
+    )
+    title = models.CharField(
+        max_length=300,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Human-readable Telegram dialog name as synced from the agent. "
+            "null for non-Telegram connections. "
+            "Names/tags overlay (friendly display name, theme tags) is owned by kb-sbhs."
+        ),
+    )
+    postability = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Capability-ladder tier for this Telegram destination (ADR-018 D1). "
+            "Values: 'bot' (bot-accessible own/admin channels), "
+            "'agent' (private groups + forum topics, requires agent session), "
+            "'public' (deep-link only). "
+            "null for non-Telegram connections. "
+            "Read by kb-sbhs D4 picker rendering."
+        ),
+    )
+    flagged_missing = models.BooleanField(
+        default=False,
+        help_text=(
+            "True if this destination was absent from the most recent inventory sync. "
+            "ADR-008 D3: fail loud — flag, never silently delete. "
+            "kb-sbhs D3: picker renders flagged rows as vanished/unavailable."
         ),
     )
 

@@ -50,6 +50,7 @@ from syndication.services import (
     create_event,
     create_post,
     exchange_api_key_for_identity_token,
+    ingest_telegram_inventory,
     mark_projection_published,
     publish_all_ready_projections,
     publish_projection,
@@ -1114,3 +1115,80 @@ def api_batch_publish_ready(request, event_id: int):
             "failures": failure_details,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Telegram inventory ingest endpoint (kb-ru55.2)
+# ---------------------------------------------------------------------------
+
+
+class TelegramInventoryItemIn(Schema):
+    """
+    Schema for a single postable Telegram destination in an inventory payload.
+
+    Metadata-only (ADR-018 D4 / bead D2): carries dialog metadata, NOT
+    session credentials or message content.
+
+    extra="forbid": any unrecognised field (including session_string, access_hash,
+    content, and any future credential field) causes Pydantic → Ninja to return 422.
+    This is the server-side enforcement of ADR-018 D4 / bead D2: fail loud on
+    any credential or content leakage in the inventory payload.
+
+    topic_id is required for forum_topic rows; optional (None) for others.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    chat_id: str
+    title: str
+    type: str
+    postability: str
+    topic_id: int | None = None
+
+
+class TelegramInventoryIngestOut(Schema):
+    """Response for the Telegram inventory ingest verb."""
+
+    upserted: int
+    flagged: int
+
+
+@api.post(
+    "/telegram/inventory",
+    auth=_RESOURCE_AUTH,
+    response={200: TelegramInventoryIngestOut},
+    summary="Ingest Telegram inventory (metadata-only upsert, kb-ru55.2)",
+    description=(
+        "Metadata-only inventory sync: accepts a list of postable Telegram destinations "
+        "and upserts one PlatformConnection per item. "
+        "Auth: identity token (agent path) or session (web path) per ADR-016 D3/D6. "
+        "Destinations absent from this payload are FLAGGED (not deleted) per ADR-008 D3. "
+        "Payload must NOT carry session_string, access_hash, or content — "
+        "those fields are rejected loud (HTTP 422) per ADR-018 D4 / bead D2."
+    ),
+)
+def telegram_inventory_ingest(request, body: list[TelegramInventoryItemIn]):
+    """
+    Ingest a metadata-only Telegram destination inventory.
+
+    Upserts one PlatformConnection per item (keyed by chat_id + topic_id).
+    Flags destinations absent from this payload as flagged_missing=True.
+    No server-side credential is stored (ADR-018 D4).
+
+    Fail loud (ADR-008 D3):
+    - Any item containing session_string, access_hash, or content → 422.
+    - forum_topic item missing topic_id → 422.
+    """
+    raw_inventory = [item.dict() for item in body]
+
+    try:
+        result = ingest_telegram_inventory(user=request.auth, inventory=raw_inventory)
+    except ValueError as exc:
+        logger.warning("telegram/inventory: rejected payload: %s", exc)
+        return api.create_response(
+            request,
+            {"detail": str(exc)},
+            status=422,
+        )
+
+    return _actor_marker_response(request, result)
