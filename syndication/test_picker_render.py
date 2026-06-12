@@ -252,10 +252,27 @@ class DestinationPickerRenderTest(TestCase):
         self.assertIn(f'value="{topic2_pk}"', html)
 
     def test_channel_row_has_checkbox(self):
-        """Regular channel rows must render with a checkbox affordance."""
+        """
+        Regular channel rows must render with a checkbox affordance.
+        kb-sbhs.3 mutation layer: the checkbox is now wired via HTMX with
+        name="selected" value="true/false"; the connection pk is tracked
+        via data-connection-pk and data-picker-row attributes.
+        """
+        import re
+
         html = self._get_html()
         channel_pk = str(self.channel.pk)
-        self.assertIn(f'value="{channel_pk}"', html)
+        # The row wrapper must carry the channel pk (via data-connection-pk)
+        self.assertIn(f'data-connection-pk="{channel_pk}"', html)
+        # An <input type="checkbox"> must be present in this row
+        checkbox_match = re.search(
+            r'<input[^>]*type=["\']checkbox["\'][^>]*>',
+            html,
+        )
+        self.assertIsNotNone(
+            checkbox_match,
+            msg=f"Channel row (pk={channel_pk!r}) must render a checkbox, but none found.",
+        )
 
     # -----------------------------------------------------------------------
     # (d) Vanished destinations render with a LOUD flag

@@ -23,7 +23,7 @@ import logging as _views_logger_mod
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 
@@ -1410,6 +1410,9 @@ def destination_picker(request):
         # Capability-ladder lock state
         conn.is_locked = (conn.is_agent_tier and not agent_connected) or conn.flagged_missing
 
+        # Selection state: is this connection currently selected for promotion?
+        conn.is_selected = "promotion" in (conn.kinds or [])
+
         if conn.type == TelegramDialogType.CHANNEL:
             channels.append(conn)
         elif conn.type == TelegramDialogType.FORUM_TOPIC:
@@ -1469,6 +1472,220 @@ def destination_picker(request):
             "agent_connected": agent_connected,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Destination picker mutation endpoints (kb-sbhs.3)
+#
+# SELECT / DESELECT: sets kinds+enabled (additive — never clobbers existing kinds)
+# OVERLAY writer:    persists friendly_name + theme_tags
+#
+# Server-side selectability guard (ADR-008 D3 FIRM):
+#   A connection is NOT selectable if:
+#   1. flagged_missing=True (vanished)
+#   2. is_locked: agent-tier postability AND no active AgentCredential for user
+#   3. is_forum_parent: type is group/supergroup AND it has forum_topic children
+#      sharing the same destination_id (it is a forum cluster label, not a leaf)
+#
+# The guard is re-derived server-side from DB state — never trusted from client.
+# ---------------------------------------------------------------------------
+
+
+def _derive_selectability(conn, agent_connected):
+    """
+    Re-derive server-side whether a connection is selectable for promotion.
+
+    Returns (is_selectable: bool, rejection_reason: str | None).
+
+    Reasons (ADR-008 D3 fail-loud):
+    - "flagged_missing": the row is no longer visible in the last sync.
+    - "agent_required": agent-tier postability but no agent connected.
+    - "forum_parent": the row is a forum cluster label (not a postable leaf).
+    """
+    from syndication.models import TelegramDialogType, TelegramPostability
+
+    if conn.flagged_missing:
+        return False, "flagged_missing"
+
+    # Locked: agent-tier with no active agent
+    if conn.postability == TelegramPostability.AGENT and not agent_connected:
+        return False, "agent_required"
+
+    # Forum parent: a group/supergroup row that has forum_topic children
+    # sharing the same destination_id AND organizer. Such rows are cluster
+    # labels, NOT selectable post targets (a forum group cannot receive a post
+    # without topic_id).
+    # SECURITY: scope to the same organizer — two organizers can share a
+    # destination_id (same Telegram chat_id). Without scope, Org B's forum
+    # leaks presence info and wrongly blocks Org A's plain group at the same
+    # chat_id. The unique key is (organizer, platform, destination_id, topic_id).
+    if conn.type in (TelegramDialogType.GROUP, TelegramDialogType.SUPERGROUP):
+        # Check if any forum_topic child shares this destination_id AND organizer
+        has_topics = PlatformConnection.objects.filter(
+            organizer_id=conn.organizer_id,
+            destination_id=conn.destination_id,
+            type=TelegramDialogType.FORUM_TOPIC,
+        ).exists()
+        if has_topics:
+            return False, "forum_parent"
+
+    return True, None
+
+
+@login_required
+def destination_select(request, pk):
+    """
+    Toggle promotion selection for a destination (kb-sbhs.3).
+
+    POST selected=true  → add 'promotion' to kinds (additive) + enabled=True
+    POST selected=false → remove 'promotion' from kinds
+
+    Server-side selectability guard (ADR-008 D3 FIRM): re-derives lock/forum-parent
+    state from DB — never trusts client-side disabled attributes.
+
+    Returns 200 (HTMX-aware: renders the updated picker row) or 400 on guard failure.
+    """
+    from organizers.models import ProfileClaim
+    from syndication.models import AgentCredential, TelegramDialogType
+
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    profile_ids = ProfileClaim.objects.filter(
+        user=request.user, rejected_at__isnull=True
+    ).values_list("profile_id", flat=True)
+
+    conn = get_object_or_404(PlatformConnection, pk=pk, organizer_id__in=profile_ids)
+
+    # --- Server-side selectability guard (ADR-008 D3 FIRM) ---
+    agent_connected = AgentCredential.objects.filter(
+        user=request.user, enabled=True
+    ).exists()
+
+    is_selectable, rejection_reason = _derive_selectability(conn, agent_connected)
+
+    selected_str = request.POST.get("selected", "")
+    selecting = selected_str.lower() in ("true", "1", "on", "yes")
+
+    if selecting and not is_selectable:
+        # Fail loud: 4xx with reason; NO kinds mutation (ADR-008 D3)
+        return HttpResponseBadRequest(
+            f"Cannot select destination: {rejection_reason or 'not selectable'}"
+        )
+
+    # --- Mutate kinds (additive) ---
+    kinds = list(conn.kinds or [])
+
+    if selecting:
+        if "promotion" not in kinds:
+            kinds.append("promotion")
+        conn.kinds = kinds
+        conn.enabled = True
+        conn.save(update_fields=["kinds", "enabled"])
+    else:
+        # Deselect: remove only "promotion", leave other kinds intact
+        kinds = [k for k in kinds if k != "promotion"]
+        conn.kinds = kinds
+        conn.save(update_fields=["kinds"])
+
+    if request.headers.get("HX-Request"):
+        # Re-derive display flags for the partial
+        conn.display_name = conn.friendly_name or conn.title or conn.destination_id
+        conn.is_agent_tier = conn.postability == "agent"
+        conn.is_bot_tier = conn.postability == "bot"
+        conn.is_public_tier = conn.postability == "public"
+        conn.is_locked = (conn.is_agent_tier and not agent_connected) or conn.flagged_missing
+        conn.is_selected = "promotion" in conn.kinds
+
+        # Determine if this is a forum topic for the partial context
+        picker_row_is_topic = (conn.type == TelegramDialogType.FORUM_TOPIC)
+
+        return render(
+            request,
+            "syndication/fragments/_picker_row.html",
+            {"conn": conn, "picker_row_is_topic": picker_row_is_topic},
+        )
+
+    return HttpResponse(status=200)
+
+
+@login_required
+def destination_overlay(request, pk):
+    """
+    Persist the names/tags overlay for a connection (kb-sbhs.3).
+
+    POST friendly_name + theme_tags (comma-separated string) → save to DB.
+
+    Returns 200 (or HTMX partial for autosave).
+    """
+    from organizers.models import ProfileClaim
+
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    profile_ids = ProfileClaim.objects.filter(
+        user=request.user, rejected_at__isnull=True
+    ).values_list("profile_id", flat=True)
+
+    conn = get_object_or_404(PlatformConnection, pk=pk, organizer_id__in=profile_ids)
+
+    friendly_name_raw = request.POST.get("friendly_name", "").strip()
+    theme_tags_raw = request.POST.get("theme_tags", "").strip()
+
+    # --- Fail-loud validation (ADR-008 D3) ---
+    # friendly_name: max 300 chars (DB field constraint). Do NOT silently truncate.
+    FRIENDLY_NAME_MAX = 300
+    if len(friendly_name_raw) > FRIENDLY_NAME_MAX:
+        return HttpResponseBadRequest(
+            f"friendly_name exceeds maximum length of {FRIENDLY_NAME_MAX} characters."
+        )
+
+    # theme_tags: each individual tag must be reasonable length.
+    TAG_MAX_LENGTH = 100
+    if theme_tags_raw:
+        raw_tags = [tag.strip() for tag in theme_tags_raw.split(",") if tag.strip()]
+        for tag in raw_tags:
+            if len(tag) > TAG_MAX_LENGTH:
+                return HttpResponseBadRequest(
+                    f"A theme_tag exceeds maximum length of {TAG_MAX_LENGTH} characters."
+                )
+
+    # Normalize friendly_name: empty string → None (no override)
+    conn.friendly_name = friendly_name_raw if friendly_name_raw else None
+
+    # Normalize theme_tags: comma-separated → deduplicated list of stripped strings
+    if theme_tags_raw:
+        conn.theme_tags = sorted(
+            {tag.strip() for tag in theme_tags_raw.split(",") if tag.strip()}
+        )
+    else:
+        conn.theme_tags = []
+
+    conn.save(update_fields=["friendly_name", "theme_tags"])
+
+    if request.headers.get("HX-Request"):
+        # Return the updated picker row partial for inline swap
+        from syndication.models import AgentCredential, TelegramDialogType
+
+        agent_connected = AgentCredential.objects.filter(
+            user=request.user, enabled=True
+        ).exists()
+
+        conn.display_name = conn.friendly_name or conn.title or conn.destination_id
+        conn.is_agent_tier = conn.postability == "agent"
+        conn.is_bot_tier = conn.postability == "bot"
+        conn.is_public_tier = conn.postability == "public"
+        conn.is_locked = (conn.is_agent_tier and not agent_connected) or conn.flagged_missing
+        conn.is_selected = "promotion" in (conn.kinds or [])
+        picker_row_is_topic = (conn.type == TelegramDialogType.FORUM_TOPIC)
+
+        return render(
+            request,
+            "syndication/fragments/_picker_row.html",
+            {"conn": conn, "picker_row_is_topic": picker_row_is_topic},
+        )
+
+    return HttpResponse(status=200)
 
 
 # ---------------------------------------------------------------------------

@@ -28,10 +28,11 @@
         {% for tag in all_tags %}
           <button type="button"
                   class="kb-tag transition-colors"
-                  :class="activeTag === '{{ tag }}' ? 'kb-tag-accent' : ''"
-                  @click="selectTag('{{ tag }}')"
+                  data-tag="{{ tag }}"
+                  :class="activeTag === $el.dataset.tag ? 'kb-tag-accent' : ''"
+                  @click="selectTag($el.dataset.tag)"
                   aria-pressed="false"
-                  :aria-pressed="activeTag === '{{ tag }}'">{{ tag }}</button>
+                  :aria-pressed="activeTag === $el.dataset.tag">{{ tag }}</button>
         {% endfor %}
       </div>
     {% endif %}
@@ -85,27 +86,31 @@
         <h2 class="kb-eyebrow kb-eyebrow-strong tracking-[0.22em] mb-4"
             id="picker-forums-heading">{% trans "Forums" %}</h2>
         {% for forum in forums %}
-          {# Cluster label — NON-interactive, no checkbox (forum-topic trap) #}
-          <div class="kb-bracketed-top py-3"
-               data-role="forum-cluster"
-               aria-label="{% trans "Forum group" %}: {{ forum.cluster.display_name }}">
-            <span class="kb-eyebrow text-[var(--kb-ink-soft)]">
-              {% if forum.cluster %}
-                {{ forum.cluster.display_name }}
-              {% else %}
-                {{ forum.topics.0.destination_id }}
-              {% endif %}
-            </span>
-          </div>
-          {# Topic leaves — selectable (checkbox) #}
-          <div class="flex flex-col mb-6">
-            {% for topic in forum.topics %}
-              <div class="kb-bracketed-top py-4 pl-6 {% if forloop.last %}kb-bracketed-bottom{% endif %}"
-                   x-show="visible({{ topic.theme_tags|default:'[]' }}, '{{ topic.display_name|escapejs }}')"
-                   x-cloak>
-                {% include "syndication/fragments/_picker_row.html" with conn=topic picker_row_is_topic=True only %}
-              </div>
-            {% endfor %}
+          {# Forum cluster wrapper: x-show hides the whole cluster when all its topics are filtered out #}
+          <div x-show="{{ forum.topics|length }} === 0 ? false : {% for topic in forum.topics %}visible({{ topic.theme_tags|default:'[]' }}, '{{ topic.display_name|escapejs }}'){% if not forloop.last %} || {% endif %}{% endfor %}"
+               x-cloak>
+            {# Cluster label — NON-interactive, no checkbox (forum-topic trap) #}
+            <div class="kb-bracketed-top py-3"
+                 data-role="forum-cluster"
+                 aria-label="{% trans "Forum group" %}: {{ forum.cluster.display_name }}">
+              <span class="kb-eyebrow text-[var(--kb-ink-soft)]">
+                {% if forum.cluster %}
+                  {{ forum.cluster.display_name }}
+                {% else %}
+                  {{ forum.topics.0.destination_id }}
+                {% endif %}
+              </span>
+            </div>
+            {# Topic leaves — selectable (checkbox) #}
+            <div class="flex flex-col mb-6">
+              {% for topic in forum.topics %}
+                <div class="kb-bracketed-top py-4 pl-6 {% if forloop.last %}kb-bracketed-bottom{% endif %}"
+                     x-show="visible({{ topic.theme_tags|default:'[]' }}, '{{ topic.display_name|escapejs }}')"
+                     x-cloak>
+                  {% include "syndication/fragments/_picker_row.html" with conn=topic picker_row_is_topic=True only %}
+                </div>
+              {% endfor %}
+            </div>
           </div>
         {% endfor %}
       </section>

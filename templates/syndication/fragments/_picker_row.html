@@ -3,16 +3,29 @@
   Picker row partial — shared by Channels, Groups, and Forum topic leaves.
   Context variables:
     conn                — PlatformConnection object with .display_name, .is_locked,
-                          .is_agent_tier, .is_bot_tier, .is_public_tier, .flagged_missing
+                          .is_agent_tier, .is_bot_tier, .is_public_tier, .flagged_missing,
+                          .kinds, .friendly_name, .theme_tags
     picker_row_is_topic — boolean; when True, suppress the postability hint in the
                           normal (unlocked, not vanished) branch (topic leaves don't
                           need a redundant tier label beneath the forum cluster).
+
+  kb-sbhs.3 mutation wiring:
+  - Checkbox triggers POST to destination-select; response swaps this partial OOB.
+  - Hidden companion field ensures uncheck → selected=false is POSTed (not silently
+    dropped — memory htmx-autosave-checkbox-uncheck-discard-needs-hidden-companion).
+  - hx-target + hx-swap replace the outer [data-picker-row] wrapper in-place so the
+    server-driven state is the source of truth (memory optimistic-ui-flip-lies-
+    under-shared-row-broadcast).
+  - Overlay form (friendly_name + theme_tags) autosaves on blur/change; hx-swap=none
+    because state is reflected via the DB-round-trip GET (no OOB fragment needed
+    for the text field itself — the tag chips re-render on picker reload).
 {% endcomment %}
 {% if conn.flagged_missing %}
   {# ADR-008 D3: vanished — LOUD flag, not silent #}
   <div class="flex items-start gap-3"
        data-vanished
-       data-connection-pk="{{ conn.pk }}">
+       data-connection-pk="{{ conn.pk }}"
+       data-picker-row="{{ conn.pk }}">
     <input type="checkbox"
            name="destination"
            value="{{ conn.pk }}"
@@ -32,7 +45,8 @@
   {# Agent-tier, no agent connected: visible-but-locked (ADR-018 D1/D4) #}
   <div class="flex items-start gap-3"
        data-connection-pk="{{ conn.pk }}"
-       data-locked="agent">
+       data-locked="agent"
+       data-picker-row="{{ conn.pk }}">
     <input type="checkbox"
            name="destination"
            value="{{ conn.pk }}"
@@ -45,23 +59,74 @@
     </div>
   </div>
 {% else %}
-  <div class="flex items-start gap-3" data-connection-pk="{{ conn.pk }}">
-    <input type="checkbox"
-           name="destination"
-           value="{{ conn.pk }}"
-           class="kb-check mt-0.5 shrink-0"
-           aria-label="{{ conn.display_name }}">
-    <div class="flex flex-col gap-1 min-w-0">
-      <span class="kb-kicker truncate">{{ conn.display_name }}</span>
-      {% if not picker_row_is_topic %}
-        {% if conn.is_bot_tier %}
-          <span class="kb-field-hint">{% trans "Bot" %}</span>
-        {% elif conn.is_public_tier %}
-          <span class="kb-field-hint">{% trans "Public link only" %}</span>
-        {% elif conn.is_agent_tier %}
-          <span class="kb-field-hint">{% trans "Agent" %}</span>
+  {# Normal selectable row: checkbox wired to select endpoint (kb-sbhs.3) #}
+  <div class="flex items-start gap-3"
+       data-connection-pk="{{ conn.pk }}"
+       data-picker-row="{{ conn.pk }}">
+    {% comment %}
+      HTMX checkbox + hidden companion guard (kb-sbhs.3).
+      The hidden field ensures deselect (unchecked) is always POSTed.
+      When checked: both hidden (value=false) and checkbox (value=true) are submitted;
+        the last value wins for HTMX POST body (checkbox overrides hidden because it
+        comes after in form order). Actually — we use a specific input name strategy:
+      - hidden field: name="selected" value="false"  (always submitted)
+      - checkbox: name="selected" value="true"       (submitted only when checked)
+      Django processes the last occurrence of a key in POST — so checkbox overrides
+      hidden when checked, hidden fires when unchecked.
+      See memory htmx-autosave-checkbox-uncheck-discard-needs-hidden-companion.
+    {% endcomment %}
+    <form id="select-form-{{ conn.pk }}"
+          hx-post="{% url 'syndication:destination-select' conn.pk %}"
+          hx-target="[data-picker-row='{{ conn.pk }}']"
+          hx-swap="outerHTML"
+          class="flex items-start gap-3 w-full">
+      {% csrf_token %}
+      {# Hidden companion — ensures deselect (unchecked) is POSTed as selected=false #}
+      <input type="hidden" name="selected" value="false">
+      <input type="checkbox"
+             name="selected"
+             value="true"
+             class="kb-check mt-0.5 shrink-0"
+             {% if conn.is_selected %}checked{% endif %}
+             hx-trigger="change"
+             hx-include="closest form"
+             aria-label="{{ conn.display_name }}"
+             hx-post="{% url 'syndication:destination-select' conn.pk %}"
+             hx-target="[data-picker-row='{{ conn.pk }}']"
+             hx-swap="outerHTML">
+      <div class="flex flex-col gap-1 min-w-0 flex-1">
+        <span class="kb-kicker truncate">{{ conn.display_name }}</span>
+        {% if not picker_row_is_topic %}
+          {% if conn.is_bot_tier %}
+            <span class="kb-field-hint">{% trans "Bot" %}</span>
+          {% elif conn.is_public_tier %}
+            <span class="kb-field-hint">{% trans "Public link only" %}</span>
+          {% elif conn.is_agent_tier %}
+            <span class="kb-field-hint">{% trans "Agent" %}</span>
+          {% endif %}
         {% endif %}
-      {% endif %}
-    </div>
+        {# Overlay: friendly_name + theme_tags autosave (kb-sbhs.3) #}
+        <div class="mt-2 flex flex-col gap-1">
+          <input type="text"
+                 name="friendly_name"
+                 value="{{ conn.friendly_name|default:'' }}"
+                 placeholder="{{ conn.title|default:conn.destination_id }}"
+                 class="kb-input text-sm py-1"
+                 hx-post="{% url 'syndication:destination-overlay' conn.pk %}"
+                 hx-trigger="blur"
+                 hx-swap="none"
+                 aria-label="{% trans "Friendly name for" %} {{ conn.display_name }}">
+          <input type="text"
+                 name="theme_tags"
+                 value="{{ conn.theme_tags|join:', ' }}"
+                 placeholder="{% trans "Tags (comma-separated)" %}"
+                 class="kb-input text-sm py-1"
+                 hx-post="{% url 'syndication:destination-overlay' conn.pk %}"
+                 hx-trigger="blur"
+                 hx-swap="none"
+                 aria-label="{% trans "Theme tags for" %} {{ conn.display_name }}">
+        </div>
+      </div>
+    </form>
   </div>
 {% endif %}
