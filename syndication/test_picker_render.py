@@ -394,7 +394,7 @@ class DestinationPickerRenderTest(TestCase):
         """
         A user with no profile claims sees no connections (auth seam).
         """
-        other_user = _make_vouched_user(
+        _make_vouched_user(
             username="picker_other",
             email="other_picker@test.com",
             password="x",

@@ -1361,9 +1361,9 @@ def destination_picker(request):
     from organizers.models import ProfileClaim
     from syndication.models import AgentCredential, TelegramDialogType, TelegramPostability
 
-    profile_ids = ProfileClaim.objects.filter(
-        user=request.user, rejected_at__isnull=True
-    ).values_list("profile_id", flat=True)
+    profile_ids = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
 
     # All Telegram connections for the user's profiles (Telegram only)
     telegram_types = [
@@ -1383,9 +1383,7 @@ def destination_picker(request):
     )
 
     # --- Detect agent connection ---
-    agent_connected = AgentCredential.objects.filter(
-        user=request.user, enabled=True
-    ).exists()
+    agent_connected = AgentCredential.objects.filter(user=request.user, enabled=True).exists()
 
     # --- Build tree structure in the view (ADR-008 D2: no template logic) ---
     channels = []
@@ -1394,9 +1392,7 @@ def destination_picker(request):
     forum_map = defaultdict(lambda: {"cluster": None, "topics": []})
 
     # Find destination_ids that have forum_topic children
-    forum_topic_dest_ids = set(
-        c.destination_id for c in connections if c.type == TelegramDialogType.FORUM_TOPIC
-    )
+    forum_topic_dest_ids = set(c.destination_id for c in connections if c.type == TelegramDialogType.FORUM_TOPIC)
 
     for conn in connections:
         # Display name: friendly_name overrides title
@@ -1449,17 +1445,15 @@ def destination_picker(request):
                 },
             )()
         if cluster is not None:
-            cluster.display_name = cluster.friendly_name if hasattr(cluster, "friendly_name") and cluster.friendly_name else (cluster.title if hasattr(cluster, "title") and cluster.title else dest_id)
+            cluster.display_name = (
+                cluster.friendly_name
+                if hasattr(cluster, "friendly_name") and cluster.friendly_name
+                else (cluster.title if hasattr(cluster, "title") and cluster.title else dest_id)
+            )
         forums.append({"cluster": cluster, "topics": topics})
 
     # --- Collect all theme tags (union across all connections) ---
-    all_tags = sorted(
-        set(
-            tag
-            for conn in connections
-            for tag in (conn.theme_tags or [])
-        )
-    )
+    all_tags = sorted(set(tag for conn in connections for tag in (conn.theme_tags or [])))
 
     return render(
         request,
@@ -1551,16 +1545,14 @@ def destination_select(request, pk):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
-    profile_ids = ProfileClaim.objects.filter(
-        user=request.user, rejected_at__isnull=True
-    ).values_list("profile_id", flat=True)
+    profile_ids = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
 
     conn = get_object_or_404(PlatformConnection, pk=pk, organizer_id__in=profile_ids)
 
     # --- Server-side selectability guard (ADR-008 D3 FIRM) ---
-    agent_connected = AgentCredential.objects.filter(
-        user=request.user, enabled=True
-    ).exists()
+    agent_connected = AgentCredential.objects.filter(user=request.user, enabled=True).exists()
 
     is_selectable, rejection_reason = _derive_selectability(conn, agent_connected)
 
@@ -1569,9 +1561,7 @@ def destination_select(request, pk):
 
     if selecting and not is_selectable:
         # Fail loud: 4xx with reason; NO kinds mutation (ADR-008 D3)
-        return HttpResponseBadRequest(
-            f"Cannot select destination: {rejection_reason or 'not selectable'}"
-        )
+        return HttpResponseBadRequest(f"Cannot select destination: {rejection_reason or 'not selectable'}")
 
     # --- Mutate kinds (additive) ---
     kinds = list(conn.kinds or [])
@@ -1598,7 +1588,7 @@ def destination_select(request, pk):
         conn.is_selected = "promotion" in conn.kinds
 
         # Determine if this is a forum topic for the partial context
-        picker_row_is_topic = (conn.type == TelegramDialogType.FORUM_TOPIC)
+        picker_row_is_topic = conn.type == TelegramDialogType.FORUM_TOPIC
 
         return render(
             request,
@@ -1623,9 +1613,9 @@ def destination_overlay(request, pk):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
-    profile_ids = ProfileClaim.objects.filter(
-        user=request.user, rejected_at__isnull=True
-    ).values_list("profile_id", flat=True)
+    profile_ids = ProfileClaim.objects.filter(user=request.user, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
 
     conn = get_object_or_404(PlatformConnection, pk=pk, organizer_id__in=profile_ids)
 
@@ -1636,9 +1626,7 @@ def destination_overlay(request, pk):
     # friendly_name: max 300 chars (DB field constraint). Do NOT silently truncate.
     FRIENDLY_NAME_MAX = 300
     if len(friendly_name_raw) > FRIENDLY_NAME_MAX:
-        return HttpResponseBadRequest(
-            f"friendly_name exceeds maximum length of {FRIENDLY_NAME_MAX} characters."
-        )
+        return HttpResponseBadRequest(f"friendly_name exceeds maximum length of {FRIENDLY_NAME_MAX} characters.")
 
     # theme_tags: each individual tag must be reasonable length.
     TAG_MAX_LENGTH = 100
@@ -1646,18 +1634,14 @@ def destination_overlay(request, pk):
         raw_tags = [tag.strip() for tag in theme_tags_raw.split(",") if tag.strip()]
         for tag in raw_tags:
             if len(tag) > TAG_MAX_LENGTH:
-                return HttpResponseBadRequest(
-                    f"A theme_tag exceeds maximum length of {TAG_MAX_LENGTH} characters."
-                )
+                return HttpResponseBadRequest(f"A theme_tag exceeds maximum length of {TAG_MAX_LENGTH} characters.")
 
     # Normalize friendly_name: empty string → None (no override)
     conn.friendly_name = friendly_name_raw if friendly_name_raw else None
 
     # Normalize theme_tags: comma-separated → deduplicated list of stripped strings
     if theme_tags_raw:
-        conn.theme_tags = sorted(
-            {tag.strip() for tag in theme_tags_raw.split(",") if tag.strip()}
-        )
+        conn.theme_tags = sorted({tag.strip() for tag in theme_tags_raw.split(",") if tag.strip()})
     else:
         conn.theme_tags = []
 
@@ -1667,9 +1651,7 @@ def destination_overlay(request, pk):
         # Return the updated picker row partial for inline swap
         from syndication.models import AgentCredential, TelegramDialogType, TelegramPostability
 
-        agent_connected = AgentCredential.objects.filter(
-            user=request.user, enabled=True
-        ).exists()
+        agent_connected = AgentCredential.objects.filter(user=request.user, enabled=True).exists()
 
         conn.display_name = conn.friendly_name or conn.title or conn.destination_id
         conn.is_agent_tier = conn.postability == TelegramPostability.AGENT
@@ -1677,7 +1659,7 @@ def destination_overlay(request, pk):
         conn.is_public_tier = conn.postability == TelegramPostability.PUBLIC
         conn.is_locked = (conn.is_agent_tier and not agent_connected) or conn.flagged_missing
         conn.is_selected = "promotion" in (conn.kinds or [])
-        picker_row_is_topic = (conn.type == TelegramDialogType.FORUM_TOPIC)
+        picker_row_is_topic = conn.type == TelegramDialogType.FORUM_TOPIC
 
         return render(
             request,

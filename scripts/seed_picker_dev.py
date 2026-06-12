@@ -17,13 +17,15 @@ Creates:
 
 Safe to re-run: uses get_or_create on user/profile/connections.
 """
-import django
+
 import os
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "a_core.settings")
 
 from django.contrib.auth import get_user_model
+
 from organizers.models import Profile, ProfileClaim
-from syndication.models import PlatformConnection, TelegramDialogType, TelegramPostability, AgentCredential
+from syndication.models import AgentCredential, PlatformConnection, TelegramDialogType, TelegramPostability
 
 User = get_user_model()
 
@@ -33,7 +35,7 @@ user, created = User.objects.get_or_create(
     defaults={
         "email": "pickerdev@dev.local",
         "status": "vouched",
-    }
+    },
 )
 if created:
     seed_password = os.environ.get("SEED_PICKER_PASSWORD", "dev-only-change-me")
@@ -44,24 +46,19 @@ else:
     print(f"User already exists: pickerdev (pk={user.pk})")
 
 # --- Profile + ProfileClaim ---
-profile, pcreated = Profile.objects.get_or_create(
-    slug="pickerdev-profile",
-    defaults={"name": "Picker Dev Profile"}
-)
+profile, pcreated = Profile.objects.get_or_create(slug="pickerdev-profile", defaults={"name": "Picker Dev Profile"})
 if pcreated:
     print(f"Created profile: {profile.slug} (pk={profile.pk})")
 else:
     print(f"Profile already exists: {profile.slug} (pk={profile.pk})")
 
 claim, claim_created = ProfileClaim.objects.get_or_create(
-    profile=profile,
-    user=user,
-    defaults={"verified_method": "auto_self"}
+    profile=profile, user=user, defaults={"verified_method": "auto_self"}
 )
 if claim_created:
     print(f"Created ProfileClaim for user {user.username} -> profile {profile.slug}")
 else:
-    print(f"ProfileClaim already exists")
+    print("ProfileClaim already exists")
 
 # --- Connections ---
 
@@ -79,7 +76,7 @@ ch, _ = PlatformConnection.objects.get_or_create(
         "kinds": ["promotion"],
         "theme_tags": ["kink", "berlin"],
         "friendly_name": None,
-    }
+    },
 )
 print(f"Channel: pk={ch.pk} title={ch.title}")
 
@@ -97,7 +94,7 @@ grp, _ = PlatformConnection.objects.get_or_create(
         "kinds": ["promotion"],
         "theme_tags": ["queer"],
         "friendly_name": None,
-    }
+    },
 )
 print(f"Group: pk={grp.pk} title={grp.title}")
 
@@ -117,7 +114,7 @@ forum_cluster, _ = PlatformConnection.objects.get_or_create(
         "kinds": ["promotion"],
         "theme_tags": ["events", "berlin"],
         "friendly_name": "Dev Forum Hub",
-    }
+    },
 )
 print(f"Forum cluster: pk={forum_cluster.pk} title={forum_cluster.title}")
 
@@ -134,7 +131,7 @@ topic1, _ = PlatformConnection.objects.get_or_create(
         "kinds": ["promotion"],
         "theme_tags": ["events"],
         "friendly_name": "General Announcements",
-    }
+    },
 )
 print(f"Forum topic 1: pk={topic1.pk} friendly_name={topic1.friendly_name}")
 
@@ -151,7 +148,7 @@ topic2, _ = PlatformConnection.objects.get_or_create(
         "kinds": ["promotion"],
         "theme_tags": ["berlin"],
         "friendly_name": "Party Listings",
-    }
+    },
 )
 print(f"Forum topic 2: pk={topic2.pk} friendly_name={topic2.friendly_name}")
 
@@ -169,7 +166,7 @@ vanished, _ = PlatformConnection.objects.get_or_create(
         "kinds": ["promotion"],
         "theme_tags": [],
         "friendly_name": None,
-    }
+    },
 )
 print(f"Vanished channel: pk={vanished.pk} flagged_missing={vanished.flagged_missing}")
 
@@ -187,7 +184,7 @@ agent_grp, _ = PlatformConnection.objects.get_or_create(
         "kinds": ["promotion"],
         "theme_tags": ["kink"],
         "friendly_name": None,
-    }
+    },
 )
 print(f"Agent-tier group: pk={agent_grp.pk} postability={agent_grp.postability}")
 
@@ -199,6 +196,13 @@ else:
     print("No AgentCredential for pickerdev (correct — agent-tier rows will render LOCKED)")
 
 print("\n=== Seed complete ===")
-print(f"Login at: /accounts/login/ with username=pickerdev password=<SEED_PICKER_PASSWORD env var, default: dev-only-change-me>")
-print(f"Picker URL: /syndication/destinations/")
-print(f"PKs: channel={ch.pk} group={grp.pk} forum_cluster={forum_cluster.pk} topic1={topic1.pk} topic2={topic2.pk} vanished={vanished.pk} agent_grp={agent_grp.pk}")
+print(
+    "Login at: /accounts/login/ with username=pickerdev"
+    " password=<SEED_PICKER_PASSWORD env var, default: dev-only-change-me>"
+)
+print("Picker URL: /syndication/destinations/")
+print(
+    f"PKs: channel={ch.pk} group={grp.pk} forum_cluster={forum_cluster.pk}"
+    f" topic1={topic1.pk} topic2={topic2.pk} vanished={vanished.pk}"
+    f" agent_grp={agent_grp.pk}"
+)

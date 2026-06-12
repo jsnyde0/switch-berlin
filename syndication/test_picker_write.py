@@ -275,8 +275,7 @@ class PickerSelectDeselectTest(PickerWriteBaseTest):
         # enabled stays True — deselect is kinds-only, not connection disable.
         self.assertTrue(
             self.channel.enabled,
-            "Deselect removes 'promotion' from kinds but leaves enabled=True "
-            "(deselect is NOT connection disable).",
+            "Deselect removes 'promotion' from kinds but leaves enabled=True (deselect is NOT connection disable).",
         )
 
 
