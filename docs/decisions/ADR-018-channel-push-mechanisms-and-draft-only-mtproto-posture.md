@@ -12,7 +12,7 @@ A live spike (kb-mztq, 2026-06-11) validated the mechanics against a real facili
 
 - A **Bot API** bot can only post where the bot itself is admin/member — it cannot reach the private community groups a facilitator is merely a member of.
 - A **deep-link** (`tg://resolve?domain=…&text=…`) can pre-fill a draft, but only addresses **public** (username-bearing) destinations.
-- **MTProto `saveDraft`** (acting as the user's own account) places a server-side draft — text + link-preview card, topic-targetable via `reply_to`/`top_msg_id` — that **syncs to all the user's devices without sending anything and without notifying anyone**. It reaches *any* dialog the user can post in, private or public, including specific forum topics. Validated live: private member-supergroups, own broadcast channels, and the "Love" / "Raves & Parties" forum topics all received synced drafts the human could then send.
+- **MTProto `saveDraft`** (acting as the user's own account) places a server-side draft — text + link-preview card — that **syncs to all the user's devices without sending anything and without notifying anyone**. It reaches *any* dialog the user can post in, private or public, including forum groups. Validated live: private member-supergroups, own broadcast channels, and forum groups all received synced drafts the human could then send. **Correction (kb-ru55.6 dogfood, 2026-06-12):** within a forum, the draft is placed **forum-level** (`reply_to=None`) and is visible in whatever topic composer the human opens — **per-topic *pinning* via `top_msg_id` is stored correctly server-side (`ForumTopic.draft` populates) but Telegram Desktop does NOT render a topic-pinned draft**, so it is invisible to the user. The earlier spike conflated forum-level visibility with topic-pinning. Net: forum *reach* is real and visible; per-topic *pinning* is not a working delivery guarantee today (see D1 note + deferred kb-ru55.9).
 - The real target filter is **"can the user post here"** — not chat type. Broadcast channels the user only subscribes to are dead ends.
 - Telegram's documented permanent-ban enforcement for "flooding/spamming" is keyed to **sent messages and recipient reports**; a draft produces neither. Logging in via an unofficial MTProto client does put the account "under observation" (documented baseline).
 
@@ -27,13 +27,13 @@ This ADR canonicalizes the resulting tiered delivery strategy and the FIRM safet
 A projection is delivered by the mechanism that fits its destination:
 
 - **Own / admin channels** → **Bot API auto-post** (the Switch bot, added as admin, posts directly; no human send).
-- **Groups / supergroups / forum-topics the user can post in (INCLUDING private, no-username)** → **MTProto `saveDraft` as the user's own account**: the agent places a synced native draft (text + link-preview card; topic-targeted via `reply_to`/`top_msg_id`); the **human reviews and sends** on their official client. This is the only mechanism that reaches private communities.
+- **Groups / supergroups / forum groups the user can post in (INCLUDING private, no-username)** → **MTProto `saveDraft` as the user's own account**: the agent places a synced native draft (text + link-preview card); the **human reviews and sends** on their official client. This is the only mechanism that reaches private communities. **Forum-topic caveat (kb-ru55.6, 2026-06-12):** the draft is placed **forum-level** (`reply_to=None`), NOT pinned to a specific topic — a `top_msg_id`-pinned draft is stored server-side but **Telegram Desktop does not render it** (invisible to the user). The forum-level draft is visible in whatever topic composer the human opens; the **intended topic is conveyed via the distribute result** for the human to route. True per-topic pinning is deferred (kb-ru55.9).
 - **Public destinations** → *also* offer a zero-auth **deep-link** (`tg://resolve?domain=…&text=…`) open-with-draft convenience (no MTProto session required).
 - **Broadcast channels the user only subscribes to** → **not targets** (the user cannot post; excluded from the destination set).
 
 **Rationale:**
 
-- `direct:` spike kb-mztq — no single mechanism spans the set: the bot can't reach private member-groups, deep-links can't address private (no username), and `saveDraft` is the only path into private communities + topics (verified live across private supergroups, own channel, and forum topics).
+- `direct:` spike kb-mztq + dogfood kb-ru55.6 — no single mechanism spans the set: the bot can't reach private member-groups, deep-links can't address private (no username), and `saveDraft` is the only path into private communities (verified live across private supergroups, own channel, and forum groups — forum drafts placed forum-level, not topic-pinned; see D1 caveat).
 - `reasoned:` ADR-008 D2 (concrete-not-speculative) is *satisfied* by per-tier divergence here — the divergence is real and observed, not anticipated; a unified "channel push" abstraction would have to special-case all three anyway.
 - `direct:` the dogfooding facilitator's real inventory was ~17 private member-supergroups vs ~7 public groups — the private-only `saveDraft` tier carries the majority of the value, not an edge case.
 
@@ -49,6 +49,7 @@ A projection is delivered by the mechanism that fits its destination:
 
 - Telegram (or a new platform) ships an official multi-target broadcast/forward API that reaches a user's communities natively — the `saveDraft` tier could be subsumed by it.
 - A platform onboards whose destinations fit none of the three tiers — add a tier rather than bending an existing one.
+- A draft representation is found that Telegram Desktop renders **pinned to a specific forum topic** (kb-ru55.9) — the forum-topic tier would upgrade from forum-level to true per-topic placement. (The official apps support per-topic drafts, so some representation renders; ours — `InputReplyToMessage(reply_to_msg_id=topic_id, top_msg_id=topic_id)` — does not.)
 
 ### D2: The automated MTProto client only ever DRAFTS — never sends (the ToS firewall)
 
