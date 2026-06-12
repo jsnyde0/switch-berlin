@@ -376,6 +376,85 @@ def test_agegate_always_public_prefix_bypasses_gate():
 
 
 # ---------------------------------------------------------------------------
+# AgeGateMiddleware — social link-preview crawler bypass (kb-t93r)
+# ---------------------------------------------------------------------------
+
+
+def test_agegate_social_crawlers_bypass_gate():
+    """AgeGateMiddleware must bypass the age gate for social link-preview crawlers.
+
+    Social unfurl bots (Telegram, Twitter/X, Facebook, WhatsApp, etc.) must NOT
+    be redirected to /age-check/. They read only the OG meta; real human browsers
+    (non-bot UA, no cookie) are still gated.
+    """
+    from accounts.middleware import AgeGateMiddleware
+
+    def _get_response(req):
+        from django.http import HttpResponse
+
+        return HttpResponse("ok")
+
+    mw = AgeGateMiddleware(_get_response)
+    factory = RequestFactory()
+
+    social_uas = [
+        "TelegramBot (like TwitterBot)",
+        "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "Twitterbot/1.0",
+        "WhatsApp/2.23.1 A",
+    ]
+
+    for ua in social_uas:
+        request = factory.get(
+            "/events/",
+            HTTP_ACCEPT="text/html,application/xhtml+xml",
+            HTTP_USER_AGENT=ua,
+        )
+        request.COOKIES = {}
+
+        with patch("accounts.middleware.get_flag", side_effect=make_get_flag(True)):
+            response = mw(request)
+
+        assert response.status_code == 200, (
+            f"Social crawler UA '{ua}' should bypass the age gate, got {response.status_code}"
+        )
+        assert "Location" not in response or "/age-check/" not in response.get("Location", ""), (
+            f"Social crawler UA '{ua}' must not be redirected to /age-check/"
+        )
+
+
+def test_agegate_human_browser_ua_still_gated():
+    """AgeGateMiddleware must still gate normal human browser UAs.
+
+    A real browser UA with text/html Accept, no age_gate cookie, anonymous — must
+    still be redirected to /age-check/ after the social-crawler bypass is added.
+    """
+    from accounts.middleware import AgeGateMiddleware
+
+    def _get_response(req):
+        from django.http import HttpResponse
+
+        return HttpResponse("ok")
+
+    mw = AgeGateMiddleware(_get_response)
+    factory = RequestFactory()
+    request = factory.get(
+        "/events/",
+        HTTP_ACCEPT="text/html,application/xhtml+xml",
+        HTTP_USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    )
+    request.COOKIES = {}
+
+    with patch("accounts.middleware.get_flag", side_effect=make_get_flag(True)):
+        response = mw(request)
+
+    assert response.status_code == 302, (
+        f"Human browser UA should be gated to /age-check/, got {response.status_code}"
+    )
+    assert "/age-check/" in response["Location"]
+
+
+# ---------------------------------------------------------------------------
 # Settings structure tests (no DB)
 # ---------------------------------------------------------------------------
 

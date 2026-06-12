@@ -97,17 +97,37 @@ class AgeGateMiddleware:
 
     Only active when PUBLIC_READ_ENABLED=True (bypass entirely in closed-beta).
     Exempt: ALWAYS_PUBLIC_PREFIXES routes.
-    Bot user-agents bypass so SEO crawling is not blocked.
+    Bot user-agents bypass so both SEO crawling and social link-preview unfurling
+    are not blocked — OG cards render correctly when links are shared on
+    Telegram, Twitter/X, Facebook, WhatsApp, Slack, Discord, LinkedIn, etc.
+    Real human browsers (Accept: text/html, non-bot UA, no age_gate cookie) are
+    still redirected to /age-check/.
     Only triggers on text/html responses (not API/JSON/static).
     """
 
     BOT_AGENTS = (
+        # SEO crawlers
         "googlebot",
         "bingbot",
         "slurp",
         "duckduckbot",
         "baiduspider",
         "yandexbot",
+        # Social link-preview / unfurl crawlers (kb-t93r)
+        "telegrambot",
+        "twitterbot",
+        "facebookexternalhit",
+        "facebot",
+        "whatsapp",
+        "slackbot",
+        "discordbot",
+        "linkedinbot",
+        "redditbot",
+        "pinterest",
+        "applebot",
+        "skypeuripreview",
+        "embedly",
+        "vkshare",
     )
 
     def __init__(self, get_response):
