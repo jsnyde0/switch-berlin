@@ -1,6 +1,6 @@
 # ADR-006: Legal gate execution — parameterize now, fill operator identity at deploy
 
-**Status:** Accepted 2026-04-22
+**Status:** Accepted 2026-04-22 (revised 2026-06-12 — D4 added: crawler exemption from the JuSchG age gate)
 **Design:** [Legal gate bundle design](../plans/2026-04-22-legal-gate-bundle-design.md)
 **Parent:** [ADR-002 D2 legal gate](ADR-002-phased-rollout-and-legal-gate.md), [ADR-005 Bundle B ops](ADR-005-bundle-post-0.5-execution.md)
 **Scope:** all work needed to flip `PUBLIC_READ_ENABLED=True` under German/EU law (DDG §5, DSGVO/GDPR, DSA, JuSchG, TTDSG).
@@ -82,6 +82,27 @@ A Django system check (run on `manage.py check --deploy`) fails if any *required
 
 **What would invalidate this:** if the operator ultimately decides to incorporate (UG/GbR/etc.) before launch, a broader rewrite of the impressum becomes necessary — the env-var skeleton still works but adds fields (register number, court, VAT ID, etc.).
 
+### D4: Link-preview and index crawlers are exempt from the JuSchG age gate; human browsers are not
+
+**Firmness: FIRM** — revisitable only if Berlin legal advice treats curated OG metadata served to an automated crawler as itself a JuSchG-gateable "making available" to minors.
+
+The `AgeGateMiddleware` (`accounts/middleware.py`), active whenever `PUBLIC_READ_ENABLED=True`, redirects any `text/html` request lacking an `age_gate=ok` cookie to `/age-check/`. Automated crawlers whose User-Agent matches the `BOT_AGENTS` allowlist are exempt — and that allowlist covers **both** search-index crawlers (Googlebot, Bingbot, …) **and** social link-preview / unfurl crawlers (Telegram, Twitter/X, Facebook, WhatsApp, Slack, Discord, LinkedIn, Reddit, …). A crawler receives only the curated Open Graph metadata (`og:title`, `og:description`, `og:image`) the page exposes and renders a link-preview or search card — never the gateable page body. The human who clicks that card still hits the age gate on the actual event page.
+
+**Inline counter-argument (FIRM discipline):** The youth-protection case for gating crawlers too is that a shared event link surfaces a card — event title + image — into a chat or feed a minor may see, with no age check. It does not survive: (a) the *same* curated card is already public and un-gated via the search-index crawlers exempted before this revision (Google shows it in results today) — exempting social unfurlers adds no exposure class search did not already create; (b) the card is curated SFW by editorial intent (branded default image, neutral tagline), and JuSchG's concern is access to the *content*, which stays gated for every human navigation; (c) gating crawlers protects no minor — it only renders the age-check interstitial on every share, breaking OG previews platform-wide (defeating the ADR-010 / ADR-016 syndication growth loop) for zero youth-protection gain. The exemption is User-Agent-allowlist-based and applies only to the curated-meta surface; it does not weaken the gate for human navigation.
+
+**Rationale:** OG link-preview cards are the syndication growth loop (ADR-010, ADR-016): a Switch event shared to Telegram/Twitter/etc. must render its real card or the share is worthless. Search-index crawlers were already exempt for exactly this reason ("bypass so crawling is not blocked"); social unfurlers are the same category — they read the same curated metadata and expose a human to nothing the gate doesn't still cover on click. Parity with search is the honest, minimal posture.
+
+**Alternatives considered:**
+
+| Approach | Pros | Cons |
+|---|---|---|
+| **Exempt search + social crawlers (chosen)** | OG previews work on every platform; parity with already-exempt search; humans still gated; growth loop functions | Curated card visible in shares with no age check — `reasoned:` same exposure search already creates; card is SFW and content stays gated |
+| Search-only exemption (status quo ante) | Narrowest crawler reach | `direct:` kb-t93r — every social unfurler 302'd to `/age-check/`, OG cards broken platform-wide, defeats ADR-010/ADR-016 |
+| Exempt social crawlers but force the default image only (never the real cover) | Marginally more cautious imagery | `reasoned:` breaks "preview == reality" (kb-6d7o), cover images never reach Telegram, undermines the cover feature; titles/descriptions still show, so the gain is marginal at real cost |
+| Remove the age gate entirely | Simplest | `external:` JuSchG requires an age gate for publicly-reachable adult-themed content; removing it is non-compliant |
+
+**What would invalidate this:** Berlin DPA / JuSchG guidance (or engaged legal counsel) stating that curated OG metadata served to an automated unfurler is itself a regulated "making available" to minors; OR a concrete complaint / Abmahnung citing the link-preview *card* (not the gated page) as the violation. Either signal → re-scope `BOT_AGENTS` to search-only and accept broken social previews, or serve crawlers a minimal non-event card.
+
 ## Consequences
 
 **Easier:**
@@ -97,3 +118,14 @@ A Django system check (run on `manage.py check --deploy`) fails if any *required
 **Tradeoffs:**
 - Explicit attendance consent adds friction for users who don't read modals. Acceptable: the platform's editorial positioning ("curated queer/kinky events") already signals the content nature; the modal confirms what users already know about the platform.
 - Legitimate interest for organizers accepts some regulatory risk vs. real opt-in. Mitigated by accessible takedown path and documented LIA.
+- D4 accepts that a curated event card is visible in social shares without an age check. Mitigated: the card is SFW by editorial intent, the same exposure already exists via search indexing, and the actual event content stays gated for every human navigation.
+
+## canonical_refs
+
+_Cited by D4 (added 2026-06-12):_
+
+- [ADR-002](ADR-002-phased-rollout-and-legal-gate.md) — legal-gate phasing; names "public share-links with OG preview" as a DSA/JuSchG trigger, the surface D4 governs post-flip.
+- [ADR-010](ADR-010-event-based-product-posture.md) — syndication-as-growth-loop; the downstream interest the crawler exemption protects.
+- [ADR-016](ADR-016-outbound-syndication-architecture-event-post-projections.md) — outbound syndication architecture; OG cards are its external-platform surface.
+- `kb-t93r` — the prod bug (search-only `BOT_AGENTS` 302'd all social unfurlers to `/age-check/`) and fix that surfaced this decision.
+- `kb-6d7o` — the OG-card feature (default image + cache-bust) D4's exemption makes deliverable.
