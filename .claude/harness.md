@@ -197,6 +197,16 @@ Pantry, not a recipe. Agents compose per-task by consulting fit profiles first.
 - **Speed**: N/A
 - **Catches**: Production error rates, slow queries, ingestion pipeline traces. **Less useful when** local — Logfire is off in tests and typically off in dev.
 
+### `browser-automation` skill — real-client render verification (incl. authenticated Telegram web / studio)
+
+- **What**: The `~/.claude/skills/browser-automation` CLI (`start.js` / `nav.js` / `eval.js` / `wait.js` / `screenshot.js` / `type.js`) drives a real Chrome over CDP on `localhost:9222`. This is the **ground-truth signal for any acceptance bullet of the form "an external/real client renders X"** — the class no first-party check (`pytest`, `curl`, `runserver` HTML scrape) can reach, because the truth lives in a *third-party renderer's* behavior (Telegram's unfurler, a browser's cascade, an authenticated SPA's JS).
+- **Command**: `node $SKILL/start.js` (idempotent; reuses an existing :9222), then `nav`/`type`/`wait`/`screenshot`. `export SKILL=$HOME/.claude/skills/browser-automation`.
+- **Speed**: seconds per step; one-time human login for authed surfaces.
+- **Catches**: what a proxy structurally cannot — e.g. kb-t93r: `curl -A TelegramBot` false-greened the OG card (curl's `Accept: */*` dodged the `text/html` age gate) while every real Telegram unfurl was 302'd to `/age-check/`; only driving real Telegram web surfaced it. Also: live Telegram link-preview cards (cache + image render), authenticated **studio** composer flows, Alpine/HTMX reactivity, Tailwind/daisyUI cascade.
+- **Authenticated reach (standing capability, est. 2026-06-12)**: the :9222 Chrome can carry a logged-in session for **real Telegram web** (paste a URL into Saved Messages composer → read the rendered card; always use a never-before-seen `?v=<token>` since Telegram caches per-URL and does not strip the param) and the **switch.berlin studio**. One-time human login per surface persists in the profile, then the agent self-serves every subsequent verification — the user is not the verifier. This is what makes "card renders correctly on Telegram" a signal the agent can close itself.
+- **Useful when**: the acceptance is user-/external-client-observable (OG cards, rendered UI, authed flows) and a first-party proxy's *default request shape may differ from the real client's* — see Fit profiles → Crawler-facing for the canonical false-green.
+- **Less useful when**: the truth is purely server-side (assert with `pytest`); driving a browser for a `response.content`-checkable fact is overkill.
+
 ---
 
 ## Build-it patterns (no pre-existing check)
