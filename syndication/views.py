@@ -1324,6 +1324,152 @@ def connection_toggle(request, pk):
 
 
 # ---------------------------------------------------------------------------
+# Destination picker (kb-sbhs.2 — RENDER ONLY)
+#
+# Renders the synced Telegram inventory as a categorised tree:
+#   Channels / Groups / Forums → Topics
+# with theme-tag filter (chips + text search, Alpine-driven) and
+# capability-ladder indicators (bot / agent / public tiers).
+#
+# Agent detection: AgentCredential.objects.filter(user=..., enabled=True).exists()
+# — if the user has any active AgentCredential, agent-tier destinations are
+# unlocked; otherwise they render visible-but-locked with "agent required".
+#
+# Forum-topic trap (canonical footgun):
+#   A forum/group cluster label has NO checkbox — it is a NON-interactive label.
+#   Only forum_topic leaves (type=forum_topic, topic_id IS NOT NULL) are
+#   selectable post targets. A forum group cannot receive a post without topic_id.
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def destination_picker(request):
+    """
+    Render-only destination picker (kb-sbhs.2).
+
+    Builds a structured context object grouping PlatformConnections by type:
+    - channels: all type=channel rows
+    - groups: all type=group / supergroup rows (excluding forum clusters)
+    - forums: clusters of type=group/supergroup rows that have associated
+              forum_topic children, each cluster listing its topic leaves
+
+    No mutation endpoints — checkboxes are display affordances; POST wiring
+    is Child kb-sbhs.3.
+    """
+    from collections import defaultdict
+
+    from organizers.models import ProfileClaim
+    from syndication.models import AgentCredential, TelegramDialogType, TelegramPostability
+
+    profile_ids = ProfileClaim.objects.filter(
+        user=request.user, rejected_at__isnull=True
+    ).values_list("profile_id", flat=True)
+
+    # All Telegram connections for the user's profiles (Telegram only)
+    telegram_types = [
+        TelegramDialogType.CHANNEL,
+        TelegramDialogType.GROUP,
+        TelegramDialogType.SUPERGROUP,
+        TelegramDialogType.FORUM_TOPIC,
+    ]
+    connections = (
+        PlatformConnection.objects.filter(
+            organizer_id__in=profile_ids,
+            platform="telegram",
+            type__in=telegram_types,
+        )
+        .select_related("organizer")
+        .order_by("type", "destination_id", "topic_id")
+    )
+
+    # --- Detect agent connection ---
+    agent_connected = AgentCredential.objects.filter(
+        user=request.user, enabled=True
+    ).exists()
+
+    # --- Build tree structure in the view (ADR-008 D2: no template logic) ---
+    channels = []
+    groups = []  # non-forum groups/supergroups
+    # forum_map: destination_id → {cluster: PlatformConnection, topics: []}
+    forum_map = defaultdict(lambda: {"cluster": None, "topics": []})
+
+    # Find destination_ids that have forum_topic children
+    forum_topic_dest_ids = set(
+        c.destination_id for c in connections if c.type == TelegramDialogType.FORUM_TOPIC
+    )
+
+    for conn in connections:
+        # Display name: friendly_name overrides title
+        conn.display_name = conn.friendly_name or conn.title or conn.destination_id
+
+        # Capability-ladder lock state
+        conn.is_locked = (
+            conn.postability == TelegramPostability.AGENT and not agent_connected
+        ) or conn.flagged_missing
+
+        if conn.type == TelegramDialogType.CHANNEL:
+            channels.append(conn)
+        elif conn.type == TelegramDialogType.FORUM_TOPIC:
+            forum_map[conn.destination_id]["topics"].append(conn)
+        elif conn.type in (TelegramDialogType.GROUP, TelegramDialogType.SUPERGROUP):
+            if conn.destination_id in forum_topic_dest_ids:
+                # This group/supergroup row is the forum cluster label
+                existing = forum_map[conn.destination_id]["cluster"]
+                if existing is None:
+                    forum_map[conn.destination_id]["cluster"] = conn
+            else:
+                # Plain group with no forum topics
+                groups.append(conn)
+
+    # Build the forums list for the template
+    forums = []
+    for dest_id, data in forum_map.items():
+        cluster = data["cluster"]
+        topics = data["topics"]
+        if cluster is None and topics:
+            # Forum topics without an explicit cluster row — synthesise a label
+            # from the first topic's title (fail-loud: don't silently drop them)
+            first = topics[0]
+            cluster = type(
+                "ForumCluster",
+                (),
+                {
+                    "display_name": first.title or dest_id,
+                    "destination_id": dest_id,
+                    "pk": None,
+                    "flagged_missing": False,
+                    "postability": first.postability,
+                    "is_locked": False,
+                },
+            )()
+        if cluster is not None:
+            cluster.display_name = cluster.friendly_name if hasattr(cluster, "friendly_name") and cluster.friendly_name else (cluster.title if hasattr(cluster, "title") and cluster.title else dest_id)
+        forums.append({"cluster": cluster, "topics": topics})
+
+    # --- Collect all theme tags (union across all connections) ---
+    all_tags = sorted(
+        set(
+            tag
+            for conn in connections
+            for tag in (conn.theme_tags or [])
+        )
+    )
+
+    return render(
+        request,
+        "syndication/destination_picker.html",
+        {
+            "channels": channels,
+            "groups": groups,
+            "forums": forums,
+            "all_tags": all_tags,
+            "agent_connected": agent_connected,
+            "TelegramPostability": TelegramPostability,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Projection lifecycle action views (kb-a4u.5, ADR-016 D5/D6)
 #
 # Co-equal seam: each view delegates to the matching service function.

@@ -68,6 +68,8 @@ urlpatterns = [
     path("connections/", views.connections_list, name="connections-list"),
     path("connections/new/", views.connection_create, name="connection-create"),
     path("connections/<int:pk>/toggle/", views.connection_toggle, name="connection-toggle"),
+    # --- Destination picker (kb-sbhs.2, render-only) ---
+    path("destinations/", views.destination_picker, name="destination-picker"),
     # --- Projection lifecycle actions (kb-a4u.5) ---
     # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).
     # Co-equal seam: each view delegates to the matching service function in services.py.
