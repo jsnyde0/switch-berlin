@@ -16,10 +16,16 @@ import os
 import sys
 from pathlib import Path
 
+import segno
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
 _SESSION_FILENAME = "telegram_session.txt"
+
+# Number of QR refresh cycles before giving up (D3: bounded loop, fail loud).
+# Each cycle is ~25s → 6 cycles ≈ 2.5 minute window.
+_QR_MAX_CYCLES = 6
+_QR_WAIT_TIMEOUT = 25  # seconds per wait() call
 
 
 class TelegramConfigError(Exception):
@@ -81,35 +87,74 @@ def _get_config_dir() -> str:
     return str(Path.home() / ".config" / "switch-cli")
 
 
+def _render_qr(url: str) -> None:
+    """
+    Render qr.url as a scannable terminal QR to stderr (D2).
+
+    Uses segno (pure-python, no system deps). Also prints the raw URL
+    so the user can copy-paste it if the terminal QR is hard to scan.
+    """
+    print(f"\nScan the QR code below in Telegram (or open: {url})\n", file=sys.stderr)
+    segno.make(url).terminal(out=sys.stderr, compact=True)
+    print("", file=sys.stderr)
+
+
 async def qr_connect(api_id: int, api_hash: str, config_dir: str) -> dict:
     """
     Run the Telethon QR-login flow.
 
+    D1 FIX: Uses client.connect() / client.disconnect() in a try/finally,
+    NOT `async with TelegramClient(...)`. The async-with calls __aenter__
+    which calls start(), which on a fresh/empty StringSession blocks on
+    input() for a phone number BEFORE qr_login() is reached.
+
+    D2: Renders qr.url as a scannable terminal QR to stderr via segno.
+
+    D3: Wraps qr.wait() in a bounded refresh loop — on TimeoutError, calls
+    qr.recreate(), re-renders the new URL, and retries. After _QR_MAX_CYCLES
+    exhausted, raises QRLoginTimeoutError (ADR-008 D3 fail-loud).
+
     On success: persists the StringSession to config_dir and returns
     {"connected": True, "reused": False}.
-
-    On timeout: raises QRLoginTimeoutError (ADR-008 D3).
 
     The returned session string is NEVER passed to any HTTP endpoint
     (ADR-018 D4 / D2 FIRM). It lives only in the local file.
 
     Real Telethon QRLogin API (telethon/tl/custom/qrlogin.py):
-    - client.qr_login() returns a QRLogin object with .url and .wait()
-    - await qr.wait() blocks until the QR is scanned and returns the User
-    - There is NO .login() method — the correct method is .wait()
+    - client.qr_login() returns a QRLogin object with .url, .wait(), .recreate()
+    - await qr.wait(timeout=N) blocks until scanned; raises asyncio.TimeoutError
+    - await qr.recreate() refreshes the token/URL for a new QR code
     """
+    client = TelegramClient(StringSession(), api_id, api_hash)
     try:
-        async with TelegramClient(StringSession(), api_id, api_hash) as client:
-            qr = await client.qr_login()
-            print(f"\nScan this QR URL in Telegram: {qr.url}\n", file=sys.stderr)
-            await qr.wait()
-            session_string = client.session.save()
-            save_telegram_session(config_dir=config_dir, session_string=session_string)
-            return {"connected": True, "reused": False}
-    except TimeoutError as exc:
+        await client.connect()
+        qr = await client.qr_login()
+        _render_qr(qr.url)
+
+        for cycle in range(_QR_MAX_CYCLES):
+            try:
+                await qr.wait(timeout=_QR_WAIT_TIMEOUT)
+                # Scanned successfully
+                session_string = client.session.save()
+                save_telegram_session(config_dir=config_dir, session_string=session_string)
+                return {"connected": True, "reused": False}
+            except asyncio.TimeoutError:
+                if cycle == _QR_MAX_CYCLES - 1:
+                    raise QRLoginTimeoutError(
+                        "QR login timed out after all refresh cycles. "
+                        "The QR code was not scanned in time. "
+                        "Run `switch-cli telegram connect` again."
+                    )
+                # Refresh the QR code and try again
+                await qr.recreate()
+                _render_qr(qr.url)
+
+        # Should be unreachable, but satisfy type checker
         raise QRLoginTimeoutError(
-            "QR login timed out. The QR code was not scanned in time. Run `switch-cli telegram connect` again."
-        ) from exc
+            "QR login timed out. Run `switch-cli telegram connect` again."
+        )
+    finally:
+        await client.disconnect()
 
 
 async def reuse_session(api_id: int, api_hash: str, session_string: str) -> dict:
