@@ -212,14 +212,30 @@ class DestinationPickerRenderTest(TestCase):
     def test_forum_cluster_label_has_no_checkbox(self):
         """
         The forum/group cluster label row must NOT render an interactive
-        checkbox affordance. Assert the forum parent's pk is NOT in an
-        input[type=checkbox] context with its connection pk.
-        We check by asserting the cluster-label marker exists without a checkbox.
+        checkbox affordance. Assert:
+        1. The cluster-label marker (data-role="forum-cluster") exists.
+        2. No <input type="checkbox"> with value="{forum_parent.pk}" appears
+           anywhere in the rendered HTML.
+        This test FAILS if someone adds a forum-parent checkbox.
         """
+        import re
+
         html = self._get_html()
-        # The cluster label should have data-role="forum-cluster" (or similar
-        # non-interactive marker) and NOT a checkbox with the forum parent pk.
+        forum_parent_pk = str(self.forum_parent.pk)
+
+        # 1. Cluster-label marker must exist
         self.assertIn('data-role="forum-cluster"', html)
+
+        # 2. No checkbox carrying the forum parent's pk
+        checkbox_for_parent = re.search(
+            rf'<input[^>]*type=["\']checkbox["\'][^>]*value="{re.escape(forum_parent_pk)}"[^>]*>',
+            html,
+        )
+        self.assertIsNone(
+            checkbox_for_parent,
+            msg=f"Forum cluster label must NOT have a checkbox (value={forum_parent_pk!r}), "
+            f"but found: {checkbox_for_parent.group(0) if checkbox_for_parent else ''}",
+        )
 
     def test_forum_topic_leaves_have_checkboxes(self):
         """
@@ -258,27 +274,30 @@ class DestinationPickerRenderTest(TestCase):
 
     def test_vanished_row_is_not_selectable(self):
         """
-        The vanished row must NOT have an active checkbox (no enabled checkbox
-        for the vanished connection pk).
+        The vanished row must render a DISABLED checkbox (visible-but-locked,
+        per ADR-008 D3). Assert:
+        1. A checkbox with value="{vanished_pk}" IS present (not silently hidden).
+        2. That checkbox carries the `disabled` attribute.
+        Fails if the checkbox is absent OR not disabled.
         """
-        html = self._get_html()
-        vanished_pk = str(self.vanished.pk)
-        # The vanished row checkbox must be disabled or absent
-        # Assert that if a checkbox exists, it has disabled attribute
         import re
 
-        # Look for any input with vanished pk that does NOT have disabled attr
-        # Pattern: input ...value="<pk>"... without disabled
-        pattern = rf'<input[^>]*value="{re.escape(vanished_pk)}"[^>]*(?<!disabled)>'
-        # More robust: just assert disabled appears in association with vanished pk
-        # Find any checkbox for the vanished pk
+        html = self._get_html()
+        vanished_pk = str(self.vanished.pk)
+
         checkbox_match = re.search(
             rf'<input[^>]*type=["\']checkbox["\'][^>]*value="{re.escape(vanished_pk)}"[^>]*>',
             html,
         )
-        if checkbox_match:
-            # If a checkbox exists, it must be disabled
-            self.assertIn("disabled", checkbox_match.group(0))
+        self.assertIsNotNone(
+            checkbox_match,
+            msg=f"Vanished row (pk={vanished_pk!r}) must render a checkbox (disabled), but no checkbox found.",
+        )
+        self.assertIn(
+            "disabled",
+            checkbox_match.group(0),
+            msg=f"Vanished row checkbox must carry `disabled`; got: {checkbox_match.group(0)!r}",
+        )
 
     # -----------------------------------------------------------------------
     # (e) Agent-tier rows: VISIBLE-but-LOCKED with "agent required" indicator
@@ -304,19 +323,30 @@ class DestinationPickerRenderTest(TestCase):
 
     def test_agent_tier_group_checkbox_is_not_active(self):
         """
-        With no agent connected, the agent-tier group's checkbox must be
-        disabled (locked). It must NOT be a normal active checkbox.
+        With no agent connected, the agent-tier group must render a DISABLED
+        checkbox (visible-but-locked, ADR-018 D1/D4). Assert:
+        1. A checkbox with value="{group_pk}" IS present (not hidden).
+        2. That checkbox carries the `disabled` attribute.
+        Fails if the checkbox is absent OR not disabled.
         """
+        import re
+
         html = self._get_html()
         group_pk = str(self.group.pk)
-        import re
 
         checkbox_match = re.search(
             rf'<input[^>]*type=["\']checkbox["\'][^>]*value="{re.escape(group_pk)}"[^>]*>',
             html,
         )
-        if checkbox_match:
-            self.assertIn("disabled", checkbox_match.group(0))
+        self.assertIsNotNone(
+            checkbox_match,
+            msg=f"Agent-tier group (pk={group_pk!r}) must render a checkbox (disabled), but no checkbox found.",
+        )
+        self.assertIn(
+            "disabled",
+            checkbox_match.group(0),
+            msg=f"Agent-tier group checkbox must carry `disabled`; got: {checkbox_match.group(0)!r}",
+        )
 
     # -----------------------------------------------------------------------
     # (f) Tag chips render from union of theme_tags

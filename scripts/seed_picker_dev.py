@@ -5,7 +5,7 @@ Run via:
   docker compose exec app python manage.py shell < scripts/seed_picker_dev.py
 
 Creates:
-  - User: pickerdev / pickerdev123 (status=vouched)
+  - User: pickerdev / $SEED_PICKER_PASSWORD (default: dev-only-change-me, status=vouched)
   - Profile + ProfileClaim (mirrors connections_list ownership seam)
   - PlatformConnection rows:
     1. Telegram channel (bot-tier, theme_tags)
@@ -36,7 +36,8 @@ user, created = User.objects.get_or_create(
     }
 )
 if created:
-    user.set_password("pickerdev123")
+    seed_password = os.environ.get("SEED_PICKER_PASSWORD", "dev-only-change-me")
+    user.set_password(seed_password)
     user.save()
     print(f"Created user: pickerdev (pk={user.pk})")
 else:
@@ -198,6 +199,6 @@ else:
     print("No AgentCredential for pickerdev (correct — agent-tier rows will render LOCKED)")
 
 print("\n=== Seed complete ===")
-print(f"Login at: /accounts/login/ with username=pickerdev password=pickerdev123")
+print(f"Login at: /accounts/login/ with username=pickerdev password=<SEED_PICKER_PASSWORD env var, default: dev-only-change-me>")
 print(f"Picker URL: /syndication/destinations/")
 print(f"PKs: channel={ch.pk} group={grp.pk} forum_cluster={forum_cluster.pk} topic1={topic1.pk} topic2={topic2.pk} vanished={vanished.pk} agent_grp={agent_grp.pk}")

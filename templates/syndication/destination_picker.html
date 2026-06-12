@@ -54,59 +54,7 @@
             <div class="kb-bracketed-top py-4 {% if forloop.last %}kb-bracketed-bottom{% endif %}"
                  x-show="visible({{ conn.theme_tags|default:'[]' }}, '{{ conn.display_name|escapejs }}')"
                  x-cloak>
-              {% if conn.flagged_missing %}
-                {# ADR-008 D3: vanished — LOUD flag, not silent #}
-                <div class="flex items-start gap-3"
-                     data-vanished
-                     data-connection-pk="{{ conn.pk }}">
-                  <input type="checkbox"
-                         name="destination"
-                         value="{{ conn.pk }}"
-                         class="kb-check mt-0.5 shrink-0"
-                         disabled
-                         aria-label="{{ conn.display_name }}">
-                  <div class="flex flex-col gap-1 min-w-0">
-                    <span class="kb-kicker truncate">{{ conn.display_name }}</span>
-                    <span class="kb-tag"
-                          style="color: var(--kb-error, #f87171);
-                                 border-color: var(--kb-error, #f87171)">
-                      {% trans "Destination vanished — no longer visible in last sync" %}
-                    </span>
-                  </div>
-                </div>
-              {% elif conn.is_locked %}
-                {# Agent-tier, no agent connected: visible-but-locked (ADR-018 D1/D4) #}
-                <div class="flex items-start gap-3"
-                     data-connection-pk="{{ conn.pk }}"
-                     data-locked="agent">
-                  <input type="checkbox"
-                         name="destination"
-                         value="{{ conn.pk }}"
-                         class="kb-check mt-0.5 shrink-0"
-                         disabled
-                         aria-label="{{ conn.display_name }}">
-                  <div class="flex flex-col gap-1 min-w-0">
-                    <span class="kb-kicker truncate">{{ conn.display_name }}</span>
-                    <span class="kb-tag kb-tag-accent" style="opacity: 0.6">{% trans "Agent required — connect a Telegram agent session to unlock" %}</span>
-                  </div>
-                </div>
-              {% else %}
-                <div class="flex items-start gap-3" data-connection-pk="{{ conn.pk }}">
-                  <input type="checkbox"
-                         name="destination"
-                         value="{{ conn.pk }}"
-                         class="kb-check mt-0.5 shrink-0"
-                         aria-label="{{ conn.display_name }}">
-                  <div class="flex flex-col gap-1 min-w-0">
-                    <span class="kb-kicker truncate">{{ conn.display_name }}</span>
-                    {% if conn.postability == "bot" %}
-                      <span class="kb-field-hint">{% trans "Bot" %}</span>
-                    {% elif conn.postability == "public" %}
-                      <span class="kb-field-hint">{% trans "Public link only" %}</span>
-                    {% endif %}
-                  </div>
-                </div>
-              {% endif %}
+              {% include "syndication/fragments/_picker_row.html" with conn=conn picker_row_is_topic=False only %}
             </div>
           {% endfor %}
         </div>
@@ -122,55 +70,7 @@
             <div class="kb-bracketed-top py-4 {% if forloop.last %}kb-bracketed-bottom{% endif %}"
                  x-show="visible({{ conn.theme_tags|default:'[]' }}, '{{ conn.display_name|escapejs }}')"
                  x-cloak>
-              {% if conn.flagged_missing %}
-                <div class="flex items-start gap-3"
-                     data-vanished
-                     data-connection-pk="{{ conn.pk }}">
-                  <input type="checkbox"
-                         name="destination"
-                         value="{{ conn.pk }}"
-                         class="kb-check mt-0.5 shrink-0"
-                         disabled
-                         aria-label="{{ conn.display_name }}">
-                  <div class="flex flex-col gap-1 min-w-0">
-                    <span class="kb-kicker truncate">{{ conn.display_name }}</span>
-                    <span class="kb-tag"
-                          style="color: var(--kb-error, #f87171);
-                                 border-color: var(--kb-error, #f87171)">
-                      {% trans "Destination vanished — no longer visible in last sync" %}
-                    </span>
-                  </div>
-                </div>
-              {% elif conn.is_locked %}
-                <div class="flex items-start gap-3"
-                     data-connection-pk="{{ conn.pk }}"
-                     data-locked="agent">
-                  <input type="checkbox"
-                         name="destination"
-                         value="{{ conn.pk }}"
-                         class="kb-check mt-0.5 shrink-0"
-                         disabled
-                         aria-label="{{ conn.display_name }}">
-                  <div class="flex flex-col gap-1 min-w-0">
-                    <span class="kb-kicker truncate">{{ conn.display_name }}</span>
-                    <span class="kb-tag kb-tag-accent" style="opacity: 0.6">{% trans "Agent required — connect a Telegram agent session to unlock" %}</span>
-                  </div>
-                </div>
-              {% else %}
-                <div class="flex items-start gap-3" data-connection-pk="{{ conn.pk }}">
-                  <input type="checkbox"
-                         name="destination"
-                         value="{{ conn.pk }}"
-                         class="kb-check mt-0.5 shrink-0"
-                         aria-label="{{ conn.display_name }}">
-                  <div class="flex flex-col gap-1 min-w-0">
-                    <span class="kb-kicker truncate">{{ conn.display_name }}</span>
-                    {% if conn.postability == "agent" %}
-                      <span class="kb-field-hint">{% trans "Agent" %}</span>
-                    {% endif %}
-                  </div>
-                </div>
-              {% endif %}
+              {% include "syndication/fragments/_picker_row.html" with conn=conn picker_row_is_topic=False only %}
             </div>
           {% endfor %}
         </div>
@@ -203,52 +103,7 @@
               <div class="kb-bracketed-top py-4 pl-6 {% if forloop.last %}kb-bracketed-bottom{% endif %}"
                    x-show="visible({{ topic.theme_tags|default:'[]' }}, '{{ topic.display_name|escapejs }}')"
                    x-cloak>
-                {% if topic.flagged_missing %}
-                  <div class="flex items-start gap-3"
-                       data-vanished
-                       data-connection-pk="{{ topic.pk }}">
-                    <input type="checkbox"
-                           name="destination"
-                           value="{{ topic.pk }}"
-                           class="kb-check mt-0.5 shrink-0"
-                           disabled
-                           aria-label="{{ topic.display_name }}">
-                    <div class="flex flex-col gap-1 min-w-0">
-                      <span class="kb-kicker truncate">{{ topic.display_name }}</span>
-                      <span class="kb-tag"
-                            style="color: var(--kb-error, #f87171);
-                                   border-color: var(--kb-error, #f87171)">
-                        {% trans "Destination vanished — no longer visible in last sync" %}
-                      </span>
-                    </div>
-                  </div>
-                {% elif topic.is_locked %}
-                  <div class="flex items-start gap-3"
-                       data-connection-pk="{{ topic.pk }}"
-                       data-locked="agent">
-                    <input type="checkbox"
-                           name="destination"
-                           value="{{ topic.pk }}"
-                           class="kb-check mt-0.5 shrink-0"
-                           disabled
-                           aria-label="{{ topic.display_name }}">
-                    <div class="flex flex-col gap-1 min-w-0">
-                      <span class="kb-kicker truncate">{{ topic.display_name }}</span>
-                      <span class="kb-tag kb-tag-accent" style="opacity: 0.6">{% trans "Agent required — connect a Telegram agent session to unlock" %}</span>
-                    </div>
-                  </div>
-                {% else %}
-                  <div class="flex items-start gap-3" data-connection-pk="{{ topic.pk }}">
-                    <input type="checkbox"
-                           name="destination"
-                           value="{{ topic.pk }}"
-                           class="kb-check mt-0.5 shrink-0"
-                           aria-label="{{ topic.display_name }}">
-                    <div class="flex flex-col gap-1 min-w-0">
-                      <span class="kb-kicker truncate">{{ topic.display_name }}</span>
-                    </div>
-                  </div>
-                {% endif %}
+                {% include "syndication/fragments/_picker_row.html" with conn=topic picker_row_is_topic=True only %}
               </div>
             {% endfor %}
           </div>

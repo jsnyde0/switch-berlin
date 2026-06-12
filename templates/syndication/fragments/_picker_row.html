@@ -1,0 +1,67 @@
+{% load i18n %}
+{% comment %}
+  Picker row partial — shared by Channels, Groups, and Forum topic leaves.
+  Context variables:
+    conn                — PlatformConnection object with .display_name, .is_locked,
+                          .is_agent_tier, .is_bot_tier, .is_public_tier, .flagged_missing
+    picker_row_is_topic — boolean; when True, suppress the postability hint in the
+                          normal (unlocked, not vanished) branch (topic leaves don't
+                          need a redundant tier label beneath the forum cluster).
+{% endcomment %}
+{% if conn.flagged_missing %}
+  {# ADR-008 D3: vanished — LOUD flag, not silent #}
+  <div class="flex items-start gap-3"
+       data-vanished
+       data-connection-pk="{{ conn.pk }}">
+    <input type="checkbox"
+           name="destination"
+           value="{{ conn.pk }}"
+           class="kb-check mt-0.5 shrink-0"
+           disabled
+           aria-label="{{ conn.display_name }}">
+    <div class="flex flex-col gap-1 min-w-0">
+      <span class="kb-kicker truncate">{{ conn.display_name }}</span>
+      <span class="kb-tag"
+            style="color: var(--kb-error, #f87171);
+                   border-color: var(--kb-error, #f87171)">
+        {% trans "Destination vanished — no longer visible in last sync" %}
+      </span>
+    </div>
+  </div>
+{% elif conn.is_locked %}
+  {# Agent-tier, no agent connected: visible-but-locked (ADR-018 D1/D4) #}
+  <div class="flex items-start gap-3"
+       data-connection-pk="{{ conn.pk }}"
+       data-locked="agent">
+    <input type="checkbox"
+           name="destination"
+           value="{{ conn.pk }}"
+           class="kb-check mt-0.5 shrink-0"
+           disabled
+           aria-label="{{ conn.display_name }}">
+    <div class="flex flex-col gap-1 min-w-0">
+      <span class="kb-kicker truncate">{{ conn.display_name }}</span>
+      <span class="kb-tag kb-tag-accent" style="opacity: 0.6">{% trans "Agent required — connect a Telegram agent session to unlock" %}</span>
+    </div>
+  </div>
+{% else %}
+  <div class="flex items-start gap-3" data-connection-pk="{{ conn.pk }}">
+    <input type="checkbox"
+           name="destination"
+           value="{{ conn.pk }}"
+           class="kb-check mt-0.5 shrink-0"
+           aria-label="{{ conn.display_name }}">
+    <div class="flex flex-col gap-1 min-w-0">
+      <span class="kb-kicker truncate">{{ conn.display_name }}</span>
+      {% if not picker_row_is_topic %}
+        {% if conn.is_bot_tier %}
+          <span class="kb-field-hint">{% trans "Bot" %}</span>
+        {% elif conn.is_public_tier %}
+          <span class="kb-field-hint">{% trans "Public link only" %}</span>
+        {% elif conn.is_agent_tier %}
+          <span class="kb-field-hint">{% trans "Agent" %}</span>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

@@ -1402,10 +1402,13 @@ def destination_picker(request):
         # Display name: friendly_name overrides title
         conn.display_name = conn.friendly_name or conn.title or conn.destination_id
 
+        # Capability-ladder tier flags (server-side booleans — no string literals in template)
+        conn.is_agent_tier = conn.postability == TelegramPostability.AGENT
+        conn.is_bot_tier = conn.postability == TelegramPostability.BOT
+        conn.is_public_tier = conn.postability == TelegramPostability.PUBLIC
+
         # Capability-ladder lock state
-        conn.is_locked = (
-            conn.postability == TelegramPostability.AGENT and not agent_connected
-        ) or conn.flagged_missing
+        conn.is_locked = (conn.is_agent_tier and not agent_connected) or conn.flagged_missing
 
         if conn.type == TelegramDialogType.CHANNEL:
             channels.append(conn)
@@ -1464,7 +1467,6 @@ def destination_picker(request):
             "forums": forums,
             "all_tags": all_tags,
             "agent_connected": agent_connected,
-            "TelegramPostability": TelegramPostability,
         },
     )
 
