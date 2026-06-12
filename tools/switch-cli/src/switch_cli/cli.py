@@ -30,6 +30,7 @@ import click
 
 from switch_cli.client import APIError, AuthError, SwitchClient, redeem_pairing_token
 from switch_cli.config import ConfigError, load_base_url, load_config, save_base_url, save_config
+from switch_cli.telegram.draft import UnknownDestinationError, run_distribute
 from switch_cli.telegram.enumerate import NoSessionError, run_sync
 from switch_cli.telegram.session import (
     QRLoginTimeoutError,
@@ -430,3 +431,69 @@ def telegram_sync():
         _error(f"API error {exc.status_code}: {exc.detail}")
 
     _output({"synced": True, "upserted": result.get("upserted", 0), "flagged": result.get("flagged", 0)})
+
+
+@telegram.command("distribute")
+@click.option("--message", required=True, help="Draft body text to place in destination(s)")
+@click.option(
+    "--dest",
+    "dests",
+    required=True,
+    multiple=True,
+    help=(
+        "Destination: <chat_id> for a group/channel, "
+        "<chat_id>:<topic_id> for a forum topic. Repeatable."
+    ),
+)
+def telegram_distribute(message: str, dests: tuple):
+    """
+    Place a draft in one or more Telegram destinations.
+
+    For each --dest: checks for a pre-existing draft first (getDraft). If the
+    draft is empty, places the message as a draft (saveDraft). If a draft
+    already exists, it is skipped with status=skipped-pre-existing-draft
+    (no clobber — ADR-008 D3).
+
+    Forum-topic destinations use the <chat_id>:<topic_id> format. The draft is
+    placed into the topic via reply_to=top_msg_id.
+
+    FIRM (ADR-018 D2): this command NEVER sends a message. All placement is
+    via the Telegram draft mechanism only.
+
+    Requires an existing session (run `switch-cli telegram connect` first).
+    Fails loudly if a --dest is not in the synced inventory (ADR-008 D3).
+    """
+    import asyncio
+
+    try:
+        cfg = load_config()
+    except (FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+
+    tg_cfg = cfg.get("telegram")
+    if not tg_cfg or "api_id" not in tg_cfg or "api_hash" not in tg_cfg:
+        _error(
+            "Telegram api_id and api_hash are not configured. "
+            "Add a [telegram] section to your switch-cli config with api_id and api_hash. "
+            "Obtain these from https://my.telegram.org/apps ."
+        )
+
+    config_dir = _get_config_dir()
+    try:
+        results = asyncio.run(
+            run_distribute(
+                api_id=int(tg_cfg["api_id"]),
+                api_hash=str(tg_cfg["api_hash"]),
+                config_dir=config_dir,
+                message=message,
+                dests=list(dests),
+            )
+        )
+    except NoSessionError as exc:
+        _error(str(exc))
+    except SessionCorruptError as exc:
+        _error(str(exc))
+    except UnknownDestinationError as exc:
+        _error(str(exc))
+
+    _output({"distributed": True, "results": results})
