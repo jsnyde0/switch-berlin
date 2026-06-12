@@ -216,6 +216,28 @@ class PlatformConnection(models.Model):
         ordering = ["platform", "destination_id"]
         verbose_name = _("platform connection")
         verbose_name_plural = _("platform connections")
+        constraints = [
+            # Uniqueness guard for the ingest lookup key (kb-ru55.2 Finding 3).
+            # Prevents duplicate rows if concurrent POSTs race to create the same
+            # destination (ADR-018 D4: agent is the sole writer, so this race is
+            # architecturally unlikely, but a DB constraint makes the invariant
+            # explicit and cheap).
+            #
+            # NULL semantics note: this is a standard unique constraint, so Postgres
+            # treats NULL topic_id values as DISTINCT (NULL != NULL). This means:
+            #   - forum_topic rows (topic_id IS NOT NULL): fully protected.
+            #   - channel/group/supergroup rows (topic_id IS NULL): NOT protected
+            #     by this constraint in Postgres (NULL != NULL). The application-layer
+            #     update_or_create idempotency guard still applies for the NULL case.
+            # A NULLS NOT DISTINCT partial index would fully protect the NULL case
+            # but requires Postgres 15+ and is not supported on the SQLite test DB.
+            # The current constraint is still correct (won't reject valid data) and
+            # provides meaningful protection for forum_topic rows.
+            models.UniqueConstraint(
+                fields=["organizer", "platform", "destination_id", "topic_id"],
+                name="syndication_platformconnection_org_platform_dest_topic_uniq",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.organizer} → {self.platform} / {self.destination_id}"

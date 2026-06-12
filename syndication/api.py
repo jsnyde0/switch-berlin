@@ -42,7 +42,7 @@ from ninja.files import UploadedFile
 from ninja.security import HttpBearer
 from ninja.security import SessionAuth as NinjaSessionAuth
 
-from syndication.models import AgentCredential, IdentityToken
+from syndication.models import AgentCredential, IdentityToken, TelegramDialogType
 from syndication.services import (
     ACTOR_BEARER,
     ACTOR_SESSION,
@@ -1141,7 +1141,7 @@ class TelegramInventoryItemIn(Schema):
 
     chat_id: str
     title: str
-    type: str
+    type: TelegramDialogType
     postability: str
     topic_id: int | None = None
 

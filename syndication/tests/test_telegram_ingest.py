@@ -571,3 +571,82 @@ class TelegramInventoryIngestTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 401, response.content)
+
+    # ----- Finding 1: non-canonical type value rejected at ingest boundary (D1a) -----
+
+    def test_non_canonical_type_value_is_rejected_422(self):
+        """
+        A payload with a non-canonical type value (e.g. 'forum_group') must be
+        rejected with HTTP 422 at the API boundary — NOT stored.
+
+        This is Finding 1 from the review: the enum guard must be enforced at
+        ingest, not just at definition. A type not in TelegramDialogType is
+        arbitrary-string drift (ADR-018 D4 / D1a single-resolution-point intent).
+        """
+        payload = [
+            {
+                "chat_id": "-1001111111111",
+                "title": "Some Forum Group",
+                "type": "forum_group",  # NOT in canonical TelegramDialogType set
+                "postability": "agent",
+            },
+        ]
+        response = self._post_inventory(payload)
+        self.assertEqual(
+            response.status_code,
+            422,
+            f"Non-canonical type 'forum_group' must be rejected 422; got: {response.content}",
+        )
+
+    def test_non_canonical_type_not_stored(self):
+        """
+        When a non-canonical type value is rejected, no PlatformConnection row
+        must be created.
+        """
+        payload = [
+            {
+                "chat_id": "-1001111111111",
+                "title": "Some Forum Group",
+                "type": "forum_group",
+                "postability": "agent",
+            },
+        ]
+        self._post_inventory(payload)
+        count = PlatformConnection.objects.filter(
+            organizer=self.profile,
+            platform="telegram",
+        ).count()
+        self.assertEqual(count, 0, "No row must be created for a non-canonical type value")
+
+    # ----- Finding 4: response body shape pinned -----
+
+    def test_happy_path_response_body_shape(self):
+        """
+        A successful ingest must return JSON with exactly the keys 'upserted' and
+        'flagged' — so a future return-key rename can't silently break the contract.
+
+        Finding 4: the response body shape was previously unpinned.
+        """
+        import json
+
+        payload = [
+            {
+                "chat_id": "-1001111111111",
+                "title": "My Channel",
+                "type": "channel",
+                "postability": "bot",
+            },
+            {
+                "chat_id": "-1002222222222",
+                "title": "Private Group",
+                "type": "group",
+                "postability": "agent",
+            },
+        ]
+        response = self._post_inventory(payload)
+        self.assertEqual(response.status_code, 200, response.content)
+        data = json.loads(response.content)
+        self.assertIn("upserted", data, "Response must contain 'upserted' key")
+        self.assertIn("flagged", data, "Response must contain 'flagged' key")
+        self.assertEqual(data["upserted"], 2, "upserted count must equal number of items")
+        self.assertEqual(data["flagged"], 0, "flagged count must be 0 when no rows vanished")
