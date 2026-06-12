@@ -30,6 +30,7 @@ import click
 
 from switch_cli.client import APIError, AuthError, SwitchClient, redeem_pairing_token
 from switch_cli.config import ConfigError, load_base_url, load_config, save_base_url, save_config
+from switch_cli.telegram.enumerate import NoSessionError, run_sync
 from switch_cli.telegram.session import (
     QRLoginTimeoutError,
     SessionCorruptError,
@@ -370,3 +371,62 @@ def telegram_connect():
     except QRLoginTimeoutError as exc:
         _error(str(exc))
     _output(result)
+
+
+@telegram.command("sync")
+def telegram_sync():
+    """
+    Enumerate Telegram dialogs, apply the can-post filter, and push the
+    metadata-only inventory to the Switch ingest verb.
+
+    Reads api_id/api_hash from the [telegram] section of the switch-cli config.
+    Requires an existing session (run `switch-cli telegram connect` first).
+
+    Can-post filter:
+    - broadcast-only subscriptions → excluded
+    - own/admin channel, group, supergroup → included
+    - forum group → expanded into one row per topic (the group itself is excluded)
+
+    Payload is METADATA-ONLY — no session_string, access_hash, or content
+    (ADR-018 D4). Fails loudly if no session exists (ADR-008 D3).
+    """
+    import asyncio
+
+    try:
+        cfg = load_config()
+    except (FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+
+    tg_cfg = cfg.get("telegram")
+    if not tg_cfg or "api_id" not in tg_cfg or "api_hash" not in tg_cfg:
+        _error(
+            "Telegram api_id and api_hash are not configured. "
+            "Add a [telegram] section to your switch-cli config with api_id and api_hash. "
+            "Obtain these from https://my.telegram.org/apps ."
+        )
+
+    config_dir = _get_config_dir()
+    try:
+        inventory = asyncio.run(
+            run_sync(
+                api_id=int(tg_cfg["api_id"]),
+                api_hash=str(tg_cfg["api_hash"]),
+                config_dir=config_dir,
+            )
+        )
+    except NoSessionError as exc:
+        _error(str(exc))
+    except SessionCorruptError as exc:
+        _error(str(exc))
+    except TelegramConfigError as exc:
+        _error(str(exc))
+
+    try:
+        client = SwitchClient()
+        result = client.push_telegram_inventory(inventory)
+    except (AuthError, FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    except APIError as exc:
+        _error(f"API error {exc.status_code}: {exc.detail}")
+
+    _output({"synced": True, "upserted": result.get("upserted", 0), "flagged": result.get("flagged", 0)})

@@ -15,7 +15,7 @@ Security: the raw api_key is never logged or printed.
 
 import httpx
 
-from switch_cli.config import load_config, load_base_url
+from switch_cli.config import load_base_url, load_config
 
 
 class AuthError(Exception):
@@ -58,15 +58,9 @@ class SwitchClient:
         url = f"{self._base_url}/api/agents/token"
         response = httpx.post(url, json={"api_key": api_key})
         if response.status_code == 401:
-            raise AuthError(
-                "Invalid or revoked API key. Re-run `switch-cli configure` "
-                "with a fresh API key."
-            )
+            raise AuthError("Invalid or revoked API key. Re-run `switch-cli configure` with a fresh API key.")
         if response.status_code != 200:
-            raise AuthError(
-                f"Unexpected response from /api/agents/token: "
-                f"{response.status_code} {response.text}"
-            )
+            raise AuthError(f"Unexpected response from /api/agents/token: {response.status_code} {response.text}")
         return response.json()["identity_token"]
 
     def _headers(self) -> dict:
@@ -159,6 +153,28 @@ class SwitchClient:
         """POST /api/projections/{projection_id}/mark-published/ — record external publication."""
         response = httpx.post(
             f"{self._base_url}/api/projections/{projection_id}/mark-published/",
+            headers=self._headers(),
+        )
+        return self._check(response)
+
+    # ------------------------------------------------------------------
+    # Telegram inventory ingest verb (kb-ru55.2 / kb-ru55.3)
+    # ------------------------------------------------------------------
+
+    def push_telegram_inventory(self, inventory: list[dict]) -> dict:
+        """
+        POST /api/telegram/inventory — push a metadata-only Telegram destination inventory.
+
+        Payload: list of dicts with keys chat_id, title, type, topic_id, postability.
+        The payload is METADATA-ONLY — no session_string, access_hash, or content
+        (ADR-018 D4 / bead D2 FIRM). The server's extra="forbid" schema will 422 on
+        any forbidden field.
+
+        Returns dict with upserted and flagged counts.
+        """
+        response = httpx.post(
+            f"{self._base_url}/api/telegram/inventory",
+            json=inventory,
             headers=self._headers(),
         )
         return self._check(response)
