@@ -32,8 +32,18 @@ from switch_cli.telegram.session import load_telegram_session
 
 CANONICAL_DIALOG_TYPES = {"channel", "group", "supergroup", "forum_topic"}
 
-POSTABLE = "postable"
-NON_POSTABLE = "non_postable"
+# ---------------------------------------------------------------------------
+# Server-vocabulary postability tiers — mirrors syndication/models.py postability
+# field (kb-ru55.2). Must be kept in sync; divergence causes 422s from ingest verb.
+# Single-resolution-point: the server model's help_text documents these tiers.
+# ---------------------------------------------------------------------------
+SERVER_POSTABILITY_VOCABULARY = {"bot", "agent", "public"}
+
+# MTProto sync via user session reaches every dialog through the agent/saveDraft
+# path → honest tier is "agent". Whether a destination is ALSO bot-reachable or
+# public (deep-link) is refined server-side by kb-sbhs D4 (Switch bot admin presence
+# + username presence). Do NOT compute those tiers here.
+POSTABILITY_TIER = "agent"
 
 
 class NoSessionError(Exception):
@@ -59,7 +69,7 @@ async def _get_forum_topics(client, entity) -> list:
             offset_id=0,
             offset_topic=0,
             limit=100,
-            q="",
+            q=None,
         )
     )
     return result.topics
@@ -70,9 +80,10 @@ def _is_broadcast_subscription(entity) -> bool:
     Return True if the dialog is a broadcast channel the user can only READ
     (cannot post to).
 
-    Broadcast channels are exclude unless:
+    Broadcast channels are excluded unless:
     - entity.creator is True (user owns the channel), or
-    - entity.admin_rights is not None (user has admin rights with post permission).
+    - entity.admin_rights is not None AND admin_rights.post_messages is truthy
+      (user has admin rights with explicit post permission).
 
     ADR-018 D1: classify by POSTABILITY.
     """
@@ -81,8 +92,10 @@ def _is_broadcast_subscription(entity) -> bool:
         return False
     creator = getattr(entity, "creator", False)
     admin_rights = getattr(entity, "admin_rights", None)
-    # User can post if they are the creator or have admin rights
-    can_post = creator or (admin_rights is not None)
+    # User can post if they are the creator, or if they have admin rights AND
+    # admin_rights.post_messages is truthy. post_messages=None/False means the
+    # admin cannot post (e.g. ban_users-only admin) → must EXCLUDE.
+    can_post = creator or (admin_rights is not None and bool(getattr(admin_rights, "post_messages", False)))
     return not can_post
 
 
@@ -165,7 +178,7 @@ async def enumerate_postable_dialogs(
                         "title": topic.title,
                         "type": "forum_topic",
                         "topic_id": topic.id,
-                        "postability": POSTABLE,
+                        "postability": POSTABILITY_TIER,
                     }
                 )
             # The forum group itself is NOT a postable destination — skip
@@ -179,7 +192,7 @@ async def enumerate_postable_dialogs(
                 "title": dialog.name,
                 "type": dialog_type,
                 "topic_id": None,
-                "postability": POSTABLE,
+                "postability": POSTABILITY_TIER,
             }
         )
 

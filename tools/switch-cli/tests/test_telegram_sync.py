@@ -26,6 +26,8 @@ from switch_cli.cli import cli
 from switch_cli.config import save_config
 from switch_cli.telegram.enumerate import (
     CANONICAL_DIALOG_TYPES,
+    POSTABILITY_TIER,
+    SERVER_POSTABILITY_VOCABULARY,
     NoSessionError,
     enumerate_postable_dialogs,
 )
@@ -93,6 +95,53 @@ def _make_broadcast_channel():
     entity.creator = False
     entity.admin_rights = None
     entity.forum = False  # not a forum
+    dialog.entity = entity
+    return dialog
+
+
+def _make_broadcast_channel_admin_no_post():
+    """
+    A broadcast channel where the user IS an admin but post_messages=False.
+    admin_rights is not None, but post_messages is False → CANNOT post → EXCLUDE.
+    (Finding 1: admin_rights presence alone is not sufficient for can-post.)
+    """
+    dialog = MagicMock()
+    dialog.name = "Admin No Post Channel"
+    dialog.id = -1001444444444
+    entity = MagicMock()
+    entity.broadcast = True
+    entity.megagroup = False
+    entity.gigagroup = False
+    entity.username = "adminnopost"
+    entity.creator = False
+    # admin_rights is present but post_messages=False (e.g. ban_users-only admin)
+    admin_rights = MagicMock()
+    admin_rights.post_messages = False
+    entity.admin_rights = admin_rights
+    entity.forum = False
+    dialog.entity = entity
+    return dialog
+
+
+def _make_broadcast_channel_admin_post_none():
+    """
+    A broadcast channel where admin_rights is present but post_messages=None.
+    admin_rights is not None, post_messages=None → CANNOT post → EXCLUDE.
+    (Finding 1: post_messages=None is also not truthy → exclude.)
+    """
+    dialog = MagicMock()
+    dialog.name = "Admin Post None Channel"
+    dialog.id = -1001555555555
+    entity = MagicMock()
+    entity.broadcast = True
+    entity.megagroup = False
+    entity.gigagroup = False
+    entity.username = "adminpostnone"
+    entity.creator = False
+    admin_rights = MagicMock()
+    admin_rights.post_messages = None
+    entity.admin_rights = admin_rights
+    entity.forum = False
     dialog.entity = entity
     return dialog
 
@@ -191,6 +240,48 @@ class TestBroadcastExcluded:
 
         chat_ids = [item["chat_id"] for item in result]
         assert str(broadcast.id) not in chat_ids, f"Broadcast subscription should be excluded, got: {result}"
+
+
+# ---------------------------------------------------------------------------
+# (1b) admin with post_messages=False/None is still EXCLUDED (Finding 1)
+# ---------------------------------------------------------------------------
+
+
+class TestBroadcastAdminWithoutPostPermissionExcluded:
+    """
+    admin_rights present but post_messages=False/None → user CANNOT post → EXCLUDE.
+    Finding 1: `admin_rights is not None` is too coarse; must check post_messages.
+    """
+
+    @pytest.mark.asyncio
+    async def test_admin_with_post_messages_false_excluded(self):
+        """broadcast=True, admin_rights present, post_messages=False → excluded."""
+        channel = _make_broadcast_channel_admin_no_post()
+
+        mock_client = MagicMock()
+        mock_client.get_dialogs = AsyncMock(return_value=[channel])
+
+        result = await enumerate_postable_dialogs(mock_client)
+
+        chat_ids = [item["chat_id"] for item in result]
+        assert str(channel.id) not in chat_ids, (
+            f"Admin with post_messages=False should be excluded, got: {result}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_admin_with_post_messages_none_excluded(self):
+        """broadcast=True, admin_rights present, post_messages=None → excluded."""
+        channel = _make_broadcast_channel_admin_post_none()
+
+        mock_client = MagicMock()
+        mock_client.get_dialogs = AsyncMock(return_value=[channel])
+
+        result = await enumerate_postable_dialogs(mock_client)
+
+        chat_ids = [item["chat_id"] for item in result]
+        assert str(channel.id) not in chat_ids, (
+            f"Admin with post_messages=None should be excluded, got: {result}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -321,6 +412,60 @@ class TestMetadataOnlyPayload:
 
 
 # ---------------------------------------------------------------------------
+# (5b) postability value is a member of server vocabulary (Finding 3)
+# ---------------------------------------------------------------------------
+
+
+class TestPostabilityServerVocabulary:
+    """
+    Emitted postability must be a member of the server's capability-ladder vocabulary
+    (bot / agent / public — NOT the opaque "postable" string that was emitted before).
+    Finding 3: cross-surface vocabulary — CLI must speak the same tier language as
+    the server model (syndication/models.py postability field).
+    """
+
+    def test_postability_tier_constant_is_in_server_vocabulary(self):
+        """POSTABILITY_TIER must be a member of SERVER_POSTABILITY_VOCABULARY."""
+        assert POSTABILITY_TIER in SERVER_POSTABILITY_VOCABULARY, (
+            f"POSTABILITY_TIER={POSTABILITY_TIER!r} is not in server vocabulary "
+            f"{SERVER_POSTABILITY_VOCABULARY!r}. CLI must emit a recognized tier."
+        )
+
+    def test_server_vocabulary_contains_expected_tiers(self):
+        """Server vocabulary must contain the documented capability-ladder tiers."""
+        assert "bot" in SERVER_POSTABILITY_VOCABULARY
+        assert "agent" in SERVER_POSTABILITY_VOCABULARY
+        assert "public" in SERVER_POSTABILITY_VOCABULARY
+
+    def test_postability_tier_is_agent(self):
+        """MTProto sync guarantees 'agent' tier — not 'bot' or 'public'."""
+        assert POSTABILITY_TIER == "agent", (
+            f"MTProto sync should emit 'agent' tier, got {POSTABILITY_TIER!r}. "
+            "bot/public refinement is kb-sbhs D4's job."
+        )
+
+    @pytest.mark.asyncio
+    async def test_emitted_postability_is_agent_tier(self):
+        """Each emitted inventory item must have postability='agent'."""
+        private_group = _make_private_group()
+
+        mock_client = MagicMock()
+        mock_client.get_dialogs = AsyncMock(return_value=[private_group])
+
+        result = await enumerate_postable_dialogs(mock_client)
+
+        assert result, "Expected at least one result item"
+        for item in result:
+            assert item["postability"] == "agent", (
+                f"Expected postability='agent' (server tier), got {item['postability']!r}. "
+                "MTProto sync guarantees agent-tier access; bot/public is kb-sbhs D4."
+            )
+            assert item["postability"] in SERVER_POSTABILITY_VOCABULARY, (
+                f"postability={item['postability']!r} not in server vocabulary {SERVER_POSTABILITY_VOCABULARY!r}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # (6) push targets the correct ingest route
 # ---------------------------------------------------------------------------
 
@@ -337,7 +482,7 @@ class TestPushTargetsCorrectRoute:
                 "chat_id": "-1002222222222",
                 "title": "Secret Group",
                 "type": "group",
-                "postability": "postable",
+                "postability": "agent",
                 "topic_id": None,
             }
         ]
