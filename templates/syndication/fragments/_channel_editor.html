@@ -485,9 +485,10 @@ ADR-016 D7 (FIRM): the styled textarea IS the editing surface — ONE surface, n
 Faithful Telegram dark theme (verified live, web.telegram.org/k):
 channel post = neutral dark-grey surface rgb(33,33,33) with white body text,
 NOT a blue box; Telegram blue (#3390ec) is the accent only (channel name + checks).
-Channel name above the post; NO chat bubble (channel posts are flush, no tail).{% endcomment %}
+Channel posts are flush (no tail). Avatar + channel name shown at top of post.
+kb-h0lc: added avatar + "Switch Berlin" sender name consistent with group-message treatment.{% endcomment %}
 <div data-testid="tg-channel-post" class="mb-5">
-  {% comment %}Channel name header sits above the post surface, in Telegram blue.{% endcomment %}
+  {% comment %}Small destination header (which Telegram destination) above the post surface.{% endcomment %}
   {% if proj.connection.title or proj.connection.destination_id %}
     <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
        style="color: rgb(51 144 236 / 0.85)">
@@ -495,8 +496,18 @@ Channel name above the post; NO chat bubble (channel posts are flush, no tail).{
       {% if proj.connection.title %}{{ proj.connection.title }}{% else %}{{ proj.connection.destination_id }}{% endif %}
     </p>
   {% endif %}
+  {% comment %}Channel post surface: no tail, flush rounded corners.
+  Avatar + "Switch Berlin" name shown inside the post header (channel posts in Telegram
+  show the channel avatar and name at the top of each post).{% endcomment %}
   <div class="px-3.5 pt-3 pb-2.5"
        style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px 12px 12px 4px">
+    <div class="flex items-center gap-2 mb-2">
+      <div class="shrink-0 flex items-center justify-center rounded-full text-[10px] font-bold"
+           style="width: 28px; height: 28px; background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90)); color: rgb(255 255 255)">
+        SB
+      </div>
+      <p class="text-[13px] font-semibold" style="color: rgb(80 180 120)">Switch Berlin</p>
+    </div>
     <textarea name="body"
               class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
               style="color: rgb(244 246 248); padding: 0; resize: vertical; field-sizing: content"
@@ -508,7 +519,10 @@ Channel name above the post; NO chat bubble (channel posts are flush, no tail).{
 {% else %}
 {% comment %}kb-6yyp D2: Group-message framing — GROUP / SUPERGROUP / FORUM_TOPIC / NULL.
 Chat bubble + link-preview card as part of the WYSIWYG surface.
-NULL type (legacy / not yet synced) falls back here — safe default per ADR-008 D3.{% endcomment %}
+NULL type (legacy / not yet synced) falls back here — safe default per ADR-008 D3.
+kb-h0lc: Render-as-it-lands = incoming framing (how the audience sees it).
+Incoming message: left-aligned dark-grey bubble, tail at bottom-LEFT, avatar bottom-left,
+"Switch Berlin" sender name in green at bubble top. NOT blue outgoing.{% endcomment %}
 <div data-testid="tg-group-message" class="mb-5">
   {% if proj.connection.destination_id %}
     <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
@@ -517,30 +531,37 @@ NULL type (legacy / not yet synced) falls back here — safe default per ADR-008
       {{ proj.connection.destination_id }}
     </p>
   {% endif %}
-  {% comment %}Outgoing message — own post sits right-aligned, Telegram-blue fill (verified
-  live: outgoing bubbles take the accent fill, white text; tail at bottom-RIGHT).
-  Kept slightly translucent so the bubble sits elegantly on Switch's near-black.{% endcomment %}
-  <div class="flex justify-end">
+  {% comment %}Incoming message framing: avatar bottom-left, bubble left-aligned.
+  flex items-end aligns the avatar to the bubble's bottom (Telegram placement).{% endcomment %}
+  <div class="flex items-end gap-2">
+    {% comment %}Circular avatar 36px — green gradient fill matching the screenshot
+    (top-lighter to bottom-darker green), white bold initials "SB".
+    Use inline style for gradient and text — Tailwind v4 arbitrary bg may not emit.{% endcomment %}
+    <div class="shrink-0 flex items-center justify-center rounded-full text-[11px] font-bold"
+         style="width: 36px; height: 36px; background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90)); color: rgb(255 255 255)">
+      SB
+    </div>
     {% comment %}rounded-2xl rounded-tl-sm: stable chat-bubble framing marker (mirrors preview);
-    the faithful outgoing tail (bottom-right) comes from the inline border-radius, which
-    wins over the utility classes.{% endcomment %}
+    the faithful incoming tail (bottom-left) comes from the inline border-radius.{% endcomment %}
     <div class="rounded-2xl rounded-tl-sm px-3.5 pt-2.5 pb-2 max-w-sm"
-         style="background: rgb(45 104 196); border-radius: 14px 14px 4px 14px">
+         style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px 14px 14px 4px">
+      {% comment %}Sender name "Switch Berlin" in green at the top of the bubble (Telegram group incoming).{% endcomment %}
+      <p class="text-[13px] font-semibold mb-1" style="color: rgb(80 180 120)">Switch Berlin</p>
       <textarea name="body"
                 class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
-                style="color: rgb(245 248 252); padding: 0; resize: vertical; field-sizing: content"
+                style="color: rgb(236 242 246); padding: 0; resize: vertical; field-sizing: content"
                 placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
-      {% comment %}kb-6yyp D2/D3: WYSIWYG link-preview card nests INSIDE the outgoing bubble
-      (faithful: Telegram renders the webpage preview within the sender's bubble). Image on top,
-      3px accent left-bar, accent site-name/title, dimmed white description (verified live).
-      Image uses the shared card_image_url resolver (events/og.py:18) — same path as the live
-      og:image tag. structural equality: same resolver → preview == live (ADR-003/ADR-016 D7).{% endcomment %}
+      {% comment %}kb-6yyp D2/D3: WYSIWYG link-preview card nests INSIDE the bubble
+      (faithful: Telegram renders the webpage preview within the sender's bubble).
+      On incoming dark-grey bubble: Telegram blue left-bar accent, near-white title,
+      dimmed description. Image uses the shared card_image_url resolver (events/og.py:18).
+      structural equality: same resolver → preview == live (ADR-003/ADR-016 D7).{% endcomment %}
       {% if row.card_image_url %}
         <div data-testid="tg-wysiwyg-card"
              class="mt-1.5 overflow-hidden"
-             style="background: rgba(255,255,255,0.12);
+             style="background: rgba(255,255,255,0.07);
                     border-radius: 6px;
-                    border-left: 3px solid rgb(255 255 255 / 0.85)">
+                    border-left: 3px solid rgb(51 144 236)">
           <img src="{{ row.card_image_url }}"
                alt="{% if event.title %}{{ event.title }}{% endif %}"
                class="w-full object-cover"
@@ -549,17 +570,17 @@ NULL type (legacy / not yet synced) falls back here — safe default per ADR-008
           <div class="px-2.5 py-1.5">
             {% if event.title %}
               <p class="text-[11px] font-semibold leading-snug mb-0.5"
-                 style="color: rgb(255 255 255)">{{ event.title }}</p>
+                 style="color: rgb(236 242 246)">{{ event.title }}</p>
             {% endif %}
             {% if event.description %}
               <p class="text-[10px] leading-relaxed line-clamp-2"
-                 style="color: rgb(255 255 255 / 0.78)">{{ event.description }}</p>
+                 style="color: rgb(170 178 186)">{{ event.description }}</p>
             {% endif %}
           </div>
         </div>
       {% endif %}
       <p class="text-[10px] text-right mt-1 flex items-center justify-end gap-1"
-         style="color: rgb(255 255 255 / 0.6)">{% now "H:i" %}<span style="color: rgb(255 255 255 / 0.85); letter-spacing: -0.18em">✓✓</span></p>
+         style="color: rgb(160 168 176 / 0.8)">{% now "H:i" %}</p>
     </div>
   </div>
 </div>

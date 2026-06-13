@@ -39,7 +39,8 @@
     {% if proj.connection.type == 'channel' %}
       {# Channel-post framing — own/admin channels. No chat bubble.
          Mirrors _channel_editor.html: faithful Telegram dark theme (verified live) —
-         neutral dark-grey post surface + white text, Telegram blue (#3390ec) as accent only. #}
+         neutral dark-grey post surface + white text, Telegram blue (#3390ec) as accent only.
+         kb-h0lc: added avatar + "Switch Berlin" sender name consistent with group-message. #}
       <div data-testid="tg-channel-post-preview">
         {% if proj.connection.title or proj.connection.destination_id %}
           <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
@@ -50,6 +51,13 @@
         {% endif %}
         <div class="px-3.5 pt-3 pb-2.5"
              style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px 12px 12px 4px">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="shrink-0 flex items-center justify-center rounded-full text-[10px] font-bold"
+                 style="width: 28px; height: 28px; background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90)); color: rgb(255 255 255)">
+              SB
+            </div>
+            <p class="text-[13px] font-semibold" style="color: rgb(80 180 120)">Switch Berlin</p>
+          </div>
           <p class="text-[13px] leading-relaxed {% if not full_content %}line-clamp-5{% endif %} whitespace-pre-wrap break-words"
              style="color: rgb(244 246 248)">{{ body }}</p>
           <p class="text-[10px] text-right mt-1 flex items-center justify-end gap-1"
@@ -59,8 +67,9 @@
     {% else %}
       {# Group-message framing — GROUP / SUPERGROUP / FORUM_TOPIC / NULL.
          NULL type (legacy) falls back here safely (ADR-008 D3).
-         Mirrors _channel_editor.html: outgoing Telegram-blue bubble, tail at bottom-RIGHT,
-         white text; link-preview card nests inside the bubble. #}
+         Mirrors _channel_editor.html: incoming dark-grey bubble, tail at bottom-LEFT,
+         avatar bottom-left, "Switch Berlin" sender name in green at bubble top.
+         kb-h0lc: converted from outgoing blue to faithful incoming framing. #}
       <div>
         {% if proj.connection.destination_id %}
           <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
@@ -68,24 +77,31 @@
             <span class="inline-block w-1 h-1 rounded-full" style="background: rgb(51 144 236 / 0.6)"></span>
             {{ proj.connection.destination_id }}</p>
         {% endif %}
-        <div class="flex justify-end">
+        <div class="flex items-end gap-2">
+          {# Circular avatar 36px — green gradient fill, white bold initials "SB". #}
+          <div class="shrink-0 flex items-center justify-center rounded-full text-[11px] font-bold"
+               style="width: 36px; height: 36px; background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90)); color: rgb(255 255 255)">
+            SB
+          </div>
           {# rounded-2xl rounded-tl-sm: stable chat-bubble framing marker (kb-6yyp Finding 1);
-             the faithful outgoing tail (bottom-right) is set via the inline border-radius,
-             which wins over the utility classes. #}
+             the faithful incoming tail (bottom-left) is set via the inline border-radius. #}
           <div class="rounded-2xl rounded-tl-sm px-3.5 pt-2.5 pb-2 {% if full_content %}max-w-sm{% else %}max-w-xs{% endif %}"
-               style="background: rgb(45 104 196); border-radius: 14px 14px 4px 14px">
+               style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px 14px 14px 4px">
+            <p class="text-[13px] font-semibold mb-1" style="color: rgb(80 180 120)">Switch Berlin</p>
             <p class="text-[13px] leading-relaxed {% if not full_content %}line-clamp-5{% endif %} whitespace-pre-wrap break-words"
-               style="color: rgb(245 248 252)">{{ body }}</p>
-            {# kb-6d7o.3: Telegram link-preview card nests inside the outgoing bubble
+               style="color: rgb(236 242 246)">{{ body }}</p>
+            {# kb-6d7o.3: Telegram link-preview card nests inside the bubble
                (event composer only; post composer rows omit card_image_url so no card renders).
                Image = cover image or site default (card_image_url resolver, ADR-003 single
-               resolution point — same as the live event og:image tag, structural equality). #}
+               resolution point — same as the live event og:image tag, structural equality).
+               kb-h0lc: card styling updated for dark-grey bubble — Telegram blue left-bar,
+               near-white title, dimmed description. #}
             {% if row.card_image_url %}
               <div data-testid="tg-link-preview-card"
                    class="mt-1.5 overflow-hidden"
-                   style="background: rgba(255,255,255,0.12);
+                   style="background: rgba(255,255,255,0.07);
                           border-radius: 6px;
-                          border-left: 3px solid rgb(255 255 255 / 0.85)">
+                          border-left: 3px solid rgb(51 144 236)">
                 <img src="{{ row.card_image_url }}"
                      alt="{% if event.title %}{{ event.title }}{% endif %}"
                      class="w-full object-cover"
@@ -93,16 +109,16 @@
                      loading="lazy">
                 <div class="px-2.5 py-1.5">
                   <p class="text-[11px] font-semibold leading-snug mb-0.5"
-                     style="color: rgb(255 255 255)">{{ event.title }}</p>
+                     style="color: rgb(236 242 246)">{{ event.title }}</p>
                   {% if event.description %}
                     <p class="text-[10px] leading-relaxed line-clamp-2"
-                       style="color: rgb(255 255 255 / 0.78)">{{ event.description }}</p>
+                       style="color: rgb(170 178 186)">{{ event.description }}</p>
                   {% endif %}
                 </div>
               </div>
             {% endif %}
             <p class="text-[10px] text-right mt-1 flex items-center justify-end gap-1"
-               style="color: rgb(255 255 255 / 0.6)">{% now "H:i" %}<span style="color: rgb(255 255 255 / 0.85); letter-spacing: -0.18em">✓✓</span></p>
+               style="color: rgb(160 168 176 / 0.8)">{% now "H:i" %}</p>
           </div>
         </div>
       </div>
