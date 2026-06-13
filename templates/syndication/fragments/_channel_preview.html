@@ -108,28 +108,87 @@
       </div>
     {% endif %}
   {% elif proj.connection.platform == 'fetlife' %}
-    {# FetLife: gothic dark platform — warm-purple body text, dense type #}
-    <div class="px-4 pt-3 pb-4">
+    {# FetLife: faithful native skin — distinct event vs post treatments.
+       Event (listing): event page chrome — dark near-black bg, red category chip, RSVP status.
+       Post (promotion): writing skin — author strip, "Writing" label, clean body.
+       Verified live: bg=rgb(27,27,27), title=rgb(204,0,0), body=rgb(204,204,204). #}
+    {% if proj.kind == 'listing' %}
+    {# Event (listing): FetLife event page frame. #}
+    <div style="background: rgb(27,27,27)">
       {% if proj.connection.destination_id %}
-        <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
-           style="color: rgb(167 139 250 / 0.45)">{{ proj.connection.destination_id }}</p>
+      <div class="px-4 pt-3 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+        <p class="kb-mono text-[8px] uppercase tracking-[0.18em]" style="color: rgb(119,119,119)">
+          {% trans "Community" %} · {{ proj.connection.destination_id }}
+        </p>
+      </div>
       {% endif %}
-      <p class="text-[12px] leading-relaxed {% if not full_content %}line-clamp-4{% endif %} whitespace-pre-wrap break-words"
-         style="color: rgb(210 165 230 / 0.72)">{{ body }}</p>
+      <div class="flex items-center gap-2 px-4 pt-2.5 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.05)">
+        <span class="kb-mono text-[8px] uppercase tracking-[0.14em] px-2 py-0.5"
+              style="background: rgba(204,0,0,0.12); color: rgb(204,0,0); border: 1px solid rgba(204,0,0,0.25)">{% trans "Event" %}</span>
+        <span class="flex-1"></span>
+        <span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2 py-0.5"
+              style="border: 1px solid rgba(255,255,255,0.15); color: rgb(170,170,170)">{% trans "Going" %}</span>
+        <span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2 py-0.5"
+              style="border: 1px solid rgba(255,255,255,0.08); color: rgb(119,119,119)">{% trans "Interested In" %}</span>
+      </div>
+      <div class="px-4 pt-2.5 pb-3">
+        <p class="kb-mono text-[8px] uppercase tracking-[0.14em] mb-2" style="color: rgb(119,119,119)">{% trans "Description" %}</p>
+        <p class="text-[12px] leading-relaxed {% if not full_content %}line-clamp-4{% endif %} whitespace-pre-wrap break-words"
+           style="color: rgb(204,204,204)">{{ body }}</p>
+      </div>
     </div>
+    {% else %}
+    {# Post (promotion): FetLife writing/journal skin. #}
+    <div style="background: rgb(27,27,27)">
+      <div class="flex items-center gap-2.5 px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 kb-mono text-[9px]"
+              style="background: rgba(204,0,0,0.18); color: rgb(204,0,0); border: 1px solid rgba(204,0,0,0.25)">
+          {% if proj.connection.destination_id %}{{ proj.connection.destination_id|slice:":1"|upper }}{% else %}F{% endif %}
+        </span>
+        <div>
+          {% if proj.connection.destination_id %}
+          <p class="kb-mono text-[9px] uppercase tracking-[0.14em]" style="color: rgb(204,204,204)">{{ proj.connection.destination_id }}</p>
+          {% endif %}
+          <p class="kb-mono text-[8px] uppercase tracking-[0.12em]" style="color: rgb(119,119,119)">{% trans "Writing" %}</p>
+        </div>
+      </div>
+      <div class="px-4 pt-3 pb-3">
+        <p class="text-[13px] leading-relaxed {% if not full_content %}line-clamp-4{% endif %} whitespace-pre-wrap break-words"
+           style="color: rgb(204,204,204)">{{ body }}</p>
+      </div>
+      <div class="flex items-center gap-6 px-4 pb-3 pt-1" style="border-top: 1px solid rgba(255,255,255,0.05)">
+        <span class="kb-mono text-[8px] uppercase tracking-[0.14em]" style="color: rgb(119,119,119)">{% trans "Love" %}</span>
+        <span class="kb-mono text-[8px] uppercase tracking-[0.14em]" style="color: rgb(119,119,119)">{% trans "Comment" %}</span>
+      </div>
+    </div>
+    {% endif %}
   {% elif proj.connection.platform == 'switch' %}
-    {# Switch: native listing — editorial serif treatment, fuchsia accent mark #}
-    <div class="px-4 pt-3 pb-4">
-      {# Fuchsia hairline accent signals native platform #}
-      <div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5);"></div>
-      {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
-        <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
-           style="color: rgb(248 113 196 / 0.4)">{{ proj.connection.destination_id }}</p>
-      {% endif %}
-      <p class="leading-relaxed {% if not full_content %}line-clamp-3{% endif %} whitespace-pre-wrap break-words kb-display"
-         style="color: rgb(230 225 240 / 0.70);
-                font-size: 13px;
-                font-variation-settings: 'opsz' 48, 'SOFT' 50">{{ body }}</p>
+    {# Switch: faithful native Switch card.
+       Verified live (switch.berlin): bg=rgb(29,35,42), title=rgb(236,249,255), accent=rgb(224,194,211).
+       Uses kb-display serif (Switch's own typeface).
+       Kind-aware label: this preview is reachable for non-editable Switch LISTINGS
+       (own-page events shown read-only), not only posts — Switch promotion is disabled
+       in prod (_PLATFORMS_WITHOUT_POST_PROMOTION). Label must name the actual kind, not
+       hard-code "Post" (ui-label-names-mechanism-not-implemented). #}
+    <div style="background: rgb(29,35,42)">
+      <div class="flex items-center gap-3 px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.06)">
+        <span class="kb-mono text-[8px] uppercase tracking-[0.18em]"
+              style="color: rgb(224,194,211); letter-spacing: 0.2em">switch.berlin</span>
+        <span class="w-px h-3" style="background: rgba(255,255,255,0.15)"></span>
+        <span class="kb-mono text-[8px] uppercase tracking-[0.16em]"
+              style="color: rgba(255,255,255,0.35)">{% if proj.kind == 'listing' %}{% trans "Listing" %}{% else %}{% trans "Post" %}{% endif %}</span>
+        {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
+        <span class="w-px h-3" style="background: rgba(255,255,255,0.1)"></span>
+        <span class="kb-mono text-[8px] uppercase tracking-[0.14em]"
+              style="color: rgba(255,255,255,0.3)">{{ proj.connection.destination_id }}</span>
+        {% endif %}
+      </div>
+      <div class="px-4 pt-3 pb-3">
+        <p class="leading-relaxed {% if not full_content %}line-clamp-3{% endif %} whitespace-pre-wrap break-words kb-display"
+           style="color: rgb(236,249,255);
+                  font-size: 14px;
+                  font-variation-settings: 'opsz' 48, 'SOFT' 50">{{ body }}</p>
+      </div>
     </div>
   {% else %}
     <div class="px-4 pt-3 pb-4">

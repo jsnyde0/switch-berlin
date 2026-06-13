@@ -565,36 +565,110 @@ NULL type (legacy / not yet synced) falls back here — safe default per ADR-008
 </div>
 {% endif %}
 {% elif proj.connection.platform == 'fetlife' %}
-{% comment %}FetLife: gothic dark — warm-purple body text, dense type.{% endcomment %}
-<div class="px-4 pt-3 pb-4 mb-5" style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07)">
-{% if proj.connection.destination_id %}
-<p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(167 139 250 / 0.45)">
-{{ proj.connection.destination_id }}
-</p>
-{% endif %}
-<textarea name="body" class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(210 165 230 / 0.72); padding: 0; resize: vertical; field-sizing: content" placeholder="{% if is_post_composer %}{% trans "Write your FetLife post…" %}{% else %}{% trans "Write your FetLife listing…" %}{% endif %}">{{ body }}</textarea>
-</div>
-{% elif proj.connection.platform == 'switch' %}
-{% comment %}Switch: editorial serif — fuchsia hairline accent, editorial type.
-          Note: this case is reached only for Switch promotion projections (post composer).
-Switch LISTING projections use the EventForm card above (event composer only).{% endcomment %}
-<div class="px-4 pt-3 pb-4 mb-5"
-     style="background: rgba(255,255,255,0.025);
-            border: 1px solid rgba(255,255,255,0.07)">
-  <div class="w-8 h-px mb-2.5" style="background: rgb(248 113 196 / 0.5)"></div>
-  {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
-    <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
-       style="color: rgb(248 113 196 / 0.4)">{{ proj.connection.destination_id }}</p>
+{% comment %}FetLife: faithful native skin — distinct event vs post treatments.
+Event (listing): FetLife event page chrome — dark near-black bg, red category chip,
+  "Going / Interested In" status affordance, body text in FetLife body grey.
+Post (promotion): FetLife writing skin — "WRITING" type label, author strip, clean body.
+Verified live: bg=rgb(27,27,27), title=rgb(204,0,0), body=rgb(204,204,204).
+ADR-016 D7: the styled <textarea name="body"> IS the editing surface — one surface only.{% endcomment %}
+{% if proj.kind == 'listing' %}
+{% comment %}Event (listing): FetLife event page frame.
+Left: category chip + "Going"/"Interested In" status buttons. Right: nothing (body is the description).
+The body textarea sits where the event description sits on a real FetLife event page.{% endcomment %}
+<div class="mb-5" style="background: rgb(27,27,27); border: 1px solid rgba(255,255,255,0.08)">
+  {% comment %}Top header strip — community/destination label{% endcomment %}
+  {% if proj.connection.destination_id %}
+  <div class="px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+    <p class="kb-mono text-[8px] uppercase tracking-[0.18em]" style="color: rgb(119,119,119)">
+      {% trans "Community" %} · {{ proj.connection.destination_id }}
+    </p>
+  </div>
   {% endif %}
-  <textarea name="body"
-            class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 kb-display leading-relaxed whitespace-pre-wrap break-words"
-            style="color: rgb(230 225 240 / 0.70);
-                   font-size: 13px;
-                   font-variation-settings: 'opsz' 48, 'SOFT' 50;
-                   padding: 0;
-                   resize: vertical;
-                   field-sizing: content"
-            placeholder="{% trans "Write your Switch post…" %}">{{ body }}</textarea>
+  {% comment %}Status row: category chip + RSVP buttons{% endcomment %}
+  <div class="flex items-center gap-2 px-4 pt-3 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.05)">
+    <span class="kb-mono text-[8px] uppercase tracking-[0.14em] px-2 py-1"
+          style="background: rgba(204,0,0,0.12); color: rgb(204,0,0); border: 1px solid rgba(204,0,0,0.25)">{% trans "Event" %}</span>
+    <span class="flex-1"></span>
+    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2.5 py-1"
+          style="border: 1px solid rgba(255,255,255,0.18); color: rgb(204,204,204)">{% trans "Going" %}</span>
+    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2.5 py-1"
+          style="border: 1px solid rgba(255,255,255,0.10); color: rgb(170,170,170)">{% trans "Interested In" %}</span>
+  </div>
+  {% comment %}Description body — the textarea IS the description field{% endcomment %}
+  <div class="px-4 pt-3 pb-3">
+    <p class="kb-mono text-[8px] uppercase tracking-[0.14em] mb-2" style="color: rgb(119,119,119)">{% trans "Description" %}</p>
+    <textarea name="body"
+              class="w-full min-h-[120px] resize-y border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+              style="color: rgb(204,204,204); background: transparent; padding: 0; resize: vertical; field-sizing: content"
+              placeholder="{% trans "Write your FetLife event description…" %}">{{ body }}</textarea>
+  </div>
+</div>
+{% else %}
+{% comment %}Post (promotion): FetLife writing/journal skin.
+Author strip at top, "WRITING" type label, body textarea in FetLife body grey.{% endcomment %}
+<div class="mb-5" style="background: rgb(27,27,27); border: 1px solid rgba(255,255,255,0.08)">
+  {% comment %}Author strip{% endcomment %}
+  <div class="flex items-center gap-2.5 px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+    {% comment %}Avatar initial{% endcomment %}
+    <span class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 kb-mono text-[10px]"
+          style="background: rgba(204,0,0,0.18); color: rgb(204,0,0); border: 1px solid rgba(204,0,0,0.25)">
+      {% if proj.connection.destination_id %}{{ proj.connection.destination_id|slice:":1"|upper }}{% else %}F{% endif %}
+    </span>
+    <div>
+      {% if proj.connection.destination_id %}
+      <p class="kb-mono text-[9px] uppercase tracking-[0.14em]" style="color: rgb(204,204,204)">{{ proj.connection.destination_id }}</p>
+      {% endif %}
+      <p class="kb-mono text-[8px] uppercase tracking-[0.12em]" style="color: rgb(119,119,119)">{% trans "Writing" %}</p>
+    </div>
+  </div>
+  {% comment %}Body textarea — the writing body{% endcomment %}
+  <div class="px-4 pt-3 pb-3">
+    <textarea name="body"
+              class="w-full min-h-[120px] resize-y border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
+              style="color: rgb(204,204,204); background: transparent; padding: 0; resize: vertical; field-sizing: content"
+              placeholder="{% trans "Write your FetLife post…" %}">{{ body }}</textarea>
+  </div>
+  {% comment %}Footer: Love / Comment affordance{% endcomment %}
+  <div class="flex items-center gap-6 px-4 pb-3 pt-1" style="border-top: 1px solid rgba(255,255,255,0.05)">
+    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]" style="color: rgb(119,119,119)">{% trans "Love" %}</span>
+    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]" style="color: rgb(119,119,119)">{% trans "Comment" %}</span>
+  </div>
+</div>
+{% endif %}
+{% elif proj.connection.platform == 'switch' %}
+{% comment %}Switch: faithful native Switch post card.
+Verified live (switch.berlin): bg=rgb(29,35,42), title near-white=rgb(236,249,255),
+accent pink=rgb(224,194,211). Uses kb-display serif (Switch's own typeface).
+Note: this case is reached only for Switch promotion projections (post composer).
+Switch LISTING projections use the EventForm card above (event composer only).
+ADR-016 D7: the styled <textarea name="body"> IS the editing surface — one surface only.{% endcomment %}
+<div class="mb-5" style="background: rgb(29,35,42); border: 1px solid rgba(255,255,255,0.07)">
+  {% comment %}Platform header strip — native Switch post framing{% endcomment %}
+  <div class="flex items-center gap-3 px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.06)">
+    <span class="kb-mono text-[8px] uppercase tracking-[0.18em]"
+          style="color: rgb(224,194,211); letter-spacing: 0.2em">switch.berlin</span>
+    <span class="w-px h-3" style="background: rgba(255,255,255,0.15)"></span>
+    <span class="kb-mono text-[8px] uppercase tracking-[0.16em]"
+          style="color: rgba(255,255,255,0.35)">{% trans "Post" %}</span>
+    {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
+    <span class="w-px h-3" style="background: rgba(255,255,255,0.1)"></span>
+    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]"
+          style="color: rgba(255,255,255,0.3)">{{ proj.connection.destination_id }}</span>
+    {% endif %}
+  </div>
+  {% comment %}Body — the textarea IS the post body. Uses kb-display serif for native Switch feel.{% endcomment %}
+  <div class="px-4 pt-3 pb-3">
+    <textarea name="body"
+              class="w-full min-h-[120px] resize-y border-0 outline-0 kb-display leading-relaxed whitespace-pre-wrap break-words"
+              style="color: rgb(236,249,255);
+                     background: transparent;
+                     font-size: 14px;
+                     font-variation-settings: 'opsz' 48, 'SOFT' 50;
+                     padding: 0;
+                     resize: vertical;
+                     field-sizing: content"
+              placeholder="{% trans "Write your Switch post…" %}">{{ body }}</textarea>
+  </div>
 </div>
 {% else %}
 {% comment %}Generic: plain mono treatment for unknown platforms.{% endcomment %}

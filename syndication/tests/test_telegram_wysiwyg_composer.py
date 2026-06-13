@@ -707,8 +707,12 @@ class NonTelegramChannelsUnaffectedTest(TestCase):
 
     def test_fetlife_renders_platform_skin_no_telegram_testids(self):
         """
-        (D1) A FetLife draft projection must render the FetLife warm-purple
-        body skin and must NOT emit any Telegram data-testids.
+        (D1) A FetLife draft projection must render the FetLife native skin
+        and must NOT emit any Telegram data-testids.
+
+        Skin updated (kb-bqgo): faithful live FetLife colours — dark near-black
+        bg rgb(27,27,27), body text rgb(204,204,204), red category chip
+        rgba(204,0,0,...). No longer uses the old warm-purple rgb(210 165 230).
         """
         conn = self._make_connection("fetlife", "my-fetlife", ["listing"])
         self._make_projection(conn)
@@ -718,11 +722,17 @@ class NonTelegramChannelsUnaffectedTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        # FetLife warm-purple text colour — present in the editor textarea styling.
+        # FetLife native dark background — present in the editor container.
         self.assertIn(
-            "rgb(210 165 230",
+            "rgb(27,27,27)",
             content,
-            "FetLife must render its warm-purple body skin.",
+            "FetLife must render its native dark-bg skin.",
+        )
+        # FetLife native body text colour — present in the textarea styling.
+        self.assertIn(
+            "rgb(204,204,204)",
+            content,
+            "FetLife must render its native body-text colour.",
         )
         # No Telegram testids must leak into a FetLife channel.
         for testid in (
