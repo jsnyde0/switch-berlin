@@ -37,65 +37,74 @@
        TODO(consolidation): if a third template caller appears, extract per-type Telegram
        rendering into a shared partial rather than duplicating again. #}
     {% if proj.connection.type == 'channel' %}
-      {# Channel-post framing — own/admin channels. No chat bubble. #}
-      <div data-testid="tg-channel-post-preview"
-           class="px-4 pt-3 pb-4">
+      {# Channel-post framing — own/admin channels. No chat bubble.
+         Mirrors _channel_editor.html: faithful Telegram dark theme (verified live) —
+         neutral dark-grey post surface + white text, Telegram blue (#3390ec) as accent only. #}
+      <div data-testid="tg-channel-post-preview">
         {% if proj.connection.title or proj.connection.destination_id %}
-          <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
-             style="color: rgb(33 150 243 / 0.6)">
+          <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
+             style="color: rgb(51 144 236 / 0.85)">
+            <span class="inline-block w-1 h-1 rounded-full" style="background: rgb(51 144 236 / 0.7)"></span>
             {% if proj.connection.title %}{{ proj.connection.title }}{% else %}{{ proj.connection.destination_id }}{% endif %}
           </p>
         {% endif %}
-        {# Teal hairline accent marks channel-post framing #}
-        <div class="w-8 h-px mb-2.5" style="background: rgb(33 150 243 / 0.5)"></div>
-        <p class="text-[12px] leading-relaxed {% if not full_content %}line-clamp-5{% endif %} whitespace-pre-wrap break-words"
-           style="color: rgb(210 228 248)">{{ body }}</p>
-        <p class="kb-mono text-[8px] text-right mt-1.5"
-           style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓✓</p>
+        <div class="px-3.5 pt-3 pb-2.5"
+             style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px 12px 12px 4px">
+          <p class="text-[13px] leading-relaxed {% if not full_content %}line-clamp-5{% endif %} whitespace-pre-wrap break-words"
+             style="color: rgb(244 246 248)">{{ body }}</p>
+          <p class="text-[10px] text-right mt-1 flex items-center justify-end gap-1"
+             style="color: rgb(170 170 170 / 0.65)">{% now "H:i" %}<span style="color: rgb(51 144 236 / 0.9); letter-spacing: -0.18em">✓✓</span></p>
+        </div>
       </div>
     {% else %}
       {# Group-message framing — GROUP / SUPERGROUP / FORUM_TOPIC / NULL.
-         NULL type (legacy) falls back here safely (ADR-008 D3). #}
-      <div class="px-4 pt-3 pb-4">
+         NULL type (legacy) falls back here safely (ADR-008 D3).
+         Mirrors _channel_editor.html: outgoing Telegram-blue bubble, tail at bottom-RIGHT,
+         white text; link-preview card nests inside the bubble. #}
+      <div>
         {% if proj.connection.destination_id %}
-          <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
-             style="color: rgb(33 150 243 / 0.5)">{{ proj.connection.destination_id }}</p>
+          <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
+             style="color: rgb(51 144 236 / 0.75)">
+            <span class="inline-block w-1 h-1 rounded-full" style="background: rgb(51 144 236 / 0.6)"></span>
+            {{ proj.connection.destination_id }}</p>
         {% endif %}
-        <div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 {% if full_content %}max-w-sm{% else %}max-w-xs{% endif %}"
-             style="background: rgb(33 150 243 / 0.18);
-                    border: 1px solid rgb(33 150 243 / 0.22)">
-          <p class="text-[12px] leading-relaxed {% if not full_content %}line-clamp-5{% endif %} whitespace-pre-wrap break-words"
-             style="color: rgb(210 228 248)">{{ body }}</p>
-          {# Telegram timestamp mock #}
-          <p class="kb-mono text-[8px] text-right mt-1.5"
-             style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
-        </div>
-        {# kb-6d7o.3: Telegram link-preview card — shown when card_image_url is wired
-           (event composer only; post composer rows omit card_image_url so no card renders).
-           Image = cover image or site default (card_image_url resolver, ADR-003 single
-           resolution point — same as the live event og:image tag, structural equality). #}
-        {% if row.card_image_url %}
-          <div data-testid="tg-link-preview-card"
-               class="mt-2 {% if full_content %}max-w-sm{% else %}max-w-xs{% endif %} overflow-hidden"
-               style="background: rgb(33 150 243 / 0.10);
-                      border: 1px solid rgb(33 150 243 / 0.22);
-                      border-radius: 0 0.75rem 0.75rem 0.75rem;
-                      border-left: 3px solid rgb(33 150 243 / 0.6)">
-            <img src="{{ row.card_image_url }}"
-                 alt=""
-                 class="w-full object-cover"
-                 style="max-height: 120px; display: block"
-                 loading="lazy">
-            <div class="px-2.5 py-2">
-              <p class="text-[11px] font-semibold leading-snug mb-0.5"
-                 style="color: rgb(210 228 248)">{{ event.title }}</p>
-              {% if event.description %}
-                <p class="text-[10px] leading-relaxed line-clamp-2"
-                   style="color: rgb(120 160 200 / 0.75)">{{ event.description }}</p>
-              {% endif %}
-            </div>
+        <div class="flex justify-end">
+          {# rounded-2xl rounded-tl-sm: stable chat-bubble framing marker (kb-6yyp Finding 1);
+             the faithful outgoing tail (bottom-right) is set via the inline border-radius,
+             which wins over the utility classes. #}
+          <div class="rounded-2xl rounded-tl-sm px-3.5 pt-2.5 pb-2 {% if full_content %}max-w-sm{% else %}max-w-xs{% endif %}"
+               style="background: rgb(45 104 196); border-radius: 14px 14px 4px 14px">
+            <p class="text-[13px] leading-relaxed {% if not full_content %}line-clamp-5{% endif %} whitespace-pre-wrap break-words"
+               style="color: rgb(245 248 252)">{{ body }}</p>
+            {# kb-6d7o.3: Telegram link-preview card nests inside the outgoing bubble
+               (event composer only; post composer rows omit card_image_url so no card renders).
+               Image = cover image or site default (card_image_url resolver, ADR-003 single
+               resolution point — same as the live event og:image tag, structural equality). #}
+            {% if row.card_image_url %}
+              <div data-testid="tg-link-preview-card"
+                   class="mt-1.5 overflow-hidden"
+                   style="background: rgba(255,255,255,0.12);
+                          border-radius: 6px;
+                          border-left: 3px solid rgb(255 255 255 / 0.85)">
+                <img src="{{ row.card_image_url }}"
+                     alt="{% if event.title %}{{ event.title }}{% endif %}"
+                     class="w-full object-cover"
+                     style="max-height: 120px; display: block"
+                     loading="lazy">
+                <div class="px-2.5 py-1.5">
+                  <p class="text-[11px] font-semibold leading-snug mb-0.5"
+                     style="color: rgb(255 255 255)">{{ event.title }}</p>
+                  {% if event.description %}
+                    <p class="text-[10px] leading-relaxed line-clamp-2"
+                       style="color: rgb(255 255 255 / 0.78)">{{ event.description }}</p>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+            <p class="text-[10px] text-right mt-1 flex items-center justify-end gap-1"
+               style="color: rgb(255 255 255 / 0.6)">{% now "H:i" %}<span style="color: rgb(255 255 255 / 0.85); letter-spacing: -0.18em">✓✓</span></p>
           </div>
-        {% endif %}
+        </div>
       </div>
     {% endif %}
   {% elif proj.connection.platform == 'fetlife' %}
