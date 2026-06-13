@@ -476,18 +476,84 @@ The master/source tab body form stays on version-edit (CV-keyed, broadcasts).{% 
 {% comment %}Platform-skinned bubble container wraps the textarea.
 Each skin matches _channel_preview.html's visual treatment.{% endcomment %}
 {% if proj.connection.platform == 'telegram' %}
-{% comment %}Telegram: chat bubble — teal-dark background, rounded corners.{% endcomment %}
-<div class="px-4 pt-3 pb-4 mb-5" style="background: rgb(33 150 243 / 0.05); border: 1px solid rgb(33 150 243 / 0.14)">
-{% if proj.connection.destination_id %}
-<p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2" style="color: rgb(33 150 243 / 0.5)">
-{{ proj.connection.destination_id }}
-</p>
+{% comment %}Telegram: per-destination-type WYSIWYG surface (kb-6yyp D2).
+CHANNEL (own/admin) → channel-post framing: channel name header, post body, no chat bubble.
+GROUP / SUPERGROUP / FORUM_TOPIC / NULL → group-message framing: chat bubble + link-preview card.
+ADR-016 D7 (FIRM): the styled textarea IS the editing surface — ONE surface, no split.{% endcomment %}
+{% if proj.connection.type == 'channel' %}
+{% comment %}kb-6yyp D2: Channel-post framing — own/admin channels.
+Channel name shown, post body with teal underline accent, NO chat bubble.{% endcomment %}
+<div data-testid="tg-channel-post"
+     class="px-4 pt-3 pb-4 mb-5"
+     style="background: rgb(33 150 243 / 0.05); border: 1px solid rgb(33 150 243 / 0.14)">
+  {% comment %}Channel name header — uses title if available, falls back to destination_id.{% endcomment %}
+  {% if proj.connection.title or proj.connection.destination_id %}
+    <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+       style="color: rgb(33 150 243 / 0.6)">
+      {% if proj.connection.title %}{{ proj.connection.title }}{% else %}{{ proj.connection.destination_id }}{% endif %}
+    </p>
+  {% endif %}
+  {% comment %}Teal hairline accent marks channel-post framing (mirrors Switch fuchsia pattern).{% endcomment %}
+  <div class="w-8 h-px mb-2.5" style="background: rgb(33 150 243 / 0.5)"></div>
+  <textarea name="body"
+            class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+            style="color: rgb(210 228 248); padding: 0; resize: vertical; field-sizing: content"
+            placeholder="{% trans "Write your Telegram channel post…" %}">{{ body }}</textarea>
+  <p class="kb-mono text-[8px] text-right mt-1.5"
+     style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓✓</p>
+</div>
+{% else %}
+{% comment %}kb-6yyp D2: Group-message framing — GROUP / SUPERGROUP / FORUM_TOPIC / NULL.
+Chat bubble + link-preview card as part of the WYSIWYG surface.
+NULL type (legacy / not yet synced) falls back here — safe default per ADR-008 D3.{% endcomment %}
+<div data-testid="tg-group-message"
+     class="px-4 pt-3 pb-4 mb-5"
+     style="background: rgb(33 150 243 / 0.05); border: 1px solid rgb(33 150 243 / 0.14)">
+  {% if proj.connection.destination_id %}
+    <p class="kb-mono text-[9px] uppercase tracking-[0.14em] mb-2"
+       style="color: rgb(33 150 243 / 0.5)">
+      {{ proj.connection.destination_id }}
+    </p>
+  {% endif %}
+  <div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-sm"
+       style="background: rgb(33 150 243 / 0.18); border: 1px solid rgb(33 150 243 / 0.22)">
+    <textarea name="body"
+              class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+              style="color: rgb(210 228 248); padding: 0; resize: vertical; field-sizing: content"
+              placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
+    <p class="kb-mono text-[8px] text-right mt-1.5"
+       style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
+  </div>
+  {% comment %}kb-6yyp D2/D3: WYSIWYG link-preview card for group-message destinations.
+  Image uses the shared card_image_url resolver (events/og.py:18) — same path as the live
+  og:image tag. structural equality: same resolver → preview == live (ADR-003/ADR-016 D7).
+  row.card_image_url is computed in fragment_event_syndication for Telegram projections.{% endcomment %}
+  {% if row.card_image_url %}
+    <div data-testid="tg-wysiwyg-card"
+         class="mt-2 max-w-sm overflow-hidden"
+         style="background: rgb(33 150 243 / 0.10);
+                border: 1px solid rgb(33 150 243 / 0.22);
+                border-radius: 0 0.75rem 0.75rem 0.75rem;
+                border-left: 3px solid rgb(33 150 243 / 0.6)">
+      <img src="{{ row.card_image_url }}"
+           alt=""
+           class="w-full object-cover"
+           style="max-height: 120px; display: block"
+           loading="lazy">
+      <div class="px-2.5 py-2">
+        {% if event.title %}
+          <p class="text-[11px] font-semibold leading-snug mb-0.5"
+             style="color: rgb(210 228 248)">{{ event.title }}</p>
+        {% endif %}
+        {% if event.description %}
+          <p class="text-[10px] leading-relaxed line-clamp-2"
+             style="color: rgb(120 160 200 / 0.75)">{{ event.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
 {% endif %}
-<div class="rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-sm" style="background: rgb(33 150 243 / 0.18); border: 1px solid rgb(33 150 243 / 0.22)">
-<textarea name="body" class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(210 228 248); padding: 0; resize: vertical; field-sizing: content" placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
-<p class="kb-mono text-[8px] text-right mt-1.5" style="color: rgb(120 160 200 / 0.6)">{% now "H:i" %} ✓</p>
-</div>
-</div>
 {% elif proj.connection.platform == 'fetlife' %}
 {% comment %}FetLife: gothic dark — warm-purple body text, dense type.{% endcomment %}
 <div class="px-4 pt-3 pb-4 mb-5" style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07)">
@@ -557,7 +623,11 @@ status is now surfaced via the channel pill's status dot (ADR-016 D5).{% endcomm
 {% comment %}Render_error + non-draft preview via _channel_preview.html.
 kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endcomment %}
 {% if render_error and proj.status == 'draft' %}
-  {% comment %}ADR-008 D3: render failure must be structurally distinct.{% endcomment %}
+  {% comment %}ADR-008 D3: render failure must be structurally distinct.
+  Finding 2 (kb-6yyp review): _channel_preview.html renders here only the error panel
+  (its render_error=True branch), NOT a content preview — no duplicate content surface
+  alongside the editable textarea. D7's "no separate read-only preview" is satisfied:
+  the error panel IS structurally distinct from a content preview (ADR-008 D3 intent). #}{% endcomment %}
   <div class="mb-6">
     <div style="background: rgba(255,255,255,0.025);
                 border: 1px solid rgba(255,255,255,0.07)">
