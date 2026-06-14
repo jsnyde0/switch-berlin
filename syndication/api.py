@@ -42,7 +42,7 @@ from ninja.files import UploadedFile
 from ninja.security import HttpBearer
 from ninja.security import SessionAuth as NinjaSessionAuth
 
-from syndication.models import AgentCredential, IdentityToken, TelegramDialogType, TelegramPostability
+from syndication.models import AgentCredential, IdentityToken, TelegramDialogType, TelegramPlacementStatus, TelegramPostability
 from syndication.services import (
     ACTOR_BEARER,
     ACTOR_SESSION,
@@ -56,6 +56,7 @@ from syndication.services import (
     publish_projection,
     redeem_pairing_token,
     register_agent_credential,
+    report_telegram_placements,
     set_event_cover,
     update_event,
 )
@@ -1185,6 +1186,88 @@ def telegram_inventory_ingest(request, body: list[TelegramInventoryItemIn]):
         result = ingest_telegram_inventory(user=request.auth, inventory=raw_inventory)
     except ValueError as exc:
         logger.warning("telegram/inventory: rejected payload: %s", exc)
+        return api.create_response(
+            request,
+            {"detail": str(exc)},
+            status=422,
+        )
+
+    return _actor_marker_response(request, result)
+
+
+# ---------------------------------------------------------------------------
+# Telegram placement report endpoint (kb-56c2.1 — C3a co-equal seam)
+# ---------------------------------------------------------------------------
+
+
+class TelegramPlacementItemIn(Schema):
+    """
+    Schema for a single placement outcome in a placement report payload.
+
+    Mirrors TelegramInventoryItemIn (extra="forbid" guard) — rejects any
+    unrecognised field (session_string, access_hash, content, or any credential/
+    content field) with HTTP 422 (ADR-018 D4 / kb-56c2.1 D2).
+
+    status is constrained to TelegramPlacementStatus values:
+    {placed, failed, skipped-pre-existing-draft}. "sent" is NOT a valid status
+    (ADR-018 D2 FIRM draft-only firewall). Non-canonical values → 422.
+
+    topic_id is optional — forum-level coverage uses forum's destination_id (kb-56c2 D5).
+    error_detail is optional — only set for failed placements.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    destination_id: str
+    topic_id: int | None = None
+    status: TelegramPlacementStatus
+    error_detail: str | None = None
+
+
+class TelegramPlacementReportOut(Schema):
+    """Response for the Telegram placement report verb."""
+
+    written: int
+    errors: list
+
+
+@api.post(
+    "/telegram/placements",
+    auth=_RESOURCE_AUTH,
+    response={200: TelegramPlacementReportOut},
+    summary="Report Telegram placement outcomes (co-equal seam, kb-56c2.1)",
+    description=(
+        "Agent-tier co-equal verb: accepts a list of per-destination placement outcomes "
+        "and writes/updates TelegramPlacement records. "
+        "Auth: identity token (agent path) or session (web path) per ADR-016 D3/D6. "
+        "Payload must NOT carry session_string, access_hash, or content — "
+        "those fields are rejected loud (HTTP 422) per ADR-018 D4. "
+        "'sent' is NOT a valid status (ADR-018 D2 FIRM draft-only firewall). "
+        "Valid statuses: {placed, failed, skipped-pre-existing-draft}."
+    ),
+)
+def telegram_placement_report(request, body: list[TelegramPlacementItemIn]):
+    """
+    Receive and persist agent-tier placement outcomes.
+
+    Each item in body must be {destination_id, status, topic_id?, error_detail?}.
+    Writes/updates one TelegramPlacement record per item.
+
+    Fail loud (ADR-008 D3 / ADR-018 D4):
+    - Any item containing session_string, access_hash, or content → 422
+      (enforced by extra="forbid" on TelegramPlacementItemIn schema).
+    - status not in {placed, failed, skipped-pre-existing-draft} → 422
+      (enforced by TelegramPlacementStatus enum constraint on schema).
+
+    Returns {"written": int, "errors": list} with per-item errors for
+    destinations not found or not resolvable.
+    """
+    raw_placements = [item.dict() for item in body]
+
+    try:
+        result = report_telegram_placements(user=request.auth, placements=raw_placements)
+    except ValueError as exc:
+        logger.warning("telegram/placements: rejected payload: %s", exc)
         return api.create_response(
             request,
             {"detail": str(exc)},

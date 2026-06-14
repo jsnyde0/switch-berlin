@@ -27,7 +27,7 @@ from django.utils import timezone
 
 from events.services import publish_event
 from syndication.engine import render_projection, transition_status
-from syndication.models import PlatformProjection
+from syndication.models import PlatformProjection, TelegramPlacement, TelegramPlacementStatus
 
 
 def publish_switch_own_page(projection: PlatformProjection) -> None:
@@ -263,6 +263,22 @@ def publish_telegram_promotion(projection: PlatformProjection) -> None:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {"chat_id": channel, "text": body}
 
+    # ---- Helper: write a TelegramPlacement record (bot-tier inline write) ----
+    # ADR-008 D3: the placement write and the projection status/external_id
+    # transition must not silently diverge. Callers of this helper pass the
+    # known error detail (None for success). If the write fails, this raises —
+    # never silently leaves a projection in published with a phantom-pending
+    # destination.
+    def _write_placement(status: str, error_detail: str | None = None) -> None:
+        TelegramPlacement.objects.update_or_create(
+            projection=projection,
+            connection=projection.connection,
+            defaults={
+                "status": status,
+                "error_detail": error_detail,
+            },
+        )
+
     # ---- Send with transport-error retry (ADR-008 D4) ----
     last_transport_error = None
     for attempt in range(_TELEGRAM_MAX_TRANSPORT_RETRIES + 1):
@@ -276,54 +292,69 @@ def publish_telegram_promotion(projection: PlatformProjection) -> None:
             # else: fall through to exhausted-retries handling
     else:
         # All attempts exhausted (httpx.TransportError every time)
-        transition_status(projection, PlatformProjection.Status.FAILED)
-        raise ValueError(
+        error_msg = (
             f"Cannot publish Telegram promotion projection {projection.pk!r}: "
             f"transport error after {_TELEGRAM_MAX_TRANSPORT_RETRIES + 1} attempts: "
             f"{last_transport_error!r}. (ADR-008 D4 — transport retries exhausted)"
-        ) from last_transport_error
+        )
+        transition_status(projection, PlatformProjection.Status.FAILED)
+        # Bot-tier inline write: record failed placement (ADR-008 D3 fail-loud)
+        _write_placement(TelegramPlacementStatus.FAILED, error_detail=error_msg)
+        raise ValueError(error_msg) from last_transport_error
 
     # ---- Inspect response (ADR-008 D4: HTTP 4xx/5xx or ok=false → no retry) ----
     if response.status_code >= 400:
-        transition_status(projection, PlatformProjection.Status.FAILED)
-        raise ValueError(
+        error_msg = (
             f"Cannot publish Telegram promotion projection {projection.pk!r}: "
             f"Bot API returned HTTP {response.status_code}. "
             "(ADR-008 D4 — data-integrity error, no retry)"
         )
+        transition_status(projection, PlatformProjection.Status.FAILED)
+        # Bot-tier inline write: record failed placement (ADR-008 D3 fail-loud)
+        _write_placement(TelegramPlacementStatus.FAILED, error_detail=error_msg)
+        raise ValueError(error_msg)
 
     # ADR-008 D3: non-JSON body is a data-integrity error → fail loud, no retry
     try:
         response_body = response.json()
     except json.JSONDecodeError as exc:
-        transition_status(projection, PlatformProjection.Status.FAILED)
-        raise ValueError(
+        error_msg = (
             f"Cannot publish Telegram promotion projection {projection.pk!r}: "
             f"Bot API returned HTTP 200 with non-JSON body: {exc!r}. "
             "(ADR-008 D3 — data-integrity error, no retry)"
-        ) from exc
+        )
+        transition_status(projection, PlatformProjection.Status.FAILED)
+        # Bot-tier inline write: record failed placement (ADR-008 D3 fail-loud)
+        _write_placement(TelegramPlacementStatus.FAILED, error_detail=error_msg)
+        raise ValueError(error_msg) from exc
 
     if not response_body.get("ok"):
-        transition_status(projection, PlatformProjection.Status.FAILED)
         description = response_body.get("description", "(no description)")
-        raise ValueError(
+        error_msg = (
             f"Cannot publish Telegram promotion projection {projection.pk!r}: "
             f"Bot API returned ok=false: {description!r}. "
             "(ADR-008 D4 — data-integrity error, no retry)"
         )
+        transition_status(projection, PlatformProjection.Status.FAILED)
+        # Bot-tier inline write: record failed placement (ADR-008 D3 fail-loud)
+        _write_placement(TelegramPlacementStatus.FAILED, error_detail=error_msg)
+        raise ValueError(error_msg)
 
     # ADR-008 D3: missing result/message_id in a 200+ok=true body is a data-integrity
     # error → fail loud, no retry. Never strand the projection in ready.
     try:
         message_id = response_body["result"]["message_id"]
     except KeyError as exc:
-        transition_status(projection, PlatformProjection.Status.FAILED)
-        raise ValueError(
+        error_msg = (
             f"Cannot publish Telegram promotion projection {projection.pk!r}: "
             f"Bot API returned HTTP 200 with ok=true but malformed body "
             f"(missing key {exc!r}). "
             "(ADR-008 D3 — data-integrity error, no retry)"
-        ) from exc
+        )
+        transition_status(projection, PlatformProjection.Status.FAILED)
+        # Bot-tier inline write: record failed placement (ADR-008 D3 fail-loud)
+        _write_placement(TelegramPlacementStatus.FAILED, error_detail=error_msg)
+        raise ValueError(error_msg) from exc
 
     # ---- Success: transition and stamp result fields ----
 
@@ -334,3 +365,14 @@ def publish_telegram_promotion(projection: PlatformProjection) -> None:
     projection.external_id = str(message_id)
     projection.syndicated_at = timezone.now()
     projection.save(update_fields=["external_id", "syndicated_at", "updated_at"])
+
+    # Bot-tier inline write: record placed placement AFTER projection writes succeed.
+    # ADR-008 D3 fail-loud: if this write fails, the exception propagates —
+    # we do NOT silently leave a status=published projection with no placement record
+    # (phantom-pending gap). The placement write is NOT in the same DB transaction
+    # as the projection writes (transaction.atomic() not added here per ADR-008 D2
+    # no-speculative-abstraction), but ANY exception from _write_placement raises,
+    # which the caller surfaces. The projection is already published at this point
+    # (correct — we confirmed the Bot API succeeded), and a second call can re-run
+    # the placement write idempotently via update_or_create.
+    _write_placement(TelegramPlacementStatus.PLACED)

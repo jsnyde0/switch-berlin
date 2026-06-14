@@ -272,6 +272,253 @@ def ingest_telegram_inventory(user, inventory: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Telegram placement report service (kb-56c2.1)
+# ---------------------------------------------------------------------------
+
+# Fields that must NEVER appear in a placement report payload (ADR-018 D4).
+# The verb rejects these loud (HTTP 422) — mirrors the ingest verb's guard.
+# "sent" is also excluded: not a valid status (ADR-018 D2).
+_FORBIDDEN_PLACEMENT_FIELDS = frozenset({"session_string", "access_hash", "content"})
+
+
+def report_telegram_placements(user, placements: list[dict]) -> dict:
+    """
+    Write/update TelegramPlacement records from an agent placement report.
+
+    Called by the POST /api/telegram/placements verb (agent-tier co-equal seam).
+    Mirrors ingest_telegram_inventory for style (kb-56c2.1 C3a).
+
+    Contract:
+    - Each item must NOT carry session_string, access_hash, or content
+      (ADR-018 D4). Raises ValueError on violation — caller returns 422.
+    - status must be a valid TelegramPlacementStatus value (placed, failed,
+      skipped-pre-existing-draft). "sent" is NOT a valid status (ADR-018 D2).
+    - Resolves the PlatformProjection for the given destination_id:
+      finds the most recently updated promotion projection for the user's
+      organizer's PlatformConnection with that destination_id.
+    - Writes/updates TelegramPlacement records via update_or_create (idempotent).
+    - Returns a summary dict: {"written": int, "errors": list}.
+
+    Raises ValueError if any payload item contains a forbidden field.
+
+    ADR-008 D3: fail loud on forbidden fields; no silent fallbacks.
+    ADR-008 D2: no DistributionRun envelope; coverage is per (projection, connection).
+    """
+    from organizers.models import ProfileClaim  # noqa: PLC0415
+    from syndication.models import (  # noqa: PLC0415
+        PlatformConnection,
+        PlatformProjection,
+        TelegramPlacement,
+        TelegramPlacementStatus,
+    )
+
+    # --- Step 1: validate payload (fail loud on forbidden fields) ---
+    for item in placements:
+        bad_fields = _FORBIDDEN_PLACEMENT_FIELDS & set(item.keys())
+        if bad_fields:
+            sorted_bad = sorted(bad_fields)
+            raise ValueError(
+                f"Placement report payload must not carry credential or content fields. "
+                f"Forbidden field(s) present: {sorted_bad}. "
+                f"ADR-018 D4 / kb-56c2.1: the server stores placement metadata only; "
+                f"session credentials live agent-side."
+            )
+
+    # --- Step 2: resolve the organizer profile for this user ---
+    profile_claim = (
+        ProfileClaim.objects.filter(user=user, rejected_at__isnull=True)
+        .select_related("profile")
+        .first()
+    )
+    if profile_claim is None:
+        raise ValueError(
+            f"User {user!r} has no active ProfileClaim — cannot associate "
+            "placement report with an organizer."
+        )
+    organizer = profile_claim.profile
+
+    # --- Step 3: write/update placement records ---
+    written = 0
+    errors = []
+    valid_statuses = {v for v, _ in TelegramPlacementStatus.choices}
+
+    for item in placements:
+        destination_id = str(item["destination_id"])
+        status = item["status"]
+        error_detail = item.get("error_detail", None)
+
+        # Validate status (no "sent", no "pending", only the three stored values)
+        if status not in valid_statuses:
+            errors.append(
+                {
+                    "destination_id": destination_id,
+                    "error": f"Invalid status {status!r}. Must be one of: {sorted(valid_statuses)}.",
+                }
+            )
+            continue
+
+        # Resolve the PlatformConnection by destination_id + organizer
+        try:
+            conn = PlatformConnection.objects.get(
+                organizer=organizer,
+                platform="telegram",
+                destination_id=destination_id,
+            )
+        except PlatformConnection.DoesNotExist:
+            errors.append(
+                {
+                    "destination_id": destination_id,
+                    "error": f"No Telegram PlatformConnection found for destination_id={destination_id!r}.",
+                }
+            )
+            continue
+
+        # Resolve the most recent promotion projection for this connection
+        proj = (
+            PlatformProjection.objects.filter(
+                connection=conn,
+                kind=PlatformProjection.Kind.PROMOTION,
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+        if proj is None:
+            errors.append(
+                {
+                    "destination_id": destination_id,
+                    "error": f"No promotion PlatformProjection found for connection {conn.pk}.",
+                }
+            )
+            continue
+
+        # Write/update the placement record (idempotent via update_or_create)
+        TelegramPlacement.objects.update_or_create(
+            projection=proj,
+            connection=conn,
+            defaults={
+                "status": status,
+                "error_detail": error_detail,
+            },
+        )
+        written += 1
+
+    return {"written": written, "errors": errors}
+
+
+# ---------------------------------------------------------------------------
+# Telegram coverage reconciliation service (kb-56c2.1)
+# ---------------------------------------------------------------------------
+
+
+def reconcile_telegram_coverage(projection) -> list[dict]:
+    """
+    Compute per-selected-destination coverage status for a distribution run.
+
+    For the given PlatformProjection's connection and its sibling connections
+    (all promotion-enabled Telegram connections for the same organizer's post),
+    return a list of coverage items.
+
+    Each item is a dict:
+      {
+        "connection_id": int,
+        "destination_id": str,
+        "title": str | None,
+        "postability": str,
+        "status": str,            # see rules below
+        "error_detail": str | None,
+        "is_flagged_missing": bool,
+      }
+
+    Status assignment rules (kb-56c2 D1, D2, D6):
+    - bot/agent-tier connections WITH a TelegramPlacement record:
+        return the stored status (placed / failed / skipped-pre-existing-draft)
+    - bot/agent-tier connections WITHOUT a TelegramPlacement record:
+        return "pending" (computed — absence of record = not placed yet)
+    - public-tier connections:
+        return "deep-link" (human-action affordance — NOT placed, NOT pending,
+        NEVER a stored bot/agent record — kb-56c2 D6)
+    - flagged_missing connections:
+        is_flagged_missing=True in the result (status assignment still applies)
+
+    "sent" is NEVER returned — ADR-018 D2 FIRM draft-only firewall.
+    "pending" is NEVER stored — it is computed here.
+
+    Scope: all Telegram promotion-enabled PlatformConnections for the same
+    organizer as the projection's connection, where kinds contains "promotion".
+    This is the "selected destinations" set for the organizer's distribution run.
+
+    ADR-008 D2: no DistributionRun envelope — coverage is per (projection, connection).
+    ADR-008 D3: fail loud; no synthesized fields; no silent fallbacks.
+    ADR-018 D2: no "sent" state.
+    """
+    from syndication.models import (  # noqa: PLC0415
+        PlatformConnection,
+        TelegramPlacement,
+        TelegramPlacementStatus,
+    )
+
+    organizer = projection.connection.organizer
+    post = projection.source_post
+
+    if post is None:
+        return []
+
+    # Fetch all Telegram connections for this organizer and filter for promotion-enabled.
+    # JSON containment (kinds__contains=["promotion"]) is not supported on SQLite,
+    # so we filter in Python after fetching. The set is bounded by organizer scope.
+    all_connections = PlatformConnection.objects.filter(
+        organizer=organizer,
+        platform="telegram",
+    )
+    selected_connections = [conn for conn in all_connections if "promotion" in (conn.kinds or [])]
+
+    # Build a lookup of existing placement records for this post's projections
+    # Key: connection_id → TelegramPlacement (or None)
+    selected_conn_ids = [conn.pk for conn in selected_connections]
+    placement_by_conn: dict[int, object] = {}
+    existing_placements = TelegramPlacement.objects.filter(
+        projection__source_post=post,
+        connection_id__in=selected_conn_ids,
+    ).select_related("connection")
+    for p in existing_placements:
+        placement_by_conn[p.connection_id] = p
+
+    results = []
+    for conn in selected_connections:
+        placement = placement_by_conn.get(conn.pk)
+        postability = conn.postability or ""
+
+        if postability == "public":
+            # Public-tier is a human-action affordance — NOT placed, NOT pending
+            # (kb-56c2 D6 / ADR-018 D2 FIRM).
+            status = "deep-link"
+            error_detail = None
+        elif placement is not None:
+            # bot/agent-tier WITH a placement record: return stored status
+            status = placement.status
+            error_detail = placement.error_detail
+        else:
+            # bot/agent-tier WITHOUT a placement record: computed pending
+            # (ADR-008 D3: absence of record = not placed yet, not silent ghost)
+            status = "pending"
+            error_detail = None
+
+        results.append(
+            {
+                "connection_id": conn.pk,
+                "destination_id": conn.destination_id,
+                "title": conn.title,
+                "postability": postability,
+                "status": status,
+                "error_detail": error_detail,
+                "is_flagged_missing": conn.flagged_missing,
+            }
+        )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Identity token validation (used by Ninja auth callable)
 # ---------------------------------------------------------------------------
 

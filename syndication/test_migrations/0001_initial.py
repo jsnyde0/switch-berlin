@@ -40,6 +40,7 @@ def _create_syndication_tables(apps, schema_editor):
         "AgentPairingToken",
         "ContentVersion",
         "PlatformProjection",
+        "TelegramPlacement",
     ]:
         try:
             model = live_apps.get_model("syndication", model_name)

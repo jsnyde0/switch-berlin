@@ -790,6 +790,123 @@ class PlatformProjection(models.Model):
 
 
 # ---------------------------------------------------------------------------
+# TelegramPlacement model (kb-56c2.1 — coverage tracker server-side foundation)
+# ---------------------------------------------------------------------------
+
+
+class TelegramPlacementStatus(models.TextChoices):
+    """
+    Canonical stored status vocabulary for TelegramPlacement records
+    (kb-56c2.1 — SINGLE resolution point, mirrors TelegramPostability/TelegramDialogType).
+
+    EXACTLY THREE stored values:
+      placed                   — bot-tier: Bot API post acked;
+                                 OR agent-tier: saveDraft acked (server-confirmed via report verb)
+      failed                   — Bot API / saveDraft call failed (error_detail carries detail)
+      skipped-pre-existing-draft — agent's getDraft found an existing draft; saveDraft skipped
+
+    `pending` is NOT stored — it is computed at reconciliation as the absence of
+    a record for a selected bot/agent-tier connection (kb-56c2 D2).
+
+    "sent" does NOT exist — the machine cannot observe the human's native send
+    (ADR-018 D2 FIRM draft-only firewall). Adding "sent" here is FORBIDDEN.
+
+    This is the ONLY definition of these values across the entire project.
+    The bot-tier adapter, the agent-tier report verb, and the reconciliation
+    service all import this class. Do NOT define a local copy elsewhere.
+    """
+
+    PLACED = "placed", _("Placed")
+    FAILED = "failed", _("Failed")
+    SKIPPED_PRE_EXISTING_DRAFT = "skipped-pre-existing-draft", _("Skipped (pre-existing draft)")
+
+
+class TelegramPlacement(models.Model):
+    """
+    Per-(projection × connection) coverage record for the Telegram distribution
+    tracker (kb-56c2.1 C3a foundation).
+
+    Two writers populate this table (kb-56c2 D2):
+    - Bot tier (web-written, inline): `publish_telegram_promotion` adapter writes
+      a placed/failed record when its Bot API call returns. The placement-record
+      write and the projection status/external_id transition must not silently
+      diverge — a Bot-API success with a failed placement write raises (ADR-008 D3).
+    - Agent tier (reported): the agent's distribute command POSTs placement outcomes
+      via `POST /api/telegram/placements`; the verb writes/updates this record.
+
+    Key: unique on (projection × connection). Re-distributing updates in place.
+
+    `pending` is NOT a stored state — it is the reconciled state of a selected
+    machine-observable destination (bot/agent-tier PlatformConnection marked for
+    promotion) that has no TelegramPlacement row yet.
+
+    Public-tier connections NEVER receive a record here (kb-56c2 D6):
+    they are rendered as deep-link human-action affordances by the reconciliation
+    service — not placed, not pending.
+
+    No `writer` field — tier is derived from PlatformConnection.postability
+    (the resolved distribution tier, kb-56c2 D2).
+
+    ADR-018 D2: no "sent" state ever.
+    ADR-008 D3: fail loud; no synthesized fields; no silent fallbacks.
+    ADR-008 D2: no DistributionRun envelope — coverage is per (projection, connection).
+    """
+
+    projection = models.ForeignKey(
+        PlatformProjection,
+        on_delete=models.CASCADE,
+        related_name="telegram_placements",
+        help_text="The PlatformProjection (per-Post, per-connection) this placement is for.",
+    )
+    connection = models.ForeignKey(
+        PlatformConnection,
+        on_delete=models.CASCADE,
+        related_name="telegram_placements",
+        help_text="The Telegram PlatformConnection (destination) this placement targets.",
+    )
+    status = models.CharField(
+        max_length=50,
+        choices=TelegramPlacementStatus.choices,
+        help_text=(
+            "Stored placement status: placed, failed, or skipped-pre-existing-draft. "
+            "EXACTLY three values — 'pending' is computed, 'sent' does NOT exist (ADR-018 D2). "
+            "Single resolution point (kb-56c2.1 — mirrors TelegramPostability/TelegramDialogType)."
+        ),
+    )
+    error_detail = models.TextField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Error message or detail from a failed placement attempt. "
+            "null for placed and skipped-pre-existing-draft records. "
+            "ADR-018 D4: no session credentials or content stored here."
+        ),
+    )
+    placed_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when this placement record was created (first write or update_or_create).",
+    )
+
+    class Meta:
+        ordering = ["-placed_at"]
+        verbose_name = _("telegram placement")
+        verbose_name_plural = _("telegram placements")
+        constraints = [
+            # One record per (projection, connection) pair — unique coverage seam.
+            # Re-distributing updates in place via update_or_create; this constraint
+            # prevents silent duplicate rows that would confuse reconciliation.
+            models.UniqueConstraint(
+                fields=["projection", "connection"],
+                name="syndication_telegramplacement_proj_conn_uniq",
+            ),
+        ]
+
+    def __str__(self):
+        return f"TelegramPlacement(proj={self.projection_id}, conn={self.connection_id}, status={self.status})"
+
+
+# ---------------------------------------------------------------------------
 # Agent credential auth models (ADR-016 D3, kb-a4u.2)
 # ---------------------------------------------------------------------------
 # Bearer key (AgentCredential) is LONG-LIVED + reusable for many exchanges.
