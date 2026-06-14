@@ -843,3 +843,186 @@ class ReconciliationServiceTest(TestCase):
         self.assertEqual(statuses[agent_conn.pk], "pending")
         self.assertIn(public_conn.pk, statuses)
         self.assertEqual(statuses[public_conn.pk], "deep-link")
+
+
+# ---------------------------------------------------------------------------
+# (kb-56c2.6) Multi-topic forum: report verb must resolve by FULL unique key
+# (organizer, platform, destination_id, topic_id)
+# ---------------------------------------------------------------------------
+
+
+class MultiTopicForumPlacementReportTest(TestCase):
+    """
+    Tests for the bug where report_telegram_placements resolved
+    PlatformConnection by destination_id alone, causing
+    MultipleObjectsReturned when a forum had multiple subscribed topics
+    sharing the same destination_id.
+
+    Harness target (a)-(d) from kb-56c2.6 --design.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(
+            username="multi-topic-agent", email="multitopic@example.com"
+        )
+        self.profile = _make_profile(slug="multi-topic-org")
+        from organizers.models import ProfileClaim
+
+        ProfileClaim.objects.create(user=self.user, profile=self.profile)
+        self.token = _issue_identity_token(self.user)
+        self.event = _make_event(slug="multi-topic-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.post = _make_post(self.event)
+
+        # Two forum-topic PlatformConnections sharing the same destination_id
+        # but with distinct topic_id values (simulates a forum with 2 topics).
+        self.conn_topic5 = _make_connection(
+            self.profile,
+            destination_id="-100123",
+            postability="agent",
+            topic_id=5,
+        )
+        self.conn_topic9 = _make_connection(
+            self.profile,
+            destination_id="-100123",
+            postability="agent",
+            topic_id=9,
+        )
+        self.proj_topic5 = _make_ready_promotion_projection(self.conn_topic5, self.post)
+        self.proj_topic9 = _make_ready_promotion_projection(self.conn_topic9, self.post)
+
+    def _post_placements(self, payload, token=None):
+        """POST to the placements verb with identity-token auth."""
+        import json
+
+        if token is None:
+            token = self.token
+        return self.client.post(
+            "/api/telegram/placements",
+            data=json.dumps(payload),
+            content_type="application/json",
+            **_auth_headers(token),
+        )
+
+    def test_a_placement_with_topic_id_writes_to_correct_connection(self):
+        """
+        (a) POSTing a placement item with destination_id=-100123, topic_id=9
+        writes the record on the topic_id=9 connection, NOT the topic_id=5 one.
+        """
+        from syndication.models import TelegramPlacement
+
+        payload = [
+            {
+                "destination_id": "-100123",
+                "topic_id": 9,
+                "status": "placed",
+            }
+        ]
+        response = self._post_placements(payload)
+        self.assertEqual(response.status_code, 200, response.content)
+
+        # Record must exist on topic_id=9 connection
+        placement_topic9 = TelegramPlacement.objects.filter(
+            connection=self.conn_topic9,
+        ).first()
+        self.assertIsNotNone(
+            placement_topic9,
+            "A TelegramPlacement record must be created on the topic_id=9 connection",
+        )
+        self.assertEqual(placement_topic9.status, "placed")
+
+        # No record must exist on topic_id=5 connection
+        placement_topic5 = TelegramPlacement.objects.filter(
+            connection=self.conn_topic5,
+        ).first()
+        self.assertIsNone(
+            placement_topic5,
+            "No TelegramPlacement record must be created on the topic_id=5 connection",
+        )
+
+    def test_b_no_multiple_objects_returned_for_multi_topic_forum(self):
+        """
+        (b) A placement report for a forum destination_id with multiple topic
+        connections must NOT raise MultipleObjectsReturned — the verb must
+        return normally (HTTP 200) with the record written.
+        """
+        payload = [
+            {
+                "destination_id": "-100123",
+                "topic_id": 9,
+                "status": "placed",
+            }
+        ]
+        # This must NOT raise and must NOT return 500
+        response = self._post_placements(payload)
+        self.assertNotEqual(
+            response.status_code,
+            500,
+            "MultipleObjectsReturned must NOT propagate as 500",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def test_c_unresolvable_destination_topic_appends_structured_error(self):
+        """
+        (c) A placement item with an unresolvable (destination_id, topic_id)
+        combination appends a structured error item and the verb returns normally
+        (no 500, no uncaught exception).
+        """
+        import json
+
+        payload = [
+            {
+                "destination_id": "-100123",
+                "topic_id": 999,  # No connection has topic_id=999
+                "status": "placed",
+            }
+        ]
+        response = self._post_placements(payload)
+        self.assertEqual(response.status_code, 200, response.content)
+
+        data = json.loads(response.content)
+        # The verb must return a summary with at least one error item
+        self.assertIn("errors", data, "Response must contain an 'errors' key")
+        self.assertEqual(
+            len(data["errors"]),
+            1,
+            f"Expected 1 error item for unresolvable (destination_id, topic_id=999); got: {data['errors']}",
+        )
+        error = data["errors"][0]
+        self.assertIn("destination_id", error, "Error item must include 'destination_id'")
+        self.assertIn("error", error, "Error item must include 'error' message")
+
+    def test_d_topic_id_none_channel_path_still_resolves(self):
+        """
+        (d) The existing channel/group path (topic_id=None) still resolves
+        correctly after the fix — no regression.
+        """
+        from syndication.models import TelegramPlacement
+
+        # Create a channel-style connection (topic_id=None, distinct destination_id)
+        conn_channel = _make_connection(
+            self.profile,
+            destination_id="-1009876543210",
+            postability="bot",
+            # topic_id defaults to None
+        )
+        proj_channel = _make_ready_promotion_projection(conn_channel, self.post)
+
+        payload = [
+            {
+                "destination_id": "-1009876543210",
+                # No topic_id field — channel path
+                "status": "placed",
+            }
+        ]
+        response = self._post_placements(payload)
+        self.assertEqual(response.status_code, 200, response.content)
+
+        placement = TelegramPlacement.objects.filter(
+            connection=conn_channel,
+        ).first()
+        self.assertIsNotNone(
+            placement,
+            "A TelegramPlacement record must be created for the channel connection",
+        )
+        self.assertEqual(placement.status, "placed")

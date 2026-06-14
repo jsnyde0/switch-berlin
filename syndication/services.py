@@ -344,6 +344,7 @@ def report_telegram_placements(user, placements: list[dict]) -> dict:
 
     for item in placements:
         destination_id = str(item["destination_id"])
+        topic_id = item.get("topic_id", None)
         status = item["status"]
         error_detail = item.get("error_detail", None)
 
@@ -357,18 +358,27 @@ def report_telegram_placements(user, placements: list[dict]) -> dict:
             )
             continue
 
-        # Resolve the PlatformConnection by destination_id + organizer
+        # Resolve the PlatformConnection by the FULL unique key:
+        # (organizer, platform, destination_id, topic_id).
+        # topic_id is None for channels/groups; an int for forum topics.
+        # Catching both DoesNotExist and MultipleObjectsReturned — neither
+        # must propagate as a 500 (ADR-008 D3 fail-loud = structured error).
         try:
             conn = PlatformConnection.objects.get(
                 organizer=organizer,
                 platform="telegram",
                 destination_id=destination_id,
+                topic_id=topic_id,
             )
-        except PlatformConnection.DoesNotExist:
+        except (PlatformConnection.DoesNotExist, PlatformConnection.MultipleObjectsReturned):
             errors.append(
                 {
                     "destination_id": destination_id,
-                    "error": f"No Telegram PlatformConnection found for destination_id={destination_id!r}.",
+                    "topic_id": topic_id,
+                    "error": (
+                        f"No Telegram PlatformConnection found for "
+                        f"destination_id={destination_id!r}, topic_id={topic_id!r}."
+                    ),
                 }
             )
             continue
