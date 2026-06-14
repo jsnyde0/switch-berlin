@@ -479,6 +479,14 @@ def telegram_distribute(message: str, dests: tuple):
         )
 
     config_dir = _get_config_dir()
+
+    # Build a SwitchClient for placement reporting (kb-56c2.3 — C3a co-equal seam).
+    # Fail loud on auth/config error before starting the Telegram session.
+    try:
+        switch_client = SwitchClient()
+    except (AuthError, FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+
     try:
         results = asyncio.run(
             run_distribute(
@@ -487,6 +495,7 @@ def telegram_distribute(message: str, dests: tuple):
                 config_dir=config_dir,
                 message=message,
                 dests=list(dests),
+                switch_client=switch_client,
             )
         )
     except NoSessionError as exc:

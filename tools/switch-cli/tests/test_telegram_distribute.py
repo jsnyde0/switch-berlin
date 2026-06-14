@@ -802,19 +802,24 @@ class TestDistributeCommand:
         mock_tg_client.get_drafts = AsyncMock(return_value=empty_draft)
         mock_tg_client.send_message = AsyncMock()  # spec'd: real method, must never fire
 
+        # Mock SwitchClient so the CLI doesn't try to connect to the fake server
+        mock_switch = MagicMock()
+        mock_switch.report_telegram_placements = MagicMock(return_value={"written": 1, "errors": []})
+
         with patch("switch_cli.telegram.draft.enumerate_postable_dialogs", AsyncMock(return_value=inventory)):
             with patch("switch_cli.telegram.draft.build_authenticated_client", return_value=mock_tg_client):
-                result = runner.invoke(
-                    cli,
-                    [
-                        "telegram",
-                        "distribute",
-                        "--message",
-                        "Test announcement",
-                        "--dest",
-                        "-1002222222222",
-                    ],
-                )
+                with patch("switch_cli.cli.SwitchClient", return_value=mock_switch):
+                    result = runner.invoke(
+                        cli,
+                        [
+                            "telegram",
+                            "distribute",
+                            "--message",
+                            "Test announcement",
+                            "--dest",
+                            "-1002222222222",
+                        ],
+                    )
 
         assert result.exit_code == 0, f"Expected exit 0, got: {result.output!r}, exc: {result.exception}"
         import json
@@ -823,17 +828,446 @@ class TestDistributeCommand:
 
     def test_distribute_fails_loud_no_session(self, runner, temp_config):
         """No session file → error with useful message."""
-        result = runner.invoke(
-            cli,
-            [
-                "telegram",
-                "distribute",
-                "--message",
-                "test",
-                "--dest",
-                "-1002222222222",
-            ],
-        )
+        # Mock SwitchClient so the CLI doesn't try to connect to the fake server
+        mock_switch = MagicMock()
+        mock_switch.report_telegram_placements = MagicMock(return_value={"written": 0, "errors": []})
+
+        with patch("switch_cli.cli.SwitchClient", return_value=mock_switch):
+            result = runner.invoke(
+                cli,
+                [
+                    "telegram",
+                    "distribute",
+                    "--message",
+                    "test",
+                    "--dest",
+                    "-1002222222222",
+                ],
+            )
         assert result.exit_code != 0
         output = result.output + (str(result.exception) if result.exception else "")
         assert "connect" in output.lower(), f"Expected connect hint, got: {output}"
+
+
+# ---------------------------------------------------------------------------
+# Tests for placement-report integration (kb-56c2.3)
+# ---------------------------------------------------------------------------
+
+
+class TestPlacementReporting:
+    """
+    Harness tests for kb-56c2.3: switch-cli distribute reports placement outcomes
+    to the C3a placement-report verb (POST /api/telegram/placements).
+
+    (a) saveDraft ack → POST status=placed with correct payload
+    (b) getDraft pre-existing → POST status=skipped-pre-existing-draft (NOT failed),
+        no saveDraft, no clobber
+    (c) error → POST status=failed with error_detail
+    (d) payload has no session/content fields
+    (e) AST firewall still passes (covered by TestASTFirewall above + extension below)
+    """
+
+    @pytest.mark.asyncio
+    async def test_placed_outcome_posts_placed_status(self):
+        """(a) saveDraft ack → POST status=placed with correct payload (destination_id, status)."""
+        from switch_cli.telegram.draft import distribute
+
+        inventory = [
+            {
+                "chat_id": "-1002222222222",
+                "title": "Secret Group",
+                "type": "group",
+                "topic_id": None,
+                "postability": "agent",
+            }
+        ]
+        message = "Hello from the agent"
+        dests = ["-1002222222222"]
+
+        empty_draft = _make_mock_draft(is_empty=True)
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(return_value=empty_draft)
+        mock_client.send_message = AsyncMock()
+
+        # Mock SwitchClient with report method
+        mock_switch_client = MagicMock()
+        mock_switch_client.report_telegram_placements = MagicMock(return_value={"written": 1, "errors": []})
+
+        results = await distribute(
+            client=mock_client,
+            message=message,
+            dests=dests,
+            postable_inventory=inventory,
+            switch_client=mock_switch_client,
+        )
+
+        # Verify the report was called with the correct payload
+        mock_switch_client.report_telegram_placements.assert_called_once()
+        call_args = mock_switch_client.report_telegram_placements.call_args
+        placements = call_args.args[0] if call_args.args else call_args.kwargs.get("placements")
+        assert placements is not None, "report_telegram_placements must be called with placements list"
+        assert len(placements) == 1
+        placement = placements[0]
+        assert placement["destination_id"] == "-1002222222222"
+        assert placement["status"] == "placed"
+
+    @pytest.mark.asyncio
+    async def test_skipped_outcome_posts_skipped_not_failed(self):
+        """(b) getDraft pre-existing → POST status=skipped-pre-existing-draft, NOT failed."""
+        from switch_cli.telegram.draft import distribute
+
+        inventory = [
+            {
+                "chat_id": "-1002222222222",
+                "title": "Secret Group",
+                "type": "group",
+                "topic_id": None,
+                "postability": "agent",
+            }
+        ]
+        existing_draft = _make_mock_draft(is_empty=False)
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(return_value=existing_draft)
+
+        mock_switch_client = MagicMock()
+        mock_switch_client.report_telegram_placements = MagicMock(return_value={"written": 1, "errors": []})
+
+        results = await distribute(
+            client=mock_client,
+            message="test",
+            dests=["-1002222222222"],
+            postable_inventory=inventory,
+            switch_client=mock_switch_client,
+        )
+
+        # Must report skipped, NOT failed
+        mock_switch_client.report_telegram_placements.assert_called_once()
+        call_args = mock_switch_client.report_telegram_placements.call_args
+        placements = call_args.args[0] if call_args.args else call_args.kwargs.get("placements")
+        assert len(placements) == 1
+        placement = placements[0]
+        assert placement["status"] == "skipped-pre-existing-draft", (
+            f"Pre-existing draft must report 'skipped-pre-existing-draft', not '{placement['status']}'"
+        )
+        assert placement["status"] != "failed", "Skipped case must NOT be reported as failed"
+
+        # No saveDraft called (no clobber)
+        existing_draft.set_message.assert_not_called()
+
+        # Result status is also correct
+        assert results[0]["status"] == "skipped-pre-existing-draft"
+
+    @pytest.mark.asyncio
+    async def test_error_outcome_posts_failed_with_error_detail(self):
+        """(c) Error during placement → POST status=failed with error_detail."""
+        from switch_cli.telegram.draft import distribute
+
+        inventory = [
+            {
+                "chat_id": "-1002222222222",
+                "title": "Secret Group",
+                "type": "group",
+                "topic_id": None,
+                "postability": "agent",
+            }
+        ]
+
+        # Simulate a Telethon error during get_drafts
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(side_effect=Exception("Connection error"))
+
+        mock_switch_client = MagicMock()
+        mock_switch_client.report_telegram_placements = MagicMock(return_value={"written": 1, "errors": []})
+
+        results = await distribute(
+            client=mock_client,
+            message="test",
+            dests=["-1002222222222"],
+            postable_inventory=inventory,
+            switch_client=mock_switch_client,
+        )
+
+        # Must report failed with error_detail
+        mock_switch_client.report_telegram_placements.assert_called_once()
+        call_args = mock_switch_client.report_telegram_placements.call_args
+        placements = call_args.args[0] if call_args.args else call_args.kwargs.get("placements")
+        assert len(placements) == 1
+        placement = placements[0]
+        assert placement["status"] == "failed"
+        assert "error_detail" in placement
+        assert placement["error_detail"] is not None
+        assert len(placement["error_detail"]) > 0, "error_detail must be non-empty for failed placement"
+
+        # Result status is also failed
+        assert results[0]["status"] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_placement_payload_has_no_session_or_content_fields(self):
+        """(d) Placement report payload has no session/content fields (ADR-018 D4)."""
+        from switch_cli.telegram.draft import distribute
+
+        inventory = [
+            {
+                "chat_id": "-1002222222222",
+                "title": "Secret Group",
+                "type": "group",
+                "topic_id": None,
+                "postability": "agent",
+            }
+        ]
+        empty_draft = _make_mock_draft(is_empty=True)
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(return_value=empty_draft)
+
+        captured_placements = []
+
+        def capture_report(placements):
+            captured_placements.extend(placements)
+            return {"written": len(placements), "errors": []}
+
+        mock_switch_client = MagicMock()
+        mock_switch_client.report_telegram_placements = MagicMock(side_effect=capture_report)
+
+        await distribute(
+            client=mock_client,
+            message="test message",
+            dests=["-1002222222222"],
+            postable_inventory=inventory,
+            switch_client=mock_switch_client,
+        )
+
+        FORBIDDEN_FIELDS = {"session", "session_string", "access_hash", "content", "message_text", "message"}
+        permitted = {"destination_id", "topic_id", "status", "error_detail"}
+
+        assert captured_placements, "No placements were captured"
+        for placement in captured_placements:
+            for forbidden in FORBIDDEN_FIELDS:
+                assert forbidden not in placement, (
+                    f"Forbidden field '{forbidden}' found in placement payload: {placement} "
+                    "(ADR-018 D4 violation — no session/content in report payload)"
+                )
+            extra = set(placement.keys()) - permitted
+            assert not extra, (
+                f"Unexpected fields in placement payload: {extra} — "
+                f"allowed: {permitted}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_placed_payload_includes_topic_id_for_forum(self):
+        """(a) Forum topic placement → payload includes topic_id."""
+        from switch_cli.telegram.draft import distribute
+
+        topic_id = 101
+        inventory = [
+            {
+                "chat_id": "-1003333333333",
+                "title": "General Discussion",
+                "type": "forum_topic",
+                "topic_id": topic_id,
+                "postability": "agent",
+            }
+        ]
+        empty_draft = _make_mock_draft(is_empty=True)
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(return_value=empty_draft)
+
+        mock_switch_client = MagicMock()
+        mock_switch_client.report_telegram_placements = MagicMock(return_value={"written": 1, "errors": []})
+
+        await distribute(
+            client=mock_client,
+            message="Forum announcement",
+            dests=[f"-1003333333333:{topic_id}"],
+            postable_inventory=inventory,
+            switch_client=mock_switch_client,
+        )
+
+        call_args = mock_switch_client.report_telegram_placements.call_args
+        placements = call_args.args[0] if call_args.args else call_args.kwargs.get("placements")
+        assert len(placements) == 1
+        placement = placements[0]
+        assert placement["destination_id"] == "-1003333333333"
+        assert placement["topic_id"] == topic_id
+        assert placement["status"] == "placed"
+
+    @pytest.mark.asyncio
+    async def test_report_called_once_per_destination(self):
+        """Report is called once with all outcomes after multi-dest distribution."""
+        from switch_cli.telegram.draft import distribute
+
+        inventory = _make_postable_inventory()
+        empty_draft_1 = _make_mock_draft(is_empty=True)
+        empty_draft_2 = _make_mock_draft(is_empty=True)
+
+        mock_client = MagicMock(spec=TelegramClient)
+        mock_client.get_drafts = AsyncMock(side_effect=[empty_draft_1, empty_draft_2])
+
+        mock_switch_client = MagicMock()
+        mock_switch_client.report_telegram_placements = MagicMock(return_value={"written": 2, "errors": []})
+
+        await distribute(
+            client=mock_client,
+            message="test",
+            dests=["-1002222222222", "-1003333333333:101"],
+            postable_inventory=inventory,
+            switch_client=mock_switch_client,
+        )
+
+        # Report called once with all placements
+        mock_switch_client.report_telegram_placements.assert_called_once()
+        call_args = mock_switch_client.report_telegram_placements.call_args
+        placements = call_args.args[0] if call_args.args else call_args.kwargs.get("placements")
+        assert len(placements) == 2
+
+
+class TestSwitchClientPlacementMethod:
+    """
+    Unit tests for SwitchClient.report_telegram_placements method.
+    Mirrors TestPushTargetsCorrectRoute from test_telegram_sync.py.
+    """
+
+    def test_report_method_posts_to_placements_route(self, temp_config):
+        """report_telegram_placements POSTs to /api/telegram/placements."""
+        from switch_cli.client import SwitchClient
+
+        placements = [
+            {
+                "destination_id": "-1002222222222",
+                "topic_id": None,
+                "status": "placed",
+                "error_detail": None,
+            }
+        ]
+
+        with patch("switch_cli.client.httpx.post") as mock_post:
+            mock_post.side_effect = [
+                # First call: token exchange
+                MagicMock(status_code=200, json=MagicMock(return_value={"identity_token": "fake-token"})),
+                # Second call: placement report
+                MagicMock(status_code=200, json=MagicMock(return_value={"written": 1, "errors": []})),
+            ]
+            client = SwitchClient(base_url="http://fake-switch.test", api_key="fake-key")
+            result = client.report_telegram_placements(placements)
+
+            call_args = mock_post.call_args_list
+            assert len(call_args) == 2, f"Expected 2 POST calls (exchange + report), got: {len(call_args)}"
+
+            token_url = call_args[0].args[0]
+            assert "/api/agents/token" in token_url
+
+            report_url = call_args[1].args[0]
+            assert report_url.endswith("/api/telegram/placements"), (
+                f"Report must target /api/telegram/placements, got: {report_url}"
+            )
+
+            assert result["written"] == 1
+
+    def test_report_payload_sent_as_json(self, temp_config):
+        """report_telegram_placements sends the placements list as JSON body."""
+        from switch_cli.client import SwitchClient
+
+        placements = [
+            {"destination_id": "-1002222222222", "topic_id": None, "status": "placed", "error_detail": None}
+        ]
+
+        with patch("switch_cli.client.httpx.post") as mock_post:
+            mock_post.side_effect = [
+                MagicMock(status_code=200, json=MagicMock(return_value={"identity_token": "fake-token"})),
+                MagicMock(status_code=200, json=MagicMock(return_value={"written": 1, "errors": []})),
+            ]
+            client = SwitchClient(base_url="http://fake-switch.test", api_key="fake-key")
+            client.report_telegram_placements(placements)
+
+            report_call = mock_post.call_args_list[1]
+            sent_json = report_call.kwargs.get("json")
+            assert sent_json == placements, f"Payload must match placements list, got: {sent_json}"
+
+
+class TestASTFirewallExtendedScope:
+    """
+    (e) AST firewall — extended to cover any new module added for placement reporting.
+
+    The existing TestASTFirewall covers draft.py. If a new module is introduced
+    for reporting, it must also be added to the scan scope. This test class
+    validates that the firewall scan covers all distribute-related files.
+
+    Per kb-56c2.3 design: no new module is introduced — reporting lives in
+    client.py (SwitchClient) and draft.py. This test verifies draft.py is
+    still clean (confirming the scope hasn't escaped the firewall).
+    """
+
+    AUTO_SEND_NAMES = {
+        "send_message",
+        "send_file",
+        "send_photo",
+        "send_document",
+        "forward_messages",
+    }
+    FORBIDDEN_ATTRIBUTE_NAMES = {
+        "send_message",
+        "send_file",
+        "send_photo",
+        "send_document",
+        "forward_messages",
+        "send",
+    }
+
+    def _scan_file(self, path: Path) -> list[str]:
+        """Scan a Python file for auto-send references."""
+        source = path.read_text()
+        tree = ast.parse(source)
+        violations = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute):
+                if node.attr in self.FORBIDDEN_ATTRIBUTE_NAMES:
+                    violations.append(
+                        f"Line {node.lineno}: attribute access '.{node.attr}' "
+                        f"in {path.name} (potential auto-send — ADR-018 D2 FIRM)"
+                    )
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id in self.AUTO_SEND_NAMES:
+                    violations.append(
+                        f"Line {node.lineno}: direct call '{node.func.id}' "
+                        f"in {path.name} (potential auto-send — ADR-018 D2 FIRM)"
+                    )
+        return violations
+
+    def test_draft_module_clean_in_extended_scan(self):
+        """draft.py has no auto-send references — confirmed in extended scope."""
+        source_path = Path(inspect.getfile(draft_module))
+        violations = self._scan_file(source_path)
+        assert not violations, (
+            "draft.py contains auto-send references (ADR-018 D2 FIRM violation):\n"
+            + "\n".join(violations)
+        )
+
+    def test_all_distribute_modules_have_no_auto_send(self):
+        """
+        Extended scope: all modules that participate in the distribute pipeline
+        (draft.py, enumerate.py, session.py, client.py) have no auto-send references.
+
+        client.py now carries report_telegram_placements and is part of the
+        distribute path; including it closes the conceptual firewall gap at zero
+        cost so a future Telegram send call there could not slip past (kb-56c2.3).
+        """
+        import switch_cli.client as client_module
+        import switch_cli.telegram.enumerate as enumerate_module
+        import switch_cli.telegram.session as session_module
+
+        modules_to_scan = [
+            ("draft.py", Path(inspect.getfile(draft_module))),
+            ("enumerate.py", Path(inspect.getfile(enumerate_module))),
+            ("session.py", Path(inspect.getfile(session_module))),
+            ("client.py", Path(inspect.getfile(client_module))),
+        ]
+
+        all_violations = []
+        for module_name, path in modules_to_scan:
+            violations = self._scan_file(path)
+            all_violations.extend(violations)
+
+        assert not all_violations, (
+            "Auto-send references found in distribute pipeline modules "
+            "(ADR-018 D2 FIRM violation):\n"
+            + "\n".join(all_violations)
+        )

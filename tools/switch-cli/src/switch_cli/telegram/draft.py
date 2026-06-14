@@ -144,6 +144,7 @@ async def distribute(
     message: str,
     dests: list[str],
     postable_inventory: list[dict],
+    switch_client=None,
 ) -> list[dict]:
     """
     Multi-destination draft placement.
@@ -152,20 +153,29 @@ async def distribute(
     inventory, then for each destination: getDraft → if empty, saveDraft; if
     pre-existing, record skipped-pre-existing-draft and warn (no clobber).
 
+    After all placements are attempted, reports outcomes to the Switch API via
+    switch_client.report_telegram_placements() if switch_client is provided
+    (kb-56c2.3 — C3a co-equal seam, ADR-016 D3).
+
     Args:
         client: authenticated Telethon TelegramClient.
         message: the draft body text to place.
         dests: list of destination strings ('<chat_id>' or '<chat_id>:<topic_id>').
         postable_inventory: flat list from enumerate_postable_dialogs.
+        switch_client: optional SwitchClient instance for reporting outcomes.
+            If provided, POSTs each placement outcome to the C3a placement-report
+            verb after all draft placements are resolved. Payload is METADATA-ONLY
+            (no session/content — ADR-018 D4).
 
     Returns:
         List of per-destination result dicts with keys: chat_id, topic_id, status.
-        status is 'placed' or 'skipped-pre-existing-draft'.
+        status is 'placed', 'skipped-pre-existing-draft', or 'failed'.
 
     Raises:
         UnknownDestinationError if any --dest is not in the inventory (ADR-008 D3).
 
     D1 (FIRM, ADR-018 D2): never calls send_message or any auto-send variant.
+    D4 (kb-56c2.3): report payload contains NO session/content fields (ADR-018 D4).
     """
     # Validate ALL destinations before placing any draft (fail-fast, ADR-008 D3)
     resolved_entries = []
@@ -173,11 +183,35 @@ async def distribute(
         entry = _resolve_dest(dest, postable_inventory)
         resolved_entries.append(entry)
 
-    # Place drafts for each resolved destination
+    # Place drafts for each resolved destination; catch errors for failed report
     results = []
     for entry in resolved_entries:
-        result = await _place_draft(client=client, entry=entry, message=message)
+        try:
+            result = await _place_draft(client=client, entry=entry, message=message)
+        except Exception as exc:
+            result = {
+                "chat_id": entry["chat_id"],
+                "topic_id": entry.get("topic_id"),
+                "status": "failed",
+                "error_detail": str(exc),
+            }
         results.append(result)
+
+    # Report outcomes to the Switch API (kb-56c2.3 — C3a co-equal seam)
+    # Payload shape: {destination_id, topic_id?, status, error_detail?}
+    # METADATA-ONLY — no session/content fields (ADR-018 D4).
+    if switch_client is not None:
+        placement_report = []
+        for result in results:
+            item = {
+                "destination_id": result["chat_id"],
+                "topic_id": result.get("topic_id"),
+                "status": result["status"],
+            }
+            if result.get("error_detail") is not None:
+                item["error_detail"] = result["error_detail"]
+            placement_report.append(item)
+        switch_client.report_telegram_placements(placement_report)
 
     return results
 
@@ -188,6 +222,7 @@ async def run_distribute(
     config_dir: str,
     message: str,
     dests: list[str],
+    switch_client=None,
 ) -> list[dict]:
     """
     Entry point for the `telegram distribute` CLI command.
@@ -195,8 +230,15 @@ async def run_distribute(
     1. Load session string — fail loud if missing (ADR-008 D3).
     2. Build an authenticated Telethon client.
     3. Enumerate the live postable inventory.
-    4. Call distribute() to place drafts.
+    4. Call distribute() to place drafts and report outcomes.
     5. Return the placement results.
+
+    Args:
+        switch_client: optional SwitchClient for reporting placement outcomes
+            to the C3a placement-report verb (kb-56c2.3). If provided, outcomes
+            are POSTed to POST /api/telegram/placements after each destination
+            is resolved. If omitted, no reporting occurs (e.g. in tests that
+            don't need the report side-effect).
 
     Raises:
         NoSessionError if no session file found.
@@ -219,4 +261,5 @@ async def run_distribute(
             message=message,
             dests=dests,
             postable_inventory=postable_inventory,
+            switch_client=switch_client,
         )

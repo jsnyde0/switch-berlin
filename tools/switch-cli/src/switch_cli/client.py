@@ -179,6 +179,27 @@ class SwitchClient:
         )
         return self._check(response)
 
+    def report_telegram_placements(self, placements: list[dict]) -> dict:
+        """
+        POST /api/telegram/placements — report agent-tier placement outcomes.
+
+        Payload: list of dicts with keys destination_id, status, topic_id?, error_detail?.
+        The payload is METADATA-ONLY — no session_string, access_hash, or content
+        (ADR-018 D4 / kb-56c2.1 D2 FIRM). The server's extra="forbid" schema will 422
+        on any forbidden field.
+
+        status values: {placed, failed, skipped-pre-existing-draft}.
+        "sent" is NOT a valid status (ADR-018 D2 FIRM draft-only firewall).
+
+        Returns dict with written count and per-item errors list.
+        """
+        response = httpx.post(
+            f"{self._base_url}/api/telegram/placements",
+            json=placements,
+            headers=self._headers(),
+        )
+        return self._check(response)
+
 
 def redeem_pairing_token(pairing_token: str, base_url: str = None) -> str:
     """
