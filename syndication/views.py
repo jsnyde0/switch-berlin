@@ -2636,3 +2636,68 @@ def post_projection_batch_publish(request, pk):
     if request.headers.get("HX-Request"):
         return _post_syndication_fragment_response(request, post)
     return redirect("syndication:post-hub", pk=post.pk)
+
+
+# ---------------------------------------------------------------------------
+# Coverage view (kb-56c2.2)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def coverage(request, pk):
+    """
+    Render the per-distribution-run coverage surface for a Telegram projection.
+
+    Reads reconcile_telegram_coverage() for the given projection and renders
+    per-destination status with an honest label for each of the four machine
+    states (placed, failed, pending, skipped-pre-existing-draft).
+
+    Constraints (FIRM):
+    - ADR-018 D2: no "sent" anywhere in the rendered HTML.
+    - ADR-008 D3: vanished/flagged_missing destinations rendered flagged-loud,
+      never silently dropped. Status driven from server reconcile output, never
+      an optimistic client-side flip.
+    - kb-56c2 D6: public-tier destinations render as a deep-link affordance
+      ("open & post manually"), never placed/pending.
+    - kb-56c2 D3: send-checklist = agent-tier placed + public-tier, filtered
+      by PlatformConnection.postability; bot-tier excluded; agent-pending excluded.
+      Ticking is client-only, no persistence.
+    - kb-56c2 D5: forum rows are forum-level (one row per forum connection).
+    """
+    from syndication.services import reconcile_telegram_coverage
+
+    projection = get_object_or_404(PlatformProjection, pk=pk)
+
+    # Authorization: user must have a claim on the organizer that owns the projection
+    from organizers.models import ProfileClaim
+
+    owned_profile_ids = ProfileClaim.objects.filter(
+        user=request.user,
+        rejected_at__isnull=True,
+    ).values_list("profile_id", flat=True)
+
+    if projection.connection.organizer_id not in owned_profile_ids:
+        from django.http import Http404
+
+        raise Http404
+
+    # Get per-destination coverage items from the reconciliation service
+    coverage_items = reconcile_telegram_coverage(projection)
+
+    # Build the send-checklist: agent-tier placed + public-tier destinations
+    # (D3: bot-tier excluded — bot already sent; agent-pending excluded — no draft yet)
+    send_checklist = [
+        item
+        for item in coverage_items
+        if (item["postability"] == "agent" and item["status"] == "placed") or item["postability"] == "public"
+    ]
+
+    return render(
+        request,
+        "syndication/coverage.html",
+        {
+            "projection": projection,
+            "coverage_items": coverage_items,
+            "send_checklist": send_checklist,
+        },
+    )

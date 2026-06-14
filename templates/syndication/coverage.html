@@ -1,0 +1,178 @@
+{% extends "layouts/_default.html" %}
+{% load i18n %}
+{% block title %}
+  {% trans "Coverage" %} — Switch
+{% endblock %}
+{% block content %}
+  {% comment %}
+    Coverage view (kb-56c2.2).
+    Renders per-destination coverage status for a Telegram distribution run.
+    ADR-018 D2 FIRM: no "sent" badge anywhere — the machine cannot observe the human's native send.
+    ADR-008 D3: vanished (flagged_missing) destinations rendered flagged-loud, never silently dropped.
+    kb-56c2 D6: public-tier = deep-link affordance, never placed/pending.
+    kb-56c2 D3: send-checklist = agent-tier placed + public-tier; ticking is client-only (no persistence).
+    kb-56c2 D5: forum rows are forum-level.
+  {% endcomment %}
+  <div class="max-w-3xl mx-auto pt-10">
+    {# ── Header ──────────────────────────────────────────────────── #}
+    <div class="flex items-start justify-between gap-6 mb-8">
+      <div>
+        <p class="kb-eyebrow kb-eyebrow-accent mb-3">{% trans "Studio" %}</p>
+        <h1 class="kb-display text-[40px] font-light leading-tight">{% trans "Coverage" %}</h1>
+        <p class="kb-field-hint mt-3 max-w-[52ch]">
+          {% trans "Per-destination status for this distribution run. Bot and agent-tier show machine-confirmed states. Public-tier destinations need a manual post." %}
+        </p>
+      </div>
+    </div>
+    {# ── Coverage list ───────────────────────────────────────────── #}
+    {% if coverage_items %}
+      <section class="mb-10" aria-labelledby="coverage-heading">
+        <h2 class="kb-eyebrow kb-eyebrow-strong tracking-[0.22em] mb-4"
+            id="coverage-heading">{% trans "Destinations" %}</h2>
+        <div class="flex flex-col">
+          {% for item in coverage_items %}
+            <div class="kb-bracketed-top py-4 {% if forloop.last %}kb-bracketed-bottom{% endif %}"
+                 data-connection-pk="{{ item.connection_id }}"
+                 data-postability="{{ item.postability }}"
+                 data-status="{{ item.status }}">
+              {% if item.is_flagged_missing %}
+                {# ADR-008 D3: vanished — LOUD flag, not silent #}
+                <div class="flex items-start gap-3" data-vanished>
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
+                    <span class="kb-tag"
+                          style="color: var(--kb-error, #f87171);
+                                 border-color: var(--kb-error, #f87171)">
+                      {% trans "Destination vanished — no longer visible in last sync" %}
+                    </span>
+                    <span class="kb-field-hint">
+                      {% if item.postability == "public" %}
+                        {% trans "Open & post manually" %}
+                      {% elif item.status == "placed" %}
+                        {% trans "Placed" %}
+                      {% elif item.status == "failed" %}
+                        {% trans "Failed" %}
+                        {% if item.error_detail %}— {{ item.error_detail }}{% endif %}
+                      {% elif item.status == "skipped-pre-existing-draft" %}
+                        {% trans "Skipped (pre-existing draft)" %}
+                      {% else %}
+                        {% trans "Pending" %}
+                      {% endif %}
+                    </span>
+                  </div>
+                </div>
+              {% elif item.postability == "public" %}
+                {# Public-tier: deep-link affordance — NEVER placed/pending (kb-56c2 D6 / ADR-018 D2) #}
+                <div class="flex items-start gap-3" data-public-tier>
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
+                    <span class="kb-tag kb-tag-accent">{% trans "Open & post manually" %}</span>
+                    <span class="kb-field-hint">{% trans "Public channel — use the deep-link to open Telegram and post manually." %}</span>
+                    {% if item.destination_id %}
+                      <a href="tg://resolve?domain={{ item.destination_id|slice:"1:" }}"
+                         class="kb-field-hint underline"
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         data-deep-link>{% trans "Open in Telegram" %}</a>
+                    {% endif %}
+                  </div>
+                </div>
+              {% elif item.status == "placed" %}
+                {# Placed: machine-confirmed #}
+                <div class="flex items-start gap-3" data-status="placed">
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
+                    <span class="kb-tag"
+                          style="color: var(--kb-success, #4ade80);
+                                 border-color: var(--kb-success, #4ade80)">{% trans "Placed" %}</span>
+                    <span class="kb-field-hint">
+                      {% if item.postability == "agent" %}
+                        {% trans "Draft placed by agent — open Telegram and publish natively." %}
+                      {% else %}
+                        {% trans "Published via bot." %}
+                      {% endif %}
+                    </span>
+                  </div>
+                </div>
+              {% elif item.status == "failed" %}
+                {# Failed: machine-confirmed failure #}
+                <div class="flex items-start gap-3" data-status="failed">
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
+                    <span class="kb-tag"
+                          style="color: var(--kb-error, #f87171);
+                                 border-color: var(--kb-error, #f87171)">{% trans "Failed" %}</span>
+                    {% if item.error_detail %}<span class="kb-field-hint">{{ item.error_detail }}</span>{% endif %}
+                  </div>
+                </div>
+              {% elif item.status == "skipped-pre-existing-draft" %}
+                {# Skipped: pre-existing draft found — distinct from failed #}
+                <div class="flex items-start gap-3"
+                     data-status="skipped-pre-existing-draft">
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
+                    <span class="kb-tag">{% trans "Skipped (pre-existing draft)" %}</span>
+                    <span class="kb-field-hint">{% trans "A draft already existed — placement skipped to avoid overwrite." %}</span>
+                  </div>
+                </div>
+              {% else %}
+                {# Pending: selected but no record yet — honest absence-of-record state #}
+                <div class="flex items-start gap-3" data-status="pending">
+                  <div class="flex flex-col gap-1 min-w-0">
+                    <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
+                    <span class="kb-tag" style="opacity: 0.6">{% trans "Pending" %}</span>
+                    <span class="kb-field-hint">{% trans "Distribution not yet confirmed for this destination." %}</span>
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% else %}
+      <div class="py-20 text-center">
+        <p class="kb-eyebrow mb-6 text-[var(--kb-ink-faint)]">{% trans "No destinations selected for this run" %}</p>
+      </div>
+    {% endif %}
+    {# ── Send-checklist ──────────────────────────────────────────── #}
+    {# kb-56c2 D3: agent-tier placed + public-tier; ticking is client-only, no persistence #}
+    {% if send_checklist %}
+      <section class="mb-10" aria-labelledby="send-checklist-heading">
+        <h2 class="kb-eyebrow kb-eyebrow-strong tracking-[0.22em] mb-4"
+            id="send-checklist-heading">{% trans "Send checklist" %}</h2>
+        <p class="kb-field-hint mb-4 max-w-[52ch]">
+          {% trans "These destinations need a human action. Tick each after publishing natively." %}
+        </p>
+        <div class="flex flex-col">
+          {% for item in send_checklist %}
+            <div class="kb-bracketed-top py-4 {% if forloop.last %}kb-bracketed-bottom{% endif %}"
+                 data-checklist-item
+                 data-checklist-postability="{{ item.postability }}">
+              {# Client-only checkbox — no hx-post, no form POST, ticking does NOT mutate coverage records #}
+              <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox"
+                       class="kb-check mt-0.5 shrink-0"
+                       data-checklist-tick
+                       aria-label="{% trans "Mark as actioned:" %} {{ item.title|default:item.destination_id }}">
+                <div class="flex flex-col gap-1 min-w-0">
+                  <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
+                  {% if item.postability == "public" %}
+                    <span class="kb-field-hint">{% trans "Open & post manually" %}</span>
+                    {% if item.destination_id %}
+                      <a href="tg://resolve?domain={{ item.destination_id|slice:"1:" }}"
+                         class="kb-field-hint underline"
+                         target="_blank"
+                         rel="noopener noreferrer">{% trans "Open in Telegram" %}</a>
+                    {% endif %}
+                  {% else %}
+                    <span class="kb-field-hint">{% trans "Draft placed — open Telegram and publish natively." %}</span>
+                  {% endif %}
+                </div>
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  </div>
+{% endblock content %}
