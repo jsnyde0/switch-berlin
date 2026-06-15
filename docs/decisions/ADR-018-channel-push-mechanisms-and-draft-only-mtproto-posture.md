@@ -1,6 +1,6 @@
 # ADR-018: Syndication channel push mechanisms and the draft-only MTProto posture
 
-**Status:** Accepted 2026-06-11
+**Status:** Accepted 2026-06-11 (D5 added 2026-06-15)
 **Parent:** [ADR-016 — outbound syndication architecture](ADR-016-outbound-syndication-architecture-event-post-projections.md) (the data model + publish lifecycle this ADR gives a *transport mechanism* to — ADR-016 owns what a projection IS and its state machine; this ADR owns how a projection physically reaches the destination platform); [ADR-011 D1 — personal-agent layer](ADR-011-personal-agent-layer-additive.md) (agent-extended scope may be agent-only — the saveDraft tier is such a capability); [ADR-017 D1 — agent is the user's delegate](ADR-017-authorization-edit-publish-policy.md) (the agent acts with the user's authority — here, on the user's own Telegram account)
 **Scope:** arch — how an outbound projection is *physically delivered* to a destination platform, and the ToS-risk posture of acting on a user's own messaging account. Distinct from ADR-016 (the canonical data model, projection lifecycle, and publish state machine) and from ADR-017 (who is *authorized* to publish). This ADR governs *transport + risk*, not model, lifecycle, or authz.
 
@@ -122,12 +122,38 @@ The `saveDraft` capability runs in the **agent/CLI on the user's own machine**, 
 
 - A server-side session-custody model emerges with acceptable security/consent properties (e.g. user-held keys, scoped delegation) — D4 would revisit whether the capability can move server-side without concentrating personal-account risk.
 
+### D5: The public/deep-link tier is outside coverage machine-state — a human-action affordance, never `placed`, never `pending`
+
+**Firmness: FIRM** — an application of D2 (draft-only firewall / unobservable send) and ADR-008 D3 (fail-loud, no fabricated state) to D1's tier enum. (Added 2026-06-15; promoted from kb-56c2 D6, decided 2026-06-14.)
+
+D1 defines three delivery tiers. The **bot** and **agent** tiers are machine-observable — bot at Bot-API call-return, agent via the `saveDraft` outcome the local client reports back. The **public** tier is NOT: a zero-auth `tg://` deep-link is offered, and the human opens it and posts manually. The machine never executes the post and cannot observe whether it happened — identical to the native send under D2. A public-tier destination therefore must NEVER receive a coverage machine-state:
+
+- **not `placed`** — the machine offered a link but placed nothing it can confirm; a `placed`/`delivered` badge here is fabricated state, the same firewall violation as a "sent" badge (D2);
+- **not `pending`** — a permanent silent `pending` is indistinguishable from never-distributed, an ADR-008 D3 silent-integrity gap (the destination is selected but no record will ever arrive).
+
+Instead it renders as an explicit deep-link human-action affordance ("open & post manually") and joins the send-checklist alongside agent-tier placed drafts; it is **excluded from the `pending` reconciliation**. Any per-tier status / coverage / analytics surface built over D1's three tiers MUST treat the public tier this way.
+
+**Rationale (incl. why this is canonical, not per-feature judgment):** One could hold this is merely an instance of ADR-008 D3 + D2 and needs no separate statement. It does not hold: the kb-56c2 round-1 adversarial review showed the *default* coverage-model judgment FAILS here — the natural two-writer model silently drops every public destination into `pending`, and only fresh-context review caught it. "This tier is unobservable-by-construction" is a non-obvious consequence of D1+D2 that a feature author reasoning over "three delivery tiers" will not re-derive; canonicalizing it is what prevents recurrence. The decision is forward-binding on every future per-tier status surface — the cross-cutting test for L3.
+
+**Alternatives:**
+
+| Alternative | Warrant | Why rejected |
+|---|---|---|
+| Give public-tier a `placed`/`offered` machine state when the deep-link is shown | `direct:` ADR-018 D2 | The machine offered a link, placed nothing it can confirm; a machine state here is fabricated — the same firewall violation as a "sent" badge. |
+| Leave public-tier as a computed `pending` (no record) | `direct:` ADR-008 D3 | A permanent silent `pending` is indistinguishable from never-distributed — a silent-integrity gap. |
+| Leave it to per-feature judgment (no canonical statement) | `direct:` kb-56c2 round-1 adversarial-review | The default coverage-model judgment already produced the silent-ghost bug once; only fresh-context review caught it. Canonicalization prevents recurrence. |
+
+**What would invalidate this:**
+
+- Telegram exposes a deep-link callback (or any read-back) that confirms the human posted, making the public tier machine-observable — at which point the tier could gain a real machine-confirmed state and this exclusion is revisited.
+
 ## canonical_refs
 
 - [ADR-016 — outbound syndication architecture](ADR-016-outbound-syndication-architecture-event-post-projections.md) — D3 (co-equal API), D4 (projection→PlatformConnection destination), D5 (publish lifecycle); the data model + lifecycle this ADR transports.
 - [ADR-011 D1](ADR-011-personal-agent-layer-additive.md) — agent-extended scope may be agent-only (D4 relies on this).
 - [ADR-017 D1](ADR-017-authorization-edit-publish-policy.md) — agent is the user's delegate (the agent acts on the user's own account).
 - [ADR-008 D2](ADR-008-code-posture-refactor-hard-fail-loud.md) — concrete-not-speculative (D1's per-tier divergence is observed, not anticipated).
-- [ADR-008 D3](ADR-008-code-posture-refactor-hard-fail-loud.md) — fail-loud / honest surfacing (D3 risk disclosure).
+- [ADR-008 D3](ADR-008-code-posture-refactor-hard-fail-loud.md) — fail-loud / honest surfacing (D3 risk disclosure; D5 no-fabricated-state + no-silent-pending-ghost).
+- Coverage-tracker epic **kb-56c2** (D5 promoted from its D6; the round-1 adversarial review that surfaced the public-tier silent-pending-ghost is D5's warrant).
 - Spike bead **kb-mztq** — the live validation (saveDraft into private member-supergroups, own broadcast channels, and forum topics; deep-link prefill; the "can you post" filter).
 - `core.telegram.org/api/obtaining_api_id`, `/api/drafts`, `/api/links`, `/api/terms` — external spec for saveDraft semantics, draft sync, deep-link prefill, and flood/spam enforcement.
