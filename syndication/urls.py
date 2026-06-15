@@ -71,7 +71,7 @@ urlpatterns = [
     # --- Destination picker (kb-sbhs.2, render-only; kb-sbhs.3, mutation) ---
     path("destinations/", views.destination_picker, name="destination-picker"),
     # --- Coverage view (kb-56c2.2) ---
-    path("projections/<int:pk>/coverage/", views.coverage, name="coverage"),
+    path("posts/<int:pk>/coverage/", views.coverage, name="coverage"),
     path(
         "destinations/<int:pk>/select/",
         views.destination_select,

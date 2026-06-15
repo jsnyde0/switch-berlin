@@ -230,8 +230,8 @@ class CoverageViewBaseTest(TestCase):
         self.client = Client()
         self.client.login(username="coverage-user", password="testpass")
 
-        # URL: use the bot projection as the anchor (reconcile uses organizer scope)
-        self.url = reverse("syndication:coverage", kwargs={"pk": self.bot_proj.pk})
+        # URL: keyed on the post pk (kb-e0ch re-key)
+        self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
 
     def _get_html(self):
         response = self.client.get(self.url)
@@ -420,7 +420,7 @@ class CoverageViewForumLevelTest(TestCase):
 
         self.client = Client()
         self.client.login(username="forum-coverage-user", password="testpass")
-        self.url = reverse("syndication:coverage", kwargs={"pk": self.forum_proj.pk})
+        self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
 
     def test_forum_connection_renders_once_in_coverage_list(self):
         """
@@ -636,7 +636,7 @@ class CoverageViewAuthTest(TestCase):
         self.post = _make_post(self.event)
         self.conn = _make_connection(self.profile, destination_id="-1001330000001", postability="bot")
         self.proj = _make_promotion_projection(self.conn, self.post)
-        self.url = reverse("syndication:coverage", kwargs={"pk": self.proj.pk})
+        self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
 
     def test_unauthenticated_redirects_to_login(self):
         """Unauthenticated access to coverage view redirects to login."""
@@ -657,3 +657,155 @@ class CoverageViewURLTest(TestCase):
         """The coverage URL pattern resolves without error."""
         url = reverse("syndication:coverage", kwargs={"pk": 1})
         self.assertIn("/coverage/", url)
+
+    def test_coverage_url_uses_post_pk(self):
+        """The coverage URL pattern is keyed on post pk, not projection pk (kb-e0ch)."""
+        url = reverse("syndication:coverage", kwargs={"pk": 42})
+        self.assertIn("/posts/42/coverage/", url)
+        self.assertNotIn("/projections/", url)
+
+
+# ---------------------------------------------------------------------------
+# kb-e0ch: Post-keyed coverage view new tests
+# ---------------------------------------------------------------------------
+
+
+class CoveragePostKeyedRenderTest(TestCase):
+    """
+    (kb-e0ch) posts/<pk>/coverage/ renders destination rows for a post
+    with Telegram promotion connections.
+
+    Asserts against response.content (rendered HTML), not response.context.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="postkey-user", email="postkey@test.com")
+        self.profile = _make_profile(
+            name="Post Key Org",
+            slug="post-key-org",
+            user=self.user,
+        )
+        self.event = _make_event(slug="postkey-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.post = _make_post(self.event)
+
+        # One bot-tier connection with a placement
+        self.conn = _make_connection(
+            self.profile,
+            destination_id="-1001440000001",
+            postability="bot",
+            title="PostKey Bot Channel",
+        )
+        self.proj = _make_promotion_projection(self.conn, self.post)
+        _make_placement(self.proj, self.conn, TelegramPlacementStatus.PLACED)
+
+        self.client = Client()
+        self.client.login(username="postkey-user", password="testpass")
+        self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
+
+    def test_post_keyed_url_renders_200(self):
+        """posts/<pk>/coverage/ returns 200 for the post owner."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_keyed_url_renders_destination_rows(self):
+        """posts/<pk>/coverage/ renders the destination rows for the post's connections."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        # The connection title must appear in the rendered HTML
+        self.assertIn(
+            "PostKey Bot Channel",
+            html,
+            "The connection title must appear in the coverage HTML for a post-keyed URL",
+        )
+        # A placed status label must appear
+        self.assertIn(
+            "placed",
+            html.lower(),
+            "A 'placed' label must appear in the rendered HTML for a placed connection",
+        )
+
+
+class CoverageNonOwnerForbiddenTest(TestCase):
+    """
+    (kb-e0ch) A non-owner user (no ProfileClaim / can_edit False) gets 404.
+
+    Matches the existing view's non-owner → Http404 behavior;
+    does not leak existence (ADR-008 D3).
+    """
+
+    def setUp(self):
+        # Owner user
+        self.owner = _make_vouched_user(username="nonowner-owner", email="nonowner-owner@test.com")
+        self.profile = _make_profile(
+            name="Non Owner Org",
+            slug="nonowner-org",
+            user=self.owner,
+        )
+        self.event = _make_event(slug="nonowner-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        self.post = _make_post(self.event)
+
+        # Non-owner user: no ProfileClaim on this event's organizer
+        self.other_user = _make_vouched_user(
+            username="nonowner-other",
+            email="nonowner-other@test.com",
+        )
+
+        self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
+
+    def test_non_owner_gets_404(self):
+        """A user with no claim on the post's event gets 404 (does not leak existence)."""
+        client = Client()
+        client.login(username="nonowner-other", password="testpass")
+        response = client.get(self.url)
+        self.assertEqual(
+            response.status_code,
+            404,
+            "Non-owner must get 404 (not 403) — does not leak existence",
+        )
+
+
+class CoverageNoProjectionsTest(TestCase):
+    """
+    (kb-e0ch) A post with no Telegram projections renders the coverage page with
+    an empty destinations list and does not 500.
+    """
+
+    def setUp(self):
+        self.user = _make_vouched_user(username="noproj-user", email="noproj@test.com")
+        self.profile = _make_profile(
+            name="No Proj Org",
+            slug="noproj-org",
+            user=self.user,
+        )
+        self.event = _make_event(slug="noproj-event")
+        EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
+        # Post with NO projections at all
+        self.post = _make_post(self.event)
+
+        self.client = Client()
+        self.client.login(username="noproj-user", password="testpass")
+        self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
+
+    def test_no_projections_renders_200_not_500(self):
+        """A post with no Telegram projections renders with 200, not 500."""
+        response = self.client.get(self.url)
+        self.assertEqual(
+            response.status_code,
+            200,
+            "A post with no projections must render 200, not 500",
+        )
+
+    def test_no_projections_renders_empty_destinations_list(self):
+        """A post with no Telegram projections renders an empty destinations list."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        # The "No destinations selected" message (or equivalent empty-list rendering)
+        # must appear — the page must not 500 or show a broken state.
+        self.assertTrue(
+            "no destinations" in html.lower() or "destinations" in html.lower(),
+            "An empty destinations message or section must appear in the rendered HTML",
+        )

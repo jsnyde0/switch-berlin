@@ -113,6 +113,11 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
     The x-data div for the kebab dropdown uses position: relative, which is a sibling of
     the overflow-x-auto pill list — so the absolute-positioned dropdown popup is NOT clipped.{% endcomment %}
     <div class="flex items-center gap-2 shrink-0 pl-2">
+      {% if projection_rows %}
+        <a href="{% url 'syndication:coverage' pk=post.pk %}"
+           class="kb-mono text-[9px] uppercase tracking-[0.16em] text-base-content/35 hover:text-base-content/70 px-2.5 py-1.5 border border-white/8 hover:border-white/20 transition-colors"
+           title="{% trans "View Telegram coverage for this post" %}">{% trans "Coverage" %}</a>
+      {% endif %}
       {% if can_publish and projection_rows and has_ready_projections %}
         <form method="post"
               action="{% url 'syndication:post-projection-batch-publish' pk=post.pk %}"

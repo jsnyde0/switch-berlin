@@ -231,8 +231,8 @@ class CoverageIntegrationReadbackTest(TestCase):
         self.client = Client()
         self.client.login(username="integ-coverage-user", password="testpass")
 
-        # Anchor the URL on the bot projection (reconcile scopes by organizer)
-        self.url = reverse("syndication:coverage", kwargs={"pk": self.bot_proj.pk})
+        # URL: keyed on the post pk (kb-e0ch re-key)
+        self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
 
     def _get_html(self):
         response = self.client.get(self.url)

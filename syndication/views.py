@@ -2646,11 +2646,12 @@ def post_projection_batch_publish(request, pk):
 @login_required
 def coverage(request, pk):
     """
-    Render the per-distribution-run coverage surface for a Telegram projection.
+    Render the per-post coverage surface for Telegram promotion connections.
 
-    Reads reconcile_telegram_coverage() for the given projection and renders
-    per-destination status with an honest label for each of the four machine
-    states (placed, failed, pending, skipped-pre-existing-draft).
+    Keyed on Post pk (kb-e0ch). Reads reconcile_telegram_coverage() via a
+    representative projection and renders per-destination status with an honest
+    label for each of the four machine states (placed, failed, pending,
+    skipped-pre-existing-draft).
 
     Constraints (FIRM):
     - ADR-018 D2: no "sent" anywhere in the rendered HTML.
@@ -2664,25 +2665,26 @@ def coverage(request, pk):
       Ticking is client-only, no persistence.
     - kb-56c2 D5: forum rows are forum-level (one row per forum connection).
     """
+    from django.http import Http404
+
     from syndication.services import reconcile_telegram_coverage
 
-    projection = get_object_or_404(PlatformProjection, pk=pk)
+    post = get_object_or_404(Post, pk=pk)
 
-    # Authorization: user must have a claim on the organizer that owns the projection
-    from organizers.models import ProfileClaim
-
-    owned_profile_ids = ProfileClaim.objects.filter(
-        user=request.user,
-        rejected_at__isnull=True,
-    ).values_list("profile_id", flat=True)
-
-    if projection.connection.organizer_id not in owned_profile_ids:
-        from django.http import Http404
-
+    # Authorization: user must be able to edit the post's event (ADR-017 D2)
+    if not can_edit(request.user, post.event):
         raise Http404
 
-    # Get per-destination coverage items from the reconciliation service
-    coverage_items = reconcile_telegram_coverage(projection)
+    # Fetch a representative projection to pass to the reconciler.
+    # reconcile_telegram_coverage reads projection.connection.organizer + projection.source_post.
+    # Any projection of the post yields the same organizer-scoped result.
+    # A post with no Telegram projections → empty list (correct; same as the event case).
+    projection = (
+        PlatformProjection.objects.filter(source_post=post)
+        .select_related("connection__organizer")
+        .first()
+    )
+    coverage_items = reconcile_telegram_coverage(projection) if projection is not None else []
 
     # Build the send-checklist: agent-tier placed + public-tier destinations
     # (D3: bot-tier excluded — bot already sent; agent-pending excluded — no draft yet)
@@ -2696,7 +2698,7 @@ def coverage(request, pk):
         request,
         "syndication/coverage.html",
         {
-            "projection": projection,
+            "post": post,
             "coverage_items": coverage_items,
             "send_checklist": send_checklist,
         },
