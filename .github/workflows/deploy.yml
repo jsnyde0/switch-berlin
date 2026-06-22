@@ -33,7 +33,7 @@ jobs:
       # kb-bsp: checkout is load-bearing — the Caddyfile step (line below) scp's
       # infra/Caddyfile from the runner's cwd. Without checkout, that scp fails
       # silently for ~8 days (2026-05-14 → 2026-05-22).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup SSH client
         env:
