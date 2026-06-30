@@ -32,6 +32,18 @@ services:
     # Forensic logging (kb-oam): csvlog captures all DDL+DML so we can
     # reconstruct attacker actions after an incident. Default log_directory
     # is `log` inside PGDATA — persisted via the bind mount below.
+    #
+    # BOUNDED ROTATION (2026-06-29 incident): the original config rotated by
+    # age+size but used the default unique-per-rotation filename
+    # (postgresql-%Y-%m-%d_%H%M%S.log), so old logs were NEVER deleted. They
+    # grew to 24G over ~5 weeks, filled the 38G disk, and postgres entered a
+    # "could not write lock file: No space left on device" restart loop —
+    # every request 500'd for ~7 days. Fix: day-of-week filenames (%a) +
+    # log_truncate_on_rotation reuse a fixed 7-name set, truncating on each
+    # rotation. Hard ceiling: 7 weekdays x (.log + .csv) x 100MB ~= 1.4G,
+    # independent of traffic. The size cap can truncate intra-day on a busy
+    # day (losing that day's earlier lines) — an accepted tradeoff: a
+    # guaranteed disk bound beats complete logs that crash the DB.
     command:
       - postgres
       - -c
@@ -40,6 +52,10 @@ services:
       - log_destination=stderr,csvlog
       - -c
       - log_statement=mod
+      - -c
+      - log_filename=postgresql-%a.log
+      - -c
+      - log_truncate_on_rotation=on
       - -c
       - log_rotation_age=1d
       - -c
