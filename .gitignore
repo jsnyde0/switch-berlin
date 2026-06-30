@@ -196,3 +196,6 @@ tmp/
 # Local agent / tooling artifacts (machine-specific, not portable)
 .claude/scheduled_tasks.lock
 .rip-cage.yaml
+
+# bv (beads viewer) local config and caches
+.bv/
