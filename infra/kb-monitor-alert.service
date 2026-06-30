@@ -1,0 +1,11 @@
+[Unit]
+Description=Switch Berlin monitor failure alert (OnFailure handler for kb-monitor.service)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=switch
+Group=switch
+EnvironmentFile=/etc/kb-backup/env
+ExecStart=/usr/local/bin/kb-monitor.sh --service-failed-alert

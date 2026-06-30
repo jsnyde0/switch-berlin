@@ -116,6 +116,97 @@ Deploy-channel secrets — consumed by the workflow itself:
 | `DEBUG` | `False` |
 | `DJANGO_SETTINGS_MODULE` | `a_core.settings` |
 
+## Monitoring/alerting subsystem provisioning (kb-monitor)
+
+After the backup subsystem is provisioned (see below), install the monitoring subsystem:
+
+```bash
+# Run from the repo root on your local machine.
+# Substitute the real VPS IP or hostname.
+VPS=switch@switch.berlin
+
+# 1. Install the monitor script
+scp infra/kb-monitor.sh "$VPS":/tmp/kb-monitor.sh
+ssh "$VPS" 'sudo install -o root -g root -m 0755 /tmp/kb-monitor.sh /usr/local/bin/kb-monitor.sh'
+
+# 2. Install the systemd units (monitor service + timer + OnFailure alerter)
+scp infra/kb-monitor.service infra/kb-monitor.timer infra/kb-monitor-alert.service "$VPS":/tmp/
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-monitor.service       /etc/systemd/system/kb-monitor.service'
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-monitor.timer         /etc/systemd/system/kb-monitor.timer'
+ssh "$VPS" 'sudo install -o root -g root -m 0644 /tmp/kb-monitor-alert.service /etc/systemd/system/kb-monitor-alert.service'
+
+# 3. Create and own the state directory as the service user
+#    The timer runs as switch:switch; root-owned state files will cause silent write failures.
+ssh "$VPS" 'sudo mkdir -p /var/tmp/kb-monitor'
+ssh "$VPS" 'sudo chown switch:switch /var/tmp/kb-monitor'
+
+# 4. Reload and enable
+ssh "$VPS" 'sudo systemctl daemon-reload && sudo systemctl enable --now kb-monitor.timer'
+
+# 5. Verify the timer is active
+ssh "$VPS" 'systemctl list-timers kb-monitor.timer'
+```
+
+### Additional env vars (append to /etc/kb-backup/env)
+
+The monitor reuses the existing `/etc/kb-backup/env` file (already contains `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OPERATOR_CHAT_ID`). Append the monitor-specific vars:
+
+```bash
+ssh "$VPS" 'sudo tee -a /etc/kb-backup/env > /dev/null <<EOF
+DISK_ALERT_THRESHOLD_PERCENT=85
+HEALTHCHECKS_PING_URL=<paste ping URL from healthchecks.io — see below>
+EOF'
+```
+
+Optional overrides (defaults shown):
+
+| Key | Default | Notes |
+|---|---|---|
+| `DISK_ALERT_THRESHOLD_PERCENT` | `85` | Alert when / reaches this % |
+| `HEALTHZ_URL` | `https://switch.berlin/healthz` | Public healthcheck URL (through Caddy). Direct-to-app on `127.0.0.1:8000` fails `ALLOWED_HOSTS` (400) then SSL-redirects (301) before the view runs; the public URL exercises the real user path. |
+| `UPTIME_FAILURE_THRESHOLD` | `3` | Consecutive failing ticks before paging |
+| `HEALTHCHECKS_PING_URL` | _(unset)_ | Dead-man's-switch; see step below |
+
+### Human step: create a healthchecks.io dead-man's-switch
+
+1. Create a free account at [https://healthchecks.io](https://healthchecks.io).
+2. Add a new check; set period = **10 minutes**, grace = **10 minutes**.
+3. Copy the **Ping URL** (looks like `https://hc-ping.com/<uuid>`).
+4. Paste it as `HEALTHCHECKS_PING_URL` in `/etc/kb-backup/env` on the VPS.
+
+This lets healthchecks.io detect total host death (no pings for >10 min = alert).
+
+### Verify the alert channel
+
+```bash
+ssh "$VPS" 'sudo bash -c "set -a; . /etc/kb-backup/env; set +a; runuser -u switch -- /usr/local/bin/kb-monitor.sh --test-alert"'
+```
+
+A successful run sends one Telegram message (`[Switch Berlin] kb-monitor canary … — alert channel wired.`) and exits 0.
+
+### Monitoring subsystem files on `switch-berlin-prod`
+
+| Path | Owner / mode | Purpose |
+|---|---|---|
+| `/usr/local/bin/kb-monitor.sh` | `root:root 0755` | Per-tick disk + healthz + dead-man's-switch checks. State under `/var/tmp/kb-monitor/`. Flags: `--test-alert`, `--check-disk`, `--check-healthz`, `--simulate-full-disk`, `--simulate-down`, `--service-failed-alert`. |
+| `/etc/systemd/system/kb-monitor.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch`. `OnFailure=kb-monitor-alert.service`. |
+| `/etc/systemd/system/kb-monitor.timer` | `root:root 0644` | `OnCalendar=*:0/5` (every 5 min), `RandomizedDelaySec=30`, `Persistent=true`. |
+| `/etc/systemd/system/kb-monitor-alert.service` | `root:root 0644` | Fires `kb-monitor.sh --service-failed-alert` when the monitor service itself crashes. |
+
+> **WARNING — state-dir ownership footgun:** the timer runs as `switch:switch`. If you run
+> `--simulate-*` or any non-`--test-alert` invocation as root, `/var/tmp/kb-monitor/` and its
+> state files become root-owned, and the next timer tick (running as `switch`) cannot write the
+> failure counter — silently breaking the monitor. Always run ad-hoc or diagnostic invocations
+> as the `switch` user:
+>
+> ```bash
+> ssh "$VPS" 'sudo runuser -u switch -- /usr/local/bin/kb-monitor.sh --simulate-down'
+> ```
+>
+> Never run `--simulate-*` / `--check-healthz` / `--check-disk` directly as root on the VPS.
+
+---
+
 ## Backup subsystem provisioning (kb-vms + kb-omx)
 
 After `hcloud server create ...` completes and cloud-init has finished (see "VPS provisioning runbook" above), install the backup subsystem files from this repo onto the fresh VPS:
