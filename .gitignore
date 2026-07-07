@@ -199,3 +199,6 @@ tmp/
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# Local scratch notes
+docs/klad.md
