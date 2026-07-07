@@ -143,6 +143,8 @@ The product harness solves the facilitator's whole promotion problem, but Switch
 
 **Promotion/demotion rule:** a composed rail that repeatedly hurts across challenge walks (observed breakage/friction, not anticipated) is the signal to promote it to owned. Conversely, an owned rail that a commodity tool comes to serve well (including our niche constraints) is a candidate to retire.
 
+**Scope note (2026-07-07):** the table above covers *marketing/distribution* channels. **Ticketing/transaction rails are a distinct category** — `direct:` user, 2026-07-07: Ticket Tailor is where target facilitators actually *sell tickets*, i.e. a payment/transaction channel, not a promotion channel. Today it is a *composed* rail (the agent drives the external ticketing platform's API; listing an event there is part of the real facilitator journey and is walk-pulled, not frozen). Strategically it is adjacent to ADR-015 (payment-processor strategy) and is a long-term monetization candidate — the transaction is where marketplace revenue naturally sits, which marketing rails are not.
+
 **Rationale:**
 - `direct:` user-explicit, 2026-07-07 re-focus session — comfortable shipping skills that drive third-party tools "if third-party tools clearly present the best option," with the invariant "we need/want to make sure all data goes through us (or to us, at least)"; target channels named as Telegram, FetLife, Instagram, newsletters.
 - `external:` ADR-010 D1 — Switch-as-canonical-home *is* the growth loop; the data-through-Switch invariant is that clause made rail-agnostic (it no longer matters whose pipe delivers, only where the canonical lives).
