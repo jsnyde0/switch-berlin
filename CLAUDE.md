@@ -2,6 +2,12 @@
 
 This file provides instructions and context for AI coding agents working on this project.
 
+## Current focus (updated 2026-07-07)
+
+The main thread is the **Challenge spine** (dogfood-as-design walks), NOT the scattered backlog. Strategy: **agent-first for facilitators** — capability in `switch-cli`, skills as thin wrappers, composable delivery rails (own Telegram/FetLife, compose Instagram/newsletters via external tools), and **all data through Switch** as system of record. Canonical: [ADR-019](docs/decisions/ADR-019-agent-harness-as-a-product.md) (esp. D6) + bd memory `challenge-driven-dogfood-as-design-main-thread`.
+
+Next work: the two agent-surface gap beads under the Challenge 0 epic (`kb-k2ds.2` front-door verbs, `kb-k2ds.3` enable-for-promotion), then the Challenge 0 walk (`kb-k2ds.1`, needs the user at their phone). The UI-polish tail is **frozen** (deferred beads) — do not surface it as active work; no new UI investment unless a challenge walk demands it.
+
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 ## Beads Issue Tracker
 
