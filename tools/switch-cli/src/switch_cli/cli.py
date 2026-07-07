@@ -20,7 +20,9 @@ Verbs:
 - approve-projection  Transition a projection draft→ready
 - publish-projection  Transition a projection ready→published
 - mark-published      Mark a projection as externally published
-- list-projections    List projections for authenticated user
+- list-projections    List projections for authenticated user (optionally --event/--post filtered)
+- list-events         List events for authenticated user
+- studio-link         Print a working URL to the review/greenlight workspace (post or event hub)
 """
 
 import json
@@ -303,24 +305,94 @@ def mark_published(projection_id: int):
 
 
 # ---------------------------------------------------------------------------
-# list-projections
+# list-events
 # ---------------------------------------------------------------------------
 
 
-@cli.command("list-projections")
-def list_projections():
+@cli.command("list-events")
+def list_events():
     """
-    List projections for the authenticated user.
-    Outputs projections as JSON to stdout (stubbed at v0 — returns stub body).
+    List events for the authenticated user.
+    Maps to GET /api/events/. Outputs the caller's own events
+    (id, title, status, and more) as JSON to stdout.
     """
     try:
         client = SwitchClient()
-        result = client.list_projections()
+        result = client.list_events()
     except (AuthError, FileNotFoundError, ConfigError) as exc:
         _error(str(exc))
     except APIError as exc:
         _error(f"API error {exc.status_code}: {exc.detail}")
     _output(result)
+
+
+# ---------------------------------------------------------------------------
+# list-projections
+# ---------------------------------------------------------------------------
+
+
+@cli.command("list-projections")
+@click.option("--event", "event_id", default=None, type=int, help="Filter by event ID")
+@click.option("--post", "post_id", default=None, type=int, help="Filter by post ID")
+def list_projections(event_id: int, post_id: int):
+    """
+    List the authenticated user's own projections, optionally filtered by
+    --event or --post. Maps to GET /api/projections/. Outputs the real
+    projection rows (id, connection identity, kind, status) as JSON to stdout.
+
+    After a create-post call, run this to see exactly which channels received
+    draft projections (closes the "create-post returns no fan-out info" gap).
+    """
+    try:
+        client = SwitchClient()
+        result = client.list_projections(event_id=event_id, post_id=post_id)
+    except (AuthError, FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    except APIError as exc:
+        _error(f"API error {exc.status_code}: {exc.detail}")
+    _output(result)
+
+
+# ---------------------------------------------------------------------------
+# studio-link  (post / event disambiguated sub-verbs — pure URL construction,
+# no REST call: ADR-016 D3 co-equal-REST does not compel a REST endpoint for
+# a client-side hand-off URL. Maps to REAL syndication/urls.py hub routes,
+# never the parameterless studio/ route which ignores any id.)
+# ---------------------------------------------------------------------------
+
+
+@cli.group("studio-link")
+def studio_link():
+    """
+    Print a working URL to the review/greenlight workspace where a human
+    reviews + greenlights the projections an agent handed off.
+
+    Disambiguated by an explicit subcommand — a bare id cannot tell event 12
+    from post 12. Use `studio-link post <id>` (primary — a promo Post's
+    projections live at the post-hub) or `studio-link event <id>`.
+    """
+
+
+@studio_link.command("post")
+@click.argument("post_id", type=int)
+def studio_link_post(post_id: int):
+    """Print the post-hub studio URL for POST_ID (posts/<id>/ — where a promo Post's projections live)."""
+    try:
+        base_url = load_base_url()
+    except (FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    _output({"url": f"{base_url.rstrip('/')}/syndication/posts/{post_id}/"})
+
+
+@studio_link.command("event")
+@click.argument("event_id", type=int)
+def studio_link_event(event_id: int):
+    """Print the event-hub studio URL for EVENT_ID (events/<id>/)."""
+    try:
+        base_url = load_base_url()
+    except (FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    _output({"url": f"{base_url.rstrip('/')}/syndication/events/{event_id}/"})
 
 
 # ---------------------------------------------------------------------------

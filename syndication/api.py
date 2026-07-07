@@ -537,19 +537,27 @@ class PostOut(Schema):
     voice: str
 
 
-# --- Stub schema preserved for projections list (C4) ---
+# --- Projection schema (kb-k2ds.2 — real list, replaces the C4 stub) ---
 
 
-class StubListResponse(Schema):
-    stub: bool
-    detail: str
-
-
-def _stub_response_with_marker(request, detail: str) -> HttpResponse:
+class ProjectionOut(Schema):
     """
-    Build a JSON stub response and attach X-Actor-Marker header (audit-only).
+    Response schema for GET /api/projections/ rows.
+
+    Carries at least: projection id, connection (channel) identity, kind,
+    status (bead kb-k2ds.2 acceptance (2)) — plus event_id/post_id so an
+    agent can correlate a row back to the publishable it came from.
     """
-    return _actor_marker_response(request, {"stub": True, "detail": detail}, status=200)
+
+    id: int
+    kind: str
+    status: str
+    event_id: int | None
+    post_id: int | None
+    connection_id: int
+    connection_platform: str
+    connection_destination_id: str
+    connection_title: str | None
 
 
 # ---------------------------------------------------------------------------
@@ -899,18 +907,58 @@ def posts_list(request):
     return _actor_marker_response(request, data)
 
 
+def _projection_to_dict(projection):
+    """
+    Serialize a PlatformProjection to a dict matching ProjectionOut.
+
+    event_id/post_id: exactly one is set per row (listing → event_id via
+    source_event; promotion → post_id via source_post, with event_id derived
+    from the post's event for correlation convenience).
+    """
+    from syndication.models import PlatformProjection
+
+    if projection.kind == PlatformProjection.Kind.LISTING:
+        event_id = projection.source_event_id
+        post_id = None
+    else:
+        post_id = projection.source_post_id
+        event_id = projection.source_post.event_id if projection.source_post_id else None
+
+    return {
+        "id": projection.pk,
+        "kind": projection.kind,
+        "status": projection.status,
+        "event_id": event_id,
+        "post_id": post_id,
+        "connection_id": projection.connection_id,
+        "connection_platform": projection.connection.platform,
+        "connection_destination_id": projection.connection.destination_id,
+        "connection_title": projection.connection.title,
+    }
+
+
 @api.get(
     "/projections/",
     auth=_RESOURCE_AUTH,
-    response=StubListResponse,
-    summary="List projections — STUBBED (C4/kb-a4u.4)",
+    response=list[ProjectionOut],
+    summary="List the caller's own projections, optionally filtered by event/post",
 )
-def projections_list(request):
-    """Stub — body implemented by C4/kb-a4u.4."""
-    return _stub_response_with_marker(
-        request,
-        "Projection list not yet implemented (C4/kb-a4u.4).",
-    )
+def projections_list(request, event: int | None = None, post: int | None = None):
+    """
+    List the authenticated user's own PlatformProjection rows (kb-k2ds.2 —
+    replaces the C4/kb-a4u.4 stub).
+
+    Delegates to services.list_projections_for_user (co-equal REST seam,
+    ADR-016 D3) — scoped to the caller's owned rows, mirroring events_list's
+    auth-scoping pattern. Optional ?event=<id> and/or ?post=<id> query params
+    narrow the result. Raises 404 (fail loud, ADR-008 D3) if a given event/post
+    id does not exist at all.
+    """
+    from syndication.services import list_projections_for_user
+
+    projections = list_projections_for_user(request.auth, event_id=event, post_id=post)
+    data = [_projection_to_dict(p) for p in projections]
+    return _actor_marker_response(request, data)
 
 
 # ---------------------------------------------------------------------------

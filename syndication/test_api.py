@@ -399,8 +399,8 @@ class StubEndpointSurfaceTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    def test_projections_list_stub_endpoint_exists(self):
-        """GET /api/projections/ returns 200 (stubbed body) with valid identity token."""
+    def test_projections_list_endpoint_exists(self):
+        """GET /api/projections/ returns 200 (real body) with valid identity token."""
         token = self._get_identity_token()
         client = Client()
         response = client.get(
@@ -411,15 +411,15 @@ class StubEndpointSurfaceTest(TestCase):
 
     def test_event_and_post_endpoints_return_list_schema(self):
         """
-        F4 (updated for C3/kb-a4u.3): Event and Post endpoints now return real list responses
-        (no longer stubs). Projections endpoint remains stubbed.
+        F4 (updated for C3/kb-a4u.3, then kb-k2ds.2): Event, Post, and Projection
+        endpoints all return real list responses — none of them are stubs anymore.
         The OpenAPI contract must be stable for downstream beads.
         """
         token = self._get_identity_token()
         client = Client()
 
-        # Events and Posts are real list endpoints (C3/kb-a4u.3 — no longer stubs)
-        for endpoint in ["/api/events/", "/api/posts/"]:
+        # Events, Posts, and Projections are all real list endpoints (no stubs, kb-k2ds.2)
+        for endpoint in ["/api/events/", "/api/posts/", "/api/projections/"]:
             response = client.get(
                 endpoint,
                 HTTP_AUTHORIZATION=f"Bearer {token}",
@@ -427,15 +427,11 @@ class StubEndpointSurfaceTest(TestCase):
             self.assertEqual(response.status_code, 200, f"{endpoint} should return 200")
             data = json.loads(response.content)
             self.assertIsInstance(data, list, f"{endpoint} should return a list")
-
-        # Projections is still stubbed (C4/kb-a4u.4)
-        proj_response = client.get(
-            "/api/projections/",
-            HTTP_AUTHORIZATION=f"Bearer {token}",
-        )
-        self.assertEqual(proj_response.status_code, 200)
-        proj_data = json.loads(proj_response.content)
-        self.assertIn("stub", proj_data, "/api/projections/ should still return stub schema")
+            self.assertNotIn(
+                "stub",
+                data,
+                f"{endpoint} must not return the stub marker (ADR-008 D3, kb-k2ds.2)",
+            )
 
 
 class TokenNegativeTests(TestCase):
@@ -1015,3 +1011,145 @@ class EventVenueTagsApiParityTest(TestCase):
             event.venue_id,
             "Event.venue must NOT be set when venue id is invalid (fail loud, ADR-008 D3)",
         )
+
+
+class ProjectionListApiTest(TestCase):
+    """
+    GET /api/projections/ real-data contract (kb-k2ds.2 — replaces the C4/kb-a4u.4 stub).
+
+    Covers: the caller's own projections are returned with id/connection identity/
+    kind/status; event/post filters narrow the result; cross-tenant scoping never
+    leaks another organizer's rows; unknown filter ids fail loud with 404.
+    """
+
+    def setUp(self):
+        from organizers.models import Profile, ProfileClaim
+        from syndication.models import PlatformConnection
+        from syndication.services import create_event, create_post
+
+        self.user = _make_vouched_user(
+            username="proj_list_user",
+            email="proj_list_user@test.com",
+            password="x",
+        )
+        self.profile = Profile.objects.create(name="Proj List Profile", slug="proj-list-profile")
+        ProfileClaim.objects.create(profile=self.profile, user=self.user, verified_method="auto_self")
+
+        # create_event resolves the user's primary Profile and creates the
+        # EventOrganizer row itself — do not create a second one here.
+        self.event = create_event(
+            user=self.user,
+            title="Proj List Event",
+            slug="proj-list-event",
+            start=timezone.now(),
+        )
+
+        self.connection = PlatformConnection.objects.create(
+            organizer=self.profile,
+            platform="telegram",
+            destination_id="-100123456",
+            title="My Telegram Channel",
+            enabled=True,
+            kinds=["promotion"],
+        )
+
+        # Post created AFTER the connection exists so eager-create picks it up.
+        self.post = create_post(
+            user=self.user,
+            event=self.event,
+            headline="Headline",
+            body="Body",
+        )
+
+        self.token = _get_identity_token_for_user(self.user)
+
+    def _get(self, query_string=""):
+        client = Client()
+        return client.get(
+            f"/api/projections/{query_string}",
+            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+        )
+
+    def test_list_projections_returns_real_rows_with_required_fields(self):
+        """The caller's promotion projection is returned with id/connection identity/kind/status."""
+        response = self._get()
+        self.assertEqual(response.status_code, 200, response.content)
+        data = json.loads(response.content)
+        self.assertEqual(len(data), 1, f"expected exactly 1 projection, got {data}")
+        row = data[0]
+        self.assertIn("id", row)
+        self.assertEqual(row["kind"], "promotion")
+        self.assertEqual(row["status"], "draft")
+        self.assertEqual(row["connection_id"], self.connection.pk)
+        self.assertEqual(row["connection_platform"], "telegram")
+        self.assertEqual(row["connection_destination_id"], "-100123456")
+        self.assertEqual(row["post_id"], self.post.pk)
+
+    def test_list_projections_never_returns_stub_marker(self):
+        """The response must never carry the old stub marker (ADR-008 D3)."""
+        response = self._get()
+        data = json.loads(response.content)
+        self.assertIsInstance(data, list, "/api/projections/ must return a list, never the stub dict")
+        for row in data:
+            self.assertNotIn("stub", row)
+
+    def test_list_projections_filters_by_post(self):
+        """?post=<id> narrows the result to that post's own projections."""
+        response = self._get(f"?post={self.post.pk}")
+        self.assertEqual(response.status_code, 200, response.content)
+        data = json.loads(response.content)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["post_id"], self.post.pk)
+
+    def test_list_projections_filters_by_event(self):
+        """?event=<id> narrows the result to that event's own + its posts' projections."""
+        response = self._get(f"?event={self.event.pk}")
+        self.assertEqual(response.status_code, 200, response.content)
+        data = json.loads(response.content)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["event_id"], self.event.pk)
+
+    def test_list_projections_unknown_event_filter_404s(self):
+        """?event=<nonexistent id> fails loud with 404 (ADR-008 D3) — never a silent empty 200."""
+        response = self._get("?event=999999")
+        self.assertEqual(response.status_code, 404)
+
+    def test_list_projections_unknown_post_filter_404s(self):
+        """?post=<nonexistent id> fails loud with 404 (ADR-008 D3)."""
+        response = self._get("?post=999999")
+        self.assertEqual(response.status_code, 404)
+
+    def test_list_projections_excludes_other_users_projections(self):
+        """A second organizer's projections never leak into this caller's list."""
+        from organizers.models import Profile, ProfileClaim
+        from syndication.models import PlatformConnection
+        from syndication.services import create_event, create_post
+
+        other_user = _make_vouched_user(
+            username="other_proj_user",
+            email="other_proj_user@test.com",
+            password="x",
+        )
+        other_profile = Profile.objects.create(name="Other Profile", slug="other-profile")
+        ProfileClaim.objects.create(profile=other_profile, user=other_user, verified_method="auto_self")
+        other_event = create_event(
+            user=other_user,
+            title="Other Event",
+            slug="other-event",
+            start=timezone.now(),
+        )
+        PlatformConnection.objects.create(
+            organizer=other_profile,
+            platform="telegram",
+            destination_id="-999",
+            enabled=True,
+            kinds=["promotion"],
+        )
+        create_post(user=other_user, event=other_event, headline="Other", body="Other body")
+
+        response = self._get()
+        data = json.loads(response.content)
+        self.assertEqual(
+            len(data), 1, f"the other organizer's projection must not appear in this caller's list, got {data}"
+        )
+        self.assertEqual(data[0]["post_id"], self.post.pk)

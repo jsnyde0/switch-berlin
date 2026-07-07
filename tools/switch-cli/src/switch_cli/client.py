@@ -125,10 +125,21 @@ class SwitchClient:
     # Projection verbs
     # ------------------------------------------------------------------
 
-    def list_projections(self) -> dict:
-        """GET /api/projections/ — list projections (stubbed at v0)."""
+    def list_projections(self, event_id: int = None, post_id: int = None) -> list:
+        """
+        GET /api/projections/ — list the caller's own projections.
+
+        Optional event_id/post_id narrow the result to a single event's or
+        post's projections (server-side filter — kb-k2ds.2, replaces the v0 stub).
+        """
+        params = {}
+        if event_id is not None:
+            params["event"] = event_id
+        if post_id is not None:
+            params["post"] = post_id
         response = httpx.get(
             f"{self._base_url}/api/projections/",
+            params=params,
             headers=self._headers(),
         )
         return self._check(response)

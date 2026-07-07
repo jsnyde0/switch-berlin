@@ -2228,3 +2228,59 @@ def publish_all_ready_projections_for_post(user, post):
             failures.append((proj, exc))
 
     return published, failures
+
+
+# ---------------------------------------------------------------------------
+# Projection listing (kb-k2ds.2 — agent front-door verb, replaces stub)
+#
+# Co-equal seam (ADR-016 D3): the REST API delegates here so the web UI and
+# an agent hit the same query logic. Scoping mirrors events_list's auth
+# pattern (api.py events_list) — no separate authorization seam needed since
+# this is a read-only, ownership-filtered query, not a mutation.
+# ---------------------------------------------------------------------------
+
+
+def list_projections_for_user(user, event_id=None, post_id=None):
+    """
+    Return the caller's own PlatformProjection rows, optionally filtered by
+    event and/or post.
+
+    Scoping: mirrors the events_list auth-scoping pattern (api.py) — a
+    projection is "owned" by the user if it (or its source post's event) is
+    organized by a Profile the user has an active ProfileClaim on. This is a
+    read-only query; unlike mutations there is no separate can_edit gate,
+    because ownership IS the filter (no cross-tenant row is ever returned).
+
+    ADR-008 D3 (fail loud): if event_id or post_id is given but does not
+    exist at all, raises Http404 — never a silent empty-vs-not-found conflation.
+    An event/post that exists but is NOT owned by the caller yields an empty
+    result (no cross-tenant leak, no distinguishing error that would let an
+    agent probe for the existence of someone else's data).
+    """
+    from django.db.models import Q
+    from django.http import Http404
+
+    from events.models import Event, EventOrganizer
+    from organizers.models import ProfileClaim
+    from syndication.models import PlatformProjection, Post
+
+    profile_ids = ProfileClaim.objects.filter(user=user, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
+    owned_event_ids = EventOrganizer.objects.filter(profile_id__in=profile_ids).values_list("event_id", flat=True)
+
+    qs = PlatformProjection.objects.filter(
+        Q(source_event_id__in=owned_event_ids) | Q(source_post__event_id__in=owned_event_ids)
+    ).select_related("connection", "source_post")
+
+    if event_id is not None:
+        if not Event.objects.filter(pk=event_id).exists():
+            raise Http404(f"Event with id {event_id} does not exist.")
+        qs = qs.filter(Q(source_event_id=event_id) | Q(source_post__event_id=event_id))
+
+    if post_id is not None:
+        if not Post.objects.filter(pk=post_id).exists():
+            raise Http404(f"Post with id {post_id} does not exist.")
+        qs = qs.filter(source_post_id=post_id)
+
+    return qs.order_by("-id")

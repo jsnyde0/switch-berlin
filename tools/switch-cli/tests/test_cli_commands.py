@@ -433,23 +433,39 @@ class TestCreatePostCommand_Imagery:
 
 
 class TestListProjectionsCommand:
-    """switch-cli list-projections calls the projections list endpoint."""
+    """switch-cli list-projections calls the projections list endpoint (real rows, kb-k2ds.2)."""
 
-    def test_list_projections_outputs_json(self, runner, configured_env):
-        """list-projections outputs JSON (stub body at v0) from /api/projections/."""
-        token_resp = MagicMock(spec=httpx.Response)
-        token_resp.status_code = 200
-        token_resp.json.return_value = {
+    def _mock_token_response(self):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
             "identity_token": "tok",
             "expires_at": "2027-01-01Z",
         }
+        return mock_resp
 
-        proj_resp = MagicMock(spec=httpx.Response)
-        proj_resp.status_code = 200
-        proj_resp.json.return_value = {
-            "stub": True,
-            "detail": "Projection list not yet implemented.",
-        }
+    def _mock_projections_response(self):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [
+            {
+                "id": 1,
+                "kind": "promotion",
+                "status": "draft",
+                "event_id": 10,
+                "post_id": 5,
+                "connection_id": 3,
+                "connection_platform": "telegram",
+                "connection_destination_id": "-100123456",
+                "connection_title": "My Telegram Channel",
+            }
+        ]
+        return mock_resp
+
+    def test_list_projections_outputs_real_rows(self, runner, configured_env):
+        """list-projections outputs the real projection rows (id/connection/kind/status) from /api/projections/."""
+        token_resp = self._mock_token_response()
+        proj_resp = self._mock_projections_response()
 
         with patch("httpx.post", return_value=token_resp):
             with patch("httpx.get", return_value=proj_resp) as mock_get:
@@ -457,11 +473,144 @@ class TestListProjectionsCommand:
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
-        assert "stub" in data
+        assert isinstance(data, list)
+        assert "stub" not in data
+        row = data[0]
+        assert row["id"] == 1
+        assert row["kind"] == "promotion"
+        assert row["status"] == "draft"
+        assert row["connection_platform"] == "telegram"
 
         # Assert the request went to /api/projections/
         get_call = mock_get.call_args_list[0]
         assert "/api/projections/" in get_call[0][0]
+
+    def test_list_projections_with_event_filter_sends_event_query_param(self, runner, configured_env):
+        """list-projections --event <id> sends ?event=<id> to /api/projections/."""
+        token_resp = self._mock_token_response()
+        proj_resp = self._mock_projections_response()
+
+        with patch("httpx.post", return_value=token_resp):
+            with patch("httpx.get", return_value=proj_resp) as mock_get:
+                result = runner.invoke(cli, ["list-projections", "--event", "10"])
+
+        assert result.exit_code == 0, result.output
+        get_call = mock_get.call_args_list[0]
+        assert get_call.kwargs.get("params", {}).get("event") == 10
+
+    def test_list_projections_with_post_filter_sends_post_query_param(self, runner, configured_env):
+        """list-projections --post <id> sends ?post=<id> to /api/projections/."""
+        token_resp = self._mock_token_response()
+        proj_resp = self._mock_projections_response()
+
+        with patch("httpx.post", return_value=token_resp):
+            with patch("httpx.get", return_value=proj_resp) as mock_get:
+                result = runner.invoke(cli, ["list-projections", "--post", "5"])
+
+        assert result.exit_code == 0, result.output
+        get_call = mock_get.call_args_list[0]
+        assert get_call.kwargs.get("params", {}).get("post") == 5
+
+    def test_list_projections_auth_error_exits_nonzero(self, runner, configured_env):
+        """list-projections exits non-zero when auth fails (401 on token exchange)."""
+        error_resp = MagicMock(spec=httpx.Response)
+        error_resp.status_code = 401
+        error_resp.json.return_value = {"detail": "Invalid or revoked API key."}
+        error_resp.text = "Invalid or revoked API key."
+
+        with patch("httpx.post", return_value=error_resp):
+            result = runner.invoke(cli, ["list-projections"])
+
+        assert result.exit_code != 0
+
+
+class TestListEventsCommand:
+    """switch-cli list-events calls the events list endpoint (kb-k2ds.2)."""
+
+    def _mock_token_response(self):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "identity_token": "tok",
+            "expires_at": "2027-01-01Z",
+        }
+        return mock_resp
+
+    def _mock_events_response(self):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [
+            {"id": 7, "title": "My Event", "slug": "my-event", "status": "draft"},
+        ]
+        return mock_resp
+
+    def test_list_events_outputs_json(self, runner, configured_env):
+        """list-events outputs the caller's events (at least id/title/status) from /api/events/."""
+        token_resp = self._mock_token_response()
+        events_resp = self._mock_events_response()
+
+        with patch("httpx.post", return_value=token_resp):
+            with patch("httpx.get", return_value=events_resp) as mock_get:
+                result = runner.invoke(cli, ["list-events"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert isinstance(data, list)
+        assert data[0]["id"] == 7
+        assert data[0]["title"] == "My Event"
+        assert data[0]["status"] == "draft"
+
+        get_call = mock_get.call_args_list[0]
+        assert "/api/events/" in get_call[0][0]
+
+    def test_list_events_auth_error_exits_nonzero(self, runner, configured_env):
+        """list-events exits non-zero when auth fails (401 on token exchange)."""
+        error_resp = MagicMock(spec=httpx.Response)
+        error_resp.status_code = 401
+        error_resp.json.return_value = {"detail": "Invalid or revoked API key."}
+        error_resp.text = "Invalid or revoked API key."
+
+        with patch("httpx.post", return_value=error_resp):
+            result = runner.invoke(cli, ["list-events"])
+
+        assert result.exit_code != 0
+
+    def test_list_events_missing_config_exits_nonzero(self, runner, tmp_path, monkeypatch):
+        """list-events exits non-zero when switch-cli has not been configured."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        result = runner.invoke(cli, ["list-events"])
+        assert result.exit_code != 0
+
+
+class TestStudioLinkCommand:
+    """switch-cli studio-link prints a working URL to the review/greenlight workspace (kb-k2ds.2)."""
+
+    def test_studio_link_post_prints_post_hub_url(self, runner, configured_env):
+        """studio-link post <id> prints the post-hub URL (posts/<id>/), not the parameterless studio/ route."""
+        result = runner.invoke(cli, ["studio-link", "post", "42"])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["url"] == "http://fake-switch.test/syndication/posts/42/"
+
+    def test_studio_link_event_prints_event_hub_url(self, runner, configured_env):
+        """studio-link event <id> prints the event-hub URL (events/<id>/)."""
+        result = runner.invoke(cli, ["studio-link", "event", "17"])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["url"] == "http://fake-switch.test/syndication/events/17/"
+
+    def test_studio_link_post_missing_config_exits_nonzero(self, runner, tmp_path, monkeypatch):
+        """studio-link post <id> fails loud when no base URL is configured (ADR-008 D3)."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        result = runner.invoke(cli, ["studio-link", "post", "1"])
+        assert result.exit_code != 0
+
+    def test_studio_link_bare_id_without_disambiguation_is_rejected(self, runner, configured_env):
+        """A bare `studio-link <id>` (no post/event subcommand) is rejected — id 12 is ambiguous."""
+        result = runner.invoke(cli, ["studio-link", "12"])
+        assert result.exit_code != 0
 
 
 class TestApproveProjectionCommand:
