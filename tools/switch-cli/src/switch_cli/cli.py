@@ -22,6 +22,8 @@ Verbs:
 - mark-published      Mark a projection as externally published
 - list-projections    List projections for authenticated user (optionally --event/--post filtered)
 - list-events         List events for authenticated user
+- list-connections    List the authenticated user's own PlatformConnections
+- enable-promotion    Enable a synced connection for promotion (adds 'promotion' to kinds)
 - studio-link         Print a working URL to the review/greenlight workspace (post or event hub)
 """
 
@@ -346,6 +348,65 @@ def list_projections(event_id: int, post_id: int):
     try:
         client = SwitchClient()
         result = client.list_projections(event_id=event_id, post_id=post_id)
+    except (AuthError, FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    except APIError as exc:
+        _error(f"API error {exc.status_code}: {exc.detail}")
+    _output(result)
+
+
+# ---------------------------------------------------------------------------
+# list-connections  (kb-k2ds.3 discoverability)
+# ---------------------------------------------------------------------------
+
+
+@cli.command("list-connections")
+def list_connections():
+    """
+    List the authenticated user's own PlatformConnections.
+    Maps to GET /api/connections/. Outputs id/platform/destination_id/title/
+    kinds/enabled for each row as JSON to stdout.
+
+    Use this to obtain the connection id to pass to `enable-promotion`
+    (closes the "enable by raw DB id with no agent-reachable discovery" gap).
+    """
+    try:
+        client = SwitchClient()
+        result = client.list_connections()
+    except (AuthError, FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    except APIError as exc:
+        _error(f"API error {exc.status_code}: {exc.detail}")
+    _output(result)
+
+
+# ---------------------------------------------------------------------------
+# enable-promotion  (kb-k2ds.3 — agent-reachable enable-for-promotion verb)
+# ---------------------------------------------------------------------------
+
+
+@cli.command("enable-promotion")
+@click.argument("connection_id", type=int)
+def enable_promotion(connection_id: int):
+    """
+    Enable a synced connection (CONNECTION_ID) for promotion.
+
+    Maps to POST /api/connections/{connection_id}/enable-promotion/. Adds
+    'promotion' to the connection's kinds (additive) and sets enabled=True —
+    the agent-reachable replacement for the web-only destination picker
+    toggle. Idempotent: re-running on an already-enabled connection succeeds
+    without duplicating the kinds entry.
+
+    Fails loud (non-zero exit, ADR-008 D3) on: unknown/not-owned connection
+    id (404), the connection is not selectable — flagged_missing, agent-tier
+    locked, forum-cluster parent (400), or the connection's platform does not
+    support post promotion, e.g. 'switch' (400).
+
+    Run `switch-cli list-connections` first to discover the connection id.
+    """
+    try:
+        client = SwitchClient()
+        result = client.enable_promotion(connection_id=connection_id)
     except (AuthError, FileNotFoundError, ConfigError) as exc:
         _error(str(exc))
     except APIError as exc:

@@ -169,6 +169,31 @@ class SwitchClient:
         return self._check(response)
 
     # ------------------------------------------------------------------
+    # PlatformConnection verbs (kb-k2ds.3 — discoverability + enable-promotion)
+    # ------------------------------------------------------------------
+
+    def list_connections(self) -> list:
+        """GET /api/connections/ — list the caller's own PlatformConnections."""
+        response = httpx.get(
+            f"{self._base_url}/api/connections/",
+            headers=self._headers(),
+        )
+        return self._check(response)
+
+    def enable_promotion(self, connection_id: int) -> dict:
+        """
+        POST /api/connections/{connection_id}/enable-promotion/ — enable a
+        synced connection for promotion (adds 'promotion' to kinds,
+        enabled=True). Idempotent. Raises APIError (400) if the connection
+        is not selectable or its platform does not support post promotion.
+        """
+        response = httpx.post(
+            f"{self._base_url}/api/connections/{connection_id}/enable-promotion/",
+            headers=self._headers(),
+        )
+        return self._check(response)
+
+    # ------------------------------------------------------------------
     # Telegram inventory ingest verb (kb-ru55.2 / kb-ru55.3)
     # ------------------------------------------------------------------
 

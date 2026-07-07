@@ -33,6 +33,7 @@ from syndication.authz import can_edit, can_publish
 from syndication.forms import EventForm, PlatformConnectionForm, PostForm
 from syndication.models import PlatformConnection, PlatformProjection, Post
 from syndication.services import (
+    _derive_selectability,
     _get_primary_profile_for_user,
     _resolve_projection_event,
     _resolve_publishable_for_cv,
@@ -1482,48 +1483,13 @@ def destination_picker(request):
 #      sharing the same destination_id (it is a forum cluster label, not a leaf)
 #
 # The guard is re-derived server-side from DB state — never trusted from client.
+#
+# _derive_selectability now lives in syndication/services.py (kb-k2ds.3) so
+# this web view and the agent-reachable enable-promotion CLI/REST verb
+# (syndication/api.py) share ONE fail-loud gate instead of risking silent
+# divergence (ADR-008 D3 FIRM). Imported below alongside the other service
+# functions this module already uses.
 # ---------------------------------------------------------------------------
-
-
-def _derive_selectability(conn, agent_connected):
-    """
-    Re-derive server-side whether a connection is selectable for promotion.
-
-    Returns (is_selectable: bool, rejection_reason: str | None).
-
-    Reasons (ADR-008 D3 fail-loud):
-    - "flagged_missing": the row is no longer visible in the last sync.
-    - "agent_required": agent-tier postability but no agent connected.
-    - "forum_parent": the row is a forum cluster label (not a postable leaf).
-    """
-    from syndication.models import TelegramDialogType, TelegramPostability
-
-    if conn.flagged_missing:
-        return False, "flagged_missing"
-
-    # Locked: agent-tier with no active agent
-    if conn.postability == TelegramPostability.AGENT and not agent_connected:
-        return False, "agent_required"
-
-    # Forum parent: a group/supergroup row that has forum_topic children
-    # sharing the same destination_id AND organizer. Such rows are cluster
-    # labels, NOT selectable post targets (a forum group cannot receive a post
-    # without topic_id).
-    # SECURITY: scope to the same organizer — two organizers can share a
-    # destination_id (same Telegram chat_id). Without scope, Org B's forum
-    # leaks presence info and wrongly blocks Org A's plain group at the same
-    # chat_id. The unique key is (organizer, platform, destination_id, topic_id).
-    if conn.type in (TelegramDialogType.GROUP, TelegramDialogType.SUPERGROUP):
-        # Check if any forum_topic child shares this destination_id AND organizer
-        has_topics = PlatformConnection.objects.filter(
-            organizer_id=conn.organizer_id,
-            destination_id=conn.destination_id,
-            type=TelegramDialogType.FORUM_TOPIC,
-        ).exists()
-        if has_topics:
-            return False, "forum_parent"
-
-    return True, None
 
 
 @login_required

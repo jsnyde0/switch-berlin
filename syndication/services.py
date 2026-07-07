@@ -763,6 +763,106 @@ def _eager_create_promotion_projections(post, canonical_cv=None):
         )
 
 
+# ---------------------------------------------------------------------------
+# Enable-for-promotion (kb-k2ds.3, ADR-016 D1/D6, ADR-008 D3)
+#
+# Shared selectability guard + additive-mutation helper used by BOTH:
+# - the HTMX destination_select view (web path, kb-sbhs.3)
+# - the agent-reachable enable-promotion CLI/REST verb (kb-k2ds.3)
+#
+# Moved here (from views.py) so the two callers share ONE fail-loud gate
+# instead of risking silent divergence (ADR-008 D3 FIRM).
+# ---------------------------------------------------------------------------
+
+
+def _derive_selectability(conn, agent_connected):
+    """
+    Re-derive server-side whether a connection is selectable for promotion.
+
+    Returns (is_selectable: bool, rejection_reason: str | None).
+
+    Reasons (ADR-008 D3 fail-loud):
+    - "flagged_missing": the row is no longer visible in the last sync.
+    - "agent_required": agent-tier postability but no agent connected.
+    - "forum_parent": the row is a forum cluster label (not a postable leaf).
+    """
+    from syndication.models import PlatformConnection, TelegramDialogType, TelegramPostability
+
+    if conn.flagged_missing:
+        return False, "flagged_missing"
+
+    # Locked: agent-tier with no active agent
+    if conn.postability == TelegramPostability.AGENT and not agent_connected:
+        return False, "agent_required"
+
+    # Forum parent: a group/supergroup row that has forum_topic children
+    # sharing the same destination_id AND organizer. Such rows are cluster
+    # labels, NOT selectable post targets (a forum group cannot receive a post
+    # without topic_id).
+    # SECURITY: scope to the same organizer — two organizers can share a
+    # destination_id (same Telegram chat_id). Without scope, Org B's forum
+    # leaks presence info and wrongly blocks Org A's plain group at the same
+    # chat_id. The unique key is (organizer, platform, destination_id, topic_id).
+    if conn.type in (TelegramDialogType.GROUP, TelegramDialogType.SUPERGROUP):
+        # Check if any forum_topic child shares this destination_id AND organizer
+        has_topics = PlatformConnection.objects.filter(
+            organizer_id=conn.organizer_id,
+            destination_id=conn.destination_id,
+            type=TelegramDialogType.FORUM_TOPIC,
+        ).exists()
+        if has_topics:
+            return False, "forum_parent"
+
+    return True, None
+
+
+def enable_promotion(user, connection):
+    """
+    Enable a PlatformConnection for promotion (kb-k2ds.3 acceptance (1)).
+
+    Additive mutation: append 'promotion' to connection.kinds (only if absent)
+    and set enabled=True. Replicates the web destination_select "select" path
+    (kb-sbhs.3, views.py) — the two callers share this ONE fail-loud gate so
+    they cannot silently diverge (ADR-008 D3 FIRM).
+
+    Fail-loud gates (raise ValueError — never a silent no-op, never fabricates
+    a connection):
+    1. Selectability (_derive_selectability): flagged_missing, agent-tier
+       locked (no active AgentCredential for `user`), or forum-cluster parent.
+    2. Platform capability (_supports_post_promotion, ADR-010 D1): a platform
+       in _PLATFORMS_WITHOUT_POST_PROMOTION (currently 'switch') would silently
+       no-op at fan-out time (_eager_create_promotion_projections) even with
+       'promotion' in kinds — reject enabling it up front instead.
+
+    Idempotent: if 'promotion' is already in kinds and enabled is already True,
+    re-calling is a success no-op — no duplicate append, no exception merely
+    because the connection is already enabled (as long as it is still
+    selectable and capable).
+
+    Never creates a connection — the caller resolves an existing
+    PlatformConnection by id before calling this; an unknown id is a 404
+    handled by the caller (API/CLI layer), not here.
+    """
+    agent_connected = AgentCredential.objects.filter(user=user, enabled=True).exists()
+    is_selectable, rejection_reason = _derive_selectability(connection, agent_connected)
+    if not is_selectable:
+        raise ValueError(f"Cannot enable promotion: {rejection_reason or 'not selectable'}")
+
+    if not _supports_post_promotion(connection.platform):
+        raise ValueError(
+            f"Platform {connection.platform!r} does not support post promotion (ADR-010 D1) "
+            "— enabling would silently no-op at fan-out time."
+        )
+
+    kinds = list(connection.kinds or [])
+    if "promotion" not in kinds:
+        kinds.append("promotion")
+    connection.kinds = kinds
+    connection.enabled = True
+    connection.save(update_fields=["kinds", "enabled"])
+    return connection
+
+
 # Event field names accepted by create_event / update_event.
 # Covers the full v0 field set per kb-a4u acceptance criterion 1.
 # venue is a direct FK column; tags is M2M and handled separately.

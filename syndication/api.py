@@ -49,6 +49,7 @@ from syndication.services import (
     approve_projection,
     create_event,
     create_post,
+    enable_promotion,
     exchange_api_key_for_identity_token,
     ingest_telegram_inventory,
     mark_projection_published,
@@ -560,6 +561,27 @@ class ProjectionOut(Schema):
     connection_title: str | None
 
 
+# --- Connection schema (kb-k2ds.3 — discoverability + enable-promotion) ---
+
+
+class ConnectionOut(Schema):
+    """
+    Response schema for GET /api/connections/ rows and the enable-promotion
+    action response (bead kb-k2ds.3 acceptance (2)).
+
+    Carries at least id/platform/destination_id/title/kinds/enabled so an
+    agent can discover a connection id and confirm its promotion-enabled
+    state without any web HTMX fast-path.
+    """
+
+    id: int
+    platform: str
+    destination_id: str
+    title: str | None
+    kinds: list[str]
+    enabled: bool
+
+
 # ---------------------------------------------------------------------------
 # Event field resolution helpers (venue-id → Venue, tag-slugs → Tag pks)
 # ---------------------------------------------------------------------------
@@ -959,6 +981,103 @@ def projections_list(request, event: int | None = None, post: int | None = None)
     projections = list_projections_for_user(request.auth, event_id=event, post_id=post)
     data = [_projection_to_dict(p) for p in projections]
     return _actor_marker_response(request, data)
+
+
+# ---------------------------------------------------------------------------
+# PlatformConnection discoverability + enable-promotion (kb-k2ds.3)
+#
+# Co-equal seam (ADR-016 D3/D6): closes the gap where the only way to
+# discover a connection id or enable it for promotion was the web HTMX
+# destination picker (syndication/views.py connections_list / destination_select).
+# ---------------------------------------------------------------------------
+
+
+def _connection_to_dict(connection):
+    """Serialize a PlatformConnection to a dict matching ConnectionOut."""
+    return {
+        "id": connection.pk,
+        "platform": connection.platform,
+        "destination_id": connection.destination_id,
+        "title": connection.title,
+        "kinds": connection.kinds or [],
+        "enabled": connection.enabled,
+    }
+
+
+@api.get(
+    "/connections/",
+    auth=_RESOURCE_AUTH,
+    response=list[ConnectionOut],
+    summary="List the caller's own PlatformConnections (kb-k2ds.3 discoverability)",
+)
+def connections_list(request):
+    """
+    List all PlatformConnection rows owned by the authenticated user's claimed
+    profiles (mirrors the events_list auth-scoping pattern and the web
+    connections_list view — no cross-tenant leak).
+
+    Gives an agent an id it can pass to POST /connections/{id}/enable-promotion/
+    without any web HTMX fast-path (kb-k2ds.3 acceptance (2)).
+    """
+    from organizers.models import ProfileClaim
+    from syndication.models import PlatformConnection
+
+    profile_ids = ProfileClaim.objects.filter(user=request.auth, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
+    connections = PlatformConnection.objects.filter(organizer_id__in=profile_ids).order_by(
+        "platform", "destination_id"
+    )
+    data = [_connection_to_dict(c) for c in connections]
+    return _actor_marker_response(request, data)
+
+
+@api.post(
+    "/connections/{connection_id}/enable-promotion/",
+    auth=_RESOURCE_AUTH,
+    response={200: ConnectionOut},
+    summary="Enable a synced connection for promotion (kb-k2ds.3)",
+    description=(
+        "Co-equal REST verb for the web destination_select 'select' action "
+        "(syndication/views.py, kb-sbhs.3). Adds 'promotion' to the "
+        "connection's kinds (additive) and sets enabled=True. "
+        "Calls the SAME enable_promotion service function as the web path — "
+        "no separate implementation, no divergent fail-loud gate (ADR-008 D3). "
+        "Idempotent: enabling an already-promotion-enabled connection is a "
+        "success no-op. Raises 404 on an unknown/not-owned connection id, "
+        "400 if the connection is not selectable (flagged_missing, "
+        "agent-tier locked, forum-cluster parent) or its platform does not "
+        "support post promotion (e.g. 'switch')."
+    ),
+)
+def api_connection_enable_promotion(request, connection_id: int):
+    """
+    Enable a PlatformConnection for promotion.
+
+    Ownership scoping mirrors the web destination_select view: 404 (never a
+    generic 500 or a cross-tenant leak) if the connection does not exist or
+    is not owned by the caller's claimed profiles.
+    Gate: enable_promotion service raises ValueError on the fail-loud
+    selectability/platform-capability gates — mapped to 400 here.
+    """
+    from django.shortcuts import get_object_or_404
+
+    from organizers.models import ProfileClaim
+    from syndication.models import PlatformConnection
+
+    profile_ids = ProfileClaim.objects.filter(user=request.auth, rejected_at__isnull=True).values_list(
+        "profile_id", flat=True
+    )
+    connection = get_object_or_404(PlatformConnection, pk=connection_id, organizer_id__in=profile_ids)
+
+    try:
+        enable_promotion(user=request.auth, connection=connection)
+    except ValueError as exc:
+        logger.warning("enable-promotion: rejected connection %s: %s", connection_id, exc)
+        return api.create_response(request, {"detail": str(exc)}, status=400)
+
+    connection.refresh_from_db()
+    return _actor_marker_response(request, _connection_to_dict(connection))
 
 
 # ---------------------------------------------------------------------------

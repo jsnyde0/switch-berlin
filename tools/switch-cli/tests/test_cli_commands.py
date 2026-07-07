@@ -583,6 +583,195 @@ class TestListEventsCommand:
         assert result.exit_code != 0
 
 
+class TestListConnectionsCommand:
+    """switch-cli list-connections calls the connections list endpoint (kb-k2ds.3 discoverability)."""
+
+    def _mock_token_response(self):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "identity_token": "tok",
+            "expires_at": "2027-01-01Z",
+        }
+        return mock_resp
+
+    def _mock_connections_response(self):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [
+            {
+                "id": 3,
+                "platform": "telegram",
+                "destination_id": "-100123456",
+                "title": "My Telegram Channel",
+                "kinds": [],
+                "enabled": True,
+            }
+        ]
+        return mock_resp
+
+    def test_list_connections_outputs_real_rows(self, runner, configured_env):
+        """list-connections outputs the caller's connections (id/platform/kinds/enabled) from /api/connections/."""
+        token_resp = self._mock_token_response()
+        conn_resp = self._mock_connections_response()
+
+        with patch("httpx.post", return_value=token_resp):
+            with patch("httpx.get", return_value=conn_resp) as mock_get:
+                result = runner.invoke(cli, ["list-connections"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert isinstance(data, list)
+        row = data[0]
+        assert row["id"] == 3
+        assert row["platform"] == "telegram"
+        assert row["kinds"] == []
+        assert row["enabled"] is True
+
+        get_call = mock_get.call_args_list[0]
+        assert "/api/connections/" in get_call[0][0]
+
+    def test_list_connections_auth_error_exits_nonzero(self, runner, configured_env):
+        """list-connections exits non-zero when auth fails (401 on token exchange)."""
+        error_resp = MagicMock(spec=httpx.Response)
+        error_resp.status_code = 401
+        error_resp.json.return_value = {"detail": "Invalid or revoked API key."}
+        error_resp.text = "Invalid or revoked API key."
+
+        with patch("httpx.post", return_value=error_resp):
+            result = runner.invoke(cli, ["list-connections"])
+
+        assert result.exit_code != 0
+
+    def test_list_connections_missing_config_exits_nonzero(self, runner, tmp_path, monkeypatch):
+        """list-connections exits non-zero when switch-cli has not been configured."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        result = runner.invoke(cli, ["list-connections"])
+        assert result.exit_code != 0
+
+
+class TestEnablePromotionCommand:
+    """switch-cli enable-promotion <connection-id> calls the enable-promotion endpoint (kb-k2ds.3)."""
+
+    def _mock_token_response(self):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "identity_token": "tok",
+            "expires_at": "2027-01-01Z",
+        }
+        return mock_resp
+
+    def _mock_enable_response(self, enabled=True, kinds=None):
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "id": 3,
+            "platform": "telegram",
+            "destination_id": "-100123456",
+            "title": "My Telegram Channel",
+            "kinds": kinds if kinds is not None else ["promotion"],
+            "enabled": enabled,
+        }
+        return mock_resp
+
+    def test_enable_promotion_posts_to_enable_promotion_endpoint(self, runner, configured_env):
+        """enable-promotion 3 POSTs to /api/connections/3/enable-promotion/."""
+        token_resp = self._mock_token_response()
+        enable_resp = self._mock_enable_response()
+
+        with patch("httpx.post") as mock_post:
+            mock_post.side_effect = [token_resp, enable_resp]
+            result = runner.invoke(cli, ["enable-promotion", "3"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["id"] == 3
+        assert data["kinds"] == ["promotion"]
+        assert data["enabled"] is True
+
+        # Second POST call (first is the token exchange) hits the enable-promotion URL.
+        enable_call = mock_post.call_args_list[1]
+        assert "/api/connections/3/enable-promotion/" in enable_call[0][0]
+
+    def test_enable_promotion_uses_identity_token_as_bearer(self, runner, configured_env):
+        """enable-promotion sends the identity token as the Bearer header on the enable call."""
+        token_resp = self._mock_token_response()
+        enable_resp = self._mock_enable_response()
+
+        with patch("httpx.post") as mock_post:
+            mock_post.side_effect = [token_resp, enable_resp]
+            runner.invoke(cli, ["enable-promotion", "3"])
+
+        enable_call = mock_post.call_args_list[1]
+        assert enable_call.kwargs["headers"]["Authorization"] == "Bearer tok"
+
+    def test_enable_promotion_idempotent_repeat_call_exits_zero(self, runner, configured_env):
+        """Re-running enable-promotion on an already-enabled connection is a success no-op."""
+        token_resp = self._mock_token_response()
+        enable_resp = self._mock_enable_response()
+
+        with patch("httpx.post") as mock_post:
+            mock_post.side_effect = [token_resp, enable_resp]
+            result = runner.invoke(cli, ["enable-promotion", "3"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["kinds"].count("promotion") == 1
+
+    def test_enable_promotion_fail_loud_error_exits_nonzero(self, runner, configured_env):
+        """enable-promotion exits non-zero with the server's detail on a 400 fail-loud rejection."""
+        token_resp = self._mock_token_response()
+        error_resp = MagicMock(spec=httpx.Response)
+        error_resp.status_code = 400
+        error_resp.json.return_value = {"detail": "Cannot enable promotion: flagged_missing"}
+        error_resp.text = "Cannot enable promotion: flagged_missing"
+
+        with patch("httpx.post") as mock_post:
+            mock_post.side_effect = [token_resp, error_resp]
+            result = runner.invoke(cli, ["enable-promotion", "3"])
+
+        assert result.exit_code != 0
+        # _error writes to stderr; Click >=8.2 captures stderr separately from
+        # result.output (mix_stderr removed). Check both streams so the detail
+        # assertion holds under either capture behavior.
+        assert "flagged_missing" in result.output or "flagged_missing" in result.stderr
+
+    def test_enable_promotion_unknown_connection_404_exits_nonzero(self, runner, configured_env):
+        """enable-promotion exits non-zero on an unknown connection id (404, ADR-008 D3)."""
+        token_resp = self._mock_token_response()
+        error_resp = MagicMock(spec=httpx.Response)
+        error_resp.status_code = 404
+        error_resp.json.return_value = {"detail": "Not Found"}
+        error_resp.text = "Not Found"
+
+        with patch("httpx.post") as mock_post:
+            mock_post.side_effect = [token_resp, error_resp]
+            result = runner.invoke(cli, ["enable-promotion", "999999"])
+
+        assert result.exit_code != 0
+
+    def test_enable_promotion_auth_error_exits_nonzero(self, runner, configured_env):
+        """enable-promotion exits non-zero when auth fails (401 on token exchange)."""
+        error_resp = MagicMock(spec=httpx.Response)
+        error_resp.status_code = 401
+        error_resp.json.return_value = {"detail": "Invalid or revoked API key."}
+        error_resp.text = "Invalid or revoked API key."
+
+        with patch("httpx.post", return_value=error_resp):
+            result = runner.invoke(cli, ["enable-promotion", "3"])
+
+        assert result.exit_code != 0
+
+    def test_enable_promotion_missing_config_exits_nonzero(self, runner, tmp_path, monkeypatch):
+        """enable-promotion exits non-zero when switch-cli has not been configured."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setenv("SWITCH_CLI_CONFIG", str(config_path))
+        result = runner.invoke(cli, ["enable-promotion", "3"])
+        assert result.exit_code != 0
+
+
 class TestStudioLinkCommand:
     """switch-cli studio-link prints a working URL to the review/greenlight workspace (kb-k2ds.2)."""
 
@@ -811,7 +1000,9 @@ class TestGenerateProjectionRemoved:
         # Invoking the removed verb returns exit code 2 ("No such command")
         result = runner.invoke(cli, ["generate-projection", "--projection-id", "1"])
         assert result.exit_code == 2
-        assert "No such command" in result.output
+        # Click >=8.2 captures usage-error output on stderr, not result.output
+        # (mix_stderr removed). Check both streams.
+        assert "No such command" in result.output or "No such command" in result.stderr
 
 
 class TestMissingConfigKeys:
