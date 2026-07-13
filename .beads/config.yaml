@@ -55,4 +55,4 @@ issue-prefix: "kb"
 
 # Cleared (ADR-014 D3): bd init auto-adopts whatever sync.remote points at, and
 # git-remote-dolt push is not used (issues.jsonl is the cross-machine carrier).
-sync.remote: ""
+sync.remote: "git+ssh://git@github.com/jsnyde0/switch-berlin.git"
