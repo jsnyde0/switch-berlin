@@ -2,13 +2,18 @@
 
 This file provides instructions and context for AI coding agents working on this project.
 
-## Current focus (updated 2026-07-07)
+## Current focus (updated 2026-09-15)
 
-The main thread is the **Challenge spine** (dogfood-as-design walks), NOT the scattered backlog. Strategy: **agent-first for facilitators** — capability in `switch-cli`, skills as thin wrappers, composable delivery rails (own Telegram/FetLife, compose Instagram/newsletters via external tools), and **all data through Switch** as system of record. Canonical: [ADR-019](docs/decisions/ADR-019-agent-harness-as-a-product.md) (esp. D6) + bd memory `challenge-driven-dogfood-as-design-main-thread`.
+**Vision:** replace FetLife with a better alternative ("FetLife meets Hipsy"). **Growth logic:** a Switch already populated with real events and claimable organizer profiles attracts visitors, which attracts promoters, who claim their profile and manage events through the agent harness, including events not public anywhere. Canonical: bd memory `switch-two-track-spine-and-vision` (spine) + `challenge-driven-dogfood-as-design-main-thread` (method) + [ADR-019](docs/decisions/ADR-019-agent-harness-as-a-product.md).
 
-Next work: the two agent-surface gap beads under the Challenge 0 epic (`kb-k2ds.2` front-door verbs, `kb-k2ds.3` enable-for-promotion), then the Challenge 0 walk (`kb-k2ds.1`, needs the user at their phone). The UI-polish tail is **frozen** (deferred beads) — do not surface it as active work; no new UI investment unless a challenge walk demands it.
+**Two parallel tracks, both challenge/walk-driven** (walk one honest journey, file children only as the walk reveals friction, never pre-decompose):
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+- **Track A, event collector** (`kb-7wzb`): consolidate Berlin events from public sites (IKSK first) and Telegram channels into Switch. First act = brainstorm sitting with the user (`kb-7wzb.1`): outcome, sources, positioning ruling vs ADR-010 canonical-home.
+- **Track B, agentic harness for facilitators** (`kb-k2ds`): capability in `switch-cli`, skills as thin wrappers, all data through Switch. Next = the Challenge 0 walk (`kb-k2ds.1`, needs the user at their phone), then co-design Challenge 1 (`kb-z50e`: website skill / marketing-channel skills / FetLife).
+- **Cross-cutting:** `kb-n41z` turns walks into agentic e2e drives via `/verify scaffold`, after the first hand-walk.
+
+The UI-polish tail is **frozen** (deferred beads); no new UI investment unless a walk demands it. Business model lives in `kb-uy99`; do not settle it before a facilitator asks to pay.
+
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
