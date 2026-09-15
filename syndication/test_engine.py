@@ -288,7 +288,7 @@ class RuleBasedGenerationTest(TestCase):
     """mode=rule_based generates a deterministic body from Event fields."""
 
     def test_rule_based_listing_includes_event_title(self):
-        event = _make_event(title="Kinky Bubbles Party", description="Fun event")
+        event = _make_event(title="Switch Berlin Party", description="Fun event")
         conn = _make_connection(destination_id="fl-rule-1")
         proj = generate_projection(
             kind="listing",
@@ -299,7 +299,7 @@ class RuleBasedGenerationTest(TestCase):
         from syndication.engine import render_projection
 
         body = render_projection(proj)
-        self.assertIn("Kinky Bubbles Party", body)
+        self.assertIn("Switch Berlin Party", body)
 
     def test_rule_based_is_deterministic(self):
         """Same inputs produce same output — no randomness."""

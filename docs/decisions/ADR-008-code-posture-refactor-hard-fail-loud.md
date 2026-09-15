@@ -141,4 +141,4 @@ A specific surface where 2 retries is empirically wrong (e.g., a webhook receive
 - [ADR-002](ADR-002-phased-rollout-and-legal-gate.md) — phased rollout (defines when V1 arrives, at which point D1 flips to FLEXIBLE)
 - [ADR-003](ADR-003-cheap-foresight-patterns.md) — cheap foresight (the additive complement to D1/D2: shape *data* now, don't abstract *behavior* now)
 - `docs/incident-2026-05-12-data-loss-restore-plan.md` — binding precedent on the destructive-migration boundary referenced in D1
-- Upstream reference: `mapular-platform/CLAUDE.md` "MVP Mindset" (lines 206-212) and `mapular-platform/docs/decisions/ADR-001-fail-loud-pattern.md` — source material adapted for kinky-bubbles' Django + pydantic-ai + React-island stack
+- Upstream reference: `mapular-platform/CLAUDE.md` "MVP Mindset" (lines 206-212) and `mapular-platform/docs/decisions/ADR-001-fail-loud-pattern.md` — source material adapted for switch-berlin's Django + pydantic-ai + React-island stack

@@ -1,6 +1,6 @@
-# Harness Inventory — `kinky-bubbles` (Switch Berlin)
+# Harness Inventory — `switch-berlin` (Switch Berlin)
 
-Catalog of feedback mechanisms available in this repo. This is the Switch app (public-facing: switch.berlin, repo still named `kinky-bubbles`): a Berlin queer/kinky/conscious events aggregator on Django 5 + HTMX + Alpine.js + a Tailwind/React island built via Vite. Structured by speed (fastest first), then per-category fit profiles. Memory and ADR findings are folded in-line — ADR-008 (FIRM: refactor hard, fail loud, no silent fallbacks on data integrity) is the binding constraint for many of the checks below.
+Catalog of feedback mechanisms available in this repo. This is the Switch app (public-facing: switch.berlin, repo `switch-berlin`): a Berlin queer/kinky/conscious events aggregator on Django 5 + HTMX + Alpine.js + a Tailwind/React island built via Vite. Structured by speed (fastest first), then per-category fit profiles. Memory and ADR findings are folded in-line — ADR-008 (FIRM: refactor hard, fail loud, no silent fallbacks on data integrity) is the binding constraint for many of the checks below.
 
 Pantry, not a recipe. Agents compose per-task by consulting fit profiles first.
 
@@ -269,7 +269,7 @@ Before committing, prefer `uv run pre-commit run --all-files` because the local 
 
 ## Conventions worth knowing
 
-- **Public name vs. repo name.** Project rebranded to **Switch Berlin** (domain: switch.berlin) in May 2026; the GitHub repo is `switch-berlin`, but this local checkout is still named `kinky-bubbles`. Memory `project-rebrand-switch` has the details. Some legacy strings (`kb-*` bead-ID prefix, the `kb` cotton namespace, this directory name) retain the old name — that's intentional, not stale.
+- **Naming.** Public brand is **Switch Berlin** (domain: switch.berlin); the GitHub repo, the git remote, and this local checkout are all `switch-berlin`. The internal Python/Django package identifier stays `switch`. Old-name residue (`kinky bubbles`, the `kb-*` bead-ID prefix, the `kb` cotton namespace) is being retired, not preserved — see kb-l7y5.
 - **SQLite for tests, Postgres in dev/prod.** `a_core/test_settings.py` substitutes SQLite `:memory:` and disables migrations (run_syncdb) for all local apps to skip `pg_trgm` / `pgvector` and bypass historical FK resolution for renamed models (organizers.Organizer → Profile). CI uses real pgvector/pg17 so migrations + Postgres extensions are exercised in CI even though local test runs skip them. The fast SQLite loop runs all apps' tests; Postgres-only tests (EXTRACT/SIMILARITY/pg_constraint/schema_editor-in-transaction) are marked `@skipIf(sqlite)` and run on the default-Postgres path only. Fixed: kb-33do.2.
 - **`agentic` and `slow` markers excluded by default.** `pyproject.toml` `addopts = "-m 'not agentic and not slow'"`. Tests that hit real LLMs or run `makemessages` must opt in explicitly (`-m agentic` or `-m slow`).
 - **Pre-commit's `pytest` hook is `always_run: true` on Python edits.** Pre-commit doubles as test gate — expect 30–60s on every Python commit.

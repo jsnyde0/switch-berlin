@@ -14,7 +14,7 @@ The phased roadmap (ADR-002) defers features across multiple milestones. Deferre
 (b) **Build it fully** — premature. Violates YAGNI. Common solo-project failure mode.
 (c) **Cheap foresight** — shape the model, schema, route, or data-capture surface so the future phase is additive, not a rewrite. Zero or near-zero cost now; buys optionality.
 
-This ADR records the cheap-foresight patterns that apply to kinky-bubbles specifically. The default is (c) where the cost is trivial and the optionality is real; (a) where the future need is speculative enough that guessing wrong is likely.
+This ADR records the cheap-foresight patterns that apply to switch-berlin specifically. The default is (c) where the cost is trivial and the optionality is real; (a) where the future need is speculative enough that guessing wrong is likely.
 
 ## The principle
 

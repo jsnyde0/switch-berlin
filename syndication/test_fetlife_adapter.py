@@ -70,7 +70,7 @@ def _make_fetlife_connection(profile, destination_id="fl-user-001", **kwargs):
 
 def _make_event(slug="fl-test-event", **kwargs):
     defaults = {
-        "title": "Kinky Bubbles Party",
+        "title": "Switch Berlin Party",
         "slug": slug,
         "start": timezone.now(),
         "visibility": "public",
@@ -235,7 +235,7 @@ class FetLifeListingBodyTest(TestCase):
         """The body must include the event title."""
         from syndication.engine import generate_projection, render_projection
 
-        event = _make_event(slug="fl-title-test", title="Kinky Bubbles Party")
+        event = _make_event(slug="fl-title-test", title="Switch Berlin Party")
         proj = generate_projection(
             kind="listing",
             connection=self.conn,
@@ -243,7 +243,7 @@ class FetLifeListingBodyTest(TestCase):
             mode="rule_based",
         )
         body = render_projection(proj)
-        self.assertIn("Kinky Bubbles Party", body)
+        self.assertIn("Switch Berlin Party", body)
 
     def test_fetlife_listing_body_includes_description(self):
         """The body must include event.description."""
@@ -766,7 +766,7 @@ class FetLifeVisibilityAgnosticTest(TestCase):
                 visibility=visibility,
                 dress_code="Fetish attire",
                 description="Visibility body equality test.",
-                title="Kinky Bubbles Party",
+                title="Switch Berlin Party",
                 start=fixed_start,
             )
             EventOrganizer.objects.create(event=event, profile=self.profile, is_primary=True)
