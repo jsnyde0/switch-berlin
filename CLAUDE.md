@@ -31,7 +31,16 @@ bd close <id>         # Complete work
 
 - Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
 - Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+
+## Persistent Knowledge
+
+Durable knowledge lives in `mem`, workspace `switch-berlin` — not in `bd remember`, not in MEMORY.md files. The 77 memories this project once held in bd were migrated to `mem` on 2026-09-15 and the bd memory store is now empty; re-populating it re-splits the substrate.
+
+- Query: `mem context "<task>"`; read one: `mem show <slug>`. The session-start hook injects the cluster-hub index at T=0.
+- Write: `mem add --kind <kind> --scope workspace --key <lesson-naming-slug> "<body>"`. Read `mem add --help` for the write-time quality bar (slug / tier / link / scope tests) — it is canonical, do not restate it here.
+- Default `--scope workspace`. Reach for `global` only if the lesson survives stripping every project-specific noun.
+
+Done-condition for any knowledge write: `mem check` exits 0 and `mem show <slug>` returns your fact.
 
 ## Session Completion
 

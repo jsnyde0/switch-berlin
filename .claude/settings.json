@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "bd prime",
+            "command": "bd prime; printf '\\n> **Memory override (project rule, overrides bd prime above):** durable knowledge lives in `mem`, workspace `switch-berlin` — NOT `bd remember`, whose store is intentionally empty. Query `mem context \"<task>\"`; write `mem add` (see `mem add --help`). Detail: CLAUDE.md > Persistent Knowledge.\\n'",
             "type": "command"
           }
         ],
@@ -15,7 +15,7 @@
       {
         "hooks": [
           {
-            "command": "bd prime",
+            "command": "bd prime; printf '\\n> **Memory override (project rule, overrides bd prime above):** durable knowledge lives in `mem`, workspace `switch-berlin` — NOT `bd remember`, whose store is intentionally empty. Query `mem context \"<task>\"`; write `mem add` (see `mem add --help`). Detail: CLAUDE.md > Persistent Knowledge.\\n'",
             "type": "command"
           }
         ],
