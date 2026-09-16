@@ -1,5 +1,5 @@
 """
-TDD tests for EventFacilitator M2M migration (kb-qhl).
+TDD tests for EventFacilitator M2M migration (sb-qhl).
 
 Acceptance criteria covered:
   1. EventFacilitator model importable and has correct fields

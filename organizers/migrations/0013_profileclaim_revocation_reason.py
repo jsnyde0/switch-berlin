@@ -1,4 +1,4 @@
-# Migration for kb-m69.9: add ProfileClaim.revocation_reason
+# Migration for sb-m69.9: add ProfileClaim.revocation_reason
 #
 # Cheap-foresight col per ADR-003; populated by S9 admin revoke action.
 # Soft-delete audit trail: records admin's reason when revoking an approved claim.
@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 max_length=500,
                 help_text=(
                     "Optional reason recorded by admin on claim revoke (ADR-003 cheap-foresight; "
-                    "kb-m69.9). Populated by S9 admin revoke action."
+                    "sb-m69.9). Populated by S9 admin revoke action."
                 ),
             ),
         ),

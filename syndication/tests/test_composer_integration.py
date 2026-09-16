@@ -1,5 +1,5 @@
 """
-Integration test — consolidated composer conjunction (kb-96tn.8).
+Integration test — consolidated composer conjunction (sb-96tn.8).
 
 Seeds ONE event with:
   - a PUBLISHED Switch listing projection (clean)
@@ -33,7 +33,7 @@ Asserts the 6-bullet conjunction at server-rendered-HTML level:
 
 Assertions use response.content (NOT response.context) per documented
 hollow-test prevention (context assertions pass even when the template is
-broken — kb-33do.3 reformat-mutates-rendered-output caveat).
+broken — sb-33do.3 reformat-mutates-rendered-output caveat).
 """
 
 from unittest.mock import patch
@@ -235,7 +235,7 @@ class ComposerConjunctionTest(TestCase):
         """
         The post composer workspace (post_syndication fragment) MUST have a
         breadcrumb linking back to the event hub — the "Studio › <event.title>"
-        pattern (kb-96tn.9: breadcrumb now lives in the post_syndication fragment,
+        pattern (sb-96tn.9: breadcrumb now lives in the post_syndication fragment,
         not the hub shell, so we check the fragment URL directly).
         """
         url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
@@ -272,7 +272,7 @@ class ComposerConjunctionTest(TestCase):
         self.assertNotIn(
             ">Body<",
             content,
-            "event_syndication fragment must NOT have a 'Body' section label (double-render kb-96tn.2 fix).",
+            "event_syndication fragment must NOT have a 'Body' section label (double-render sb-96tn.2 fix).",
         )
 
     def test_b2_event_syndication_no_preview_label_for_draft_fetlife(self):
@@ -287,13 +287,13 @@ class ComposerConjunctionTest(TestCase):
         self.assertNotIn(
             ">Preview<",
             content,
-            "event_syndication fragment must NOT have a 'Preview' section label (double-render kb-96tn.2 fix).",
+            "event_syndication fragment must NOT have a 'Preview' section label (double-render sb-96tn.2 fix).",
         )
 
     def test_b2_event_syndication_venue_field_not_hidden(self):
         """
         The Switch listing edit card must render venue as a visible field —
-        NOT type='hidden' (D-IA3, kb-96tn.2).
+        NOT type='hidden' (D-IA3, sb-96tn.2).
         """
         url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
         response = self.client.get(url)
@@ -351,7 +351,7 @@ class ComposerConjunctionTest(TestCase):
             "Venue",
             content,
             "D-IA3: 'Venue' label must appear in the DRAFT Switch listing card — "
-            "venue must be a visible inline-editable field (kb-96tn.2).",
+            "venue must be a visible inline-editable field (sb-96tn.2).",
         )
 
     # ------------------------------------------------------------------
@@ -445,7 +445,7 @@ class ComposerConjunctionTest(TestCase):
             'data-testid="dirty-banner"',
             content,
             "Dirty-state banner must appear in event_syndication fragment when "
-            "a published projection is dirty (kb-96tn.5).",
+            "a published projection is dirty (sb-96tn.5).",
         )
 
     def test_b4_dirty_banner_absent_for_clean_published_projection(self):
@@ -547,7 +547,7 @@ class ComposerConjunctionTest(TestCase):
         self.assertIn(
             f'hx-get="{post_hub_url}"',
             content,
-            f"Promo card article must have hx-get='{post_hub_url}' (kb-96tn.7 clickable card).",
+            f"Promo card article must have hx-get='{post_hub_url}' (sb-96tn.7 clickable card).",
         )
 
     def test_b6_promo_card_has_hx_target_studio_main(self):
@@ -567,7 +567,7 @@ class ComposerConjunctionTest(TestCase):
     def test_b6_promo_card_no_open_composer_text(self):
         """
         The promo card must NOT contain 'Open composer' text — the inner link
-        was replaced by the whole-card click target (kb-96tn.7).
+        was replaced by the whole-card click target (sb-96tn.7).
         """
         url = reverse("syndication:fragment-event-posts", kwargs={"pk": self.event.pk})
         response = self.client.get(url)
@@ -576,7 +576,7 @@ class ComposerConjunctionTest(TestCase):
         self.assertNotIn(
             "Open composer",
             content,
-            "Promo card must NOT contain 'Open composer' inner link text (kb-96tn.7).",
+            "Promo card must NOT contain 'Open composer' inner link text (sb-96tn.7).",
         )
 
     def test_b6_dom_order_event_syndication_before_event_posts(self):
@@ -596,11 +596,11 @@ class ComposerConjunctionTest(TestCase):
             pos_syndication,
             pos_posts,
             f"#event-syndication (pos={pos_syndication}) must precede "
-            f"#event-posts (pos={pos_posts}) in the rendered HTML (kb-96tn.7 D-IA8).",
+            f"#event-posts (pos={pos_posts}) in the rendered HTML (sb-96tn.7 D-IA8).",
         )
 
     # ------------------------------------------------------------------
-    # kb-96tn.9: ONE consolidated bar — pills + breadcrumb + publish in
+    # sb-96tn.9: ONE consolidated bar — pills + breadcrumb + publish in
     # the fragment; shell must NOT have a separate pills row.
     # ------------------------------------------------------------------
 
@@ -725,14 +725,14 @@ class ComposerConjunctionTest(TestCase):
         )
 
     # ------------------------------------------------------------------
-    # kb-96tn.10: Post composer — no double-render for published projections.
+    # sb-96tn.10: Post composer — no double-render for published projections.
     # ------------------------------------------------------------------
 
     def test_kb96tn10_post_syndication_no_body_label_for_published_projection(self):
         """
         The post_syndication fragment must NOT render a 'Body' label block for
         a published (non-draft) projection — only _channel_preview.html once
-        (mirrors event_syndication.html fix from kb-96tn.2).
+        (mirrors event_syndication.html fix from sb-96tn.2).
 
         This test seeds a published post projection and asserts the 'Body'
         label block is absent from the post_syndication fragment.
@@ -771,12 +771,12 @@ class ComposerConjunctionTest(TestCase):
             ">Body<",
             content,
             "post_syndication fragment must NOT have a 'Body' section label for a "
-            "published projection (kb-96tn.10 double-render fix).",
+            "published projection (sb-96tn.10 double-render fix).",
         )
 
 
 # ---------------------------------------------------------------------------
-# kb-96tn.11: edit_after_publish_policy seam is live on the dirty/render path
+# sb-96tn.11: edit_after_publish_policy seam is live on the dirty/render path
 # ---------------------------------------------------------------------------
 
 
@@ -788,7 +788,7 @@ class EditAfterPublishPolicySeamTest(TestCase):
       - Default policy (dirty_then_republish) leaves behavior unchanged —
         the dirty banner and Re-publish affordance still render.
 
-    ADR-016 D5 cheap-foresight requirement (kb-96tn.11).
+    ADR-016 D5 cheap-foresight requirement (sb-96tn.11).
     ADR-008 D2: do NOT test alternate policy behaviors beyond asserting the seam
     is load-bearing (no lock/auto branches implemented here).
     """
@@ -851,5 +851,5 @@ class EditAfterPublishPolicySeamTest(TestCase):
             'data-testid="dirty-banner"',
             content,
             "Non-default policy ('lock') must suppress the dirty banner — "
-            "proving edit_after_publish_policy is a live caller on the render path (kb-96tn.11).",
+            "proving edit_after_publish_policy is a live caller on the render path (sb-96tn.11).",
         )

@@ -1,5 +1,5 @@
 #cloud-config
-# Cloud-init for Switch Berlin production VPS (kb-6nq.1).
+# Cloud-init for Switch Berlin production VPS (sb-6nq.1).
 # Idempotent first-boot config: deploy user, Docker, Caddy, firewall, app dirs.
 
 users:

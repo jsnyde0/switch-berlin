@@ -4,7 +4,7 @@
 # replace it. Without [extend], a custom config silently disables every default
 # secret rule, turning the CI security gate into a no-op.
 #
-# Allowlist rationale (kb-9wk5, confirmed 2026-06-02): gitleaks' generic-api-key
+# Allowlist rationale (sb-9wk5, confirmed 2026-06-02): gitleaks' generic-api-key
 # heuristic misfires on Django ORM filter syntax of the form
 #   .filter(user=request.auth, <field>__<lookup>=...)
 # It sees the literal "auth" immediately followed by a long underscore-laden

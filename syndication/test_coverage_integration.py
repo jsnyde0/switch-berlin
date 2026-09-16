@@ -1,5 +1,5 @@
 """
-Integration test: seeded end-to-end coverage read-back (kb-56c2.5 / C3d).
+Integration test: seeded end-to-end coverage read-back (sb-56c2.5 / C3d).
 
 Cross-surface contract between:
   C3a — TelegramPlacement model + TelegramPlacementItemIn schema + reconcile service
@@ -37,10 +37,10 @@ template, same context, same middleware) and is sufficient for the stated contra
 
 ADR-018 D2: no "sent" state ever.
 ADR-008 D3: fail loud; no silent fallbacks.
-kb-56c2 D2: pending = absence of record for selected bot/agent-tier connection.
-kb-56c2 D6: public-tier is a human-action affordance, never placed/pending.
-kb-56c2 D3: send-checklist = agent-tier placed + public-tier.
-kb-56c2 D5: forum coverage is forum-level.
+sb-56c2 D2: pending = absence of record for selected bot/agent-tier connection.
+sb-56c2 D6: public-tier is a human-action affordance, never placed/pending.
+sb-56c2 D3: send-checklist = agent-tier placed + public-tier.
+sb-56c2 D5: forum coverage is forum-level.
 """
 
 import re
@@ -197,7 +197,7 @@ class CoverageIntegrationReadbackTest(TestCase):
         self.agent_placed_proj = _make_promotion_projection(self.agent_placed_conn, self.post)
         _make_placement(self.agent_placed_proj, self.agent_placed_conn, TelegramPlacementStatus.PLACED)
 
-        # (3) Forum: agent-tier, placed at forum-level (kb-56c2 D5)
+        # (3) Forum: agent-tier, placed at forum-level (sb-56c2 D5)
         self.forum_conn = _make_connection(
             self.profile,
             destination_id="-1001500000003",
@@ -226,12 +226,12 @@ class CoverageIntegrationReadbackTest(TestCase):
             title="Public Channel (Deep-Link)",
         )
         self.public_proj = _make_promotion_projection(self.public_conn, self.post)
-        # No TelegramPlacement record (public-tier never gets one — kb-56c2 D6)
+        # No TelegramPlacement record (public-tier never gets one — sb-56c2 D6)
 
         self.client = Client()
         self.client.login(username="integ-coverage-user", password="testpass")
 
-        # URL: keyed on the post pk (kb-e0ch re-key)
+        # URL: keyed on the post pk (sb-e0ch re-key)
         self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
 
     def _get_html(self):
@@ -301,13 +301,13 @@ class CoverageIntegrationReadbackTest(TestCase):
             self.assertIn(title, html, f"Expected '{title}' in coverage HTML")
 
     # ------------------------------------------------------------------
-    # (b) Forum-level granularity holds end-to-end (kb-56c2 D5)
+    # (b) Forum-level granularity holds end-to-end (sb-56c2 D5)
     # ------------------------------------------------------------------
 
     def test_b_forum_connection_renders_exactly_once(self):
         """
         The forum connection renders exactly one coverage row (forum-level,
-        not per-topic) — kb-56c2 D5.
+        not per-topic) — sb-56c2 D5.
         """
         html = self._get_html()
         conn_pk = str(self.forum_conn.pk)
@@ -340,7 +340,7 @@ class CoverageIntegrationReadbackTest(TestCase):
     def test_c_pending_destination_not_in_send_checklist(self):
         """
         The pending destination is NOT in the send-checklist (no draft to send yet,
-        per kb-56c2 D3: agent-pending is excluded from checklist).
+        per sb-56c2 D3: agent-pending is excluded from checklist).
         """
         html = self._get_html()
         section = self._checklist_section(html)
@@ -358,7 +358,7 @@ class CoverageIntegrationReadbackTest(TestCase):
     def test_d_public_destination_renders_deep_link_affordance(self):
         """
         The public-tier destination renders as a deep-link affordance (not placed/pending)
-        — kb-56c2 D6 / ADR-018 D2 FIRM.
+        — sb-56c2 D6 / ADR-018 D2 FIRM.
         """
         html = self._get_html()
         self.assertIn("Public Channel (Deep-Link)", html)
@@ -394,7 +394,7 @@ class CoverageIntegrationReadbackTest(TestCase):
     def test_e_send_checklist_contains_agent_placed(self):
         """
         Agent-tier placed destinations appear in the send-checklist (draft exists
-        for facilitator to send natively) — kb-56c2 D3.
+        for facilitator to send natively) — sb-56c2 D3.
         """
         html = self._get_html()
         section = self._checklist_section(html)
@@ -408,7 +408,7 @@ class CoverageIntegrationReadbackTest(TestCase):
     def test_e_send_checklist_contains_public_tier(self):
         """
         Public-tier destinations appear in the send-checklist (facilitator must
-        post manually via deep-link) — kb-56c2 D3.
+        post manually via deep-link) — sb-56c2 D3.
         """
         html = self._get_html()
         section = self._checklist_section(html)
@@ -608,7 +608,7 @@ class TelegramPlacementContractTest(TestCase):
     def test_g_valid_forum_level_payload_with_topic_id_accepted(self):
         """
         A C3c-shaped forum-level payload with topic_id validates.
-        Forum-level coverage (kb-56c2 D5): topic_id is optional.
+        Forum-level coverage (sb-56c2 D5): topic_id is optional.
         """
         from syndication.api import TelegramPlacementItemIn
 
@@ -760,7 +760,7 @@ class TelegramPlacementStatusEnumTest(TestCase):
     values and that 'sent' does not exist anywhere in the enum.
 
     This is a defense-in-depth assertion: the enum is the single resolution
-    point (kb-56c2.1) and adding 'sent' here would propagate to the model,
+    point (sb-56c2.1) and adding 'sent' here would propagate to the model,
     schema, and template — a single mutation that defeats the ADR-018 D2 firewall.
     """
 
@@ -796,7 +796,7 @@ class TelegramPlacementStatusEnumTest(TestCase):
             "pending",
             values,
             "'pending' must NOT be a stored TelegramPlacementStatus value "
-            "(it is computed at reconciliation, not stored — kb-56c2 D2)",
+            "(it is computed at reconciliation, not stored — sb-56c2 D2)",
         )
 
     def test_skipped_pre_existing_draft_is_reachable(self):

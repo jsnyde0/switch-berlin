@@ -1,5 +1,5 @@
 """
-Tests for kb-shzi.2 — studio shell on standalone/refresh AND selected tab survives swaps.
+Tests for sb-shzi.2 — studio shell on standalone/refresh AND selected tab survives swaps.
 
 BUG 1: Plain GET (no HX-Request) of post/event composer URL must render the
         studio two-pane shell (rail aside + #studio-main with composer inside).

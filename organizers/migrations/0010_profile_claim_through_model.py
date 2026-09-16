@@ -1,4 +1,4 @@
-# Migration for kb-m69.3: ProfileClaim through-model + data migration from Profile.claimed_by FK
+# Migration for sb-m69.3: ProfileClaim through-model + data migration from Profile.claimed_by FK
 #
 # Per ADR-014 D1 + ADR-007 D5 (revised 2026-05-21) + ADR-008 D1 (no compat shim).
 #

@@ -1,5 +1,5 @@
 """
-TDD tests for kb-a4u.19: Event D1 field completion.
+TDD tests for sb-a4u.19: Event D1 field completion.
 Covers:
   Part 1 — category CharField (model field + migration + form/API wiring)
   Part 2 — cover-image upload authoring (set_event_cover service + web form + API endpoint)

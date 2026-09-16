@@ -39,7 +39,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4.2.0
 
-      # gitleaks: secret scan across full git history (kb-jcg added the
+      # gitleaks: secret scan across full git history (sb-jcg added the
       # pre-commit hook; this is the CI mirror for contributors who skip the
       # pre-commit install step). Pinned to v8.30.1 via tarball download —
       # avoids needing the Go toolchain on the runner. --redact prevents
@@ -54,7 +54,7 @@ jobs:
       # bandit: static analysis for Python security antipatterns. Gated on HIGH
       # severity HIGH confidence (-lll -iii) — lower tiers are noisy and would
       # gate the PR on false positives. Current baseline is zero findings at
-      # this threshold (kb-nsb annotated the one legitimate HIGH).
+      # this threshold (sb-nsb annotated the one legitimate HIGH).
       - name: bandit static analysis
         run: uvx bandit -r . -lll -iii --exclude=./.venv,./node_modules,./staticfiles,./static
 
@@ -131,7 +131,7 @@ jobs:
       - name: makemigrations check (no unapplied migrations)
         run: uv run python manage.py makemigrations --check --dry-run
 
-      # check --deploy under prod-shaped env (kb-eqr). Catches DEBUG=True
+      # check --deploy under prod-shaped env (sb-eqr). Catches DEBUG=True
       # regressions, missing CSRF_TRUSTED_ORIGINS, etc. before merge.
       # --fail-level WARNING is strict; W005 + W021 are silenced in settings.py
       # because both reflect the intentional HSTS-soak strategy.

@@ -1,5 +1,5 @@
 """
-Syndication platform adapters (kb-a4u.10, kb-a4u.14).
+Syndication platform adapters (sb-a4u.10, sb-a4u.14).
 
 Per ADR-008 D2: NO per-platform adapter abstraction/framework here.
 The Switch own-page publish path is written directly — abstraction emerges
@@ -143,7 +143,7 @@ def publish_switch_own_page(projection: PlatformProjection) -> None:
     projection.syndicated_at = timezone.now()
     projection.save(update_fields=["external_url", "syndicated_at", "updated_at"])
 
-    # Promote the canonical Event to 'published' (kb-shzi.1, ADR-016 D5).
+    # Promote the canonical Event to 'published' (sb-shzi.1, ADR-016 D5).
     # Switch own-page IS the listing — confirming the projection published means
     # the event is now publicly visible. Idempotent: only stamps published_at on
     # first publish (see events/services.py). ADAPTER-LOCAL to Switch only —
@@ -153,7 +153,7 @@ def publish_switch_own_page(projection: PlatformProjection) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Telegram channel promotion adapter (kb-a4u.14)
+# Telegram channel promotion adapter (sb-a4u.14)
 # ---------------------------------------------------------------------------
 
 # ADR-008 D4: transport retry policy constants

@@ -1,6 +1,6 @@
 """Migration: backfill allauth EmailAddress rows for existing Users.
 
-Context (kb-m69.5):
+Context (sb-m69.5):
   Setting ACCOUNT_EMAIL_VERIFICATION='mandatory' requires every User to have a
   corresponding allauth EmailAddress row. This migration creates those rows for
   existing users who were created before allauth email verification was enabled.

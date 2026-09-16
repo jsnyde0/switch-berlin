@@ -13,9 +13,9 @@ ADR-016 D2: PlatformProjection carries kind ∈ {listing, promotion},
             status ∈ {draft, ready, published, failed}, a content_version FK
             to ContentVersion (editorial content + authorship signals live
             there; provenance, generated_by, last_generated_at removed from
-            projection in kb-wz8m.2), and a frozen_content snapshot for
+            projection in sb-wz8m.2), and a frozen_content snapshot for
             ready/published/failed status.
-            ContentVersion (added kb-wz8m.1, live-render path kb-wz8m.2):
+            ContentVersion (added sb-wz8m.1, live-render path sb-wz8m.2):
             per-Event named editorial copy variant. NULL field = derive from
             live canonical Event/Post. Explicit value = override.
 ADR-016 D3: v0 auth shape — long-lived Bearer API key → short-lived identity
@@ -46,14 +46,14 @@ from django.utils.translation import gettext_lazy as _
 
 class TelegramDialogType(models.TextChoices):
     """
-    Canonical Telegram dialog-type vocabulary (kb-ru55.2 D1a — SINGLE resolution point).
+    Canonical Telegram dialog-type vocabulary (sb-ru55.2 D1a — SINGLE resolution point).
 
     This is the ONLY definition of these values across the entire project.
-    The sync agent (kb-ru55.3) emits them, this model stores them, and kb-sbhs's
-    web picker categorises by them. Do NOT define a local copy in kb-sbhs or in
+    The sync agent (sb-ru55.3) emits them, this model stores them, and sb-sbhs's
+    web picker categorises by them. Do NOT define a local copy in sb-sbhs or in
     any CLI child — import this class directly.
 
-    Values match kb-sbhs D3's tree categorisation:
+    Values match sb-sbhs D3's tree categorisation:
       channel     → Channels bucket
       group       → Groups bucket
       supergroup  → Groups bucket (Telegram supergroup is a group variant)
@@ -61,7 +61,7 @@ class TelegramDialogType(models.TextChoices):
 
     NOTE: forum_topic, not forum_group. A Telegram forum GROUP is NOT a postable
     destination — only specific forum TOPICS are. Storing 'forum_group' here would
-    be an enum-vocabulary-drift from kb-sbhs's picker (adr-enum-vocabulary-drift-
+    be an enum-vocabulary-drift from sb-sbhs's picker (adr-enum-vocabulary-drift-
     invisible-per-bead anti-pattern). Do NOT add forum_group.
     """
 
@@ -74,11 +74,11 @@ class TelegramDialogType(models.TextChoices):
 class TelegramPostability(models.TextChoices):
     """
     Canonical Telegram postability / capability-ladder vocabulary
-    (kb-ru55.2 re-verify Finding 1 — SINGLE resolution point).
+    (sb-ru55.2 re-verify Finding 1 — SINGLE resolution point).
 
     This is the ONLY definition of these values across the entire project.
-    The sync agent (kb-ru55.3) emits them, this model stores them, and kb-sbhs's
-    web picker renders the capability-ladder tier (kb-sbhs D4). Do NOT define a
+    The sync agent (sb-ru55.3) emits them, this model stores them, and sb-sbhs's
+    web picker renders the capability-ladder tier (sb-sbhs D4). Do NOT define a
     local copy elsewhere — import this class directly.
 
     Values match the three capability-ladder tiers (ADR-018 D1):
@@ -115,7 +115,7 @@ class PlatformConnection(models.Model):
     - Telegram channel → promotion
     - FetLife → both (listing + promotion)
 
-    Telegram-specific fields (kb-ru55.2 — metadata-only ingest):
+    Telegram-specific fields (sb-ru55.2 — metadata-only ingest):
     - topic_id: nullable BigIntegerField for forum_topic rows (top_msg_id).
     - type: TelegramDialogType choice — the canonical vocabulary for the dialog type.
     - title: human-readable dialog name as synced from Telegram.
@@ -171,7 +171,7 @@ class PlatformConnection(models.Model):
     )
 
     # ---------------------------------------------------------------------------
-    # Telegram-specific metadata fields (kb-ru55.2 — metadata-only ingest)
+    # Telegram-specific metadata fields (sb-ru55.2 — metadata-only ingest)
     # Added via migration 0011_platformconnection_telegram_metadata.
     # These fields are ONLY populated for platform='telegram' rows.
     # NO server-side credential (access_hash, session_string) is stored here
@@ -195,7 +195,7 @@ class PlatformConnection(models.Model):
         blank=True,
         default=None,
         help_text=(
-            "Telegram dialog type (kb-ru55.2 D1a canonical vocabulary). "
+            "Telegram dialog type (sb-ru55.2 D1a canonical vocabulary). "
             "Matches TelegramDialogType: channel | group | supergroup | forum_topic. "
             "null for non-Telegram connections."
         ),
@@ -208,7 +208,7 @@ class PlatformConnection(models.Model):
         help_text=(
             "Human-readable Telegram dialog name as synced from the agent. "
             "null for non-Telegram connections. "
-            "Names/tags overlay (friendly display name, theme tags) is owned by kb-sbhs."
+            "Names/tags overlay (friendly display name, theme tags) is owned by sb-sbhs."
         ),
     )
     postability = models.CharField(
@@ -223,8 +223,8 @@ class PlatformConnection(models.Model):
             "'agent' (private groups + forum topics, requires agent session), "
             "'public' (deep-link only). "
             "null for non-Telegram connections. "
-            "Read by kb-sbhs D4 picker rendering. "
-            "Constrained to TelegramPostability choices (single resolution point per kb-ru55.2 re-verify)."
+            "Read by sb-sbhs D4 picker rendering. "
+            "Constrained to TelegramPostability choices (single resolution point per sb-ru55.2 re-verify)."
         ),
     )
     flagged_missing = models.BooleanField(
@@ -232,12 +232,12 @@ class PlatformConnection(models.Model):
         help_text=(
             "True if this destination was absent from the most recent inventory sync. "
             "ADR-008 D3: fail loud — flag, never silently delete. "
-            "kb-sbhs D3: picker renders flagged rows as vanished/unavailable."
+            "sb-sbhs D3: picker renders flagged rows as vanished/unavailable."
         ),
     )
 
     # ---------------------------------------------------------------------------
-    # Names/tags overlay (kb-sbhs.1 — additive decoration metadata)
+    # Names/tags overlay (sb-sbhs.1 — additive decoration metadata)
     # Added via migration 0014_platformconnection_overlay_fields.
     # ADR-008 D3 additive-only: defaults preserve prior visibility (None / []).
     # ADR-003: audience-ready shape — a future Audiences feature reads this
@@ -259,7 +259,7 @@ class PlatformConnection(models.Model):
         blank=True,
         default=None,
         help_text=(
-            "Display-only friendly name override for this destination (kb-sbhs.1). "
+            "Display-only friendly name override for this destination (sb-sbhs.1). "
             "NULL = no override; the picker falls back to `title`. "
             "Never message content. Never replaces connection identity (ADR-016 D4). "
             "`title` remains the synced source-of-truth — do NOT mutate or replace it."
@@ -269,7 +269,7 @@ class PlatformConnection(models.Model):
         default=list,
         blank=True,
         help_text=(
-            "Organizer-defined theme tags for the picker tag-filter (kb-sbhs.1). "
+            "Organizer-defined theme tags for the picker tag-filter (sb-sbhs.1). "
             "Stored as a JSON array of strings (e.g. ['munich', 'queer']). "
             "Default = [] (empty list — additive-only, ADR-008 D3). "
             "Never message content. Audience-ready shape (ADR-003): "
@@ -285,7 +285,7 @@ class PlatformConnection(models.Model):
         verbose_name = _("platform connection")
         verbose_name_plural = _("platform connections")
         constraints = [
-            # Uniqueness guard for the ingest lookup key (kb-ru55.2 Finding 3).
+            # Uniqueness guard for the ingest lookup key (sb-ru55.2 Finding 3).
             # Prevents duplicate rows if concurrent POSTs race to create the same
             # destination (ADR-018 D4: agent is the sole writer, so this race is
             # architecturally unlikely, but a DB constraint makes the invariant
@@ -398,7 +398,7 @@ class Post(models.Model):
 class ContentVersion(models.Model):
     """
     A named editorial copy variant for a given Event or Post (ADR-016 D2,
-    revised 2026-05-29, added kb-wz8m.1, generalized kb-q4u9.1).
+    revised 2026-05-29, added sb-wz8m.1, generalized sb-q4u9.1).
 
     ContentVersion is scoped to exactly one publishable: either an Event
     (event FK non-null, post FK null) or a Post (post FK non-null, event FK
@@ -413,15 +413,15 @@ class ContentVersion(models.Model):
     — editing the version propagates to all consumers). Divergence is opt-in via
     snapshot ops (customize / copy-from / copy-to), each minting a new row.
 
-    kb-wz8m.2 cutover: override_data is dropped; content_version is the live
+    sb-wz8m.2 cutover: override_data is dropped; content_version is the live
     render path. NULL editorial field = derive from live canonical Event/Post
     at render time (null-means-derive semantics). A1 canonical version is seeded
     EMPTY (all fields NULL = track-live). Editing a field is divergence.
 
-    kb-q4u9.1: event FK made nullable; post FK added (nullable). Exactly one
+    sb-q4u9.1: event FK made nullable; post FK added (nullable). Exactly one
     must be non-null — enforced by CheckConstraint (fail loud, ADR-008 D3).
     No Publishable base model (ADR-008 D2).
-    ADR-003: data-shape reservation; behavioral use ships in kb-wz8m.2+.
+    ADR-003: data-shape reservation; behavioral use ships in sb-wz8m.2+.
     """
 
     class Provenance(models.TextChoices):
@@ -452,7 +452,7 @@ class ContentVersion(models.Model):
         ),
     )
 
-    # Editorial content fields (ADR-016 D2, kb-wz8m.2).
+    # Editorial content fields (ADR-016 D2, sb-wz8m.2).
     # NULL means "derive from the live canonical Event/Post at render time"
     # (mirrors the role key-absence played in the old override_data dict).
     # An explicit non-null value is an override that shadows the canonical field.
@@ -575,10 +575,10 @@ class PlatformProjection(models.Model):
     - status ∈ {draft, ready, published, failed}
     - source_event FK (listing-kind only)
     - source_post FK (promotion-kind only)
-    - content_version FK (non-null after kb-wz8m.2 migration backfill) —
+    - content_version FK (non-null after sb-wz8m.2 migration backfill) —
       editorial content + authorship signals live here (ADR-016 D2 revised
       2026-05-29). override_data and projection-level provenance/generated_by/
-      last_generated_at removed in kb-wz8m.2 (ADR-008 D1, no back-compat shim).
+      last_generated_at removed in sb-wz8m.2 (ADR-008 D1, no back-compat shim).
     - external_id, external_url, syndicated_at (populated after publication)
 
     No behavioral logic beyond Django ORM constraints.
@@ -631,7 +631,7 @@ class PlatformProjection(models.Model):
         related_name="projections",
     )
 
-    # ContentVersion FK (ADR-016 D2, revised 2026-05-29, kb-wz8m.2 cutover).
+    # ContentVersion FK (ADR-016 D2, revised 2026-05-29, sb-wz8m.2 cutover).
     # Non-null — every projection always has a content version (A1 invariant).
     # on_delete=PROTECT: deleting a ContentVersion that still has consumer
     # projections is blocked rather than silently nulling/cascading (ADR-008 D3).
@@ -648,7 +648,7 @@ class PlatformProjection(models.Model):
         ),
     )
 
-    # Sync-source self-FK (kb-s41r live-share mechanism — ADR-016 D2 re-resolved 2026-06-09).
+    # Sync-source self-FK (sb-s41r live-share mechanism — ADR-016 D2 re-resolved 2026-06-09).
     # A nullable FK to the source PlatformProjection within the same publishable's
     # projection set. Records which channel this one syncs FROM (live-share: shares
     # the source's content_version row; source edits propagate automatically).
@@ -662,7 +662,7 @@ class PlatformProjection(models.Model):
     #       → "Custom / detached"
     #
     # LIVE propagation: a source edit writes to the shared CV row and reaches all
-    # followers automatically (single-row write-once-broadcast + kb-ciqf OOB sibling
+    # followers automatically (single-row write-once-broadcast + sb-ciqf OOB sibling
     # re-render). No snapshot copy needed.
     # Detach-on-edit: when a FOLLOWER edits its per-channel body, it forks to its own
     # new CV (customize) and sync_source is cleared → state (iii). This is the only
@@ -689,7 +689,7 @@ class PlatformProjection(models.Model):
         ),
     )
 
-    # Publish revision counter (kb-6d7o.2 cache-bust mechanism).
+    # Publish revision counter (sb-6d7o.2 cache-bust mechanism).
     # Incremented by 1 at each body-freeze that feeds a send:
     #   - draft→ready transition (transition_status in engine.py)
     #   - republish_projection re-materialize (services.py)
@@ -705,7 +705,7 @@ class PlatformProjection(models.Model):
         ),
     )
 
-    # Frozen content snapshot (ADR-016 D2, kb-a4u.20 hybrid content model).
+    # Frozen content snapshot (ADR-016 D2, sb-a4u.20 hybrid content model).
     # Null while status=draft (projection tracks live canonical via content_version).
     # Materialized at draft→ready transition: stores the full effective content
     # (version explicit fields + live canonical fallbacks at that instant).
@@ -790,14 +790,14 @@ class PlatformProjection(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# TelegramPlacement model (kb-56c2.1 — coverage tracker server-side foundation)
+# TelegramPlacement model (sb-56c2.1 — coverage tracker server-side foundation)
 # ---------------------------------------------------------------------------
 
 
 class TelegramPlacementStatus(models.TextChoices):
     """
     Canonical stored status vocabulary for TelegramPlacement records
-    (kb-56c2.1 — SINGLE resolution point, mirrors TelegramPostability/TelegramDialogType).
+    (sb-56c2.1 — SINGLE resolution point, mirrors TelegramPostability/TelegramDialogType).
 
     EXACTLY THREE stored values:
       placed                   — bot-tier: Bot API post acked;
@@ -806,7 +806,7 @@ class TelegramPlacementStatus(models.TextChoices):
       skipped-pre-existing-draft — agent's getDraft found an existing draft; saveDraft skipped
 
     `pending` is NOT stored — it is computed at reconciliation as the absence of
-    a record for a selected bot/agent-tier connection (kb-56c2 D2).
+    a record for a selected bot/agent-tier connection (sb-56c2 D2).
 
     "sent" does NOT exist — the machine cannot observe the human's native send
     (ADR-018 D2 FIRM draft-only firewall). Adding "sent" here is FORBIDDEN.
@@ -824,9 +824,9 @@ class TelegramPlacementStatus(models.TextChoices):
 class TelegramPlacement(models.Model):
     """
     Per-(projection × connection) coverage record for the Telegram distribution
-    tracker (kb-56c2.1 C3a foundation).
+    tracker (sb-56c2.1 C3a foundation).
 
-    Two writers populate this table (kb-56c2 D2):
+    Two writers populate this table (sb-56c2 D2):
     - Bot tier (web-written, inline): `publish_telegram_promotion` adapter writes
       a placed/failed record when its Bot API call returns. The placement-record
       write and the projection status/external_id transition must not silently
@@ -840,12 +840,12 @@ class TelegramPlacement(models.Model):
     machine-observable destination (bot/agent-tier PlatformConnection marked for
     promotion) that has no TelegramPlacement row yet.
 
-    Public-tier connections NEVER receive a record here (kb-56c2 D6):
+    Public-tier connections NEVER receive a record here (sb-56c2 D6):
     they are rendered as deep-link human-action affordances by the reconciliation
     service — not placed, not pending.
 
     No `writer` field — tier is derived from PlatformConnection.postability
-    (the resolved distribution tier, kb-56c2 D2).
+    (the resolved distribution tier, sb-56c2 D2).
 
     ADR-018 D2: no "sent" state ever.
     ADR-008 D3: fail loud; no synthesized fields; no silent fallbacks.
@@ -870,7 +870,7 @@ class TelegramPlacement(models.Model):
         help_text=(
             "Stored placement status: placed, failed, or skipped-pre-existing-draft. "
             "EXACTLY three values — 'pending' is computed, 'sent' does NOT exist (ADR-018 D2). "
-            "Single resolution point (kb-56c2.1 — mirrors TelegramPostability/TelegramDialogType)."
+            "Single resolution point (sb-56c2.1 — mirrors TelegramPostability/TelegramDialogType)."
         ),
     )
     error_detail = models.TextField(
@@ -907,7 +907,7 @@ class TelegramPlacement(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Agent credential auth models (ADR-016 D3, kb-a4u.2)
+# Agent credential auth models (ADR-016 D3, sb-a4u.2)
 # ---------------------------------------------------------------------------
 # Bearer key (AgentCredential) is LONG-LIVED + reusable for many exchanges.
 # "Displayed once" at registration (raw key shown once, stored hashed).
@@ -943,7 +943,7 @@ class AgentCredential(models.Model):
     revoked_at is set when enabled flips False for audit purposes.
 
     Credential→User binding: the full pairing flow (browser OAuth hand-off
-    with ProfileClaim verification) lives in C6/kb-a4u.6. Here we bind
+    with ProfileClaim verification) lives in C6/sb-a4u.6. Here we bind
     directly to the authenticated User who hits agents/register.
 
     ADR-017 D1: Agent is the user's delegate — same authority; actor_marker
@@ -1033,7 +1033,7 @@ class AgentCredential(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Agent pairing token (kb-a4u.6 — one-time pairing-token redemption mechanic)
+# Agent pairing token (sb-a4u.6 — one-time pairing-token redemption mechanic)
 # ---------------------------------------------------------------------------
 # AgentPairingToken is the SHORT-LIVED, SINGLE-USE envelope that a facilitator
 # shows to their agent. The agent redeems it once to receive the LONG-LIVED
@@ -1051,7 +1051,7 @@ class AgentCredential(models.Model):
 #   other; the hashing here is intentional and more secure.  Any future
 #   maintainer who removes the hash to match MagicLinkToken would be a regression.
 #
-# kb-eya divergence from MagicLinkToken:
+# sb-eya divergence from MagicLinkToken:
 #   MagicLinkToken binds (email, profile_id, user_target) triple because the
 #   magic-link flow involves an out-of-band email delivery to prove address
 #   control. AgentPairingToken binds ONLY to the registering User — the
@@ -1069,7 +1069,7 @@ def _generate_pairing_token():
 class AgentPairingToken(models.Model):
     """
     Short-lived, single-use pairing token for the agent-credential issuance flow
-    (kb-a4u.6 — pairing-token redemption mechanic, ADR-016 D3).
+    (sb-a4u.6 — pairing-token redemption mechanic, ADR-016 D3).
 
     Step 1: facilitator hits agents/register → receives raw pairing token (once).
     Step 2: agent redeems raw token at agents/redeem → receives long-lived Bearer key.
@@ -1085,7 +1085,7 @@ class AgentPairingToken(models.Model):
     AgentPairingToken hashes the raw value (SHA-256); MagicLinkToken stores
     plaintext UUID.  The hash here is MORE secure — do NOT remove it to align
     with MagicLinkToken (that would be a security regression, not an alignment).
-    kb-eya divergence: binds to User only — no email/profile triple needed
+    sb-eya divergence: binds to User only — no email/profile triple needed
     because the facilitator is already authenticated when issuing the token.
     """
 

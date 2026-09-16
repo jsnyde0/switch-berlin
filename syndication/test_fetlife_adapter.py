@@ -1,11 +1,11 @@
 """
-TDD tests for the FetLife listing adapter (kb-a4u.15).
+TDD tests for the FetLife listing adapter (sb-a4u.15).
 
 Acceptance items covered:
 F1. _compose_listing_body includes date (start) and location (venue) — fix for all adapters.
 F2. FetLife listing projection reaches status=ready with dress_code surfaced in body.
     NOTE: The listing body is platform-agnostic at v0. FetLife-specific shaping is
-    deferred to the clean_for_platform cleaning seam (kb-o0j), currently an identity
+    deferred to the clean_for_platform cleaning seam (sb-o0j), currently an identity
     stub. A FetLife body is byte-identical to a switch body at v0. The tests here
     verify the FetLife listing reaches ready with dress_code + date in the body —
     NOT platform-divergent markdown.
@@ -20,7 +20,7 @@ actor attests publication via mark-published.
 ADR-008 D2: no speculative adapter framework — FetLife diverges enough from
 Switch own-page to warrant its own adapter function. _compose_listing_body is
 intentionally platform-agnostic; platform-specific shaping belongs in the
-clean_for_platform seam (kb-o0j bead), not here.
+clean_for_platform seam (sb-o0j bead), not here.
 ADR-008 D3: fail loud — missing required fields → visible error, never silent.
 ADR-016 carried-forward (REVISED): NO visibility write-gate.
 """
@@ -84,7 +84,7 @@ def _make_event(slug="fl-test-event", **kwargs):
 def _make_listing_projection(connection, event, status="draft"):
     """
     Create a listing projection with a canonical ContentVersion.
-    kb-wz8m.2: provenance is on ContentVersion, not PlatformProjection.
+    sb-wz8m.2: provenance is on ContentVersion, not PlatformProjection.
     """
     from syndication.models import ContentVersion
 
@@ -198,7 +198,7 @@ class FetLifeListingBodyTest(TestCase):
 
     The listing body is platform-agnostic at v0: _compose_listing_body does NOT
     apply FetLife-specific formatting. Platform-specific shaping is deferred to the
-    clean_for_platform cleaning seam (kb-o0j), which is currently an identity stub.
+    clean_for_platform cleaning seam (sb-o0j), which is currently an identity stub.
     These tests verify that dress_code and date appear in the body — NOT that the
     body uses FetLife-divergent markdown vs. other platforms.
     """
@@ -289,15 +289,15 @@ class ListingBodyPlatformAgnosticTest(TestCase):
     Documented-current-behavior guard: at v0, _compose_listing_body produces
     IDENTICAL output for "fetlife" and "switch" because clean_for_platform is
     an identity stub. This test will change (and fail as a falsifying guard)
-    when kb-o0j implements per-platform cleaning rules.
+    when sb-o0j implements per-platform cleaning rules.
     """
 
     def test_listing_body_is_platform_agnostic_until_cleaning_seam(self):
         """
         _compose_listing_body(event, "fetlife") == _compose_listing_body(event, "switch")
-        at v0 because clean_for_platform is an identity stub (kb-o0j).
+        at v0 because clean_for_platform is an identity stub (sb-o0j).
 
-        This test WILL fail when kb-o0j adds per-platform cleaning — at that
+        This test WILL fail when sb-o0j adds per-platform cleaning — at that
         point the test should be updated to reflect the new real behaviour.
         It currently guards the documented deferral claim.
         """
@@ -313,8 +313,8 @@ class ListingBodyPlatformAgnosticTest(TestCase):
             fetlife_body,
             switch_body,
             "_compose_listing_body must produce identical output for 'fetlife' and 'switch' "
-            "at v0 (clean_for_platform is an identity stub — kb-o0j owns real rules). "
-            "If this fails, kb-o0j has been implemented and this test needs updating.",
+            "at v0 (clean_for_platform is an identity stub — sb-o0j owns real rules). "
+            "If this fails, sb-o0j has been implemented and this test needs updating.",
         )
 
 
@@ -658,7 +658,7 @@ class FetLifeLifecycleTest(TestCase):
 
 class FetLifeVisibilityAgnosticTest(TestCase):
     """
-    Adapter-level visibility-agnostic assertion (carried from kb-a4u.16).
+    Adapter-level visibility-agnostic assertion (carried from sb-a4u.16).
 
     The FetLife adapter's publish path must NOT gate on Event.visibility.
     An unlisted/semi_public event syndicates to FetLife identically to a

@@ -2,11 +2,11 @@
 Unit tests for switch-cli telegram sync command.
 
 Tests drive the enumeration + push codepath with mocked Telethon and HTTP.
-No live MTProto connection or real server — live flow deferred to kb-ru55.6.
+No live MTProto connection or real server — live flow deferred to sb-ru55.6.
 
 TDD discipline: RED → GREEN → REFACTOR.
 
-Acceptance criteria (bead kb-ru55.3):
+Acceptance criteria (bead sb-ru55.3):
 - (1) broadcast-only subscription is EXCLUDED from inventory.
 - (2) private no-username group is INCLUDED in inventory.
 - (3) forum group is expanded into one row per topic with topic_id set;
@@ -441,7 +441,7 @@ class TestPostabilityServerVocabulary:
         """MTProto sync guarantees 'agent' tier — not 'bot' or 'public'."""
         assert POSTABILITY_TIER == "agent", (
             f"MTProto sync should emit 'agent' tier, got {POSTABILITY_TIER!r}. "
-            "bot/public refinement is kb-sbhs D4's job."
+            "bot/public refinement is sb-sbhs D4's job."
         )
 
     @pytest.mark.asyncio
@@ -458,7 +458,7 @@ class TestPostabilityServerVocabulary:
         for item in result:
             assert item["postability"] == "agent", (
                 f"Expected postability='agent' (server tier), got {item['postability']!r}. "
-                "MTProto sync guarantees agent-tier access; bot/public is kb-sbhs D4."
+                "MTProto sync guarantees agent-tier access; bot/public is sb-sbhs D4."
             )
             assert item["postability"] in SERVER_POSTABILITY_VOCABULARY, (
                 f"postability={item['postability']!r} not in server vocabulary {SERVER_POSTABILITY_VOCABULARY!r}"

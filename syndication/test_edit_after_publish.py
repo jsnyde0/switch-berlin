@@ -1,5 +1,5 @@
 """
-Tests for edit-after-publish dirty marker + explicit re-publish (kb-96tn.5).
+Tests for edit-after-publish dirty marker + explicit re-publish (sb-96tn.5).
 
 ADR-016 D5: when a facilitator edits the content of an already-PUBLISHED channel,
 it becomes "dirty" — edited, re-publish needed.

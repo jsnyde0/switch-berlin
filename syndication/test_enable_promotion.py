@@ -1,10 +1,10 @@
 """
-TDD tests for kb-k2ds.3: enable-promotion service verb + co-equal REST surface
+TDD tests for sb-k2ds.3: enable-promotion service verb + co-equal REST surface
 (enable-promotion action, connections discoverability) and the fan-out proof
 that create_post only mints a promotion projection AFTER a connection is
 enabled.
 
-Harness signal (kb-k2ds.3 ## Harness target, suite (b)):
+Harness signal (sb-k2ds.3 ## Harness target, suite (b)):
 - enable_promotion adds 'promotion' to kinds + enabled=True.
 - Idempotent: re-calling on an already-enabled connection is a success no-op
   (no duplicate kinds append).
@@ -217,7 +217,7 @@ class EnablePromotionServiceTest(TestCase):
 
 class ConnectionsApiTest(TestCase):
     """
-    Co-equal REST surface for discoverability (kb-k2ds.3 acceptance (2)) and
+    Co-equal REST surface for discoverability (sb-k2ds.3 acceptance (2)) and
     enable-promotion (acceptance (1)/(4)).
     """
 
@@ -339,7 +339,7 @@ class ConnectionsApiTest(TestCase):
 
 # ---------------------------------------------------------------------------
 # 3. Fan-out proof: create_post only mints a promotion projection AFTER enable
-#    (kb-k2ds.3 acceptance (3) — closes the services.py:744-746 silent no-op)
+#    (sb-k2ds.3 acceptance (3) — closes the services.py:744-746 silent no-op)
 # ---------------------------------------------------------------------------
 
 

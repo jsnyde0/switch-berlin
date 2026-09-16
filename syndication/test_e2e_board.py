@@ -1,14 +1,14 @@
 """
-End-to-end integration test: start-shared → customize → publish (kb-wz8m.8).
+End-to-end integration test: start-shared → customize → publish (sb-wz8m.8).
 
-Harness target Signal for the kb-wz8m parent epic.
+Harness target Signal for the sb-wz8m parent epic.
 
 Walks the REAL v0 path using the live service layer. Unit tests pass even when
-the wiring is broken; this test walks the actual cross-component path (kb-jgda
+the wiring is broken; this test walks the actual cross-component path (sb-jgda
 lesson).
 
 Data path only — no UI/template rendering. The "live on" visual render is
-kb-wz8m.5's browser loop, explicitly out of scope here.
+sb-wz8m.5's browser loop, explicitly out of scope here.
 
 canonical_refs: ADR-008 D3/D4, ADR-016 D5.
 
@@ -608,7 +608,7 @@ class E2EBoardFlowTest(TestCase):
         )
 
         # --- Step 1: both on the same canonical CV ---
-        # ADR-016 D2 (kb-q4u9.2): promotion projections FK the POST's canonical,
+        # ADR-016 D2 (sb-q4u9.2): promotion projections FK the POST's canonical,
         # not the event's. Resolve post canonical.
         canonical_cv = ContentVersion.objects.get(post=post, name="canonical")
         self.assertEqual(proj_1.content_version_id, canonical_cv.pk)
@@ -742,14 +742,14 @@ class E2EBoardFlowTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Gap 2 (kb-wz8m.10): publish_all_ready with mixed lifecycle + distinct versions,
+# Gap 2 (sb-wz8m.10): publish_all_ready with mixed lifecycle + distinct versions,
 # per-version routing via real adapter boundary
 # ---------------------------------------------------------------------------
 
 
 class PublishAllReadyMixedLifecycleRoutingTest(TestCase):
     """
-    Integration test (kb-wz8m.10 Gap 2):
+    Integration test (sb-wz8m.10 Gap 2):
 
     publish_all_ready_projections with FOUR projections in distinct lifecycle
     states simultaneously on the same event:

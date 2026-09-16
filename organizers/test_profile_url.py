@@ -1,5 +1,5 @@
 """
-TDD tests for kb-ltr: Profile public page at /p/<slug>/ + redirect /o/<slug>/.
+TDD tests for sb-ltr: Profile public page at /p/<slug>/ + redirect /o/<slug>/.
 
 RED phase: these tests are written BEFORE the implementation.
 They describe the target URL routing state after the change.

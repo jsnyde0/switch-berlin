@@ -1,5 +1,5 @@
 """
-TDD tests for the coverage view + send-checklist UI (kb-56c2.2).
+TDD tests for the coverage view + send-checklist UI (sb-56c2.2).
 
 Tests assert against response.content (rendered HTML), NOT response.context,
 because context-only tests pass on broken templates (memory:
@@ -17,9 +17,9 @@ Harness target (from bead --design):
 
 ADR-018 D2: no "sent" state ever in rendered HTML.
 ADR-008 D3: vanished/flagged_missing rendered flagged-loud, not silently dropped.
-kb-56c2 D6: public-tier is a human-action affordance (deep-link), never placed/pending.
-kb-56c2 D3: send-checklist = agent-tier placed + public-tier; bot excluded; agent-pending excluded.
-kb-56c2 D5: forum rows are forum-level (one row per forum connection, not per-topic).
+sb-56c2 D6: public-tier is a human-action affordance (deep-link), never placed/pending.
+sb-56c2 D3: send-checklist = agent-tier placed + public-tier; bot excluded; agent-pending excluded.
+sb-56c2 D5: forum rows are forum-level (one row per forum connection, not per-topic).
 """
 
 from django.contrib.auth import get_user_model
@@ -230,7 +230,7 @@ class CoverageViewBaseTest(TestCase):
         self.client = Client()
         self.client.login(username="coverage-user", password="testpass")
 
-        # URL: keyed on the post pk (kb-e0ch re-key)
+        # URL: keyed on the post pk (sb-e0ch re-key)
         self.url = reverse("syndication:coverage", kwargs={"pk": self.post.pk})
 
     def _get_html(self):
@@ -336,7 +336,7 @@ class CoverageViewNoSentBadgeTest(CoverageViewBaseTest):
 class CoverageViewPublicTierTest(CoverageViewBaseTest):
     """
     (c) Public-tier destinations render as a deep-link affordance,
-    not placed/pending (kb-56c2 D6 / ADR-018 D2).
+    not placed/pending (sb-56c2 D6 / ADR-018 D2).
     """
 
     def test_public_tier_renders_as_deep_link(self):
@@ -391,7 +391,7 @@ class CoverageViewPublicTierTest(CoverageViewBaseTest):
 class CoverageViewForumLevelTest(TestCase):
     """
     (d) Forum destinations render at forum-level (one row per forum connection,
-    not per-topic) — kb-56c2 D5.
+    not per-topic) — sb-56c2 D5.
     """
 
     def setUp(self):
@@ -659,20 +659,20 @@ class CoverageViewURLTest(TestCase):
         self.assertIn("/coverage/", url)
 
     def test_coverage_url_uses_post_pk(self):
-        """The coverage URL pattern is keyed on post pk, not projection pk (kb-e0ch)."""
+        """The coverage URL pattern is keyed on post pk, not projection pk (sb-e0ch)."""
         url = reverse("syndication:coverage", kwargs={"pk": 42})
         self.assertIn("/posts/42/coverage/", url)
         self.assertNotIn("/projections/", url)
 
 
 # ---------------------------------------------------------------------------
-# kb-e0ch: Post-keyed coverage view new tests
+# sb-e0ch: Post-keyed coverage view new tests
 # ---------------------------------------------------------------------------
 
 
 class CoveragePostKeyedRenderTest(TestCase):
     """
-    (kb-e0ch) posts/<pk>/coverage/ renders destination rows for a post
+    (sb-e0ch) posts/<pk>/coverage/ renders destination rows for a post
     with Telegram promotion connections.
 
     Asserts against response.content (rendered HTML), not response.context.
@@ -729,7 +729,7 @@ class CoveragePostKeyedRenderTest(TestCase):
 
 class CoverageNonOwnerForbiddenTest(TestCase):
     """
-    (kb-e0ch) A non-owner user (no ProfileClaim / can_edit False) gets 404.
+    (sb-e0ch) A non-owner user (no ProfileClaim / can_edit False) gets 404.
 
     Matches the existing view's non-owner → Http404 behavior;
     does not leak existence (ADR-008 D3).
@@ -769,7 +769,7 @@ class CoverageNonOwnerForbiddenTest(TestCase):
 
 class CoverageNoProjectionsTest(TestCase):
     """
-    (kb-e0ch) A post with no Telegram projections renders the coverage page with
+    (sb-e0ch) A post with no Telegram projections renders the coverage page with
     an empty destinations list and does not 500.
     """
 

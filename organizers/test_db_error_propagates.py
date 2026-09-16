@@ -1,4 +1,4 @@
-"""Tests for kb-77h: organizer_profile view user_review DB-error propagation.
+"""Tests for sb-77h: organizer_profile view user_review DB-error propagation.
 
 ADR-008 D3: no silent fallbacks on data integrity.
 

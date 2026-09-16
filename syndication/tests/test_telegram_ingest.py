@@ -1,5 +1,5 @@
 """
-TDD tests for the Telegram-inventory ingest API verb (kb-ru55.2).
+TDD tests for the Telegram-inventory ingest API verb (sb-ru55.2).
 
 Contract:
 - PlatformConnection gains topic_id, type, title, postability fields via migration.
@@ -41,8 +41,8 @@ class TelegramDialogTypeChoicesTest(TestCase):
     set (channel, group, supergroup, forum_topic). A value outside this set
     (e.g. forum_group) must fail this test.
 
-    This is D1a in kb-ru55.2 — the SINGLE resolution point for the type vocabulary.
-    kb-sbhs's picker reads this same set; any drift here is an enum-vocabulary-drift.
+    This is D1a in sb-ru55.2 — the SINGLE resolution point for the type vocabulary.
+    sb-sbhs's picker reads this same set; any drift here is an enum-vocabulary-drift.
     """
 
     def test_canonical_type_set_is_exactly_channel_group_supergroup_forum_topic(self):
@@ -59,7 +59,7 @@ class TelegramDialogTypeChoicesTest(TestCase):
             {"channel", "group", "supergroup", "forum_topic"},
             "TelegramDialogType values must be exactly: channel, group, supergroup, "
             "forum_topic — not a superset or subset. If you add 'forum_group' here "
-            "that would constitute enum-vocabulary-drift from kb-sbhs's picker tree.",
+            "that would constitute enum-vocabulary-drift from sb-sbhs's picker tree.",
         )
 
     def test_divergent_value_forum_group_is_not_in_canonical_set(self):
@@ -81,8 +81,8 @@ class TelegramPostabilityChoicesTest(TestCase):
     Cross-surface equality: TelegramPostability must define EXACTLY the canonical
     set (bot, agent, public). A value outside this set must fail this test.
 
-    This is Finding 1 from the re-verify of kb-ru55.2 — the SINGLE resolution
-    point for the postability vocabulary. kb-sbhs's capability-ladder picker
+    This is Finding 1 from the re-verify of sb-ru55.2 — the SINGLE resolution
+    point for the postability vocabulary. sb-sbhs's capability-ladder picker
     reads this same set; any drift here silently breaks the picker (ADR-008 D3).
     """
 
@@ -101,7 +101,7 @@ class TelegramPostabilityChoicesTest(TestCase):
             {"bot", "agent", "public"},
             "TelegramPostability values must be exactly: bot, agent, public — "
             "not a superset or subset. This set matches the capability-ladder tiers "
-            "documented in kb-sbhs D4 picker rendering.",
+            "documented in sb-sbhs D4 picker rendering.",
         )
 
     def test_divergent_value_admin_is_not_in_canonical_postability_set(self):
@@ -667,7 +667,7 @@ class TelegramInventoryIngestTest(TestCase):
         A payload with a non-canonical postability value (e.g. 'bogus') must be
         rejected with HTTP 422 at the API boundary — NOT stored.
 
-        Finding 1 (re-verify kb-ru55.2): postability was left soft (plain str).
+        Finding 1 (re-verify sb-ru55.2): postability was left soft (plain str).
         Now constrained to TelegramPostability enum values: bot, agent, public.
         A non-canonical value must be rejected loud (ADR-008 D3).
         """

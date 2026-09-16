@@ -1,5 +1,5 @@
 """
-TDD tests for bead kb-8qn.1 — shared pytest fixtures for Bundle A.
+TDD tests for bead sb-8qn.1 — shared pytest fixtures for Bundle A.
 
 These tests verify that the five new fixtures in conftest.py:
   - user_with_went_attendance

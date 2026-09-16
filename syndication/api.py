@@ -1,5 +1,5 @@
 """
-HTTP API for Switch syndication (kb-a4u.2 skeleton + kb-a4u.3 Event/Post CRUD).
+HTTP API for Switch syndication (sb-a4u.2 skeleton + sb-a4u.3 Event/Post CRUD).
 
 Django Ninja API per ADR-016 D6 (in-process handlers → JSON API + HTMX views
 share ONE auth + service layer).
@@ -9,7 +9,7 @@ Auth chain (ADR-016 D3):
   Leg 2: POST /api/agents/token     (no auth required) → short-lived (~1h) identity token
   Leg 3: POST /api/agents/verify    (STUBBED — ADR-008 D2)
 
-Token lifecycle (kb-a4u.2 fix):
+Token lifecycle (sb-a4u.2 fix):
   - Bearer API key (AgentCredential) is LONG-LIVED + reusable for many exchanges.
     "Displayed once" = raw key shown once at registration, stored hashed. Revoke
     via enabled=False.
@@ -203,7 +203,7 @@ def handle_django_validation_error(request, exc):
 
 class RegisterResponse(Schema):
     """
-    Response for agents/register: returns the one-time pairing token (kb-a4u.6).
+    Response for agents/register: returns the one-time pairing token (sb-a4u.6).
 
     The pairing token is shown once and handed to the agent. The agent redeems it
     at agents/redeem to receive the long-lived Bearer key. The Bearer key never
@@ -256,13 +256,13 @@ class VerifyResponse(Schema):
     "/agents/register",
     auth=SessionMarkerAuth(),
     response=RegisterResponse,
-    summary="Register agent — issue one-time pairing token (kb-a4u.6)",
+    summary="Register agent — issue one-time pairing token (sb-a4u.6)",
     description=(
         "Vouched (session) facilitator starts agent-pairing: mints a SHORT-LIVED, "
         "SINGLE-USE pairing token. The facilitator shows this token to their agent. "
         "The agent redeems the pairing token at /agents/redeem to receive the "
         "long-lived Bearer API key. The Bearer key NEVER transits the facilitator's "
-        "clipboard — only the agent ever holds it (kb-a4u.6 v0 decided mechanic). "
+        "clipboard — only the agent ever holds it (sb-a4u.6 v0 decided mechanic). "
         "Non-vouched users are rejected — ADR-017 D1: agent has identical authority "
         "to its user; a non-vouched user is walled, so their credential-issuance "
         "must be walled too (ADR-008 D3)."
@@ -270,7 +270,7 @@ class VerifyResponse(Schema):
 )
 def agents_register(request):
     """
-    Leg 1 of the pairing flow (kb-a4u.6, ADR-016 D3).
+    Leg 1 of the pairing flow (sb-a4u.6, ADR-016 D3).
 
     Issue a short-lived, single-use pairing token for the authenticated VOUCHED
     session user. The raw pairing token is returned once and never stored.
@@ -285,9 +285,9 @@ def agents_register(request):
     "/agents/redeem",
     auth=None,  # Public — pairing token is the credential
     response={200: RedeemResponse, 400: dict, 401: dict},
-    summary="Redeem pairing token — issue long-lived Bearer API key (kb-a4u.6)",
+    summary="Redeem pairing token — issue long-lived Bearer API key (sb-a4u.6)",
     description=(
-        "Leg 1b of the pairing flow (kb-a4u.6): the agent redeems the one-time "
+        "Leg 1b of the pairing flow (sb-a4u.6): the agent redeems the one-time "
         "pairing token to receive the long-lived Bearer API key. "
         "The pairing token is SINGLE-USE — second redemption is rejected. "
         "The pairing token is SHORT-LIVED (~15 min) — expired token is rejected. "
@@ -297,7 +297,7 @@ def agents_register(request):
 )
 def agents_redeem(request, body: RedeemRequest):
     """
-    Leg 1b of the pairing flow (kb-a4u.6).
+    Leg 1b of the pairing flow (sb-a4u.6).
 
     Agent redeems the one-time pairing token and receives the long-lived Bearer key.
     The Bearer key is bound to the registering facilitator User (ADR-017 D1).
@@ -388,7 +388,7 @@ def agents_verify(request, body: VerifyRequest):
 
 
 # ---------------------------------------------------------------------------
-# Protected resource endpoints (kb-a4u.3 — Event + Post CRUD)
+# Protected resource endpoints (sb-a4u.3 — Event + Post CRUD)
 # Co-equal seam: these handlers call the same service functions as HTMX views.
 # ---------------------------------------------------------------------------
 
@@ -538,7 +538,7 @@ class PostOut(Schema):
     voice: str
 
 
-# --- Projection schema (kb-k2ds.2 — real list, replaces the C4 stub) ---
+# --- Projection schema (sb-k2ds.2 — real list, replaces the C4 stub) ---
 
 
 class ProjectionOut(Schema):
@@ -546,7 +546,7 @@ class ProjectionOut(Schema):
     Response schema for GET /api/projections/ rows.
 
     Carries at least: projection id, connection (channel) identity, kind,
-    status (bead kb-k2ds.2 acceptance (2)) — plus event_id/post_id so an
+    status (bead sb-k2ds.2 acceptance (2)) — plus event_id/post_id so an
     agent can correlate a row back to the publishable it came from.
     """
 
@@ -561,13 +561,13 @@ class ProjectionOut(Schema):
     connection_title: str | None
 
 
-# --- Connection schema (kb-k2ds.3 — discoverability + enable-promotion) ---
+# --- Connection schema (sb-k2ds.3 — discoverability + enable-promotion) ---
 
 
 class ConnectionOut(Schema):
     """
     Response schema for GET /api/connections/ rows and the enable-promotion
-    action response (bead kb-k2ds.3 acceptance (2)).
+    action response (bead sb-k2ds.3 acceptance (2)).
 
     Carries at least id/platform/destination_id/title/kinds/enabled so an
     agent can discover a connection id and confirm its promotion-enabled
@@ -789,7 +789,7 @@ def events_update(request, event_id: int, body: EventUpdateIn):
 
 
 # ---------------------------------------------------------------------------
-# Cover image upload endpoint (kb-a4u.19, ADR-016 D1)
+# Cover image upload endpoint (sb-a4u.19, ADR-016 D1)
 # ---------------------------------------------------------------------------
 
 
@@ -967,8 +967,8 @@ def _projection_to_dict(projection):
 )
 def projections_list(request, event: int | None = None, post: int | None = None):
     """
-    List the authenticated user's own PlatformProjection rows (kb-k2ds.2 —
-    replaces the C4/kb-a4u.4 stub).
+    List the authenticated user's own PlatformProjection rows (sb-k2ds.2 —
+    replaces the C4/sb-a4u.4 stub).
 
     Delegates to services.list_projections_for_user (co-equal REST seam,
     ADR-016 D3) — scoped to the caller's owned rows, mirroring events_list's
@@ -984,7 +984,7 @@ def projections_list(request, event: int | None = None, post: int | None = None)
 
 
 # ---------------------------------------------------------------------------
-# PlatformConnection discoverability + enable-promotion (kb-k2ds.3)
+# PlatformConnection discoverability + enable-promotion (sb-k2ds.3)
 #
 # Co-equal seam (ADR-016 D3/D6): closes the gap where the only way to
 # discover a connection id or enable it for promotion was the web HTMX
@@ -1008,7 +1008,7 @@ def _connection_to_dict(connection):
     "/connections/",
     auth=_RESOURCE_AUTH,
     response=list[ConnectionOut],
-    summary="List the caller's own PlatformConnections (kb-k2ds.3 discoverability)",
+    summary="List the caller's own PlatformConnections (sb-k2ds.3 discoverability)",
 )
 def connections_list(request):
     """
@@ -1017,7 +1017,7 @@ def connections_list(request):
     connections_list view — no cross-tenant leak).
 
     Gives an agent an id it can pass to POST /connections/{id}/enable-promotion/
-    without any web HTMX fast-path (kb-k2ds.3 acceptance (2)).
+    without any web HTMX fast-path (sb-k2ds.3 acceptance (2)).
     """
     from organizers.models import ProfileClaim
     from syndication.models import PlatformConnection
@@ -1036,10 +1036,10 @@ def connections_list(request):
     "/connections/{connection_id}/enable-promotion/",
     auth=_RESOURCE_AUTH,
     response={200: ConnectionOut},
-    summary="Enable a synced connection for promotion (kb-k2ds.3)",
+    summary="Enable a synced connection for promotion (sb-k2ds.3)",
     description=(
         "Co-equal REST verb for the web destination_select 'select' action "
-        "(syndication/views.py, kb-sbhs.3). Adds 'promotion' to the "
+        "(syndication/views.py, sb-sbhs.3). Adds 'promotion' to the "
         "connection's kinds (additive) and sets enabled=True. "
         "Calls the SAME enable_promotion service function as the web path — "
         "no separate implementation, no divergent fail-loud gate (ADR-008 D3). "
@@ -1081,7 +1081,7 @@ def api_connection_enable_promotion(request, connection_id: int):
 
 
 # ---------------------------------------------------------------------------
-# Projection lifecycle action endpoints (kb-a4u.5, ADR-016 D5/D6)
+# Projection lifecycle action endpoints (sb-a4u.5, ADR-016 D5/D6)
 #
 # Co-equal seam: these API handlers call the SAME service functions as
 # the HTMX view actions. No duplicate logic.
@@ -1286,7 +1286,7 @@ def api_batch_publish_ready(request, event_id: int):
 
 
 # ---------------------------------------------------------------------------
-# Telegram inventory ingest endpoint (kb-ru55.2)
+# Telegram inventory ingest endpoint (sb-ru55.2)
 # ---------------------------------------------------------------------------
 
 
@@ -1325,7 +1325,7 @@ class TelegramInventoryIngestOut(Schema):
     "/telegram/inventory",
     auth=_RESOURCE_AUTH,
     response={200: TelegramInventoryIngestOut},
-    summary="Ingest Telegram inventory (metadata-only upsert, kb-ru55.2)",
+    summary="Ingest Telegram inventory (metadata-only upsert, sb-ru55.2)",
     description=(
         "Metadata-only inventory sync: accepts a list of postable Telegram destinations "
         "and upserts one PlatformConnection per item. "
@@ -1363,7 +1363,7 @@ def telegram_inventory_ingest(request, body: list[TelegramInventoryItemIn]):
 
 
 # ---------------------------------------------------------------------------
-# Telegram placement report endpoint (kb-56c2.1 — C3a co-equal seam)
+# Telegram placement report endpoint (sb-56c2.1 — C3a co-equal seam)
 # ---------------------------------------------------------------------------
 
 
@@ -1373,13 +1373,13 @@ class TelegramPlacementItemIn(Schema):
 
     Mirrors TelegramInventoryItemIn (extra="forbid" guard) — rejects any
     unrecognised field (session_string, access_hash, content, or any credential/
-    content field) with HTTP 422 (ADR-018 D4 / kb-56c2.1 D2).
+    content field) with HTTP 422 (ADR-018 D4 / sb-56c2.1 D2).
 
     status is constrained to TelegramPlacementStatus values:
     {placed, failed, skipped-pre-existing-draft}. "sent" is NOT a valid status
     (ADR-018 D2 FIRM draft-only firewall). Non-canonical values → 422.
 
-    topic_id is optional — forum-level coverage uses forum's destination_id (kb-56c2 D5).
+    topic_id is optional — forum-level coverage uses forum's destination_id (sb-56c2 D5).
     error_detail is optional — only set for failed placements.
     """
 
@@ -1402,7 +1402,7 @@ class TelegramPlacementReportOut(Schema):
     "/telegram/placements",
     auth=_RESOURCE_AUTH,
     response={200: TelegramPlacementReportOut},
-    summary="Report Telegram placement outcomes (co-equal seam, kb-56c2.1)",
+    summary="Report Telegram placement outcomes (co-equal seam, sb-56c2.1)",
     description=(
         "Agent-tier co-equal verb: accepts a list of per-destination placement outcomes "
         "and writes/updates TelegramPlacement records. "

@@ -3,15 +3,15 @@
 **Status:** Accepted 2026-05-21 (EXPLORATORY pending dogfooding per ADR-012 D6 bar)
 **Scope:** social-graph
 **Supersedes:** —
-**Canonicalizes:** kb-m69 D4, D6, D9 (D1 — profile claim flow — deferred to forthcoming ADR-014)
+**Canonicalizes:** sb-m69 D4, D6, D9 (D1 — profile claim flow — deferred to forthcoming ADR-014)
 
 ## Context
 
-Switch Berlin's curated-trust default (ADR-001 D1) gates community-signal-bearing content behind admin approval in Phase 0.5. Post the public-read flip (kb-9hw), the gate needs an operational shape: who can authenticate, what they see at each tier, how trust accumulates, and how the invite economy works without either chilling growth (vouchers afraid to invite anyone) or losing selectivity (vouchers spamming invites).
+Switch Berlin's curated-trust default (ADR-001 D1) gates community-signal-bearing content behind admin approval in Phase 0.5. Post the public-read flip (sb-9hw), the gate needs an operational shape: who can authenticate, what they see at each tier, how trust accumulates, and how the invite economy works without either chilling growth (vouchers afraid to invite anyone) or losing selectivity (vouchers spamming invites).
 
-ADR-012 (event visibility tiers) already references "vouched User" as the gating audience for `semi_public` events but does not define what makes a User vouched. ADR-009 D2 references the `vouched` visibility tier and D3 treats Vouch as reputation-private — both decisions cite `kb-m69 D4` / `kb-m69 D6` as the forthcoming upstream definition. This ADR is that upstream definition.
+ADR-012 (event visibility tiers) already references "vouched User" as the gating audience for `semi_public` events but does not define what makes a User vouched. ADR-009 D2 references the `vouched` visibility tier and D3 treats Vouch as reputation-private — both decisions cite `sb-m69 D4` / `sb-m69 D6` as the forthcoming upstream definition. This ADR is that upstream definition.
 
-The kb-m69 brainstorm (2026-05-18) landed four decisions in this cluster — tiered auth (D4), vouching with proportional consequences (D6), invite economy (D9), and profile-claim flow (D1). The first three are tightly coupled at the trust-posture layer; profile-claim is a sibling user-flow that touches `Profile` schema and warrants its own ADR (ADR-014, forthcoming). This ADR canonicalizes D4 + D6 + D9.
+The sb-m69 brainstorm (2026-05-18) landed four decisions in this cluster — tiered auth (D4), vouching with proportional consequences (D6), invite economy (D9), and profile-claim flow (D1). The first three are tightly coupled at the trust-posture layer; profile-claim is a sibling user-flow that touches `Profile` schema and warrants its own ADR (ADR-014, forthcoming). This ADR canonicalizes D4 + D6 + D9.
 
 EXPLORATORY firmness is the safe default per ADR-012 D6 — none of these decisions have been dogfooded yet. The shape is firm enough to implement against; the specific weights, thresholds, and cascade rules are signal-gated and expected to evolve.
 
@@ -36,7 +36,7 @@ State transitions are admin-mediated (per ADR-001 D1 curated-trust default); the
 
 **Rationale:**
 
-- `direct:` kb-m69 D4 explicit: "open signup required to see the 'public' events but you need to be vouched in in order to see the semi-public and private ones." `User.status` is the schema realization of that gate.
+- `direct:` sb-m69 D4 explicit: "open signup required to see the 'public' events but you need to be vouched in in order to see the semi-public and private ones." `User.status` is the schema realization of that gate.
 - `reasoned:` ADR-012 D3's access matrix names `vouched User` as the audience tier for `semi_public` events but does not define it. Without an enum, every read-path query has to invent its own "is this user trusted" predicate — fragile and inconsistent.
 - `external:` FetLife uses an analogous account-status enum (`active` / `suspended` / `deleted`) with admin-gated transitions (scout, 2026-05-18). Confirms the shape composes at scale.
 - `reasoned:` `suspended_pending_investigation` as a distinct reversible state (rather than overloading `banned` and reverting) preserves audit trail and avoids the "we banned them and now we have to un-ban" friction.
@@ -60,7 +60,7 @@ State transitions are admin-mediated (per ADR-001 D1 curated-trust default); the
 
 **Decision:** Two authentication entry-points reach an authenticated state:
 
-1. **Open signup** — email + password (or email + magic link). On verification, `User.status = 'open'`. User receives an auto-created `Profile(kind=person)` per kb-m69 D3 (deferred to ADR-014 / schema work, not in scope of this ADR).
+1. **Open signup** — email + password (or email + magic link). On verification, `User.status = 'open'`. User receives an auto-created `Profile(kind=person)` per sb-m69 D3 (deferred to ADR-014 / schema work, not in scope of this ADR).
 2. **Vouched signup** — same form plus an invite code field. On successful code redemption, `User.status = 'vouched'` and a `Vouch(voucher=<code-issuer>, vouchee=<new-user>, created_at=now())` row is created.
 
 Invite codes are single-use, time-bounded (default TTL 14 days, configurable per code), scoped to a single voucher. Codes display with the voucher's display name visible to the redeemer at the redemption screen — the social cost of bad invites is borne by the named voucher.
@@ -71,11 +71,11 @@ Open-signup users can later be upgraded to `vouched` via the same invite-redempt
 
 **Rationale:**
 
-- `direct:` kb-m69 D4 explicit on the two paths; this decision is the schema/UX realization.
+- `direct:` sb-m69 D4 explicit on the two paths; this decision is the schema/UX realization.
 - `reasoned:` Single-use codes prevent the "leaked invite link" failure mode — a code in the wild redeemed by an unintended party costs the voucher exactly one `Vouch` row, surfaced visibly.
 - `reasoned:` Time-bounded codes prevent the "issued years ago, redeemed cold" path that loses the voucher's contemporaneous context. 14 days matches the typical IRL "I'll invite you next time we meet" cadence.
 - `reasoned:` Naming the voucher to the redeemer at redemption time makes the social contract explicit — the redeemer knows whose name is attached to this entry. Reduces the "I redeemed it because I had a code" cold-redemption shape.
-- `external:` Lobste.rs uses a similar named-invite economy; the social-cost-of-bad-invites mechanic is well-documented as a community-quality preservation tool (scout, kb-m69 brainstorm).
+- `external:` Lobste.rs uses a similar named-invite economy; the social-cost-of-bad-invites mechanic is well-documented as a community-quality preservation tool (scout, sb-m69 brainstorm).
 
 **Alternatives:**
 
@@ -84,7 +84,7 @@ Open-signup users can later be upgraded to `vouched` via the same invite-redempt
 | Multi-use invite codes (one code, N redemptions until expiry) | `reasoned:` Decouples the named-voucher accountability — redemption #4 from the same code carries the same voucher weight as redemption #1 even though context drifted. Single-use forces deliberate per-invitee issuance. |
 | Anonymous invite codes (voucher hidden from redeemer) | `reasoned:` Removes the social-contract signal the named-voucher creates. Redeemer doesn't know whose trust they're trading on, voucher cannot be socially held to standard. The mechanic depends on visibility. |
 | Open signup only, no vouching path — upgrade-by-application after participation | `reasoned:` Bootstraps slowly (no signal for new users until they've attended events) and pushes admin workload up (every upgrade is a manual review). Vouching distributes the trust-extension work to the network. |
-| Invite-only across all tiers (no open path) | `reasoned:` Status quo before kb-9hw — limits public-event discoverability after the flip. Counterproductive for legitimately public events (IKSK's website-published gatherings). |
+| Invite-only across all tiers (no open path) | `reasoned:` Status quo before sb-9hw — limits public-event discoverability after the flip. Counterproductive for legitimately public events (IKSK's website-published gatherings). |
 
 **What would invalidate this:**
 
@@ -115,8 +115,8 @@ Trust signals derived from this graph:
 
 **Rationale:**
 
-- `direct:` kb-m69 D6 explicit: "we do want people handing out invites, but be very selective. If they get too afraid, they may not invite and we don't grow." Proportional + one-hop is the chilling-effect mitigation. Binary-consequence vouching is documented to catastrophically reduce invite issuance.
-- `direct:` kb-m69 D6 explicit on plausible-deniability via scarcity (paired with D4 below): when invites are visibly rare, "sorry, I'm out" is a credible social cover, lowering the cost of saying no to weak ties. The proportional-consequence + scarce-invite combination is the design pair, not either alone.
+- `direct:` sb-m69 D6 explicit: "we do want people handing out invites, but be very selective. If they get too afraid, they may not invite and we don't grow." Proportional + one-hop is the chilling-effect mitigation. Binary-consequence vouching is documented to catastrophically reduce invite issuance.
+- `direct:` sb-m69 D6 explicit on plausible-deniability via scarcity (paired with D4 below): when invites are visibly rare, "sorry, I'm out" is a credible social cover, lowering the cost of saying no to weak ties. The proportional-consequence + scarce-invite combination is the design pair, not either alone.
 - `reasoned:` Separating `vouch_score` from `personal_rating` decouples two distinct trust signals: "I'm a good attendee at events" vs "I have good judgment about who to invite." Conflating them misrepresents both axes — a great attendee with poor invite judgment shouldn't be displayed as low-rated, and a discerning voucher who rarely attends events shouldn't be displayed as low-rated either.
 - `reasoned:` One-hop cascade is the depth where accountability remains tractable. Multi-hop (A held responsible for B's vouches) creates paranoia that suppresses invite issuance; no cascade removes the selectivity incentive entirely.
 - `reasoned:` Admin-approved bans (no auto-fire) honors ADR-001 D1 curated-trust default. Automated bans are a known abuse vector (coordinated false-flag campaigns) and the cost of a wrongful ban in this community is high.
@@ -154,7 +154,7 @@ The earning job is deferred; the cheap-foresight cost (one integer column + one 
 
 **Rationale:**
 
-- `direct:` kb-m69 D9 explicit: "How to earn invite codes is tricky but we can think of different ways… we probably do want this to feel like a very scarce resource." Start tight (admin-only); loosen with criteria over time.
+- `direct:` sb-m69 D9 explicit: "How to earn invite codes is tricky but we can think of different ways… we probably do want this to feel like a very scarce resource." Start tight (admin-only); loosen with criteria over time.
 - `reasoned:` Vouched-users-start-with-zero is the load-bearing design insight — *being vouched in doesn't make you a voucher*. The right to invite is earned through demonstrated participation, not granted on entry. This is what makes the invite economy a quality filter rather than a multiplier on initial signups.
 - `reasoned:` Scarcity makes the social-deniability mechanic work (D2 rationale): when invites are visibly rare, the "I'm out of invites right now" excuse is credible. Granting N invites at signup destroys this mechanic.
 - `reasoned:` Cheap foresight per ADR-003: ship `invite_codes_remaining` and `InviteGrant` audit log now; activate earning job when V1 review volume justifies a formula. Avoids a migration when the formula stabilizes.
@@ -183,11 +183,11 @@ The earning job is deferred; the cheap-foresight cost (one integer column + one 
 - [ADR-010](ADR-010-event-based-product-posture.md) — anti-engagement-monetization constraint informs D4's rejection of pay-for-invites.
 - [ADR-011](ADR-011-personal-agent-layer-additive.md) — D1 (ADRs evolve in place); this ADR is a new entry, not an evolution.
 - [ADR-012](ADR-012-event-visibility-tiers.md) — D1 (`semi_public` audience = "any vouched User") and D3 (access matrix gating `semi_public` reads on `User.status == 'vouched'`) depend on this ADR's D1 enum. Update ADR-012's "forthcoming ADR" references to point here after this commit.
-- [kb-m69](../../) — source brainstorm (decisions D4, D6, D9); D1 (profile claim) deferred to forthcoming ADR-014.
-- [kb-9hw](../../) — Phase 0.5 public-read flip; this ADR is one of the blockers for that flip's safe execution (PUBLIC_READ_ENABLED without User trust tiers means `semi_public` events have no audience definition).
+- [sb-m69](../../) — source brainstorm (decisions D4, D6, D9); D1 (profile claim) deferred to forthcoming ADR-014.
+- [sb-9hw](../../) — Phase 0.5 public-read flip; this ADR is one of the blockers for that flip's safe execution (PUBLIC_READ_ENABLED without User trust tiers means `semi_public` events have no audience definition).
 
 ## Post-write follow-ups (filed as discovered-from beads, per ADR-008 D4)
 
 - ADR-012 D1 footnote and D3 access matrix currently say "forthcoming ADR" — should be updated to point to ADR-013 once this lands. (In-place edit of ADR-012 follow-up, not in this commit's scope per scope-discipline.)
-- ADR-014 (Profile claim flow) — canonicalizes kb-m69 D1 (web-first claim with email-domain fast-path) and kb-m69 D2 (multi-claimant `ProfileClaim` through-model — evolves ADR-007 D5 in place per ADR-011 D1).
-- kb-m69 to `/decompose` after ADR-013 + ADR-014 land — implementation children for schema migration, middleware extension, signup paths, tier-picker UI, invite-redemption flow.
+- ADR-014 (Profile claim flow) — canonicalizes sb-m69 D1 (web-first claim with email-domain fast-path) and sb-m69 D2 (multi-claimant `ProfileClaim` through-model — evolves ADR-007 D5 in place per ADR-011 D1).
+- sb-m69 to `/decompose` after ADR-013 + ADR-014 land — implementation children for schema migration, middleware extension, signup paths, tier-picker UI, invite-redemption flow.

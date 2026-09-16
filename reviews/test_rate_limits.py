@@ -1,5 +1,5 @@
 """
-TDD tests for bead kb-8qn.11: Rate limiting on write endpoints.
+TDD tests for bead sb-8qn.11: Rate limiting on write endpoints.
 
 Tests cover:
   - _user_rate_key() helper function

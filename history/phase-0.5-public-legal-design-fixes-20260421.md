@@ -3,7 +3,7 @@
 Date: 2026-04-21
 Review passes: 2 (pass 2 reviewers stalled before full completion; pass 1 findings consolidated)
 
-Epic: kb-a4t. Commits under review: 4606453, 58efa69, 60bbf39, be9fe27, fb15fc0, 66eef05, c00fae1, 3261565, ee24902.
+Epic: sb-a4t. Commits under review: 4606453, 58efa69, 60bbf39, be9fe27, fb15fc0, 66eef05, c00fae1, 3261565, ee24902.
 
 ## Critical
 
@@ -21,7 +21,7 @@ Epic: kb-a4t. Commits under review: 4606453, 58efa69, 60bbf39, be9fe27, fb15fc0,
   model has no direct FK.
 
 - **accounts/adapter.py:15 — `NoSignupAdapter` reads removed `settings.INVITES_ENABLED`.**
-  kb-a4t.1 migrated `INVITES_ENABLED` from an env var to a `FeatureFlag`, and kb-a4t.2 removed
+  sb-a4t.1 migrated `INVITES_ENABLED` from an env var to a `FeatureFlag`, and sb-a4t.2 removed
   the env-var definition from `a_core/settings.py`. The adapter still reads
   `getattr(settings, "INVITES_ENABLED", True)` — which silently defaults to `True` because
   the attribute no longer exists on `settings`. Flipping `INVITES_ENABLED=False` in the admin
@@ -55,7 +55,7 @@ Epic: kb-a4t. Commits under review: 4606453, 58efa69, 60bbf39, be9fe27, fb15fc0,
 
 - **tests/integration/test_phase_0_4_auth.py and test_phase_0_4.py — stale `settings.MAP_ENABLED` / `settings.INVITES_ENABLED` refs.**
   Tests still reference `settings.MAP_ENABLED` (test_phase_0_4_auth.py:188) and
-  `hasattr(settings, "INVITES_ENABLED")` (test_phase_0_4.py:563). Post-kb-a4t.1 these
+  `hasattr(settings, "INVITES_ENABLED")` (test_phase_0_4.py:563). Post-sb-a4t.1 these
   attributes are gone. `assert settings.MAP_ENABLED is True` will AttributeError; the
   `hasattr(...)` check will silently flip to False. Tests must migrate to `get_flag`.
   Fix: replace direct `settings.<FLAG>` reads with `get_flag("<FLAG>")` calls. Tests that

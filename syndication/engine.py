@@ -1,12 +1,12 @@
 """
-Syndication engine (kb-a4u.4, kb-wz8m.2 content-version cutover).
+Syndication engine (sb-a4u.4, sb-wz8m.2 content-version cutover).
 
 Provides three public callables:
 - generate_projection(kind, connection, source_event|source_post, mode, body?)
 - render_projection(proj) → str
 - transition_status(proj, new_status) → None (saves, raises on illegal transition)
 
-ADR-016 D2 (kb-wz8m.2 content-version model):
+ADR-016 D2 (sb-wz8m.2 content-version model):
     Draft projections TRACK the live canonical — ContentVersion fields layered on
     top; a NULL field on ContentVersion means "derive from live canonical at render
     time". Stability is achieved at draft→ready.
@@ -63,7 +63,7 @@ _LEGAL_TRANSITIONS = frozenset(
         ("draft", "ready"),
         ("ready", "published"),
         ("ready", "failed"),
-        ("ready", "draft"),  # re-open for re-approval (kb-a4u.20 hybrid model)
+        ("ready", "draft"),  # re-open for re-approval (sb-a4u.20 hybrid model)
         ("published", "failed"),
         ("failed", "draft"),  # reset for retry
     ]
@@ -93,12 +93,12 @@ def transition_status(projection: PlatformProjection, new_status: str) -> None:
     projection.status = new_status
 
     if from_status == "draft" and new_status == "ready":
-        # ADR-016 D2 (kb-wz8m.2 content-version model): freeze the FULL effective
+        # ADR-016 D2 (sb-wz8m.2 content-version model): freeze the FULL effective
         # structured content at draft→ready. Materialize all content-relevant
         # canonical fields + ContentVersion explicit fields into frozen_content so
         # from-ready reads never touch the live canonical.
         # ADR-008 D3: fail loud if the effective content cannot be derived.
-        # kb-6d7o.2: bump publish_rev BEFORE materialization so the frozen body
+        # sb-6d7o.2: bump publish_rev BEFORE materialization so the frozen body
         # carries the bumped rev in the embedded versioned URL.
         _bump_publish_rev(projection)
         projection.frozen_content = _materialize_effective_fields(projection)
@@ -135,7 +135,7 @@ DATA_INTEGRITY_MAX_RETRIES = 0
 
 
 # ---------------------------------------------------------------------------
-# Publish-revision bump helper (kb-6d7o.2)
+# Publish-revision bump helper (sb-6d7o.2)
 # ---------------------------------------------------------------------------
 
 
@@ -247,7 +247,7 @@ def generate_projection(
     Raises:
         ValueError: if mode=agent_assisted without body, or unknown mode/kind.
 
-    ADR-016 D2 (kb-wz8m.2 content-version model): Draft projections track the
+    ADR-016 D2 (sb-wz8m.2 content-version model): Draft projections track the
                 live canonical via ContentVersion.
                 rule_based: ContentVersion body is NULL — draft renders from
                 live canonical fields; freeze happens at draft→ready.
@@ -280,7 +280,7 @@ def generate_projection(
     # --- Resolve or create a ContentVersion for this publishable ---
     # get-or-create the canonical version for the publishable so generate_projection
     # can be called standalone (without having gone through create_event/create_post).
-    # ADR-016 D2 / kb-q4u9.2: promotion projections use the POST's canonical
+    # ADR-016 D2 / sb-q4u9.2: promotion projections use the POST's canonical
     # (post FK set, event FK null), not the event's canonical.
     if canonical_post is not None:
         canonical_cv, _ = ContentVersion.objects.get_or_create(
@@ -333,7 +333,7 @@ def generate_projection(
 
 
 # ---------------------------------------------------------------------------
-# Full-field materialization helpers (Fix 1, kb-a4u.20 adversarial review)
+# Full-field materialization helpers (Fix 1, sb-a4u.20 adversarial review)
 # ---------------------------------------------------------------------------
 
 
@@ -405,7 +405,7 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
     explicit fields applied (null field = use canonical).
     Analogous to _materialize_listing_fields for kind=promotion.
 
-    kb-6d7o.2: Appends the canonical Switch event URL with ?v=<publish_rev> to the
+    sb-6d7o.2: Appends the canonical Switch event URL with ?v=<publish_rev> to the
     composed promotion body so it lands in frozen_content["body"] at every freeze.
     The URL is built via reverse("event-detail", ...) + settings.SITE_URL + ?v=rev,
     where rev is projection.publish_rev (already bumped before this call at draft→ready
@@ -430,7 +430,7 @@ def _materialize_promotion_fields(projection: PlatformProjection) -> dict:
     else:
         body = _compose_promotion_body(post, platform)
 
-    # kb-6d7o.2: For Telegram-only — embed the canonical Switch event URL with
+    # sb-6d7o.2: For Telegram-only — embed the canonical Switch event URL with
     # ?v=<publish_rev> as a link-preview cache-bust. Non-telegram platforms
     # (FetLife, Switch, etc.) do NOT receive the URL suffix.
     # ADR-008 D3: if the event or organizer slug is missing for a telegram
@@ -536,7 +536,7 @@ def render_projection(projection: PlatformProjection) -> str:
     """
     Render the projection's output body.
 
-    ADR-016 D2 (kb-wz8m.2 content-version model):
+    ADR-016 D2 (sb-wz8m.2 content-version model):
     - status=draft: track live canonical — return _render_draft_body()
       (ContentVersion.body if explicit, else compose from live canonical fields).
     - status=ready/published/failed: return frozen_content["body"] (the snapshot

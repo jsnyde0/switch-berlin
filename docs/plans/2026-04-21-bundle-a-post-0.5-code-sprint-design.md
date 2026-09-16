@@ -1,7 +1,7 @@
 # Bundle A — Post-0.5 code sprint
 
 **Date:** 2026-04-21
-**Status:** Shipped 2026-04-22 (epic kb-8qn closed, 15/15 beads complete, review fixes applied)
+**Status:** Shipped 2026-04-22 (epic sb-8qn closed, 15/15 beads complete, review fixes applied)
 **Parent roadmap:** [Bundle A in roadmap](2026-04-17-roadmap-0.1-to-1.0.md)
 **Decisions:** [ADR-005 Bundle post-0.5 execution](../decisions/ADR-005-bundle-post-0.5-execution.md)
 **Upstream ADRs:** [ADR-001 D3](../decisions/ADR-001-core-product-and-stack.md), [ADR-002 D4](../decisions/ADR-002-phased-rollout-and-legal-gate.md), [ADR-003 F2, F6, F8, F9](../decisions/ADR-003-cheap-foresight-patterns.md), [ADR-004 D3](../decisions/ADR-004-htmx-vs-island-default-plus-tripwire.md)
@@ -262,5 +262,5 @@ All steps shipped, review passed, tests green. No traffic gate — Bundle A is a
 ## Revision log
 
 - 2026-04-21 — Initial draft (brainstorm output).
-- 2026-04-22 — Reconciliation after partial WIP audit: `Event.avg_rating` field documented (symmetric with existing `Organizer.avg_rating`; added during step-1 WIP to support step-7a event-card star chip without N+1 aggregates on `/events`). Step-1 description and test plan updated accordingly. `recompute_aggregates` avg-computation is step-1 scope; the going→went `attendance_count` extension remains step-3. Beads kb-8qn.1 / .2 / .3 are complete; `/send-it` resumes on kb-8qn.4 onward.
+- 2026-04-22 — Reconciliation after partial WIP audit: `Event.avg_rating` field documented (symmetric with existing `Organizer.avg_rating`; added during step-1 WIP to support step-7a event-card star chip without N+1 aggregates on `/events`). Step-1 description and test plan updated accordingly. `recompute_aggregates` avg-computation is step-1 scope; the going→went `attendance_count` extension remains step-3. Beads sb-8qn.1 / .2 / .3 are complete; `/send-it` resumes on sb-8qn.4 onward.
 - 2026-04-21 — `/send-it` review passes 1–2 folded in (autonomous mode). Load-bearing amendments: soft-delete `Review.hidden` for DSA reversibility; `ModerationAction.target_repr` captured at creation; `recompute_aggregates` extended in same bead as `finalize_attendance` to prevent `attendance_count=0` regression; unified `feature_flag_row:{key}` cache to coordinate `get_flag`/`get_numeric`; `AUTO_HIDE_FLAG_THRESHOLD` call-site replacement bundled into step 1; flag-naming convention codified (UPPERCASE booleans, `threshold.*` numerics); `INGESTION_PAUSED` DB flag replaces `BOT_ENABLED` setting; rate-limit rewrite acknowledged (deletes hand-rolled code + test); 429 response shape specified (`block=False` + error partial); steps 6, 7, 9 split into a/b sub-beads; step 0 test-fixtures scaffold added; admin readiness screen deferred to Bundle B; formal a11y audit deferred to Bundle C. No ADR-005 decisions overturned; ADR-005 D1's A1/A2 escape hatch remains available but is not being exercised pre-implementation.

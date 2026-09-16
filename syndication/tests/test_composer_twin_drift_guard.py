@@ -1,6 +1,6 @@
 """
 Surface-wide regression guard against inline-twin drift in syndication
-composer templates (kb-v93q).
+composer templates (sb-v93q).
 
 ROOT CAUSE CLASS: When a widget partial is extracted from two composers that
 shared duplicated inline markup, developers may later re-inline the widget

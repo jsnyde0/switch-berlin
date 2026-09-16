@@ -30,7 +30,7 @@ Review passes: 1 (architecture + implementation, parallel)
 
 ## Discarded
 
-- **revoke_art9_consent pre_delete signal redundant with FK cascade** (arch #7) — the belt+suspenders pattern is explicitly specified in kb-9kh.1 per ADR-006 D1 design intent. Discard as Decision Challenge; don't remove the signal.
+- **revoke_art9_consent pre_delete signal redundant with FK cascade** (arch #7) — the belt+suspenders pattern is explicitly specified in sb-9kh.1 per ADR-006 D1 design intent. Discard as Decision Challenge; don't remove the signal.
 - **Consent gate returns 200 for non-HTMX POST** (arch #8) — no non-HTMX caller exists today; HTMX-only is the established pattern in this codebase. Discard as speculative.
 - **Consent revocation TOCTOU race** (arch #9) — low-probability, single-user app, acceptable risk. Discard.
 - **Silent check under DEBUG=False, PUBLIC_READ_ENABLED=False** (impl #4) — per-design per ADR-006 D3 ("internal cohort runs fine with placeholders"). Not a code bug; the Readiness Check section of the design doc already specifies running `manage.py check --deploy` before the flip. Discard.

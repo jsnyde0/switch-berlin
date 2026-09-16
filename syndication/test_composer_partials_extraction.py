@@ -1,5 +1,5 @@
 """
-Render-regression tests for kb-kgza.9: shared-partial extraction from
+Render-regression tests for sb-kgza.9: shared-partial extraction from
 event_syndication.html and post_syndication.html.
 
 These tests lock the rendered HTML markers of the picker, editor, and breadcrumb
@@ -15,7 +15,7 @@ Coverage:
 The tests must be GREEN against the current (pre-extraction) code; they must
 STAY GREEN after extraction (any diff = behaviour changed).
 
-Harness target (kb-kgza.9): Signal = these tests.
+Harness target (sb-kgza.9): Signal = these tests.
 """
 
 from django.contrib.auth import get_user_model
@@ -279,7 +279,7 @@ class EventSyncPickerSyncedStateTest(TestCase):
 
     State (ii): projection has sync_source set (shares source CV, sync_source NOT NULL).
     The picker renders 'Synced from <platform>' + '· follows source edits live'
-    (kb-s41r — live-follow semantics; replaces old kb-nexw.3 snapshot label).
+    (sb-s41r — live-follow semantics; replaces old sb-nexw.3 snapshot label).
     """
 
     def setUp(self):
@@ -299,14 +299,14 @@ class EventSyncPickerSyncedStateTest(TestCase):
         self.client.force_login(self.user)
 
     def test_synced_from_badge_present(self):
-        """State (ii): 'Synced from' badge must be visible (kb-s41r live-follow label)."""
+        """State (ii): 'Synced from' badge must be visible (sb-s41r live-follow label)."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertIn("Synced from", content)
 
     def test_live_follow_sub_label_present(self):
-        """State (ii): '· follows source edits live' hint must be visible (kb-s41r)."""
+        """State (ii): '· follows source edits live' hint must be visible (sb-s41r)."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -504,7 +504,7 @@ class EventChannelEditorDraftTest(TestCase):
     def test_version_edit_form_shown_for_draft(self):
         """
         Draft: body editor form must use projection-detach-and-edit (projection-keyed).
-        kb-kgza.2: per-channel body form now routes to projection-detach-and-edit
+        sb-kgza.2: per-channel body form now routes to projection-detach-and-edit
         so editing auto-detaches from the shared canonical CV (ADR-016 D2).
         """
         response = self.client.get(self.url)
@@ -661,7 +661,7 @@ class PostChannelEditorDraftTest(TestCase):
     def test_version_edit_form_shown_for_draft(self):
         """
         Draft: body editor form must use projection-detach-and-edit (projection-keyed).
-        kb-kgza.2: per-channel body form now routes to projection-detach-and-edit
+        sb-kgza.2: per-channel body form now routes to projection-detach-and-edit
         so editing auto-detaches from the shared canonical CV (ADR-016 D2).
         """
         response = self.client.get(self.url)
@@ -760,7 +760,7 @@ class PostSyncPickerCanonicalStateTest(TestCase):
     """
     Sync picker in post_syndication.html for canonical/synced state (state i/ii).
     The 'Sync from' form renders directly (no discard modal).
-    (Label changed from 'Copy from' to 'Sync from' by kb-s41r — shares, not copies.)
+    (Label changed from 'Copy from' to 'Sync from' by sb-s41r — shares, not copies.)
     """
 
     def setUp(self):
@@ -783,7 +783,7 @@ class PostSyncPickerCanonicalStateTest(TestCase):
 
     def test_copy_from_label_present(self):
         """State (i/ii): 'Sync from' label must be present (no modal for state i/ii).
-        (kb-s41r: label changed from 'Copy from' to 'Sync from' — live-share semantics.)"""
+        (sb-s41r: label changed from 'Copy from' to 'Sync from' — live-share semantics.)"""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()

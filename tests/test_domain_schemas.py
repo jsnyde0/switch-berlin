@@ -1,5 +1,5 @@
 """
-Tests for kb-i45.2: Domain schemas + admin.
+Tests for sb-i45.2: Domain schemas + admin.
 
 Tests are written FIRST (TDD) and are expected to FAIL until implementation is complete.
 All five apps: organizers, venues, events, ingestion, reviews.
@@ -248,7 +248,7 @@ def test_event_create_roundtrip(organizer):
 @pytest.mark.django_db
 def test_event_slug_unique_per_organizer(organizer):
     """
-    [kb-n0y] The event_slug_unique_per_organizer DB constraint was dropped when
+    [sb-n0y] The event_slug_unique_per_organizer DB constraint was dropped when
     Event.organizer FK was migrated to EventOrganizer M2M (see bead notes).
     Slug-per-organizer uniqueness is now enforced at the application layer only.
     Two events from the same organizer CAN share a slug at the DB level.
@@ -281,7 +281,7 @@ def test_event_slug_can_repeat_across_organizers(organizer):
 @pytest.mark.django_db
 def test_event_dup_guard_org_start_title(organizer):
     """
-    [kb-n0y] The event_dup_guard_org_start_title DB constraint was dropped when
+    [sb-n0y] The event_dup_guard_org_start_title DB constraint was dropped when
     Event.organizer FK was migrated to EventOrganizer M2M (see bead notes).
     Dup-guard was already weak — same org can legitimately run two workshops at
     the same start time. Now enforced at application layer only if needed.
@@ -538,7 +538,7 @@ def test_review_constraint_no_targets_rejected(organizer):
 )
 def test_event_unique_constraints_in_db():
     """
-    [kb-n0y] Old FK-based constraints were dropped; verify new M2M constraint.
+    [sb-n0y] Old FK-based constraints were dropped; verify new M2M constraint.
 
     event_slug_unique_per_organizer and event_dup_guard_org_start_title were
     intentionally removed when Event.organizer FK became EventOrganizer M2M.

@@ -8,11 +8,11 @@
 
 ADR-016 models projections and a publish lifecycle but leaves the *delivery mechanism* per platform as an adapter detail. The first real channel (Telegram) forced the question, because the actual job-to-be-done is **fan-out**: a facilitator authors an event once and distributes it to their own channel **plus** the many community groups and forum-topics they participate in — most of which are **private** (no public username).
 
-A live spike (kb-mztq, 2026-06-11) validated the mechanics against a real facilitator account and verified Telegram's behavior against `core.telegram.org` docs. Findings that shape this ADR:
+A live spike (sb-mztq, 2026-06-11) validated the mechanics against a real facilitator account and verified Telegram's behavior against `core.telegram.org` docs. Findings that shape this ADR:
 
 - A **Bot API** bot can only post where the bot itself is admin/member — it cannot reach the private community groups a facilitator is merely a member of.
 - A **deep-link** (`tg://resolve?domain=…&text=…`) can pre-fill a draft, but only addresses **public** (username-bearing) destinations.
-- **MTProto `saveDraft`** (acting as the user's own account) places a server-side draft — text + link-preview card — that **syncs to all the user's devices without sending anything and without notifying anyone**. It reaches *any* dialog the user can post in, private or public, including forum groups. Validated live: private member-supergroups, own broadcast channels, and forum groups all received synced drafts the human could then send. **Correction (kb-ru55.6 dogfood, 2026-06-12):** within a forum, the draft is placed **forum-level** (`reply_to=None`) and is visible in whatever topic composer the human opens — **per-topic *pinning* via `top_msg_id` is stored correctly server-side (`ForumTopic.draft` populates) but Telegram Desktop does NOT render a topic-pinned draft**, so it is invisible to the user. The earlier spike conflated forum-level visibility with topic-pinning. Net: forum *reach* is real and visible; per-topic *pinning* is not a working delivery guarantee today (see D1 note + deferred kb-ru55.9).
+- **MTProto `saveDraft`** (acting as the user's own account) places a server-side draft — text + link-preview card — that **syncs to all the user's devices without sending anything and without notifying anyone**. It reaches *any* dialog the user can post in, private or public, including forum groups. Validated live: private member-supergroups, own broadcast channels, and forum groups all received synced drafts the human could then send. **Correction (sb-ru55.6 dogfood, 2026-06-12):** within a forum, the draft is placed **forum-level** (`reply_to=None`) and is visible in whatever topic composer the human opens — **per-topic *pinning* via `top_msg_id` is stored correctly server-side (`ForumTopic.draft` populates) but Telegram Desktop does NOT render a topic-pinned draft**, so it is invisible to the user. The earlier spike conflated forum-level visibility with topic-pinning. Net: forum *reach* is real and visible; per-topic *pinning* is not a working delivery guarantee today (see D1 note + deferred sb-ru55.9).
 - The real target filter is **"can the user post here"** — not chat type. Broadcast channels the user only subscribes to are dead ends.
 - Telegram's documented permanent-ban enforcement for "flooding/spamming" is keyed to **sent messages and recipient reports**; a draft produces neither. Logging in via an unofficial MTProto client does put the account "under observation" (documented baseline).
 
@@ -22,18 +22,18 @@ This ADR canonicalizes the resulting tiered delivery strategy and the FIRM safet
 
 ### D1: Tiered push mechanism, selected per destination by type + "can the user post here"
 
-**Firmness: FLEXIBLE** — converged from the kb-mztq spike; expected to gain tiers as new platforms onboard. Reversible per-tier as platform capabilities change.
+**Firmness: FLEXIBLE** — converged from the sb-mztq spike; expected to gain tiers as new platforms onboard. Reversible per-tier as platform capabilities change.
 
 A projection is delivered by the mechanism that fits its destination:
 
 - **Own / admin channels** → **Bot API auto-post** (the Switch bot, added as admin, posts directly; no human send).
-- **Groups / supergroups / forum groups the user can post in (INCLUDING private, no-username)** → **MTProto `saveDraft` as the user's own account**: the agent places a synced native draft (text + link-preview card); the **human reviews and sends** on their official client. This is the only mechanism that reaches private communities. **Forum-topic caveat (kb-ru55.6, 2026-06-12):** the draft is placed **forum-level** (`reply_to=None`), NOT pinned to a specific topic — a `top_msg_id`-pinned draft is stored server-side but **Telegram Desktop does not render it** (invisible to the user). The forum-level draft is visible in whatever topic composer the human opens; the **intended topic is conveyed via the distribute result** for the human to route. True per-topic pinning is deferred (kb-ru55.9).
+- **Groups / supergroups / forum groups the user can post in (INCLUDING private, no-username)** → **MTProto `saveDraft` as the user's own account**: the agent places a synced native draft (text + link-preview card); the **human reviews and sends** on their official client. This is the only mechanism that reaches private communities. **Forum-topic caveat (sb-ru55.6, 2026-06-12):** the draft is placed **forum-level** (`reply_to=None`), NOT pinned to a specific topic — a `top_msg_id`-pinned draft is stored server-side but **Telegram Desktop does not render it** (invisible to the user). The forum-level draft is visible in whatever topic composer the human opens; the **intended topic is conveyed via the distribute result** for the human to route. True per-topic pinning is deferred (sb-ru55.9).
 - **Public destinations** → *also* offer a zero-auth **deep-link** (`tg://resolve?domain=…&text=…`) open-with-draft convenience (no MTProto session required).
 - **Broadcast channels the user only subscribes to** → **not targets** (the user cannot post; excluded from the destination set).
 
 **Rationale:**
 
-- `direct:` spike kb-mztq + dogfood kb-ru55.6 — no single mechanism spans the set: the bot can't reach private member-groups, deep-links can't address private (no username), and `saveDraft` is the only path into private communities (verified live across private supergroups, own channel, and forum groups — forum drafts placed forum-level, not topic-pinned; see D1 caveat).
+- `direct:` spike sb-mztq + dogfood sb-ru55.6 — no single mechanism spans the set: the bot can't reach private member-groups, deep-links can't address private (no username), and `saveDraft` is the only path into private communities (verified live across private supergroups, own channel, and forum groups — forum drafts placed forum-level, not topic-pinned; see D1 caveat).
 - `reasoned:` ADR-008 D2 (concrete-not-speculative) is *satisfied* by per-tier divergence here — the divergence is real and observed, not anticipated; a unified "channel push" abstraction would have to special-case all three anyway.
 - `direct:` the dogfooding facilitator's real inventory was ~17 private member-supergroups vs ~7 public groups — the private-only `saveDraft` tier carries the majority of the value, not an edge case.
 
@@ -41,7 +41,7 @@ A projection is delivered by the mechanism that fits its destination:
 
 | Alternative | Why rejected |
 |---|---|
-| Bot API for all channels | `direct:` (kb-mztq) a bot cannot post into groups/channels it isn't admin/member of — it cannot reach the private communities that are the bulk of real fan-out targets. |
+| Bot API for all channels | `direct:` (sb-mztq) a bot cannot post into groups/channels it isn't admin/member of — it cannot reach the private communities that are the bulk of real fan-out targets. |
 | Deep-links only (no MTProto) | `direct:` deep-links resolve **public usernames only**; the majority of the facilitator's real destinations are private/no-username, so this covers a minority. |
 | One uniform "channel push" mechanism | `reasoned:` no mechanism covers own-channel (bot) + private groups (saveDraft) + zero-auth public (deep-link) at once; forcing one would special-case all three. ADR-008 D2 favors the concrete per-tier shape when divergence is already real. |
 
@@ -49,7 +49,7 @@ A projection is delivered by the mechanism that fits its destination:
 
 - Telegram (or a new platform) ships an official multi-target broadcast/forward API that reaches a user's communities natively — the `saveDraft` tier could be subsumed by it.
 - A platform onboards whose destinations fit none of the three tiers — add a tier rather than bending an existing one.
-- A draft representation is found that Telegram Desktop renders **pinned to a specific forum topic** (kb-ru55.9) — the forum-topic tier would upgrade from forum-level to true per-topic placement. (The official apps support per-topic drafts, so some representation renders; ours — `InputReplyToMessage(reply_to_msg_id=topic_id, top_msg_id=topic_id)` — does not.)
+- A draft representation is found that Telegram Desktop renders **pinned to a specific forum topic** (sb-ru55.9) — the forum-topic tier would upgrade from forum-level to true per-topic placement. (The official apps support per-topic drafts, so some representation renders; ours — `InputReplyToMessage(reply_to_msg_id=topic_id, top_msg_id=topic_id)` — does not.)
 
 ### D2: The automated MTProto client only ever DRAFTS — never sends (the ToS firewall)
 
@@ -91,7 +91,7 @@ Logging into a user's account via an unofficial MTProto client (Telethon) places
 
 | Alternative | Why rejected |
 |---|---|
-| Refuse MTProto entirely (bot-only) | `direct:` (kb-mztq) forecloses the entire private-community fan-out — the core value of the product for Telegram. |
+| Refuse MTProto entirely (bot-only) | `direct:` (sb-mztq) forecloses the entire private-community fan-out — the core value of the product for Telegram. |
 | Treat MTProto as risk-free / hide the baseline | `external:` the docs explicitly state unofficial-client accounts are monitored; pretending otherwise violates ADR-008 D3's honesty posture and mis-informs the user's consent. |
 
 **What would invalidate this:**
@@ -124,7 +124,7 @@ The `saveDraft` capability runs in the **agent/CLI on the user's own machine**, 
 
 ### D5: The public/deep-link tier is outside coverage machine-state — a human-action affordance, never `placed`, never `pending`
 
-**Firmness: FIRM** — an application of D2 (draft-only firewall / unobservable send) and ADR-008 D3 (fail-loud, no fabricated state) to D1's tier enum. (Added 2026-06-15; promoted from kb-56c2 D6, decided 2026-06-14.)
+**Firmness: FIRM** — an application of D2 (draft-only firewall / unobservable send) and ADR-008 D3 (fail-loud, no fabricated state) to D1's tier enum. (Added 2026-06-15; promoted from sb-56c2 D6, decided 2026-06-14.)
 
 D1 defines three delivery tiers. The **bot** and **agent** tiers are machine-observable — bot at Bot-API call-return, agent via the `saveDraft` outcome the local client reports back. The **public** tier is NOT: a zero-auth `tg://` deep-link is offered, and the human opens it and posts manually. The machine never executes the post and cannot observe whether it happened — identical to the native send under D2. A public-tier destination therefore must NEVER receive a coverage machine-state:
 
@@ -133,7 +133,7 @@ D1 defines three delivery tiers. The **bot** and **agent** tiers are machine-obs
 
 Instead it renders as an explicit deep-link human-action affordance ("open & post manually") and joins the send-checklist alongside agent-tier placed drafts; it is **excluded from the `pending` reconciliation**. Any per-tier status / coverage / analytics surface built over D1's three tiers MUST treat the public tier this way.
 
-**Rationale (incl. why this is canonical, not per-feature judgment):** One could hold this is merely an instance of ADR-008 D3 + D2 and needs no separate statement. It does not hold: the kb-56c2 round-1 adversarial review showed the *default* coverage-model judgment FAILS here — the natural two-writer model silently drops every public destination into `pending`, and only fresh-context review caught it. "This tier is unobservable-by-construction" is a non-obvious consequence of D1+D2 that a feature author reasoning over "three delivery tiers" will not re-derive; canonicalizing it is what prevents recurrence. The decision is forward-binding on every future per-tier status surface — the cross-cutting test for L3.
+**Rationale (incl. why this is canonical, not per-feature judgment):** One could hold this is merely an instance of ADR-008 D3 + D2 and needs no separate statement. It does not hold: the sb-56c2 round-1 adversarial review showed the *default* coverage-model judgment FAILS here — the natural two-writer model silently drops every public destination into `pending`, and only fresh-context review caught it. "This tier is unobservable-by-construction" is a non-obvious consequence of D1+D2 that a feature author reasoning over "three delivery tiers" will not re-derive; canonicalizing it is what prevents recurrence. The decision is forward-binding on every future per-tier status surface — the cross-cutting test for L3.
 
 **Alternatives:**
 
@@ -141,7 +141,7 @@ Instead it renders as an explicit deep-link human-action affordance ("open & pos
 |---|---|---|
 | Give public-tier a `placed`/`offered` machine state when the deep-link is shown | `direct:` ADR-018 D2 | The machine offered a link, placed nothing it can confirm; a machine state here is fabricated — the same firewall violation as a "sent" badge. |
 | Leave public-tier as a computed `pending` (no record) | `direct:` ADR-008 D3 | A permanent silent `pending` is indistinguishable from never-distributed — a silent-integrity gap. |
-| Leave it to per-feature judgment (no canonical statement) | `direct:` kb-56c2 round-1 adversarial-review | The default coverage-model judgment already produced the silent-ghost bug once; only fresh-context review caught it. Canonicalization prevents recurrence. |
+| Leave it to per-feature judgment (no canonical statement) | `direct:` sb-56c2 round-1 adversarial-review | The default coverage-model judgment already produced the silent-ghost bug once; only fresh-context review caught it. Canonicalization prevents recurrence. |
 
 **What would invalidate this:**
 
@@ -154,6 +154,6 @@ Instead it renders as an explicit deep-link human-action affordance ("open & pos
 - [ADR-017 D1](ADR-017-authorization-edit-publish-policy.md) — agent is the user's delegate (the agent acts on the user's own account).
 - [ADR-008 D2](ADR-008-code-posture-refactor-hard-fail-loud.md) — concrete-not-speculative (D1's per-tier divergence is observed, not anticipated).
 - [ADR-008 D3](ADR-008-code-posture-refactor-hard-fail-loud.md) — fail-loud / honest surfacing (D3 risk disclosure; D5 no-fabricated-state + no-silent-pending-ghost).
-- Coverage-tracker epic **kb-56c2** (D5 promoted from its D6; the round-1 adversarial review that surfaced the public-tier silent-pending-ghost is D5's warrant).
-- Spike bead **kb-mztq** — the live validation (saveDraft into private member-supergroups, own broadcast channels, and forum topics; deep-link prefill; the "can you post" filter).
+- Coverage-tracker epic **sb-56c2** (D5 promoted from its D6; the round-1 adversarial review that surfaced the public-tier silent-pending-ghost is D5's warrant).
+- Spike bead **sb-mztq** — the live validation (saveDraft into private member-supergroups, own broadcast channels, and forum topics; deep-link prefill; the "can you post" filter).
 - `core.telegram.org/api/obtaining_api_id`, `/api/drafts`, `/api/links`, `/api/terms` — external spec for saveDraft semantics, draft sync, deep-link prefill, and flood/spam enforcement.

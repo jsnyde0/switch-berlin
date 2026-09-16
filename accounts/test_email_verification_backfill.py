@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.5: allauth EmailAddress backfill migration.
+TDD tests for sb-m69.5: allauth EmailAddress backfill migration.
 
 Per ADR-008 D3: fail loud — if a user has blank email, migration raises
 with offending user IDs. Do NOT silently create EmailAddress(verified=False).

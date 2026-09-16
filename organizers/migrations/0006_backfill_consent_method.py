@@ -1,4 +1,4 @@
-# Data migration for bead kb-9kh.2 (Organizer LIA + consent_method migration)
+# Data migration for bead sb-9kh.2 (Organizer LIA + consent_method migration)
 # Backfills existing telegram_forward_implied rows to legitimate_interest per ADR-006.
 #
 # Forward:  consent_method "telegram_forward_implied" → "legitimate_interest"

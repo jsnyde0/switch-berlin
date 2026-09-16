@@ -1,5 +1,5 @@
 """
-TDD tests for bead kb-8qn.9: Event review display gates (step-7a).
+TDD tests for bead sb-8qn.9: Event review display gates (step-7a).
 
 Tests verify:
 - EVENT_REVIEWS_DISPLAYED=False hides star chip and reviews section

@@ -1,5 +1,5 @@
 """
-Tests for kb-i45.7: phase-0.1 review fixes.
+Tests for sb-i45.7: phase-0.1 review fixes.
 
 Covers:
 - ApprovalGateMiddleware registered in MIDDLEWARE

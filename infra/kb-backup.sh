@@ -1,7 +1,7 @@
 #!/bin/bash
-# Switch Berlin nightly backup (kb-6nq.3 + kb-336 size-regression alert + kb-omx size floor).
+# Switch Berlin nightly backup (sb-6nq.3 + sb-336 size-regression alert + sb-omx size floor).
 #
-# Dumps pg_dump to a tempfile, checks absolute 50KiB floor (kb-omx), then
+# Dumps pg_dump to a tempfile, checks absolute 50KiB floor (sb-omx), then
 # backs up via restic on BX11. After the run, compares the new db-snapshot
 # total_size to the previous tag=db latest snapshot; if the new snapshot is
 # < prev / DROP_RATIO (default 5x drop), sends a Telegram alert.
@@ -15,7 +15,7 @@
 #                                   (used to exercise the threshold path)
 #   kb-backup.sh --simulate-tiny-dump  write a 100-byte fake dump and run
 #                                   the size-check logic; expects non-zero exit
-#                                   and a Telegram alert (test flag for kb-omx)
+#                                   and a Telegram alert (test flag for sb-omx)
 
 set -euo pipefail
 
@@ -62,7 +62,7 @@ if [ "${1:-}" = "--service-failed-alert" ]; then
 fi
 
 # --simulate-tiny-dump: write a 100-byte fake dump and run size-check logic.
-# Used to exercise the kb-omx absolute-floor path without touching the real db.
+# Used to exercise the sb-omx absolute-floor path without touching the real db.
 # Expects non-zero exit and a Telegram alert.
 if [ "${1:-}" = "--simulate-tiny-dump" ]; then
     TMPDIR_SIMULATE=$(mktemp -d /var/tmp/kb-backup-XXXXXX 2>/dev/null || mktemp -d)
@@ -96,7 +96,7 @@ latest_db_bytes() {
 
 PREV_BYTES=$(latest_db_bytes)
 
-DUMP_FLOOR_BYTES=51200  # 50 KiB absolute floor (kb-omx)
+DUMP_FLOOR_BYTES=51200  # 50 KiB absolute floor (sb-omx)
 DUMP_TMPDIR=/var/tmp/kb-backup
 mkdir -p "$DUMP_TMPDIR"
 

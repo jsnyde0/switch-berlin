@@ -1,5 +1,5 @@
 """
-kb-uxb: seed 2 Events per visibility tier (public / semi_public / unlisted).
+sb-uxb: seed 2 Events per visibility tier (public / semi_public / unlisted).
 
 Idempotent — uses get_or_create on a per-tier slug, so re-running prints
 'skipped' for rows that already exist.

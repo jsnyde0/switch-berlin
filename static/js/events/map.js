@@ -129,7 +129,7 @@ window.initMap = function (containerEl, store) {
       },
     })
 
-    // kb-0da: cursor affordance for event-markers
+    // sb-0da: cursor affordance for event-markers
     map.on('mouseenter', 'event-markers', function (e) {
       map.getCanvas().style.cursor = 'pointer'
       var feature = e.features && e.features[0]
@@ -199,7 +199,7 @@ window.initMap = function (containerEl, store) {
 
   // ── Cluster click → easeTo/zoom-expand + filter ──────────────────────────
   // Replace old popup. One explicit reload per click (not via moveend).
-  // kb-6ow: maplibre-gl 5.x returns Promises from getClusterLeaves /
+  // sb-6ow: maplibre-gl 5.x returns Promises from getClusterLeaves /
   // getClusterExpansionZoom — await/then only, no callbacks.
   map.on('click', 'event-clusters', function (e) {
     var feature = e.features && e.features[0]
@@ -258,7 +258,7 @@ window.initMap = function (containerEl, store) {
     }).catch(function () { /* ignore — cluster may have changed */ })
   })
 
-  // kb-0da: react to hover-changed from the list (source='list'), update map paint
+  // sb-0da: react to hover-changed from the list (source='list'), update map paint
   window.addEventListener('events:hover-changed', function (e) {
     // Only react when the source is the list to avoid loop
     // (map→store→event→here→map would loop; we guard via source flag)

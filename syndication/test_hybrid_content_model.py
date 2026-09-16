@@ -1,5 +1,5 @@
 """
-TDD tests for the hybrid content model (kb-a4u.20).
+TDD tests for the hybrid content model (sb-a4u.20).
 
 ADR-016 D2 (revised 2026-05-27): A projection's effective content TRACKS the
 live canonical (Event/Post fields + per-field override_data deltas) while it
@@ -65,7 +65,7 @@ def _make_connection(destination_id="fl-hybrid-001", **kwargs):
 
 class HybridContentModelStabilityTest(TestCase):
     """
-    Two-part stability test per parent acceptance #4 reframe (kb-a4u comment
+    Two-part stability test per parent acceptance #4 reframe (sb-a4u comment
     2026-05-27).
 
     (i)  Draft projection TRACKS live canonical — an edit to a canonical Event
@@ -169,7 +169,7 @@ class DraftManualProjectionLiveFallbackTest(TestCase):
     Manually-created projections with a null-body ContentVersion in draft status
     must derive from live canonical — the null-means-derive semantics apply.
 
-    kb-wz8m.2: override_data is removed; ContentVersion.body=None means
+    sb-wz8m.2: override_data is removed; ContentVersion.body=None means
     'derive from live canonical Event at render time'.
     """
 
@@ -311,7 +311,7 @@ class FrozenContentFailLoudTest(TestCase):
         A ready projection without frozen_content must raise ValueError.
         No silent fallback to live canonical for non-draft projections.
 
-        kb-wz8m.2: override_data is removed; test creates a ready projection
+        sb-wz8m.2: override_data is removed; test creates a ready projection
         directly without going through the normal draft→ready transition.
         """
         from syndication.models import ContentVersion
@@ -573,7 +573,7 @@ class AgentAssistedFreezeTest(TestCase):
     - render_projection returns the frozen body (not the draft ContentVersion path)
     - canonical mutations after freezing are still not visible
 
-    kb-wz8m.2: override_data removed; body stored on ContentVersion.
+    sb-wz8m.2: override_data removed; body stored on ContentVersion.
     """
 
     def test_agent_assisted_body_frozen_at_ready(self):
@@ -582,7 +582,7 @@ class AgentAssistedFreezeTest(TestCase):
         body in frozen_content["body"]. The ContentVersion.body path is the DRAFT
         path; frozen_content["body"] is the READY path.
 
-        kb-wz8m.2: override_data removed; body is on ContentVersion now.
+        sb-wz8m.2: override_data removed; body is on ContentVersion now.
         """
         event = _make_event(title="Agent Freeze Event", slug="agent-freeze-1")
         conn = _make_connection(destination_id="fl-agent-freeze-1")

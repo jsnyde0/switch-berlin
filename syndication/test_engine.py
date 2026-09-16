@@ -1,5 +1,5 @@
 """
-TDD tests for the syndication engine (kb-a4u.4, kb-wz8m.2 content-version cutover).
+TDD tests for the syndication engine (sb-a4u.4, sb-wz8m.2 content-version cutover).
 
 Five harness checks per acceptance contract:
 1. State-machine: legal transitions succeed, illegal ones raise.
@@ -175,7 +175,7 @@ class StateMachineTest(TestCase):
 
 class OverrideIndependenceTest(TestCase):
     """
-    ADR-016 D2 (kb-a4u.20 hybrid content model): projections are editable copies
+    ADR-016 D2 (sb-a4u.20 hybrid content model): projections are editable copies
     with a hybrid live-vs-frozen model:
 
     DRAFT: tracks live canonical — canonical mutations ARE visible in render.
@@ -195,7 +195,7 @@ class OverrideIndependenceTest(TestCase):
         the mutated title — draft projections are live views of the canonical.
 
         Stability (frozen snapshot) is achieved at draft→ready, not before.
-        (Updated kb-a4u.20: old test asserted DRAFT was stable; new model is
+        (Updated sb-a4u.20: old test asserted DRAFT was stable; new model is
         that DRAFT tracks live and READY is stable.)
         """
         event = _make_event(title="Original Title", description="Original desc")
@@ -370,7 +370,7 @@ class RuleBasedGenerationTest(TestCase):
         """
         Harness item (3): mode=rule_based generation sets ContentVersion.provenance=rule_template.
         ADR-008 D3: fail loud — no silent data-integrity fallback.
-        provenance now lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
+        provenance now lives on ContentVersion (sb-wz8m.2), not on PlatformProjection.
         """
         event = _make_event(title="Provenance Test Event")
         conn = _make_connection(destination_id="fl-prov-rule")
@@ -428,7 +428,7 @@ class AgentAssistedGenerationTest(TestCase):
         """
         Body is stored in ContentVersion.body (not override_data which is removed).
         The agent-supplied body on the ContentVersion makes it immune to canonical changes.
-        kb-wz8m.2: override_data removed from PlatformProjection; ContentVersion is the store.
+        sb-wz8m.2: override_data removed from PlatformProjection; ContentVersion is the store.
         """
         event = _make_event()
         conn = _make_connection(destination_id="fl-agent-3")
@@ -446,7 +446,7 @@ class AgentAssistedGenerationTest(TestCase):
         """
         Harness item (4): mode=agent_assisted generation sets ContentVersion.provenance=agent_supplied.
         ADR-008 D3: fail loud — no silent data-integrity fallback.
-        provenance now lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
+        provenance now lives on ContentVersion (sb-wz8m.2), not on PlatformProjection.
         """
         event = _make_event()
         conn = _make_connection(destination_id="fl-agent-prov")
@@ -587,7 +587,7 @@ class CleaningSeamTest(TestCase):
         Verify the seam is wired: monkeypatch clean_for_platform, render a draft
         projection, assert the patched version was called.
 
-        kb-wz8m.2 change: generate_projection (rule_based) no longer calls
+        sb-wz8m.2 change: generate_projection (rule_based) no longer calls
         clean_for_platform at generation time — the cleaning seam fires at render
         time (when body is composed from the live canonical) and at freeze time
         (draft→ready materialization). Test covers the render path.

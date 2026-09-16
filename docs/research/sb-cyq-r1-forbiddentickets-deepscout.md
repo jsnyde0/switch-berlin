@@ -1,4 +1,4 @@
-# Forbidden Tickets R1 P1 scout — kb-cyq
+# Forbidden Tickets R1 P1 scout — sb-cyq
 
 ## TL;DR
 - **US-only, Bay Area-born kink/BDSM ticketing platform** operated by TicketGear Inc. (Oakland, CA) — purpose-built for the Leather/BDSM/kink/LGBTQ+/BIPOC community; no EU operator footprint found, zero overlap with our R0 organizers (TNT, Cherry Noir, Karada House, Sanya Alaya, School of Erotic Mysteries).

@@ -23,7 +23,7 @@ from django.test import Client
 
 @pytest.mark.django_db
 def test_user_create():
-    """User.status defaults to 'open' on new users (kb-m69.1: replaced is_approved)."""
+    """User.status defaults to 'open' on new users (sb-m69.1: replaced is_approved)."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
@@ -228,7 +228,7 @@ def test_review_xor_neither_raises():
 @pytest.mark.django_db
 def test_event_slug_unique_per_organizer():
     """
-    [kb-n0y] event_slug_unique_per_organizer constraint was dropped when
+    [sb-n0y] event_slug_unique_per_organizer constraint was dropped when
     Event.organizer FK became EventOrganizer M2M. Slug uniqueness is app-level.
     Two events from same organizer CAN now share a slug at DB level.
     """
@@ -238,7 +238,7 @@ def test_event_slug_unique_per_organizer():
     org = Profile.objects.create(name="Slug Org", slug="slug-org-dup")
     start = tz.now()
     Event.objects.create(title="Slug Event A", slug="dup-slug", organizer=org, start=start)
-    # No longer raises — constraint was intentionally dropped (see bead kb-n0y notes)
+    # No longer raises — constraint was intentionally dropped (see bead sb-n0y notes)
     Event.objects.create(
         title="Slug Event B",
         slug="dup-slug-b",
@@ -250,7 +250,7 @@ def test_event_slug_unique_per_organizer():
 @pytest.mark.django_db
 def test_event_dup_guard():
     """
-    [kb-n0y] event_dup_guard_org_start_title constraint was dropped when
+    [sb-n0y] event_dup_guard_org_start_title constraint was dropped when
     Event.organizer FK became EventOrganizer M2M. Dup-guard was already weak
     (same org can legitimately run two workshops at same start). Now app-level.
     Two events with same (organizer, start, title) CAN now be created at DB level.
@@ -261,7 +261,7 @@ def test_event_dup_guard():
     org = Profile.objects.create(name="Dup Org", slug="dup-org-guard")
     start = tz.now()
     Event.objects.create(title="Same Title", slug="slug-a-dup-guard", organizer=org, start=start)
-    # No longer raises — constraint was intentionally dropped (see bead kb-n0y notes)
+    # No longer raises — constraint was intentionally dropped (see bead sb-n0y notes)
     Event.objects.create(
         title="Same Title",
         slug="slug-b-dup-guard",

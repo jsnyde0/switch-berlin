@@ -1,8 +1,8 @@
-# kb-a4u.11 — Ticket Tailor event-creation API spike
+# sb-a4u.11 — Ticket Tailor event-creation API spike
 
 **Date:** 2026-05-26
-**Bead:** kb-a4u.11 (research-only spike, Switch Berlin C11 adapter scope)
-**Method:** WebFetch against `https://developers.tickettailor.com` REST reference pages, building on the prior kb-cyq deep-scout.
+**Bead:** sb-a4u.11 (research-only spike, Switch Berlin C11 adapter scope)
+**Method:** WebFetch against `https://developers.tickettailor.com` REST reference pages, building on the prior sb-cyq deep-scout.
 
 ---
 
@@ -14,7 +14,7 @@ Does a public Ticket Tailor API endpoint exist for **event creation** (programma
 
 ## What the prior deep-scout already established
 
-`docs/research/kb-cyq-r1-tickettailor-deepscout.md` (D1) confirmed:
+`docs/research/sb-cyq-r1-tickettailor-deepscout.md` (D1) confirmed:
 
 - REST base `https://api.tickettailor.com/v1`, HTTP Basic Auth with per-box-office API keys (Base64-encoded key), 5000 req/30min.
 - `events` and `event_series` are both listed resources; webhooks fire on `event.created/updated/deleted`.
@@ -33,9 +33,9 @@ The 404 on `POST /v1/events` is expected: `events` is the **read** resource (GET
 | **Create event occurrence** | **`POST /v1/event_series/:event_series_id/events`** → **201 Created** | [create-event-series-event](https://developers.tickettailor.com/docs/api/create-event-series-event) — occurrence is associated to the series via the path id; returns 201. |
 | Update / status / delete series | `update-event-series-by-id`, `change-event-series-status` (+ delete) | [get-all-event-series](https://developers.tickettailor.com/docs/api/get-all-event-series) nav lists full CRUD + occurrence create/update/delete + status change. |
 
-**Auth:** same model as the rest of the API — HTTP Basic Auth, Base64(API key), per-box-office keys generated at `app.tickettailor.com/api` (confirmed in kb-cyq D1; the create pages sit under the same authenticated REST surface).
+**Auth:** same model as the rest of the API — HTTP Basic Auth, Base64(API key), per-box-office keys generated at `app.tickettailor.com/api` (confirmed in sb-cyq D1; the create pages sit under the same authenticated REST surface).
 
-**Payload shape:** the reference pages render their request schema via client-side JS, so the static fetch did not expose the field list. The practical create-form field set is documented in kb-cyq D5 (logged-in dashboard scout of `/event/add`): **required** `name` + `timezone`; optional start/end date-time, recurring flag, venue (name/postcode/country) or online-event + platform, free-form description, image + alt text, header image, CTA label, capacity (`setMaxSellableTickets` / `maxSellableTickets`), low-availability threshold, ticket types, products, donations. The API event_series body is expected to mirror these. Exact JSON field names should be read off the live JS-rendered page (or via an authenticated probe) at adapter-build time — not a blocker for the scope verdict.
+**Payload shape:** the reference pages render their request schema via client-side JS, so the static fetch did not expose the field list. The practical create-form field set is documented in sb-cyq D5 (logged-in dashboard scout of `/event/add`): **required** `name` + `timezone`; optional start/end date-time, recurring flag, venue (name/postcode/country) or online-event + platform, free-form description, image + alt text, header image, CTA label, capacity (`setMaxSellableTickets` / `maxSellableTickets`), low-availability threshold, ticket types, products, donations. The API event_series body is expected to mirror these. Exact JSON field names should be read off the live JS-rendered page (or via an authenticated probe) at adapter-build time — not a blocker for the scope verdict.
 
 ---
 
@@ -59,8 +59,8 @@ The v0 C11 adapter can be a **fully programmatic create-path** (`POST /v1/event_
 
 ## canonical_refs
 
-- `kb-a4u.11` — this spike's bead
-- `docs/research/kb-cyq-r1-tickettailor-deepscout.md` — predecessor deep-scout (D1 API surface; D5 create-form fields)
+- `sb-a4u.11` — this spike's bead
+- `docs/research/sb-cyq-r1-tickettailor-deepscout.md` — predecessor deep-scout (D1 API surface; D5 create-form fields)
 - [Ticket Tailor API intro](https://developers.tickettailor.com/docs/api/ticket-tailor-api)
 - [Create an event series](https://developers.tickettailor.com/docs/api/create-event-series)
 - [Create an event occurrence](https://developers.tickettailor.com/docs/api/create-event-series-event)

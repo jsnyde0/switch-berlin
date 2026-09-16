@@ -6,7 +6,7 @@ TDD discipline: RED → GREEN → REFACTOR.
 All tests follow the sibling-bug lesson: use spec=-constrained mocks or
 real Telethon types so the mock cannot invent a non-existent method.
 
-Acceptance criteria (bead kb-ru55.4 / kb-ru55.8):
+Acceptance criteria (bead sb-ru55.4 / sb-ru55.8):
 1. AST firewall: draft.py has NO reference to send_message/send/auto-send variants
    (structural scan via ast.walk — catches even getattr tricks).
 2. Empty-draft private group → saveDraft called; send_message NOT called.
@@ -850,13 +850,13 @@ class TestDistributeCommand:
 
 
 # ---------------------------------------------------------------------------
-# Tests for placement-report integration (kb-56c2.3)
+# Tests for placement-report integration (sb-56c2.3)
 # ---------------------------------------------------------------------------
 
 
 class TestPlacementReporting:
     """
-    Harness tests for kb-56c2.3: switch-cli distribute reports placement outcomes
+    Harness tests for sb-56c2.3: switch-cli distribute reports placement outcomes
     to the C3a placement-report verb (POST /api/telegram/placements).
 
     (a) saveDraft ack → POST status=placed with correct payload
@@ -1191,7 +1191,7 @@ class TestASTFirewallExtendedScope:
     for reporting, it must also be added to the scan scope. This test class
     validates that the firewall scan covers all distribute-related files.
 
-    Per kb-56c2.3 design: no new module is introduced — reporting lives in
+    Per sb-56c2.3 design: no new module is introduced — reporting lives in
     client.py (SwitchClient) and draft.py. This test verifies draft.py is
     still clean (confirming the scope hasn't escaped the firewall).
     """
@@ -1248,7 +1248,7 @@ class TestASTFirewallExtendedScope:
 
         client.py now carries report_telegram_placements and is part of the
         distribute path; including it closes the conceptual firewall gap at zero
-        cost so a future Telegram send call there could not slip past (kb-56c2.3).
+        cost so a future Telegram send call there could not slip past (sb-56c2.3).
         """
         import switch_cli.client as client_module
         import switch_cli.telegram.enumerate as enumerate_module

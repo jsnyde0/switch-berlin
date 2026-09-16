@@ -6,7 +6,7 @@ from events.models import Event
 
 class EventOrganizerNullableTest(TestCase):
     """
-    [kb-n0y] Event.organizer FK was replaced by EventOrganizer M2M.
+    [sb-n0y] Event.organizer FK was replaced by EventOrganizer M2M.
     The compat property event.organizer returns Profile-or-None.
     """
 

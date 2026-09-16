@@ -1,7 +1,7 @@
 {% load i18n %}
 {% comment %}
 Breadcrumb root — shared between event_syndication.html and post_syndication.html
-(kb-kgza.9 extraction, kb-kgza.5 Studio link fix).
+(sb-kgza.9 extraction, sb-kgza.5 Studio link fix).
 
 Renders the "Studio" or "Studio › <name>" header in the top bar.
 
@@ -13,9 +13,9 @@ Context variables:
   studio_swap           — (optional, default False) When True, emits HTMX attrs
                           (hx-get, hx-target="#studio-main", hx-push-url) on BOTH
                           the Studio root anchor and the breadcrumb_link anchor,
-                          for studio-context navigation (kb-kgza.5, kb-9f1h.7).
+                          for studio-context navigation (sb-kgza.5, sb-9f1h.7).
 
-Studio root (kb-kgza.5): "Studio" is now always an anchor pointing to the
+Studio root (sb-kgza.5): "Studio" is now always an anchor pointing to the
 syndication:studio publishables index. When studio_swap is True it also carries
 hx-get + hx-target="#studio-main" + hx-push-url so clicking it swaps into the
 studio pane rather than full-page-reloading. A plain href fallback is always

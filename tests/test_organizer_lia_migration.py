@@ -1,5 +1,5 @@
 """
-TDD tests for Organizer LIA + consent_method migration (bead kb-9kh.2).
+TDD tests for Organizer LIA + consent_method migration (bead sb-9kh.2).
 
 Tests:
 - test_migration_forward_rewrites_existing_rows

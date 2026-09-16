@@ -1,4 +1,4 @@
-"""Tests for /healthz liveness + data-intact probe (kb-l94)."""
+"""Tests for /healthz liveness + data-intact probe (sb-l94)."""
 
 import django.utils.timezone as tz
 import pytest

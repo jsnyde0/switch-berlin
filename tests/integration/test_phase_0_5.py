@@ -25,7 +25,7 @@ User = get_user_model()
 
 @pytest.fixture
 def approved_user(db):
-    """Vouched non-staff user (kb-m69.1: status replaces is_approved)."""
+    """Vouched non-staff user (sb-m69.1: status replaces is_approved)."""
     user = User.objects.create_user(
         username="e2e_approved",
         email="e2e_approved@example.com",

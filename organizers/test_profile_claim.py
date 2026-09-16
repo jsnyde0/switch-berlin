@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.3: ProfileClaim through-model + data migration.
+TDD tests for sb-m69.3: ProfileClaim through-model + data migration.
 
 RED phase: written BEFORE implementation.
 These tests describe the target state per ADR-014 D1 + ADR-007 D5 (revised 2026-05-21).

@@ -1,4 +1,4 @@
-"""Account forms for kb-m69.5 open signup path + kb-m69.7 vouched signup path.
+"""Account forms for sb-m69.5 open signup path + sb-m69.7 vouched signup path.
 
 Per ADR-014 D4 (Turnstile on public-facing forms).
 Per ADR-013 D2 (two signup paths: open + vouched).

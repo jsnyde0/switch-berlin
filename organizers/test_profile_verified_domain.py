@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.4: Profile.verified_domain field.
+TDD tests for sb-m69.4: Profile.verified_domain field.
 
 RED phase: written BEFORE implementation.
 Per ADR-014 D2 (verified_domain admin-set, fast-path) + ADR-008 (fail loud).

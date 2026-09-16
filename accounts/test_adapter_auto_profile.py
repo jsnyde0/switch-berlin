@@ -1,7 +1,7 @@
 """
-TDD tests for kb-m69.4: auto-Profile(kind=person) on signup.
+TDD tests for sb-m69.4: auto-Profile(kind=person) on signup.
 
-Updated kb-m69.12: NoSignupAdapter deleted per ADR-008 D1; tests now use
+Updated sb-m69.12: NoSignupAdapter deleted per ADR-008 D1; tests now use
 OpenSignupAdapter (the active adapter per ACCOUNT_ADAPTER in settings).
 
 Per ADR-013 D2 (two signup paths), ADR-007 D1 (unified Profile with kind),

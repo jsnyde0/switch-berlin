@@ -227,7 +227,7 @@ class Event(models.Model):
     rating_count = models.IntegerField(default=0)
     avg_rating = models.FloatField(null=True, blank=True)
 
-    # --- Syndication extensions (kb-a4u.1, ADR-016 D1) ---
+    # --- Syndication extensions (sb-a4u.1, ADR-016 D1) ---
 
     # Event category (ADR-016 D1; v0 vocabulary — single CharField, no FK taxonomy).
     # blank=True per ADR-016 D5: save-always, completeness enforced at draft→ready.
@@ -412,7 +412,7 @@ class Event(models.Model):
         """True iff robots may index this event (ADR-012 D4).
 
         Only public-tier events are search-engine indexable. semi_public and
-        unlisted carry X-Robots-Tag: noindex (set by kb-m69.6 middleware) and
+        unlisted carry X-Robots-Tag: noindex (set by sb-m69.6 middleware) and
         are excluded from the sitemap.
         """
         return self.visibility == "public"

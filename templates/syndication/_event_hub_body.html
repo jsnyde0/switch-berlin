@@ -2,20 +2,20 @@
 {% comment %}
 Shared event hub body — included by BOTH event_hub.html (full page) and
 event_hub_fragment.html (layout-less HX swap target). One source of truth;
-neither the full page nor the fragment can diverge (kb-9f1h.3 carry-forward).
+neither the full page nor the fragment can diverge (sb-9f1h.3 carry-forward).
 
 Context variables required:
   event       — Event instance
   can_edit    — bool
   studio_swap — bool (optional, default falsy). When True, thread ?studio=1
                 to the event_syndication sub-fragment loader so the fragment
-                knows it is rendering inside the studio shell (kb-ide0.1).
+                knows it is rendering inside the studio shell (sb-ide0.1).
 {% endcomment %}
 <div class="w-full pt-4 pb-16" x-data="{}">
-  {% comment %}kb-96tn.9: The composer bar (pills · breadcrumb · publish) now lives
+  {% comment %}sb-96tn.9: The composer bar (pills · breadcrumb · publish) now lives
   INSIDE the event_syndication fragment below — where Alpine x-data + projection
   data are both available. The shell renders no separate bar.{% endcomment %}
-  {# event_syndication — edit-in-place composer workspace (kb-ide0.1) #}
+  {# event_syndication — edit-in-place composer workspace (sb-ide0.1) #}
   {# Thread ?studio=1 when inside the studio shell so the sub-fragment is context-aware #}
   <section id="event-syndication"
            hx-get="{% url 'syndication:fragment-event-syndication' pk=event.pk %}{% if studio_swap %}?studio=1{% endif %}"

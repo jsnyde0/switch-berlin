@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-OOB partial for the channel body textarea wrapper (kb-ciqf).
+OOB partial for the channel body textarea wrapper (sb-ciqf).
 
 Emitted by version_edit, event_hub_edit, and projection_detach_and_edit when a
 shared canonical CV changes, so sibling channel body textareas update WITHOUT a
@@ -18,7 +18,7 @@ Context variables:
 
 HARD CONSTRAINT: only swap the body textarea wrapper — never swap a region the
 user is actively typing in. The calling view MUST skip emitting this fragment
-for the projection whose form triggered the request (cursor protection, kb-ciqf).
+for the projection whose form triggered the request (cursor protection, sb-ciqf).
 {% endcomment %}
 <div id="channel-body-wrapper-{{ proj.pk }}"
      {% if oob %}hx-swap-oob="true"{% endif %}>

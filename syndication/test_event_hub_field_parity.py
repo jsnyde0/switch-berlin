@@ -1,5 +1,5 @@
 """
-Tests for kb-y209.1: Full EventForm field parity in the composer-hub event-edit card.
+Tests for sb-y209.1: Full EventForm field parity in the composer-hub event-edit card.
 
 Acceptance criteria (harness contract):
   (a) Each of the 16 newly-exposed fields renders as an EDITABLE input in the
@@ -668,7 +668,7 @@ class CoverUploadAffordanceTest(TestCase):
 # ---------------------------------------------------------------------------
 # (e) Explicit-uncheck regression guard
 #     Tests the hidden-companion pattern that makes unchecking persist False.
-#     Regression guard for the defect discovered in the kb-y209.1 adversarial review.
+#     Regression guard for the defect discovered in the sb-y209.1 adversarial review.
 # ---------------------------------------------------------------------------
 
 
@@ -847,7 +847,7 @@ class FragmentHtmlPersistenceVerificationTest(TestCase):
     """
     (f) Saves a representative set of fields across all disclosure groups, then
     re-renders the fragment and asserts each saved value appears in the HTML.
-    This is the "verified by reload" acceptance criterion from kb-y209.1.
+    This is the "verified by reload" acceptance criterion from sb-y209.1.
     """
 
     def setUp(self):

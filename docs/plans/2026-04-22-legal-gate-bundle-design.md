@@ -115,25 +115,25 @@ Set True on submit when the Art. 16(2) checkbox is ticked. Required=True in the 
 Target: each bead is ≤1 evening of solo work. Numbered for dependency order.
 
 1. **`legal-contact` settings + context processor + deploy check** (no template changes yet). Ships env-var schema, `a_core.legal`, `a_core/checks.py`, context processor registration, `.env.example` update. Deploy check passes with placeholder values for current (internal) state; blocks public flip until filled. Tests: check error fires iff `PUBLIC_READ_ENABLED=True` and any required var is empty.
-2. **Impressum rewrite + German translation** (kb-8qp). Uses `legal_contact` from bead 1. Drafts DE + EN. Regenerates `.po`. Agent-reviews final copy against DDG §5 checklist.
-3. **Privacy rewrite + German translation** (kb-nyr). Depends on beads 1, 5 (consent field exists so policy can reference it accurately), 6 (LIA exists so policy can link it). Drafts DE + EN. Regenerates `.po`.
-4. **Terms rewrite + German translation** (part of kb-7hg). Depends on bead 1. Drafts DE + EN. Regenerates `.po`.
+2. **Impressum rewrite + German translation** (sb-8qp). Uses `legal_contact` from bead 1. Drafts DE + EN. Regenerates `.po`. Agent-reviews final copy against DDG §5 checklist.
+3. **Privacy rewrite + German translation** (sb-nyr). Depends on beads 1, 5 (consent field exists so policy can reference it accurately), 6 (LIA exists so policy can link it). Drafts DE + EN. Regenerates `.po`.
+4. **Terms rewrite + German translation** (part of sb-7hg). Depends on bead 1. Drafts DE + EN. Regenerates `.po`.
 5. **Attendance consent — schema + modal + endpoint + withdrawal** (D1). Adds `User.art9_consent_given_at` + migration, gate in `views.attend`/`views.interested`, consent endpoint, `_consent_required.html` partial, `/me` withdrawal button, `revoke_art9_consent()` helper called from account-deletion too. Tests: attend blocked without consent; attend works with consent; withdrawal deletes rows; idempotent withdrawal.
 6. **Organizer LIA doc + consent_method migration** (D2). Writes `docs/compliance/organizer-lia.md`. Adds `legitimate_interest` choice. Data migration backfills existing rows. Tests: migration idempotent; admin shows new choice.
-7. **Takedown form Art. 16(2) upgrade** (part of kb-7hg). Adds `Flag.law_reference`, `Flag.good_faith_confirmed`, `illegal` reason choice, form fields + required-when-illegal validation, GDPR notice, false-report warning, good-faith checkbox. Tests: form rejects submission without good-faith tick; illegal-reason requires email + law_reference; other reasons don't.
-8. **Deploy-check hardening + `kb-804` close** — verify `manage.py check --deploy` on a CI job; add to pre-push or Django check registry. Close `kb-804`.
-9. **Agent-review pass on final EN + DE drafts across all four docs** — second-opinion pass using the code-reviewer subagent with the full legal checklist; file any residual findings as follow-up beads. Close kb-8qp/kb-nyr/kb-7hg on clean pass.
+7. **Takedown form Art. 16(2) upgrade** (part of sb-7hg). Adds `Flag.law_reference`, `Flag.good_faith_confirmed`, `illegal` reason choice, form fields + required-when-illegal validation, GDPR notice, false-report warning, good-faith checkbox. Tests: form rejects submission without good-faith tick; illegal-reason requires email + law_reference; other reasons don't.
+8. **Deploy-check hardening + `sb-804` close** — verify `manage.py check --deploy` on a CI job; add to pre-push or Django check registry. Close `sb-804`.
+9. **Agent-review pass on final EN + DE drafts across all four docs** — second-opinion pass using the code-reviewer subagent with the full legal checklist; file any residual findings as follow-up beads. Close sb-8qp/sb-nyr/sb-7hg on clean pass.
 
 ## Readiness check / go-signal
 
-`kb-9hw` (the flip bead) is the go-signal. It unblocks when:
+`sb-9hw` (the flip bead) is the go-signal. It unblocks when:
 
 - [ ] Beads 1–9 above closed.
 - [ ] Operator has supplied `IMPRESSUM_*` env vars in production secrets manager.
 - [ ] `manage.py check --deploy` on a production-like env returns 0.
 - [ ] A smoke-test curl of `/impressum`, `/privacy`, `/terms`, `/takedown/` as anonymous user returns 200.
 - [ ] `robots.txt` + OG-tag gating observed to follow `PUBLIC_READ_ENABLED` toggle on staging.
-- [ ] Existing Bundle B beads `kb-lqw` (≥30 events) and `kb-vka` (q2 heartbeat 24h) closed.
+- [ ] Existing Bundle B beads `sb-lqw` (≥30 events) and `sb-vka` (q2 heartbeat 24h) closed.
 
 ## Rollback
 

@@ -19,12 +19,12 @@ ALWAYS_PUBLIC_PREFIXES = (
     "/takedown",
     "/organizer-opt-out",
     "/age-check",
-    # kb-cm5: Static assets (CSS, JS, images) must be publicly accessible so
+    # sb-cm5: Static assets (CSS, JS, images) must be publicly accessible so
     # unauthenticated pages like /accounts/signup/ and /accounts/login/ can load
     # their stylesheet. Without this, LoginWallMiddleware redirects /static/ to
     # the login page for anonymous users, breaking Tailwind on auth pages.
     "/static/",
-    # kb-a4u.2: The HTTP API manages its own auth (Django Ninja auth callables).
+    # sb-a4u.2: The HTTP API manages its own auth (Django Ninja auth callables).
     # LoginWallMiddleware must not intercept /api/ paths — doing so would redirect
     # unauthenticated API requests to the HTML login page instead of returning 401.
     "/api/",
@@ -113,7 +113,7 @@ class AgeGateMiddleware:
         "duckduckbot",
         "baiduspider",
         "yandexbot",
-        # Social link-preview / unfurl crawlers (kb-t93r)
+        # Social link-preview / unfurl crawlers (sb-t93r)
         "telegrambot",
         "twitterbot",
         "facebookexternalhit",

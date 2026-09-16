@@ -1,5 +1,5 @@
 """
-TDD tests for the Switch own-page listing adapter (kb-a4u.10).
+TDD tests for the Switch own-page listing adapter (sb-a4u.10).
 
 Harness contract:
 - A kind=listing projection on the Switch own-page connection, when published,
@@ -8,7 +8,7 @@ Harness contract:
 - The fail-loud branch: if a genuine data-integrity failure occurs (e.g. event
   has no slug, or event has no primary organizer), status=failed is set.
 
-kb-shzi.1 additions:
+sb-shzi.1 additions:
 - publish_switch_own_page also promotes the canonical Event: sets
   event.status='published' + event.published_at=now() (first-publish only,
   idempotent). ADR-016 D5 — "published" means the event is actually out there.
@@ -68,7 +68,7 @@ def _make_switch_connection(profile):
 def _seed_canonical_cv(event):
     """
     Get-or-create the canonical ContentVersion for an event.
-    Required by the F1 non-null content_version FK (kb-wz8m.2 A1 invariant).
+    Required by the F1 non-null content_version FK (sb-wz8m.2 A1 invariant).
     """
     from syndication.models import ContentVersion
 
@@ -315,7 +315,7 @@ class SwitchPublishKindGuardTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 4. Draft-precondition guard (Fix 1+2 — kb-a4u.10 review)
+# 4. Draft-precondition guard (Fix 1+2 — sb-a4u.10 review)
 # ---------------------------------------------------------------------------
 
 
@@ -366,7 +366,7 @@ class SwitchPublishDraftPreconditionTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 5. Missing-slug fail-loud (Fix 3 — kb-a4u.10 review)
+# 5. Missing-slug fail-loud (Fix 3 — sb-a4u.10 review)
 # ---------------------------------------------------------------------------
 
 
@@ -464,7 +464,7 @@ class SwitchPublishMissingSlugTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 6. Double-publish contract (Fix 7 — kb-a4u.10 review)
+# 6. Double-publish contract (Fix 7 — sb-a4u.10 review)
 # ---------------------------------------------------------------------------
 
 
@@ -510,13 +510,13 @@ class SwitchPublishDoublePublishTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 7. kb-shzi.1: Switch publish promotes canonical Event.status (harness target)
+# 7. sb-shzi.1: Switch publish promotes canonical Event.status (harness target)
 # ---------------------------------------------------------------------------
 
 
 class SwitchPublishPromotesEventStatusTest(TestCase):
     """
-    kb-shzi.1 harness target: publishing a Switch own-page listing projection
+    sb-shzi.1 harness target: publishing a Switch own-page listing projection
     for a future-dated, public Event must:
     (a) Set event.status == 'published' AND event.published_at is not None.
     (b) The event appears in the anonymous /events/ listing queryset.
@@ -649,13 +649,13 @@ class SwitchPublishPromotesEventStatusTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 8. kb-shzi.1: Telegram/FetLife publish must NOT mutate Event.status
+# 8. sb-shzi.1: Telegram/FetLife publish must NOT mutate Event.status
 # ---------------------------------------------------------------------------
 
 
 class NonSwitchAdaptersDoNotPromoteEventTest(TestCase):
     """
-    kb-shzi.1 contract: only the Switch own-page adapter promotes Event.status.
+    sb-shzi.1 contract: only the Switch own-page adapter promotes Event.status.
     Telegram and FetLife promotion projections must leave Event.status unchanged.
     """
 

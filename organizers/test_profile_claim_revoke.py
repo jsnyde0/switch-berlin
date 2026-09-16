@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.9: ProfileClaimAdmin revoke action.
+TDD tests for sb-m69.9: ProfileClaimAdmin revoke action.
 
 RED phase: written BEFORE implementation.
 

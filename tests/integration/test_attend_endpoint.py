@@ -1,7 +1,7 @@
 """
-Integration tests for kb-2eu.4 — Attend interaction UI: endpoint + HTMX button.
+Integration tests for sb-2eu.4 — Attend interaction UI: endpoint + HTMX button.
 
-Test plan items (from bead kb-2eu.4):
+Test plan items (from bead sb-2eu.4):
 1. POST /events/<org_slug>/<event_slug>/attend/ with status=going updates or creates
    Attendance row.
 2. Response contains HX-Trigger: events:attendance-changed header.

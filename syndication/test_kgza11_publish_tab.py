@@ -1,5 +1,5 @@
 """
-Regression tests for kb-kgza.11 — publish/re-publish from a non-canonical tab
+Regression tests for sb-kgza.11 — publish/re-publish from a non-canonical tab
 keeps the selected tab on that channel, NOT jumping to the canonical first tab.
 
 ## Background
@@ -92,7 +92,7 @@ def _make_event(profile, title, slug):
         title=title,
         slug=slug,
         start=timezone.now() + timezone.timedelta(days=7),
-        description="Regression test event for kb-kgza.11",
+        description="Regression test event for sb-kgza.11",
     )
     EventOrganizer.objects.create(event=event, profile=profile, is_primary=True)
     return event
@@ -245,8 +245,8 @@ class EventFirstPublishFromNonCanonicalTabTest(TestCase):
         POST projection-direct-publish for FetLife (draft) with
         selected_pk=<fl_proj.pk> → response seeds selectedPk to fl_proj.pk.
 
-        This is the kb-kgza.11 regression: before the fix (which landed 2026-06-04
-        as kb-shzi.2), the view did NOT read selected_pk from POST, so the
+        This is the sb-kgza.11 regression: before the fix (which landed 2026-06-04
+        as sb-shzi.2), the view did NOT read selected_pk from POST, so the
         fragment always opened the canonical first tab (Switch pk).
 
         If this test PASSES: the mechanism is confirmed correct for first-publish.
@@ -269,7 +269,7 @@ class EventFirstPublishFromNonCanonicalTabTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                "kb-kgza.11 event first-publish from non-canonical tab: "
+                "sb-kgza.11 event first-publish from non-canonical tab: "
                 "selectedPk must be seeded to the FetLife (published-from) tab, "
                 "not jump to canonical Switch tab. "
             ),
@@ -280,7 +280,7 @@ class EventFirstPublishFromNonCanonicalTabTest(TestCase):
         self.assertIn(
             f':aria-selected="selectedPk === {self.fl_proj.pk}"',
             content,
-            f"kb-kgza.11: FetLife tab button with aria-selected binding for pk "
+            f"sb-kgza.11: FetLife tab button with aria-selected binding for pk "
             f"{self.fl_proj.pk} must be present in the response fragment.",
         )
 
@@ -290,7 +290,7 @@ class EventFirstPublishFromNonCanonicalTabTest(TestCase):
         sw_match = re.search(sw_pattern, content)
         self.assertIsNone(
             sw_match,
-            f"kb-kgza.11 event first-publish: selectedPk must NOT be seeded to the "
+            f"sb-kgza.11 event first-publish: selectedPk must NOT be seeded to the "
             f"canonical Switch tab pk ({self.sw_proj.pk}). "
             f"A match means the view ignored selected_pk and defaulted to first_pk.",
         )
@@ -310,7 +310,7 @@ class EventRepublishFromNonCanonicalTabTest(TestCase):
     Re-publish goes through publish_projection_direct → republish_projection
     (same URL: projection-direct-publish, status=published).
 
-    Regression guard: the Invalidation clause in kb-kgza.11 — if kind-filtered
+    Regression guard: the Invalidation clause in sb-kgza.11 — if kind-filtered
     validation is ever narrowed, this test fires.
     """
 
@@ -367,7 +367,7 @@ class EventRepublishFromNonCanonicalTabTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                "kb-kgza.11 event re-publish from non-canonical tab: "
+                "sb-kgza.11 event re-publish from non-canonical tab: "
                 "selectedPk must be seeded to the FetLife (re-published-from) tab, "
                 "not jump to canonical Switch tab. "
             ),
@@ -377,7 +377,7 @@ class EventRepublishFromNonCanonicalTabTest(TestCase):
         self.assertIn(
             f':aria-selected="selectedPk === {self.fl_proj.pk}"',
             content,
-            f"kb-kgza.11: FetLife tab button with aria-selected binding for pk "
+            f"sb-kgza.11: FetLife tab button with aria-selected binding for pk "
             f"{self.fl_proj.pk} must be present after re-publish.",
         )
 
@@ -385,7 +385,7 @@ class EventRepublishFromNonCanonicalTabTest(TestCase):
         sw_pattern = rf"selectedPk:\s*{re.escape(str(self.sw_proj.pk))}"
         self.assertIsNone(
             re.search(sw_pattern, content),
-            f"kb-kgza.11 event re-publish: selectedPk must NOT be seeded to "
+            f"sb-kgza.11 event re-publish: selectedPk must NOT be seeded to "
             f"canonical Switch tab pk ({self.sw_proj.pk}). "
             f"A match means the view ignored selected_pk and defaulted to first_pk.",
         )
@@ -414,7 +414,7 @@ class PostFirstPublishFromNonCanonicalTabTest(TestCase):
         self.post = Post.objects.create(
             event=self.event,
             headline="Kgza11 PS FP Post",
-            body="Test body for kb-kgza.11 post first-publish",
+            body="Test body for sb-kgza.11 post first-publish",
         )
         # Canonical ContentVersion required for the post composer Source tab
         self.canonical_cv = ContentVersion.objects.create(
@@ -478,7 +478,7 @@ class PostFirstPublishFromNonCanonicalTabTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                "kb-kgza.11 post first-publish from non-canonical tab: "
+                "sb-kgza.11 post first-publish from non-canonical tab: "
                 "selectedPk must be seeded to the FetLife (published-from) tab. "
             ),
         )
@@ -487,7 +487,7 @@ class PostFirstPublishFromNonCanonicalTabTest(TestCase):
         self.assertIn(
             f':aria-selected="selectedPk === {self.fl_proj.pk}"',
             content,
-            f"kb-kgza.11 post first-publish: FetLife tab aria-selected binding "
+            f"sb-kgza.11 post first-publish: FetLife tab aria-selected binding "
             f"for pk {self.fl_proj.pk} must be present.",
         )
 
@@ -495,7 +495,7 @@ class PostFirstPublishFromNonCanonicalTabTest(TestCase):
         tg_pattern = rf"selectedPk:\s*{re.escape(str(self.tg_proj.pk))}"
         self.assertIsNone(
             re.search(tg_pattern, content),
-            f"kb-kgza.11 post first-publish: selectedPk must NOT be seeded to "
+            f"sb-kgza.11 post first-publish: selectedPk must NOT be seeded to "
             f"Telegram tab pk ({self.tg_proj.pk}). "
             f"A match means the view ignored selected_pk and defaulted to first_pk.",
         )
@@ -524,7 +524,7 @@ class PostRepublishFromNonCanonicalTabTest(TestCase):
         self.post = Post.objects.create(
             event=self.event,
             headline="Kgza11 PS RP Post",
-            body="Test body for kb-kgza.11 post re-publish",
+            body="Test body for sb-kgza.11 post re-publish",
         )
         self.canonical_cv = ContentVersion.objects.create(
             post=self.post,
@@ -589,7 +589,7 @@ class PostRepublishFromNonCanonicalTabTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                "kb-kgza.11 post re-publish from non-canonical tab: "
+                "sb-kgza.11 post re-publish from non-canonical tab: "
                 "selectedPk must be seeded to the FetLife (re-published-from) tab. "
             ),
         )
@@ -598,12 +598,12 @@ class PostRepublishFromNonCanonicalTabTest(TestCase):
         self.assertIn(
             f':aria-selected="selectedPk === {self.fl_proj.pk}"',
             content,
-            f"kb-kgza.11 post re-publish: FetLife tab aria-selected binding for pk {self.fl_proj.pk} must be present.",
+            f"sb-kgza.11 post re-publish: FetLife tab aria-selected binding for pk {self.fl_proj.pk} must be present.",
         )
 
         # Falsifying: must NOT have seeded to the Telegram (first) tab
         tg_pattern = rf"selectedPk:\s*{re.escape(str(self.tg_proj.pk))}"
         self.assertIsNone(
             re.search(tg_pattern, content),
-            f"kb-kgza.11 post re-publish: selectedPk must NOT be seeded to Telegram tab pk ({self.tg_proj.pk}).",
+            f"sb-kgza.11 post re-publish: selectedPk must NOT be seeded to Telegram tab pk ({self.tg_proj.pk}).",
         )

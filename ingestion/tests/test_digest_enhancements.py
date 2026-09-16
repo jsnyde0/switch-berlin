@@ -1,4 +1,4 @@
-"""Tests for daily_flag_digest email digest enhancements (bead kb-8qn.8).
+"""Tests for daily_flag_digest email digest enhancements (bead sb-8qn.8).
 
 Tests:
 - 5 flags across 3 targets → email body has 3 group headers

@@ -1,5 +1,5 @@
 """
-Web forms for syndication Event and Post authoring (kb-a4u.3).
+Web forms for syndication Event and Post authoring (sb-a4u.3).
 
 Co-equal seam (ADR-016 D3/D6): forms do NOT implement persistence directly.
 They validate and clean data; the view calls syndication.services.create_event
@@ -30,7 +30,7 @@ class EventForm(forms.Form):
     All other fields are optional at save time; completeness is enforced at
     draft→ready, never here.
 
-    v0 field set (kb-a4u acceptance criterion 1):
+    v0 field set (sb-a4u acceptance criterion 1):
     title, description, start, end, venue (location FK), tags (M2M),
     dress_code, content_warnings, age_restriction, capacity,
     visibility, language, is_free, price_min_cents, price_max_cents,
@@ -211,7 +211,7 @@ class EventForm(forms.Form):
         help_text=_("Email address for registrations instead of a ticket link."),
     )
 
-    # --- D1 fields completed in kb-a4u.19 ---
+    # --- D1 fields completed in sb-a4u.19 ---
 
     CATEGORY_CHOICES = [
         ("", _("— not specified —")),
@@ -289,7 +289,7 @@ class PostForm(forms.Form):
 
 class ContentVersionForm(forms.Form):
     """
-    Minimal form for ContentVersion authoring (kb-wz8m.1 additive step).
+    Minimal form for ContentVersion authoring (sb-wz8m.1 additive step).
 
     Only the core fields — name is required; editorial fields are optional
     (ADR-016 D5 save-always; completeness gated at draft→ready, never here).

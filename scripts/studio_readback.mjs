@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * kb-9f1h.5 — composed-state browser read-back of the studio sequence.
+ * sb-9f1h.5 — composed-state browser read-back of the studio sequence.
  *
  * Re-runnable integration gate. Drives the LIVE app via the browser-automation
  * CLI scripts (Chrome on :9222, dev server on :8009) and asserts the 6-step
  * sequence against rendered DOM + post-click window.location (NOT response.context).
  *
- * Prereqs (see kb-9f1h.5 contract):
+ * Prereqs (see sb-9f1h.5 contract):
  *   - Chrome up on localhost:9222  (node ~/.claude/skills/browser-automation/start.js)
  *   - Dev server:  uv run python manage.py runserver 8009
  *   - Seed users (password "switch-smoke-2026", all email-verified):

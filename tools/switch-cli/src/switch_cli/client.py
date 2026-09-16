@@ -130,7 +130,7 @@ class SwitchClient:
         GET /api/projections/ — list the caller's own projections.
 
         Optional event_id/post_id narrow the result to a single event's or
-        post's projections (server-side filter — kb-k2ds.2, replaces the v0 stub).
+        post's projections (server-side filter — sb-k2ds.2, replaces the v0 stub).
         """
         params = {}
         if event_id is not None:
@@ -169,7 +169,7 @@ class SwitchClient:
         return self._check(response)
 
     # ------------------------------------------------------------------
-    # PlatformConnection verbs (kb-k2ds.3 — discoverability + enable-promotion)
+    # PlatformConnection verbs (sb-k2ds.3 — discoverability + enable-promotion)
     # ------------------------------------------------------------------
 
     def list_connections(self) -> list:
@@ -194,7 +194,7 @@ class SwitchClient:
         return self._check(response)
 
     # ------------------------------------------------------------------
-    # Telegram inventory ingest verb (kb-ru55.2 / kb-ru55.3)
+    # Telegram inventory ingest verb (sb-ru55.2 / sb-ru55.3)
     # ------------------------------------------------------------------
 
     def push_telegram_inventory(self, inventory: list[dict]) -> dict:
@@ -221,7 +221,7 @@ class SwitchClient:
 
         Payload: list of dicts with keys destination_id, status, topic_id?, error_detail?.
         The payload is METADATA-ONLY — no session_string, access_hash, or content
-        (ADR-018 D4 / kb-56c2.1 D2 FIRM). The server's extra="forbid" schema will 422
+        (ADR-018 D4 / sb-56c2.1 D2 FIRM). The server's extra="forbid" schema will 422
         on any forbidden field.
 
         status values: {placed, failed, skipped-pre-existing-draft}.

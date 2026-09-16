@@ -1,5 +1,5 @@
 """
-Syndication app URL patterns (kb-a4u.3 + kb-a4u.5).
+Syndication app URL patterns (sb-a4u.3 + sb-a4u.5).
 
 Routes for:
 - Event CRUD web UI (create, hub, edit)
@@ -16,12 +16,12 @@ from syndication import views
 app_name = "syndication"
 
 urlpatterns = [
-    # --- Studio front door (kb-kgza.5) ---
+    # --- Studio front door (sb-kgza.5) ---
     # Registered under syndication namespace so {% url 'syndication:studio' %} works
     # in breadcrumb templates. The global /studio/ route in a_core/urls.py also exists
     # (anonymous name="studio") — this adds the namespaced alias.
     path("studio/", views.studio, name="studio"),
-    # --- Agent pairing flow (kb-a4u.6) ---
+    # --- Agent pairing flow (sb-a4u.6) ---
     path("agents/pair/", views.agent_pairing_page, name="agent-pairing"),
     # --- Events ---
     path("events/new/", views.event_create, name="event-create"),
@@ -49,13 +49,13 @@ urlpatterns = [
         views.post_create,
         name="post-create",
     ),
-    # Standalone post creation — no event pre-selected (kb-96tn.6: + New rail entry).
+    # Standalone post creation — no event pre-selected (sb-96tn.6: + New rail entry).
     path(
         "posts/new/",
         views.post_create_standalone,
         name="post-create-standalone",
     ),
-    # --- Post hub + fragment (kb-q4u9.3) ---
+    # --- Post hub + fragment (sb-q4u9.3) ---
     # Post-scoped workspace: analogous to event-hub but for a Post publishable.
     # "Source" tab anchors the canonical (a post has no native-home channel).
     path("posts/<int:pk>/", views.post_hub, name="post-hub"),
@@ -68,9 +68,9 @@ urlpatterns = [
     path("connections/", views.connections_list, name="connections-list"),
     path("connections/new/", views.connection_create, name="connection-create"),
     path("connections/<int:pk>/toggle/", views.connection_toggle, name="connection-toggle"),
-    # --- Destination picker (kb-sbhs.2, render-only; kb-sbhs.3, mutation) ---
+    # --- Destination picker (sb-sbhs.2, render-only; sb-sbhs.3, mutation) ---
     path("destinations/", views.destination_picker, name="destination-picker"),
-    # --- Coverage view (kb-56c2.2) ---
+    # --- Coverage view (sb-56c2.2) ---
     path("posts/<int:pk>/coverage/", views.coverage, name="coverage"),
     path(
         "destinations/<int:pk>/select/",
@@ -82,7 +82,7 @@ urlpatterns = [
         views.destination_overlay,
         name="destination-overlay",
     ),
-    # --- Projection lifecycle actions (kb-a4u.5) ---
+    # --- Projection lifecycle actions (sb-a4u.5) ---
     # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).
     # Co-equal seam: each view delegates to the matching service function in services.py.
     path(
@@ -115,7 +115,7 @@ urlpatterns = [
         views.post_projection_batch_publish,
         name="post-projection-batch-publish",
     ),
-    # --- Version-op endpoints (kb-wz8m.5) ---
+    # --- Version-op endpoints (sb-wz8m.5) ---
     # POST only; HTMX-aware (returns refreshed syndication fragment on HX-Request).
     path(
         "projections/<int:pk>/customize/",
@@ -152,7 +152,7 @@ urlpatterns = [
         views.version_copy_from,
         name="version-copy-from",
     ),
-    # --- Add-channel / remove-channel (kb-96tn.4, ADR-016 D4) ---
+    # --- Add-channel / remove-channel (sb-96tn.4, ADR-016 D4) ---
     # add-channel (event): POST /syndication/events/<pk>/add-channel/ (connection_pk body param)
     # add-channel (post):  POST /syndication/posts/<pk>/add-channel/  (connection_pk body param)
     # remove-channel:      POST /syndication/projections/<pk>/remove-channel/

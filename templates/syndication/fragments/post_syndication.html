@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-post_syndication fragment — Typefully-shaped post composer workspace (kb-ide0.3, kb-ide0.4).
+post_syndication fragment — Typefully-shaped post composer workspace (sb-ide0.3, sb-ide0.4).
 
 D5: Single top row — channel tabs left-aligned, Publish CTA right-aligned.
     Same shell as event_syndication.html (Child A). Source anchor is the FIRST tab.
@@ -9,13 +9,13 @@ D2: Edit-in-place for freeform promotion content — the styled post bubble IS t
     purple / Switch editorial) replaces the old "textarea + separate stacked preview"
     split. User types directly into the platform-styled surface.
 D3: Only promotion-capable channels appear as tabs (kinds filtering done in view).
-ADR-010 D1 (kb-ide0.4 / kb-shzi.4): The "Master copy" anchor is the FIRST tab — the
+ADR-010 D1 (sb-ide0.4 / sb-shzi.4): The "Master copy" anchor is the FIRST tab — the
     abstract canonical-anchor slot for a Post (no native-home channel yet). It is the
     default sync source for secondary channels. Named slot so Switch can fill it cheaply
     when posting ships (cheap foresight, ADR-003).
 
 studio_swap: when True (threaded via ?studio=1 from the hub body in studio
-    context), emit studio-context HTMX attrs on any cross-links (kb-9f1h.7).
+    context), emit studio-context HTMX attrs on any cross-links (sb-9f1h.7).
 
 Alpine 3.x: own x-data root required on each HTMX swap target.
 {% endcomment %}
@@ -36,15 +36,15 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
       </div>
     </div>
   {% endif %}
-  {% comment %}D5 / D-IA4 / kb-96tn.9: ONE consolidated bar — pills left · breadcrumb center · publish right.
+  {% comment %}D5 / D-IA4 / sb-96tn.9: ONE consolidated bar — pills left · breadcrumb center · publish right.
     The bar lives inside the fragment's x-data root so selectedPk stays wired.
     Each pill: platform identity (name, platform-colored) + status dot.
     Status dot resolution point: draft=amber, ready=blue, published/live=green, failed=rose.
-    (dirty/edited-needs-republish=orange is added by kb-96tn.5 — extend here.)
+    (dirty/edited-needs-republish=orange is added by sb-96tn.5 — extend here.)
     Active pill = filled/opaque bg, inactive = ghost outline only.
-    ADR-010 D1 (kb-ide0.4): Master copy anchor = first pill (abstract canonical for post).
-    The 'source' key preserved for Alpine selectedPk compatibility (kb-shzi.2).
-    kb-96tn.4: The outer flex container has no overflow. The pill list uses its own
+    ADR-010 D1 (sb-ide0.4): Master copy anchor = first pill (abstract canonical for post).
+    The 'source' key preserved for Alpine selectedPk compatibility (sb-shzi.2).
+    sb-96tn.4: The outer flex container has no overflow. The pill list uses its own
     overflow-x-auto with constrained width. The CTAs (including the "…" dropdown) are
     siblings — absolute-positioned dropdown popup is not clipped.
     DOM order: pills first → "Master copy" appears before any dropdown content,
@@ -56,7 +56,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
          role="tablist"
          aria-label="{% trans 'Channels' %}">
       {% comment %}ADR-010 D1: Master copy anchor pill — first pill, abstract canonical for the post.
-      "Master copy" text preserved verbatim for test/a11y compatibility (kb-shzi.4).{% endcomment %}
+      "Master copy" text preserved verbatim for test/a11y compatibility (sb-shzi.4).{% endcomment %}
       <button type="button"
               role="tab"
               data-testid="channel-pill"
@@ -79,8 +79,8 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
                   @click="setTab({{ proj.pk }})"
                   class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 transition-all duration-150 focus-visible:outline-none border"
                   :class="selectedPk === {{ proj.pk }} ? '{% if proj.connection.platform == 'telegram' %}border-sky-400/40 bg-sky-400/10{% elif proj.connection.platform == 'fetlife' %}border-pink-400/40 bg-pink-400/10{% elif proj.connection.platform == 'switch' %}border-fuchsia-300/40 bg-fuchsia-300/10{% else %}border-white/20 bg-white/8{% endif %}' : 'border-white/12 bg-transparent hover:border-white/25'">
-            {% comment %}Status dot — single resolution point (kb-96tn.3).
-            kb-96tn.5 adds dirty=orange: published+edited-needs-republish → orange.
+            {% comment %}Status dot — single resolution point (sb-96tn.3).
+            sb-96tn.5 adds dirty=orange: published+edited-needs-republish → orange.
             Gate order: dirty overrides published-green.
             id="channel-dot-<pk>" enables OOB-swap by version_edit (no-reload dirty update).{% endcomment %}
             <span id="channel-dot-{{ proj.pk }}"
@@ -106,7 +106,7 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
       {% endfor %}
     </div>
     {% comment %}CENTER: breadcrumb — "Studio › event.title" linking back to the event hub.
-    studio_swap is forwarded from the hub body shell context (kb-9f1h.7).{% endcomment %}
+    studio_swap is forwarded from the hub body shell context (sb-9f1h.7).{% endcomment %}
     {% url 'syndication:event-hub' pk=event.pk as breadcrumb_hub_url %}
     {% include "syndication/fragments/_breadcrumb.html" with breadcrumb_link_url=breadcrumb_hub_url breadcrumb_link_text=event.title studio_swap=studio_swap only %}
     {% comment %}RIGHT: CTAs — batch publish + "…" add-channel kebab.
@@ -219,12 +219,12 @@ Alpine 3.x: own x-data root required on each HTMX swap target.
       {% endif %}
     </div>
   </div>
-  {% comment %}ADR-010 D1 (kb-ide0.4): Source anchor panel — abstract canonical for the post.
+  {% comment %}ADR-010 D1 (sb-ide0.4): Source anchor panel — abstract canonical for the post.
     Always rendered; hidden when another channel tab is selected (x-cloak + x-show).
   Allows editing the post's canonical ContentVersion body directly.{% endcomment %}
   <div x-show="selectedPk === 'source'" x-cloak>
     {% if source_row.content_version %}
-      {% comment %}kb-kgza.3 FIX 1: Gate the master/source panel editor on both can_edit
+      {% comment %}sb-kgza.3 FIX 1: Gate the master/source panel editor on both can_edit
       AND source_editable (threaded from the view via edit_after_publish_policy).
       For published posts (all consumers non-draft), source_editable is True only when
       all platforms support dirty_then_republish — making the textarea INTENTIONALLY

@@ -1,6 +1,6 @@
 """Tests for lowest_rated and most_reviewed sort variants on the events list page.
 
-TDD: written BEFORE the implementation (bead kb-dwb).
+TDD: written BEFORE the implementation (bead sb-dwb).
 
 Covers:
 - ?sort=lowest_rated returns events ordered by avg_rating ascending (nulls last)

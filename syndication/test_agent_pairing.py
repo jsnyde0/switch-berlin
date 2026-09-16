@@ -1,5 +1,5 @@
 """
-TDD acceptance tests for the agent pairing flow (kb-a4u.6).
+TDD acceptance tests for the agent pairing flow (sb-a4u.6).
 
 Full chain tested:
 1. Pairing: facilitator hits agents/register → receives one-time pairing token.
@@ -20,7 +20,7 @@ Design decisions mirrored here:
 - ADR-017 D1: agent has identical authority to its user; authz resolves through
   the credential's User's full ProfileClaim set.
 - MagicLinkToken envelope mirror: single-use, short-lived, hashed storage.
-- kb-eya divergence: pairing token is NOT bound to an email/profile triple —
+- sb-eya divergence: pairing token is NOT bound to an email/profile triple —
   it binds to the registering User only (purpose differs from magic-link).
 """
 
@@ -66,7 +66,7 @@ class PairingTokenModelTest(TestCase):
     AgentPairingToken model: single-use, short-lived, hashed storage.
 
     Mirrors MagicLinkToken envelope (organizers/models.py) per bead spec.
-    kb-eya divergence: binds to User only (no email/profile triple).
+    sb-eya divergence: binds to User only (no email/profile triple).
     """
 
     def setUp(self):

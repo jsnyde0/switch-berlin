@@ -1,5 +1,5 @@
 """
-Tests for the "+ New" dropdown in the studio rail (kb-96tn.6).
+Tests for the "+ New" dropdown in the studio rail (sb-96tn.6).
 
 Contract:
 (a) The rail shows a prominent "+ New" button (not a plain link) at the top of
@@ -16,7 +16,7 @@ Contract:
 (g) The empty-state link also becomes an hx-get button (or the CTA link still
     works — no regression).
 (h) HTMX inline-create success responses include an OOB rail fragment so the
-    left rail auto-refreshes without a full reload (kb-96tn.6 gap closure).
+    left rail auto-refreshes without a full reload (sb-96tn.6 gap closure).
     - event_create HTMX POST success: rail OOB fragment contains new event title.
     - post_create_standalone HTMX POST success: rail OOB contains new post headline.
     - The rail <aside> carries id="studio-rail" so HTMX can target it.
@@ -419,7 +419,7 @@ class PostCreateEventScopedHtmxOobRailTest(TestCase):
 
     Parity contract: same OOB rail update as post_create_standalone and event_create.
 
-    Harness target (kb-kgza.1):
+    Harness target (sb-kgza.1):
       Signal: POST post_create with HX-Request header.
       Expected green: response body contains id="studio-rail" hx-swap-oob="true"
                       AND the specific new post's title/headline inside it.

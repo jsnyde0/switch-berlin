@@ -1,7 +1,7 @@
 """
-Integration tests for the follow/unfollow feature (kb-ldo: OrganizerFollow → Follow).
+Integration tests for the follow/unfollow feature (sb-ldo: OrganizerFollow → Follow).
 
-Test plan items (updated from kb-2eu.5 to reflect unified Follow model):
+Test plan items (updated from sb-2eu.5 to reflect unified Follow model):
 1. Follow model exists and has correct fields (user, profile, created_at).
 2. POST /o/<slug>/follow/ creates a Follow row (following=True).
 3. Second POST to same URL deletes the row (toggle/unfollow, following=False).
@@ -61,7 +61,7 @@ def staff_user(db):
 
 @pytest.fixture
 def regular_approved_user(db):
-    """Vouched non-staff user (kb-m69.1: status replaces is_approved)."""
+    """Vouched non-staff user (sb-m69.1: status replaces is_approved)."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()

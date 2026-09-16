@@ -4,7 +4,7 @@
   {% trans "Studio" %} — Switch
 {% endblock %}
 {% comment %}
-Studio two-pane shell (kb-9f1h.3).
+Studio two-pane shell (sb-9f1h.3).
 
 Override body_content to control the full-viewport layout without the outer
 max-w-7xl wrapper that _base.html injects around the layout block.
@@ -15,7 +15,7 @@ Architecture:
   - Main pane (#studio-main): HTMX swap target. Rail row clicks do
     hx-get + hx-target="#studio-main" + hx-push-url to the real composer path.
 
-Cheap-foresight slots (ADR-003, kb-5ok6):
+Cheap-foresight slots (ADR-003, sb-5ok6):
   - .studio-profile-switcher: empty; future Hipsy outer shell fills this
   - .studio-nav-sections: empty; future nav sections (Dashboard / Sales / …)
 

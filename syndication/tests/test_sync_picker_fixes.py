@@ -1,5 +1,5 @@
 """
-TDD tests for kb-kgza.4 — Two fixes in _sync_picker.html:
+TDD tests for sb-kgza.4 — Two fixes in _sync_picker.html:
 
 Bug 1: POST copy-from with selected_pk=<non-canonical pk> → rendered fragment
        initializes Alpine selectedPk to THAT pk (stays on the current tab).
@@ -79,7 +79,7 @@ def _assert_selected_pk_seeded(test_case, content, expected_pk, msg_prefix=""):
 
 class CopyFromSelectedPkEventComposerTest(TestCase):
     """
-    kb-kgza.4 Bug 1: POST to version-copy-from with selected_pk=<non-canonical pk>
+    sb-kgza.4 Bug 1: POST to version-copy-from with selected_pk=<non-canonical pk>
     must render a fragment that seeds Alpine selectedPk to THAT pk.
 
     Before the fix: copy-from forms lack the hidden selected_pk input,
@@ -212,7 +212,7 @@ class CopyFromSelectedPkEventComposerTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                f"kb-kgza.4 Bug 1 (event): after copy-from Apply, selectedPk must be "
+                f"sb-kgza.4 Bug 1 (event): after copy-from Apply, selectedPk must be "
                 f"seeded to {self.fl_proj.pk} (the FetLife tab), not reset to first. "
                 f"The copy-from form was missing the hidden selected_pk input. "
             ),
@@ -221,7 +221,7 @@ class CopyFromSelectedPkEventComposerTest(TestCase):
 
 class CopyFromSelectedPkPostComposerTest(TestCase):
     """
-    kb-kgza.4 Bug 1: Same test for the POST composer (promotion projections).
+    sb-kgza.4 Bug 1: Same test for the POST composer (promotion projections).
 
     POST to version-copy-from with selected_pk=<non-first pk> → fragment seeds
     Alpine selectedPk to THAT pk.
@@ -341,7 +341,7 @@ class CopyFromSelectedPkPostComposerTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                f"kb-kgza.4 Bug 1 (post): after copy-from Apply, selectedPk must be "
+                f"sb-kgza.4 Bug 1 (post): after copy-from Apply, selectedPk must be "
                 f"seeded to {self.fl_proj.pk} (the FetLife tab). "
             ),
         )
@@ -354,7 +354,7 @@ class CopyFromSelectedPkPostComposerTest(TestCase):
 
 class MasterCopyOptionPresenceEventTest(TestCase):
     """
-    kb-kgza.4 Bug 2 (presence): The sync-source picker for a non-canonical channel
+    sb-kgza.4 Bug 2 (presence): The sync-source picker for a non-canonical channel
     in event_syndication must render "Master copy" as the FIRST option.
 
     Before the fix: the picker iterates projection_rows only (promotion projections),
@@ -444,7 +444,7 @@ class MasterCopyOptionPresenceEventTest(TestCase):
 
 class MasterCopyOptionPresencePostTest(TestCase):
     """
-    kb-kgza.4 Bug 2 (presence): Same check for the POST composer (promotion projections).
+    sb-kgza.4 Bug 2 (presence): Same check for the POST composer (promotion projections).
 
     The sync-source picker in post_syndication must also offer "Master copy" for
     non-master channels.
@@ -534,7 +534,7 @@ class MasterCopyOptionPresencePostTest(TestCase):
 
 class MasterCopySelectionBehaviorEventTest(TestCase):
     """
-    kb-kgza.4 Bug 2 (behavior): Selecting "Master copy" in the picker for an
+    sb-kgza.4 Bug 2 (behavior): Selecting "Master copy" in the picker for an
     event channel must POST to reset-to-canonical, resulting in:
     - projection.content_version == canonical CV
     - projection.sync_source is NULL
@@ -635,7 +635,7 @@ class MasterCopySelectionBehaviorEventTest(TestCase):
 
 class MasterCopySelectionBehaviorPostTest(TestCase):
     """
-    kb-kgza.4 Bug 2 (behavior): Same behavioral test for the POST composer.
+    sb-kgza.4 Bug 2 (behavior): Same behavioral test for the POST composer.
 
     Selecting "Master copy" in the post_syndication picker → reset-to-canonical →
     DB: projection.content_version == canonical CV AND sync_source is NULL.

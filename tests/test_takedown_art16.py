@@ -1,4 +1,4 @@
-"""Tests for DSA Art. 16(2) takedown form upgrade (bead kb-9kh.3).
+"""Tests for DSA Art. 16(2) takedown form upgrade (bead sb-9kh.3).
 
 TDD order:
   RED  — write tests, watch them fail

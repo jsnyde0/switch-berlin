@@ -1,5 +1,5 @@
 """
-Event service layer (kb-shzi.1).
+Event service layer (sb-shzi.1).
 
 ADR-008 D2: a second writer of Event.status exists (events/admin.py already
 writes Event.status in publish_events). Extracting the shared logic here is

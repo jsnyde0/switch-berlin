@@ -1,5 +1,5 @@
 """
-TDD tests for the per-channel sync mechanism (kb-s41r: live-share).
+TDD tests for the per-channel sync mechanism (sb-s41r: live-share).
 
 Contract groups:
 (A) sync_source model field — nullable self-FK on PlatformProjection
@@ -11,7 +11,7 @@ Contract groups:
 (F) live-propagation — editing SOURCE after downstream synced DOES change downstream content
     (shared row → single-row write-once-broadcast)
 (G) three render states — template renders correct indicator per state (live-follow label)
-(H) post composer Master copy anchor — first tab (ADR-010 D1 / kb-shzi.4)
+(H) post composer Master copy anchor — first tab (ADR-010 D1 / sb-shzi.4)
 (I) sync endpoint — version_copy_from sets sync_source; cycle guard enforced
 
 Assertions on response.content (NOT response.context — hollow per memory).
@@ -160,7 +160,7 @@ class SyncSourceModelFieldTest(TestCase):
 class SyncFromServiceTest(TestCase):
     """
     sync_projection_from(user, target_projection, source_projection) service:
-    - kb-s41r: target SHARES source's current content_version row (NOT a copy)
+    - sb-s41r: target SHARES source's current content_version row (NOT a copy)
     - sets target.sync_source = source_projection
     - a future source edit DOES propagate (shared row, single-write broadcast)
     """
@@ -224,7 +224,7 @@ class SyncFromServiceTest(TestCase):
 
     def test_sync_from_shares_same_cv_row(self):
         """
-        kb-s41r LIVE-SHARE: After sync_projection_from, target.content_version_id ==
+        sb-s41r LIVE-SHARE: After sync_projection_from, target.content_version_id ==
         source.content_version_id (same row, NOT a copy).
         """
         from syndication.services import sync_projection_from
@@ -236,7 +236,7 @@ class SyncFromServiceTest(TestCase):
         self.assertEqual(
             target.content_version_id,
             original_source_cv_pk,
-            "kb-s41r: sync must SHARE the source's CV row (same PK), not mint a copy.",
+            "sb-s41r: sync must SHARE the source's CV row (same PK), not mint a copy.",
         )
 
 
@@ -586,7 +586,7 @@ class LivePropagationTest(TestCase):
 
     def test_source_edit_propagates_to_synced_downstream(self):
         """
-        kb-s41r LIVE-PROPAGATION: Editing source's CV body after sync DOES change
+        sb-s41r LIVE-PROPAGATION: Editing source's CV body after sync DOES change
         target's CV body (shared row — single-row write-once-broadcast).
         """
         from syndication.services import edit_version, sync_projection_from
@@ -604,12 +604,12 @@ class LivePropagationTest(TestCase):
         self.assertEqual(
             self.target1.content_version.body,
             "UPDATED SOURCE BODY",
-            "kb-s41r: source edit must propagate to synced target (live-share, shared row).",
+            "sb-s41r: source edit must propagate to synced target (live-share, shared row).",
         )
 
     def test_source_edit_propagates_to_both_synced_channels(self):
         """
-        kb-s41r: Two synced channels both follow master edit (FetLife + Telegram symptom fix).
+        sb-s41r: Two synced channels both follow master edit (FetLife + Telegram symptom fix).
         """
         from syndication.services import edit_version, sync_projection_from
 
@@ -629,12 +629,12 @@ class LivePropagationTest(TestCase):
         self.assertEqual(
             self.target1.content_version.body,
             "BROADCAST UPDATE",
-            "kb-s41r: first synced target must follow master edit.",
+            "sb-s41r: first synced target must follow master edit.",
         )
         self.assertEqual(
             self.target2.content_version.body,
             "BROADCAST UPDATE",
-            "kb-s41r: second synced target must follow master edit (FetLife-updates-but-Telegram-doesn't symptom).",
+            "sb-s41r: second synced target must follow master edit (FetLife-updates-but-Telegram-doesn't symptom).",
         )
 
 
@@ -692,7 +692,7 @@ class ThreeRenderStatesTemplateTest(TestCase):
     def test_state_ii_sync_source_set_shows_synced_from_channel(self):
         """
         State (ii): projection has sync_source set → shows "Synced from <channel>"
-        (kb-s41r live-follow label — replaces old "Copied from" snapshot label).
+        (sb-s41r live-follow label — replaces old "Copied from" snapshot label).
         """
         source = _make_projection(self.conn_switch, self.event, self.cv)
         # Under live-share, target shares the same CV
@@ -735,7 +735,7 @@ class ThreeRenderStatesTemplateTest(TestCase):
 
     def test_state_ii_shows_live_follow_sub_label(self):
         """
-        kb-s41r: State (ii) sync bar must include a label indicating LIVE FOLLOW
+        sb-s41r: State (ii) sync bar must include a label indicating LIVE FOLLOW
         (e.g. "follows" or "live"), NOT the old "won't follow later edits" snapshot copy.
         """
         source = _make_projection(self.conn_switch, self.event, self.cv)
@@ -752,7 +752,7 @@ class ThreeRenderStatesTemplateTest(TestCase):
         self.assertIn(
             "follows",
             content,
-            "State (ii) sync bar must show 'follows' (live-follow semantics, kb-s41r)",
+            "State (ii) sync bar must show 'follows' (live-follow semantics, sb-s41r)",
         )
         self.assertNotIn(
             "won't follow later edits",
@@ -762,7 +762,7 @@ class ThreeRenderStatesTemplateTest(TestCase):
 
     def test_state_i_shows_shared_label_not_synced(self):
         """
-        kb-shzi.5: State (i) must show 'Shared' (broadcast) not 'Synced' (ambiguous).
+        sb-shzi.5: State (i) must show 'Shared' (broadcast) not 'Synced' (ambiguous).
         Content assertion locks the vocabulary change.
         """
         _make_projection(self.conn_switch, self.event, self.cv)
@@ -771,17 +771,17 @@ class ThreeRenderStatesTemplateTest(TestCase):
         self.assertIn(
             "Shared",
             content,
-            "State (i) must render 'Shared' label (kb-shzi.5: was 'Synced', renamed to surface broadcast semantics)",
+            "State (i) must render 'Shared' label (sb-shzi.5: was 'Synced', renamed to surface broadcast semantics)",
         )
         self.assertNotIn(
             ">Synced<",
             content,
-            "State (i) must NOT render raw '>Synced<' badge text (renamed to 'Shared' in kb-shzi.5)",
+            "State (i) must NOT render raw '>Synced<' badge text (renamed to 'Shared' in sb-shzi.5)",
         )
 
 
 # ---------------------------------------------------------------------------
-# (G) Post composer Master copy anchor — first tab (ADR-010 D1 / kb-shzi.4)
+# (G) Post composer Master copy anchor — first tab (ADR-010 D1 / sb-shzi.4)
 # ---------------------------------------------------------------------------
 
 
@@ -790,8 +790,8 @@ class PostComposerSourceAnchorTest(TestCase):
     The post_syndication fragment must render a "Master copy" anchor as the
     first tab (ADR-010 D1 — a Post has no native-home channel yet, so its
     canonical is an abstract 'Master copy' anchor slot). Relabeled from
-    'Source' → 'Master copy' in kb-shzi.4 per ADR-010 D1 cheap-foresight.
-    The Alpine 'source' key is preserved for selectedPk compat (kb-shzi.2).
+    'Source' → 'Master copy' in sb-shzi.4 per ADR-010 D1 cheap-foresight.
+    The Alpine 'source' key is preserved for selectedPk compat (sb-shzi.2).
 
     Assertions on response.content.
     """
@@ -810,7 +810,7 @@ class PostComposerSourceAnchorTest(TestCase):
         # fragment_post_syndication view to render the real Source tab panel rather
         # than the "Source not found" error fallback). Without this, the view renders
         # the A1-invariant-violated error path — which ALSO contains the substring
-        # "Source", making the old assertion hollow. (kb-ide0 re-verify finding.)
+        # "Source", making the old assertion hollow. (sb-ide0 re-verify finding.)
         self.post_cv = ContentVersion.objects.create(
             post=self.post,
             name="canonical",
@@ -840,9 +840,9 @@ class PostComposerSourceAnchorTest(TestCase):
         The post_syndication fragment must include a 'Master copy' tab as the
         first channel tab — the abstract canonical anchor for a Post.
 
-        ADR-010 D1 (kb-shzi.4): relabeled from 'Source' → 'Master copy' with
+        ADR-010 D1 (sb-shzi.4): relabeled from 'Source' → 'Master copy' with
         helper text "edits here feed every channel". The Alpine 'source' key is
-        preserved for selectedPk compatibility (kb-shzi.2).
+        preserved for selectedPk compatibility (sb-shzi.2).
 
         Falsifiable guard: the old assertion (assertIn("Source", content)) was
         hollow because "Source not found" (the A1-invariant-violated error panel)
@@ -868,7 +868,7 @@ class PostComposerSourceAnchorTest(TestCase):
         """
         The 'Master copy' tab appears before Telegram/FetLife tabs in the DOM.
 
-        ADR-010 D1 (kb-shzi.4): relabeled from 'Source' → 'Master copy'.
+        ADR-010 D1 (sb-shzi.4): relabeled from 'Source' → 'Master copy'.
         """
         # Create promotion projections so other channel tabs render
         post_cv, _ = ContentVersion.objects.get_or_create(
@@ -960,7 +960,7 @@ class SyncEndpointTest(TestCase):
 
     def test_copy_from_endpoint_shares_source_cv_row(self):
         """
-        kb-s41r: POST to version-copy-from must make target SHARE source's CV row,
+        sb-s41r: POST to version-copy-from must make target SHARE source's CV row,
         not mint an independent copy.
         """
         original_source_cv_pk = self.source_proj.content_version_id
@@ -972,7 +972,7 @@ class SyncEndpointTest(TestCase):
         self.assertEqual(
             self.target_proj.content_version_id,
             original_source_cv_pk,
-            "kb-s41r: endpoint must make target SHARE source's CV row (same PK), not copy.",
+            "sb-s41r: endpoint must make target SHARE source's CV row (same PK), not copy.",
         )
 
     def test_copy_from_endpoint_cycle_guard_rejects_synced_source(self):

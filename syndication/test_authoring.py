@@ -1,5 +1,5 @@
 """
-TDD tests for C3 Event + Post CRUD authoring (kb-a4u.3).
+TDD tests for C3 Event + Post CRUD authoring (sb-a4u.3).
 
 Harness targets:
 - Event authored via web form persists ALL ADR-016 D1 fields.
@@ -456,7 +456,7 @@ class EventAPICreateTest(TestCase):
         self.profile = _make_profile(name="API Event Profile", slug="api-event-profile", user=self.user)
 
     def _get_identity_token(self):
-        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        # Full pairing flow (sb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
 
         api_key = _register_and_get_api_key(self.user)
@@ -571,7 +571,7 @@ class PostAPICreateTest(TestCase):
         )
 
     def _get_identity_token(self):
-        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        # Full pairing flow (sb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
 
         api_key = _register_and_get_api_key(self.user)
@@ -1040,7 +1040,7 @@ class PermissionErrorTo403Test(TestCase):
         )
 
     def _get_identity_token_for(self, user):
-        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        # Full pairing flow (sb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
 
         api_key = _register_and_get_api_key(user)
@@ -1129,7 +1129,7 @@ class EventAPIRoundTripTest(TestCase):
         self.profile = _make_profile(name="Roundtrip Profile", slug="roundtrip-profile", user=self.user)
 
     def _get_identity_token(self):
-        # Full pairing flow (kb-a4u.6): register → redeem → token exchange
+        # Full pairing flow (sb-a4u.6): register → redeem → token exchange
         from syndication.test_api import _register_and_get_api_key
 
         api_key = _register_and_get_api_key(self.user)

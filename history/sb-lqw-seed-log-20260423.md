@@ -1,4 +1,4 @@
-# kb-lqw — Seed real Berlin events (2026-04-23)
+# sb-lqw — Seed real Berlin events (2026-04-23)
 
 ## Result
 
@@ -64,7 +64,7 @@ Recurring series with stated cadence got a concrete inferred date (e.g. "Last Th
 ## Files
 
 - New: `events/management/commands/seed_real_events.py`
-- Log: `history/kb-lqw-seed-log-20260423.md` (this file)
+- Log: `history/sb-lqw-seed-log-20260423.md` (this file)
 - Scraped raw markdown (transient, in /tmp): `/tmp/iksk_batch1.md`, `/tmp/iksk_batch2.md`, `/tmp/kachenka.md`, `/tmp/karada_batch{1,2,3}.md`
 
 ## 2026-05-07 refresh — IKSK +9 specials

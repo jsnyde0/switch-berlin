@@ -1,4 +1,4 @@
-# Hand-authored data migration for kb-q4u9.2.
+# Hand-authored data migration for sb-q4u9.2.
 # Depends on 0006_contentversion_publishable_scope (which added the post FK
 # and mutually-exclusive check constraint on ContentVersion).
 #

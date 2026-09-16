@@ -1,6 +1,6 @@
 """
-TDD tests for kb-m69.8: claim entry view + templates.
-Updated kb-m69.11: Turnstile added to ClaimForm; POST tests mock Turnstile.
+TDD tests for sb-m69.8: claim entry view + templates.
+Updated sb-m69.11: Turnstile added to ClaimForm; POST tests mock Turnstile.
 
 Per ADR-014 D2 — web-first, two-track verification, auth-required.
 Per ADR-014 D3 — Turnstile pre-issuance gate on the submit form.
@@ -343,7 +343,7 @@ def test_claim_form_turnstile_invalid_raises_validation_error():
 @override_settings(DEBUG=True)
 def test_claim_form_turnstile_bypassed_in_debug():
     """In DEBUG the widget is suppressed, so the form must validate without a
-    token and without any network call (kb-cyp)."""
+    token and without any network call (sb-cyp)."""
     from organizers.forms import ClaimForm
 
     form = ClaimForm(data={"email": "test@example.com", "message": ""})
@@ -353,7 +353,7 @@ def test_claim_form_turnstile_bypassed_in_debug():
 @override_settings(DEBUG=False, TURNSTILE_SECRET_KEY="")
 def test_claim_form_requires_turnstile_when_not_debug():
     """With DEBUG=False the gate is unchanged — a missing secret key fails loud
-    rather than bypassing (kb-cyp / ADR-014 D3)."""
+    rather than bypassing (sb-cyp / ADR-014 D3)."""
     from organizers.forms import ClaimForm
 
     form = ClaimForm(data={"email": "test@example.com", "message": ""})

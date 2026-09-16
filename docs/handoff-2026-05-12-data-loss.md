@@ -26,10 +26,10 @@ The operator (Jonatan, `jsnyde0` / `root@switch.berlin`) wants a written restore
 - **Wipe window: 2026-05-11 16:59 CEST (last successful deploy) → 2026-05-12 03:14 UTC (empty backup).** ~10 hours.
 
 ### Schema migration files inspected — none are destructive
-- `events/migrations/0010_eventorganizer_and_more.py` (kb-n0y) — additive M2M + data-preserving RunPython + DROP COLUMN `event.organizer_id`. Safe per-row.
-- `events/migrations/0011_eventfacilitator_event_facilitators.py` (kb-qhl) — pure additive.
-- `organizers/migrations/0008_add_follow_model.py` (kb-ldo) — create Follow, copy from OrganizerFollow, drop OrganizerFollow. Doesn't touch events/profile/venue/user.
-- `organizers/migrations/0007_rename_organizer_to_profile.py` (kb-izj) — RenameModel (data preserved).
+- `events/migrations/0010_eventorganizer_and_more.py` (sb-n0y) — additive M2M + data-preserving RunPython + DROP COLUMN `event.organizer_id`. Safe per-row.
+- `events/migrations/0011_eventfacilitator_event_facilitators.py` (sb-qhl) — pure additive.
+- `organizers/migrations/0008_add_follow_model.py` (sb-ldo) — create Follow, copy from OrganizerFollow, drop OrganizerFollow. Doesn't touch events/profile/venue/user.
+- `organizers/migrations/0007_rename_organizer_to_profile.py` (sb-izj) — RenameModel (data preserved).
 
 None of those produce empty `events_event` / `venues_venue` / `accounts_user`. So the wipe is **not from a migration RunPython**.
 
@@ -62,7 +62,7 @@ PostgreSQL Database directory appears to contain a database; Skipping initializa
 ### Commits in window (no compose / overlay changes)
 ```
 e89c7b8 2026-05-11 10:48 fix(deploy): give app service a gunicorn command in prod overlay
-58a308e 2026-05-11 10:36 feat(deploy): implement prod deploy workflow (kb-6nq.5)
+58a308e 2026-05-11 10:36 feat(deploy): implement prod deploy workflow (sb-6nq.5)
 ```
 No edits to `docker-compose.yml`, `docker-compose.prod.yml`, or `.github/workflows/deploy.yml` between those and the May 12 14:38 fix.
 
@@ -75,11 +75,11 @@ Only 5 anonymous-ID volumes on the host. No `app_postgres_data` named volume pre
 
 | Bead | Status | Title |
 |---|---|---|
-| `kb-3w6` | in_progress | postgres password drift across deploys (FIX SHIPPED `2af6a13`) |
-| `kb-bpc` | open | docker-compose db: bind 5432 to 127.0.0.1 (FIX SHIPPED `2af6a13`) |
+| `sb-3w6` | in_progress | postgres password drift across deploys (FIX SHIPPED `2af6a13`) |
+| `sb-bpc` | open | docker-compose db: bind 5432 to 127.0.0.1 (FIX SHIPPED `2af6a13`) |
 | **TBD** | — | Production data loss (events/profiles/venues/users wiped 2026-05-11 evening). **File this bead with what you find.** |
 
-Both `kb-3w6` and `kb-bpc` may be closeable after you verify the next deploy's self-heal step actually runs the `ALTER USER` (the previous deploy was inconclusive on whether the embedded self-heal worked vs. only the manual ALTER did). Verify by reading deploy logs of run `25741673362` or any subsequent deploy.
+Both `sb-3w6` and `sb-bpc` may be closeable after you verify the next deploy's self-heal step actually runs the `ALTER USER` (the previous deploy was inconclusive on whether the embedded self-heal worked vs. only the manual ALTER did). Verify by reading deploy logs of run `25741673362` or any subsequent deploy.
 
 ---
 
@@ -156,7 +156,7 @@ crontab -l 2>/dev/null
 ls -la /etc/cron.d/ /etc/cron.hourly/ /etc/cron.daily/ 2>/dev/null
 ```
 
-The May 11 evening commits include `feat(seed): wire per-event venues so /events/ map shows pins (kb-5x9)` and `chore(beads): close kb-99z — seeded 3 orgs + 32 events on prod`. Verify whether the deploy ran a `seed_real_events` or similar management command that **flushes before seeding** — that's a high-probability culprit.
+The May 11 evening commits include `feat(seed): wire per-event venues so /events/ map shows pins (sb-5x9)` and `chore(beads): close sb-99z — seeded 3 orgs + 32 events on prod`. Verify whether the deploy ran a `seed_real_events` or similar management command that **flushes before seeding** — that's a high-probability culprit.
 
 ### A6. Re-seed script audit (local repo)
 
@@ -173,7 +173,7 @@ If any management command does a flush/delete and a deploy auto-invoked it, that
 
 ## Step B — Enumerate restic snapshots
 
-The kb-backup subsystem was wired in commit `7291bd0 feat(backup): wire restic-to-BX11 backup subsystem (kb-6nq.3)` on 2026-05-11.
+The kb-backup subsystem was wired in commit `7291bd0 feat(backup): wire restic-to-BX11 backup subsystem (sb-6nq.3)` on 2026-05-11.
 
 ### B1. Find the kb-backup unit + envs
 
@@ -279,7 +279,7 @@ Produce a written plan with these elements; submit to the operator for sign-off:
 3. **Compose overlay invariant:** always use `docker compose -f docker-compose.yml -f docker-compose.prod.yml` on the VPS. Bare `docker compose up` silently swaps to a fresh named volume `app_postgres_data` and orphans the bind mount at `/opt/switch-berlin/db`. See [bd memory `prod-vps-compose-overlay-required`].
 4. **No compound bash commands** (`&&`, `;`, `||`) inside a single Bash call — the project's PreToolUse hook will block them. Split into separate calls. SQL semicolons in `psql -c "..."` strings also trigger this — write SQL without trailing semicolons.
 5. **No mocks / no fakes / no destructive workarounds** for the password issue. If `ALTER USER` is needed again, use the trust-on-127.0.0.1 path inside `app-db-1` only (the prod self-heal in `deploy.yml` lines 109–131 documents the canonical pattern).
-6. **Beads workflow** — use `bd` for tracking, not TodoWrite. File a bead for the data-loss incident; link to `kb-3w6` via `bd dep add <new> kb-3w6 --type=related`.
+6. **Beads workflow** — use `bd` for tracking, not TodoWrite. File a bead for the data-loss incident; link to `sb-3w6` via `bd dep add <new> sb-3w6 --type=related`.
 7. **Brute-force attacks on 5432** were observed in the db logs earlier today (`database "wog"`, GRANT injection attempts). The port has been closed (commit `2af6a13` binds to 127.0.0.1 only). If the next agent sees external connection attempts in logs, that's history — the port is no longer publicly bound.
 
 ---
@@ -289,9 +289,9 @@ Produce a written plan with these elements; submit to the operator for sign-off:
 - `/Users/jonat/code/personal/kinky-bubbles/.github/workflows/deploy.yml` — current deploy workflow with self-heal.
 - `/Users/jonat/code/personal/kinky-bubbles/docker-compose.yml` — base compose (now `127.0.0.1:5432:5432`).
 - `/Users/jonat/code/personal/kinky-bubbles/docker-compose.prod.yml` — prod overlay (bind mount + `postgres_data: !reset null`).
-- `/Users/jonat/code/personal/kinky-bubbles/events/migrations/0010_eventorganizer_and_more.py` — kb-n0y FK→M2M.
-- `/Users/jonat/code/personal/kinky-bubbles/events/migrations/0011_eventfacilitator_event_facilitators.py` — kb-qhl.
-- `/Users/jonat/code/personal/kinky-bubbles/organizers/migrations/0008_add_follow_model.py` — kb-ldo.
+- `/Users/jonat/code/personal/kinky-bubbles/events/migrations/0010_eventorganizer_and_more.py` — sb-n0y FK→M2M.
+- `/Users/jonat/code/personal/kinky-bubbles/events/migrations/0011_eventfacilitator_event_facilitators.py` — sb-qhl.
+- `/Users/jonat/code/personal/kinky-bubbles/organizers/migrations/0008_add_follow_model.py` — sb-ldo.
 - `/Users/jonat/code/personal/kinky-bubbles/CLAUDE.md` + `~/.claude/CLAUDE.md` — agent rules (Python uv, no compound bash, etc.).
 - `bd memories prod` — `prod-vps-compose-overlay-required` and related memories.
 - Recent commit `2af6a13` — what was shipped to fix the password drift.
@@ -311,7 +311,7 @@ Produce a written plan with these elements; submit to the operator for sign-off:
 When the restore plan is approved and executed successfully:
 
 1. File and close a bead for the data-loss incident with the root cause documented.
-2. Close `kb-3w6` and `kb-bpc` if not already closed.
+2. Close `sb-3w6` and `sb-bpc` if not already closed.
 3. Run `git push` + `bd dolt push` per the session-close protocol in the project CLAUDE.md.
 4. Update the `prod-vps-compose-overlay-required` bd memory with whatever new failure mode is discovered (so the next agent doesn't repeat the diagnosis).
 

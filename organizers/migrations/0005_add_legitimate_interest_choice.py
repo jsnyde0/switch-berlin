@@ -1,4 +1,4 @@
-# Generated manually for bead kb-9kh.2 (Organizer LIA + consent_method migration)
+# Generated manually for bead sb-9kh.2 (Organizer LIA + consent_method migration)
 # Adds "legitimate_interest" to Organizer.consent_method choices.
 # No DB column change — choices are only validated by Django, not the DB schema.
 

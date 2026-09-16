@@ -1,5 +1,5 @@
 """
-TDD regression tests for kb-x0s: profile page claim button three states.
+TDD regression tests for sb-x0s: profile page claim button three states.
 
 Covers:
 - no claim → 'Claim this profile' button shown

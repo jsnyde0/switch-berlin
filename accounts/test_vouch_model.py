@@ -1,4 +1,4 @@
-"""TDD tests for kb-m69.7: Vouch model.
+"""TDD tests for sb-m69.7: Vouch model.
 
 Per ADR-013 D3 (Vouch graph).
 Per ADR-003 (cheap-foresight cancelled_at field).

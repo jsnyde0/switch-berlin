@@ -146,7 +146,7 @@ Phrased as questions for `/brainstorm`, not features to build.
 
 - **Recurring-revenue / patron model** — covered by the membership question above but worth flagging separately. **Open question:** Diversia (prior scout) had a patron-shaped model; Hipsy doesn't. Where does Switch Berlin land — and how does that decision change every other surface (analytics, comms, attendee profile)?
 
-- **Federated / portable organizer reputation** — addressed by: none. Reviews and follower count are Hipsy-locked. **Open question:** Switch Berlin's labelers deferral (kb-fx9 D6, deferred to V1+) is the right frame for this — but should the *organizer reputation primitives* (reviews, follower count) anticipate federation now even at zero cost? (ADR-003 cheap-foresight territory.)
+- **Federated / portable organizer reputation** — addressed by: none. Reviews and follower count are Hipsy-locked. **Open question:** Switch Berlin's labelers deferral (sb-fx9 D6, deferred to V1+) is the right frame for this — but should the *organizer reputation primitives* (reviews, follower count) anticipate federation now even at zero cost? (ADR-003 cheap-foresight territory.)
 
 ---
 
@@ -165,7 +165,7 @@ Phrased as questions for `/brainstorm`, not features to build.
 
 The above is **evidence of opportunities and shared jobs**, not a feature list to build. Use the next step to validate:
 
-- Paste this brief verbatim as initial context for the upcoming **vision brainstorm** (the one the work-stream table tags as gating kb-fx9 EXPLORATORY decisions). The Socratic loop will interrogate the open questions above — especially **cross-event attendee identity**, **membership vs ticketing**, and **consent-tier gating** — not consume the inventory.
+- Paste this brief verbatim as initial context for the upcoming **vision brainstorm** (the one the work-stream table tags as gating sb-fx9 EXPLORATORY decisions). The Socratic loop will interrogate the open questions above — especially **cross-event attendee identity**, **membership vs ticketing**, and **consent-tier gating** — not consume the inventory.
 - OR pick one job cluster (e.g. "consent-tier audience gating", "attendee segmentation + targeted communication") and re-invoke `/scout-features --focus "<that job>" --platforms <other platforms>` to triangulate.
 - **Raw records sidecar:** `history/scout-features-hipsy-organizer-raw/` — 30 feature records + 9 screenshots + README. Read individual records when a brainstorm cluster needs the texture the brief compressed away.
 - Do NOT route this brief into `/beadify` or `/decompose` directly — beads need `--design` + `--acceptance`, which this brief is not yet. The intended downstream is **vision brainstorm**, then ADR canonicalization for any FIRM decisions that emerge, then bead authoring.
@@ -174,5 +174,5 @@ The above is **evidence of opportunities and shared jobs**, not a feature list t
 
 - **Hipsy is not a platform Switch Berlin can ride** — its content policy explicitly bans the core use-case (BDSM, sex parties).
 - **Hipsy IS a strong feature-pattern reference** — particularly for the *ticketing primitives* (sequential tiers, invisible-URL, donation), the *organizer-as-brand stance* (public profile, follow, DM, branded ticketshop), and the *attribution surfaces* (UTM, pixels, Zapier).
-- **The most load-bearing white space for our space** is the gap between Hipsy's gender/age/country audience filters and the consent/experience/role gating our community actually needs — this is where ADR-007 + ADR-009 + kb-m69 substrate has a chance to be genuinely differentiating.
+- **The most load-bearing white space for our space** is the gap between Hipsy's gender/age/country audience filters and the consent/experience/role gating our community actually needs — this is where ADR-007 + ADR-009 + sb-m69 substrate has a chance to be genuinely differentiating.
 - **The second-most load-bearing gap** is membership vs ticketing — Hipsy is purely transactional, our space has clear membership-shaped revenue patterns (recurring groups, ongoing communities), and resolving this gates how attendee identity, comms, and analytics all get shaped.

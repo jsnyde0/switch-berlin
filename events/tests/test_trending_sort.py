@@ -1,4 +1,4 @@
-"""Tests for trending sort on /events/ (bead kb-8qn.6).
+"""Tests for trending sort on /events/ (bead sb-8qn.6).
 
 TDD: written BEFORE the implementation.
 

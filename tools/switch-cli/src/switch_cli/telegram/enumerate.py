@@ -26,7 +26,7 @@ from switch_cli.telegram.session import load_telegram_session
 
 # ---------------------------------------------------------------------------
 # Canonical type vocabulary — mirrors server TelegramDialogType enum
-# (kb-ru55.2 D1a single-resolution-point: channel/group/supergroup/forum_topic)
+# (sb-ru55.2 D1a single-resolution-point: channel/group/supergroup/forum_topic)
 # DO NOT add forum_group — only forum TOPICS are postable destinations.
 # ---------------------------------------------------------------------------
 
@@ -34,14 +34,14 @@ CANONICAL_DIALOG_TYPES = {"channel", "group", "supergroup", "forum_topic"}
 
 # ---------------------------------------------------------------------------
 # Server-vocabulary postability tiers — mirrors syndication/models.py postability
-# field (kb-ru55.2). Must be kept in sync; divergence causes 422s from ingest verb.
+# field (sb-ru55.2). Must be kept in sync; divergence causes 422s from ingest verb.
 # Single-resolution-point: the server model's help_text documents these tiers.
 # ---------------------------------------------------------------------------
 SERVER_POSTABILITY_VOCABULARY = {"bot", "agent", "public"}
 
 # MTProto sync via user session reaches every dialog through the agent/saveDraft
 # path → honest tier is "agent". Whether a destination is ALSO bot-reachable or
-# public (deep-link) is refined server-side by kb-sbhs D4 (Switch bot admin presence
+# public (deep-link) is refined server-side by sb-sbhs D4 (Switch bot admin presence
 # + username presence). Do NOT compute those tiers here.
 POSTABILITY_TIER = "agent"
 

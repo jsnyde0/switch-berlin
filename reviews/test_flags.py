@@ -1,5 +1,5 @@
 """
-TDD tests for bead kb-a4t.6:
+TDD tests for bead sb-a4t.6:
   - flag_target view (authenticated, rate-limited, auto-hide)
   - takedown_view (anonymous, rate-limited, URL resolution)
   - organizer_opt_out_view

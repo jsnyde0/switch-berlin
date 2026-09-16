@@ -5,9 +5,9 @@
 {% endblock %}
 {% block content %}
   {% comment %}
-    Destination picker (kb-sbhs.2 — RENDER ONLY).
+    Destination picker (sb-sbhs.2 — RENDER ONLY).
     Alpine x-data root required: directives inert without it (memory: alpine-3-x-directives-mouseenter-click-class-x).
-    tag filter + text search are client-side (Alpine); no mutation wiring here (kb-sbhs.3).
+    tag filter + text search are client-side (Alpine); no mutation wiring here (sb-sbhs.3).
   {% endcomment %}
   <div class="max-w-3xl mx-auto pt-10"
        x-data="{ activeTag: null, searchText: '', selectTag(tag) { this.activeTag = (this.activeTag === tag) ? null : tag; }, matchesTag(tags) { if (!this.activeTag) return true; return tags.indexOf(this.activeTag) !== -1; }, matchesSearch(name) { if (!this.searchText) return true; return name.toLowerCase().indexOf(this.searchText.toLowerCase()) !== -1; }, visible(tags, name) { return this.matchesTag(tags) && this.matchesSearch(name); } }">

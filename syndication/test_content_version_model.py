@@ -1,5 +1,5 @@
 """
-TDD tests for ContentVersion model (bead kb-wz8m.1, updated kb-q4u9.1).
+TDD tests for ContentVersion model (bead sb-wz8m.1, updated sb-q4u9.1).
 
 Additive-only step: introduces ContentVersion and a nullable content_version FK
 on PlatformProjection. No behavior change — override_data still exists and no
@@ -9,7 +9,7 @@ Acceptance: ContentVersion model exists with correct fields; nullable
 content_version FK exists on PlatformProjection; migrations are clean (checked
 separately via makemigrations --check --dry-run).
 
-kb-q4u9.1 additions: ContentVersion generalized to publishable-scoped.
+sb-q4u9.1 additions: ContentVersion generalized to publishable-scoped.
 - event FK nullable, post FK added (nullable), CheckConstraint enforces exactly-one-of.
 - (event,name) unique split into two partial constraints (one per FK).
 
@@ -111,7 +111,7 @@ class ContentVersionModelExistsTest(TestCase):
     def test_content_version_headline_optional(self):
         """
         ContentVersion.headline must be optional (nullable).
-        kb-wz8m.2: null means 'derive from canonical' (null-means-derive semantics).
+        sb-wz8m.2: null means 'derive from canonical' (null-means-derive semantics).
         """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
@@ -126,7 +126,7 @@ class ContentVersionModelExistsTest(TestCase):
     def test_content_version_body_optional(self):
         """
         ContentVersion.body must be optional (nullable).
-        kb-wz8m.2: null means 'derive from canonical' (null-means-derive semantics).
+        sb-wz8m.2: null means 'derive from canonical' (null-means-derive semantics).
         """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
@@ -153,7 +153,7 @@ class ContentVersionModelExistsTest(TestCase):
     def test_content_version_cta_optional(self):
         """
         ContentVersion.cta must be optional (nullable).
-        kb-wz8m.2: null means 'derive from canonical'.
+        sb-wz8m.2: null means 'derive from canonical'.
         """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
@@ -168,7 +168,7 @@ class ContentVersionModelExistsTest(TestCase):
     def test_content_version_voice_optional(self):
         """
         ContentVersion.voice must be optional (nullable).
-        kb-wz8m.2: null means 'derive from canonical'.
+        sb-wz8m.2: null means 'derive from canonical'.
         """
         event = _make_event()
         cv = ContentVersion.objects.create(event=event, name="v1")
@@ -254,7 +254,7 @@ class ContentVersionUniquenessTest(TestCase):
 
     Same name on DIFFERENT events is allowed (uniqueness is scoped per-event).
     Duplicate (event, name) must raise IntegrityError (ADR-016 D2 revised
-    2026-05-29; kb-wz8m.2 seeds exactly one 'canonical' version per event and
+    2026-05-29; sb-wz8m.2 seeds exactly one 'canonical' version per event and
     must not create duplicates).
     """
 
@@ -291,8 +291,8 @@ class PlatformProjectionContentVersionFKTest(TestCase):
     """
     PlatformProjection.content_version FK (ADR-016 D2).
 
-    kb-wz8m.1 added the nullable FK (additive step).
-    kb-wz8m.2 made it non-null (A1 invariant: every projection always has a version).
+    sb-wz8m.1 added the nullable FK (additive step).
+    sb-wz8m.2 made it non-null (A1 invariant: every projection always has a version).
     """
 
     def test_platform_projection_has_content_version_field(self):
@@ -307,7 +307,7 @@ class PlatformProjectionContentVersionFKTest(TestCase):
 
     def test_platform_projection_content_version_non_null_after_cutover(self):
         """
-        kb-wz8m.2 cutover: content_version FK is non-null (A1 invariant).
+        sb-wz8m.2 cutover: content_version FK is non-null (A1 invariant).
         Every projection must be created with a content_version.
         """
         event = _make_event()
@@ -339,7 +339,7 @@ class PlatformProjectionContentVersionFKTest(TestCase):
 
     def test_platform_projection_override_data_removed(self):
         """
-        kb-wz8m.2 cutover: override_data must NOT be present on PlatformProjection.
+        sb-wz8m.2 cutover: override_data must NOT be present on PlatformProjection.
         Content fields now live on ContentVersion (ADR-016 D2, ADR-008 D1).
         """
         event = _make_event()
@@ -354,7 +354,7 @@ class PlatformProjectionContentVersionFKTest(TestCase):
         )
         self.assertFalse(
             hasattr(pp, "override_data"),
-            "PlatformProjection must NOT have override_data after kb-wz8m.2 cutover",
+            "PlatformProjection must NOT have override_data after sb-wz8m.2 cutover",
         )
 
     def test_multiple_projections_can_share_one_content_version(self):
@@ -385,7 +385,7 @@ class PlatformProjectionContentVersionFKTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# kb-q4u9.1: ContentVersion publishable-scoped schema tests
+# sb-q4u9.1: ContentVersion publishable-scoped schema tests
 # ---------------------------------------------------------------------------
 
 
@@ -461,7 +461,7 @@ class ContentVersionPostFKFieldTest(TestCase):
     def test_content_version_event_field_is_nullable(self):
         """ContentVersion.event FK must be nullable (generalized from event-only)."""
         field = ContentVersion._meta.get_field("event")
-        self.assertTrue(field.null, "ContentVersion.event must be nullable (kb-q4u9.1)")
+        self.assertTrue(field.null, "ContentVersion.event must be nullable (sb-q4u9.1)")
 
     def test_content_version_can_be_created_for_post(self):
         """ContentVersion can be created attached to a Post (post=<P>, event=None)."""
@@ -475,7 +475,7 @@ class ContentVersionPostFKFieldTest(TestCase):
 
 class ContentVersionPartialUniqueConstraintTest(TestCase):
     """
-    (event,name) and (post,name) partial unique constraints (kb-q4u9.1).
+    (event,name) and (post,name) partial unique constraints (sb-q4u9.1).
 
     The original single (event,name) unique is split into two partial constraints
     so that two different posts can independently hold a name='canonical' row,
@@ -546,7 +546,7 @@ class ContentVersionPartialUniqueConstraintTest(TestCase):
 
 class ContentVersionStrUpdatedTest(TestCase):
     """
-    ContentVersion.__str__ must not assume event-only (kb-q4u9.1).
+    ContentVersion.__str__ must not assume event-only (sb-q4u9.1).
     Both event-owned and post-owned versions must produce readable strings.
     """
 

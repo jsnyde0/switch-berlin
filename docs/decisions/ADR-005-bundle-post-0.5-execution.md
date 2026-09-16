@@ -57,7 +57,7 @@ If Bundle A's scope turns out to exceed ~2× Phase 0.4's 6-bead footprint, split
 
 **Firmness: FLEXIBLE**
 
-Ops work is already tracked in beads (`kb-lqw`, `kb-vka`, `kb-5ef` for Phase 0.1 ops). Additional Bundle B beads will be filed as needed (`flip PUBLIC_READ_ENABLED`, `review German legal copy`, `calibrate thresholds after 2 weeks`, etc.). A checklist design doc would duplicate the bead tracker without adding design value.
+Ops work is already tracked in beads (`sb-lqw`, `sb-vka`, `sb-5ef` for Phase 0.1 ops). Additional Bundle B beads will be filed as needed (`flip PUBLIC_READ_ENABLED`, `review German legal copy`, `calibrate thresholds after 2 weeks`, etc.). A checklist design doc would duplicate the bead tracker without adding design value.
 
 **Rationale:** Design docs exist to capture architectural decisions. Bundle B has no architecture — it's a checklist. Beads are the correct home for checklists because they also track dependencies, assignment, and completion state.
 

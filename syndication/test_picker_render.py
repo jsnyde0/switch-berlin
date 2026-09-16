@@ -1,5 +1,5 @@
 """
-TDD render tests for the destination picker (kb-sbhs.2).
+TDD render tests for the destination picker (sb-sbhs.2).
 
 Tests assert against response.content (rendered HTML), NOT response.context,
 because context-only tests pass on broken templates (memory:
@@ -254,7 +254,7 @@ class DestinationPickerRenderTest(TestCase):
     def test_channel_row_has_checkbox(self):
         """
         Regular channel rows must render with a checkbox affordance.
-        kb-sbhs.3 mutation layer: the checkbox is now wired via HTMX with
+        sb-sbhs.3 mutation layer: the checkbox is now wired via HTMX with
         name="selected" value="true/false"; the connection pk is tracked
         via data-connection-pk and data-picker-row attributes.
         """

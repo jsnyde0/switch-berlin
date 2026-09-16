@@ -1,7 +1,7 @@
 {% load i18n %}
 {% comment %}
 Copy-from / sync-source picker block — shared between event_syndication.html
-and post_syndication.html (kb-kgza.9 extraction).
+and post_syndication.html (sb-kgza.9 extraction).
 
 Rendered when projection_rows|length > 1 (cycle-guard: only independent projections
 are offered as sources; a synced channel is itself downstream — no A→B→C chains).
@@ -15,7 +15,7 @@ Context variables:
                       select element id.
                       event_syndication passes "" → id="resync-select-{{ proj.pk }}"
                       post_syndication passes "post-" → id="resync-select-post-{{ proj.pk }}"
-                      (Divergence note kb-kgza.9: the two callers historically used
+                      (Divergence note sb-kgza.9: the two callers historically used
                       different ID prefixes; both are preserved here via this param.)
 
 States:
@@ -26,7 +26,7 @@ States:
         → submit directly, no confirmation (no local edits to lose).
         Label: "Sync from" (matches state iii — shares, not copies)
 
-kb-kgza.4 fixes:
+sb-kgza.4 fixes:
   Bug 1: both copy-from forms now carry <input name="selected_pk"> so
          version_copy_from reads it and the re-rendered fragment stays on the
          current tab (selectedPk seeded correctly).
@@ -44,7 +44,7 @@ kb-kgza.4 fixes:
   {% if proj.sync_source == None and proj.content_version.name != "canonical" %}
     {% comment %}State (iii): has own edits — discard-confirm modal required.{% endcomment %}
     <span class="kb-mono text-[9px] uppercase tracking-[0.14em] text-base-content/20 shrink-0">{% trans "Sync from" %}</span>
-    {% comment %}Bug 2 (kb-kgza.4): Master copy → reset-to-canonical (separate form, no
+    {% comment %}Bug 2 (sb-kgza.4): Master copy → reset-to-canonical (separate form, no
     discard-confirm needed — reset discards nothing extra beyond the current custom content).
     Rendered only on non-canonical channels (this whole block is already inside state iii).{% endcomment %}
     <form method="post"
@@ -119,7 +119,7 @@ kb-kgza.4 fixes:
     </div>
   {% else %}
     {% comment %}State (i)/(ii): canonical or synced — no local edits, submit directly.
-    Bug 2 (kb-kgza.4): Master copy option via separate reset-to-canonical form,
+    Bug 2 (sb-kgza.4): Master copy option via separate reset-to-canonical form,
     shown only when this channel is NOT already on the canonical CV (state ii only —
     state i already IS canonical, so Master copy makes no sense there).{% endcomment %}
     <form method="post"

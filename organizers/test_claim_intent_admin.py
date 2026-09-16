@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.9: ClaimIntentAdmin — approve + reject actions.
+TDD tests for sb-m69.9: ClaimIntentAdmin — approve + reject actions.
 
 RED phase: written BEFORE implementation.
 

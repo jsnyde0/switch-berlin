@@ -1,4 +1,4 @@
-# Migration for kb-izj: Update Event.organizer FK to point to organizers.Profile
+# Migration for sb-izj: Update Event.organizer FK to point to organizers.Profile
 
 import django.db.models.deletion
 from django.db import migrations, models

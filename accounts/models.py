@@ -82,7 +82,7 @@ class InviteCode(models.Model):
         related_name="invites_created",
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    # Single-use enforcement fields (kb-m69.7)
+    # Single-use enforcement fields (sb-m69.7)
     used_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -131,7 +131,7 @@ class Vouch(models.Model):
         related_name="vouches_received",
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    # Cheap-foresight (ADR-003): cancellation logic activates in kb-a3a bead
+    # Cheap-foresight (ADR-003): cancellation logic activates in sb-a3a bead
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

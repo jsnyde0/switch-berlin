@@ -56,7 +56,7 @@ def test_loginwall_staff_gets_through(client, staff_user, published_event):
 
 @pytest.mark.django_db
 def test_signup_open(client):
-    """GET /accounts/signup/ renders the signup form (open signup path, kb-m69.5).
+    """GET /accounts/signup/ renders the signup form (open signup path, sb-m69.5).
 
     Phase 0.5+: OpenSignupAdapter makes signup always open (no invite code required).
     The Turnstile widget is rendered but CAPTCHA validation only runs on POST.

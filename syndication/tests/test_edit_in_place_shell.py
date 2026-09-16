@@ -1,5 +1,5 @@
 """
-Edit-in-place composer shell tests (kb-ide0.1).
+Edit-in-place composer shell tests (sb-ide0.1).
 
 Contract under test (D1 + D2 + D5 from bead design):
 
@@ -329,7 +329,7 @@ class EventSyndicationStudioContextTest(TestCase):
     Without ?studio=1, no hx-target="#studio-main" is emitted.
     With ?studio=1, the fragment emits studio-context HTMX attrs.
 
-    This gating is the same pattern as post_syndication.html (kb-9f1h.7).
+    This gating is the same pattern as post_syndication.html (sb-9f1h.7).
     The bead design notes that event_syndication.html currently has NO
     studio_swap handling — this child introduces it.
 
@@ -572,7 +572,7 @@ class EventSyndicationDataLossRegressionTest(TestCase):
 
 class EventSyndicationCarryFieldsHiddenTest(TestCase):
     """
-    kb-y209.1 update: Boolean fields (is_free, sliding_scale, registration_required)
+    sb-y209.1 update: Boolean fields (is_free, sliding_scale, registration_required)
     are now EDITABLE visible checkboxes in the Switch listing card, not hidden
     carry-only inputs. The old FIX-4 "hidden" contract is superseded.
 
@@ -608,9 +608,9 @@ class EventSyndicationCarryFieldsHiddenTest(TestCase):
 
     def test_carry_fields_are_now_editable_visible_checkboxes(self):
         """
-        kb-y209.1: Boolean carry fields are now EDITABLE visible checkboxes.
+        sb-y209.1: Boolean carry fields are now EDITABLE visible checkboxes.
 
-        The old FIX-4 contract (hidden inputs only) is superseded by kb-y209.1
+        The old FIX-4 contract (hidden inputs only) is superseded by sb-y209.1
         which promotes these fields to visible editable widgets in the card.
 
         Django renders CheckboxInput as <input type="checkbox" name="is_free" ...>.
@@ -623,22 +623,22 @@ class EventSyndicationCarryFieldsHiddenTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
 
-        # kb-y209.1 NEW CONTRACT: these fields must be visible checkboxes.
+        # sb-y209.1 NEW CONTRACT: these fields must be visible checkboxes.
         self.assertIn(
             'type="checkbox" name="is_free"',
             content,
-            "kb-y209.1: is_free must render as a visible checkbox — "
+            "sb-y209.1: is_free must render as a visible checkbox — "
             "the field is now an editable widget in the Switch listing card.",
         )
         self.assertIn(
             'type="checkbox" name="sliding_scale"',
             content,
-            "kb-y209.1: sliding_scale must render as a visible checkbox.",
+            "sb-y209.1: sliding_scale must render as a visible checkbox.",
         )
         self.assertIn(
             'type="checkbox" name="registration_required"',
             content,
-            "kb-y209.1: registration_required must render as a visible checkbox.",
+            "sb-y209.1: registration_required must render as a visible checkbox.",
         )
 
     def test_boolean_fields_have_hidden_companion_for_unchecked_state(self):

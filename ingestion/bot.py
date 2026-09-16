@@ -26,7 +26,7 @@ def _is_rate_limited(sender_id: str) -> bool:
 
 
 def _bot_enabled() -> bool:
-    """DB-backed feature gate via FeatureFlag model (ADR-003 F9, bead kb-8qn.12).
+    """DB-backed feature gate via FeatureFlag model (ADR-003 F9, bead sb-8qn.12).
 
     INGESTION_PAUSED=True  -> bot disabled (returns False; short-circuits handler).
     INGESTION_PAUSED=False -> bot runs normally (returns True).

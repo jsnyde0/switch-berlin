@@ -1,5 +1,5 @@
 """
-TDD tests for kb-96tn.7 — clickable promo cards + promo strip below channel composer.
+TDD tests for sb-96tn.7 — clickable promo cards + promo strip below channel composer.
 
 Two acceptance targets:
 1. event_posts.html: the whole promo card article is hx-wired (hx-get to post-hub),

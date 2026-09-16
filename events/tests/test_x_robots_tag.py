@@ -1,4 +1,4 @@
-"""Tests for kb-m69.6: XRobotsTagMiddleware.
+"""Tests for sb-m69.6: XRobotsTagMiddleware.
 
 ADR-012 D3 robot indexing:
   - public events: no X-Robots-Tag header

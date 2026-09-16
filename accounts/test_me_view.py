@@ -1,4 +1,4 @@
-"""Tests for the /me page (bead kb-8qn.5).
+"""Tests for the /me page (bead sb-8qn.5).
 
 TDD: these tests are written BEFORE the implementation.
 
@@ -306,7 +306,7 @@ class MeViewFollowedOrganizersFilterTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Account masthead (kb-3u1)
+# Account masthead (sb-3u1)
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""Tests for kb-m69.6: viewer × event-tier access matrix enforcement.
+"""Tests for sb-m69.6: viewer × event-tier access matrix enforcement.
 
 ADR-012 D3: 4 viewer states × 3 event tiers = 12 access matrix combinations.
 Suspended/banned users behave like anonymous (public-only).

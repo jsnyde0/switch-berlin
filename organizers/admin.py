@@ -45,7 +45,7 @@ class ProfileAdmin(admin.ModelAdmin):
     ]
 
     def get_queryset(self, request):
-        # events_organized is the M2M reverse from Event.organizers (kb-n0y)
+        # events_organized is the M2M reverse from Event.organizers (sb-n0y)
         return super().get_queryset(request).annotate(event_count=Count("events_organized", distinct=True))
 
     def event_count(self, obj):
@@ -88,7 +88,7 @@ class ProfileAdmin(admin.ModelAdmin):
 @admin.register(ClaimIntent)
 class ClaimIntentAdmin(admin.ModelAdmin):
     """
-    Admin surface for ClaimIntent rows (kb-m69.8 model).
+    Admin surface for ClaimIntent rows (sb-m69.8 model).
 
     Shows pending intents (resolved_at IS NULL AND rejected_at IS NULL).
     Admin actions:
@@ -132,13 +132,13 @@ class ClaimIntentAdmin(admin.ModelAdmin):
     is_pending.boolean = True
 
     def user_email(self, obj):
-        """Claimant's email — admin can mailto: from the list view (kb-j8u)."""
+        """Claimant's email — admin can mailto: from the list view (sb-j8u)."""
         return obj.user.email
 
     user_email.short_description = _("Email (contact)")
 
     def message_preview(self, obj):
-        """First 80 chars of the claimant's message (kb-j8u)."""
+        """First 80 chars of the claimant's message (sb-j8u)."""
         if not obj.message:
             return ""
         return obj.message if len(obj.message) <= 80 else obj.message[:77] + "…"
@@ -219,7 +219,7 @@ class ProfileClaimAdmin(admin.ModelAdmin):
     """
     Top-level admin for ProfileClaim rows.
 
-    Extends kb-m69.3's read-only ProfileClaimInline on Profile admin page
+    Extends sb-m69.3's read-only ProfileClaimInline on Profile admin page
     with a revoke_claim admin action (this is a separate top-level admin).
 
     revoke_claim:

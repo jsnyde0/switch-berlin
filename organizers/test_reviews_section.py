@@ -1,4 +1,4 @@
-"""Tests for the organizer profile reviews section (bead kb-7s2).
+"""Tests for the organizer profile reviews section (bead sb-7s2).
 
 Covers:
 - sort=recent (default): order_by('-created_at')

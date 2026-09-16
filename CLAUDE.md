@@ -8,11 +8,11 @@ This file provides instructions and context for AI coding agents working on this
 
 **Two parallel tracks, both challenge/walk-driven** (walk one honest journey, file children only as the walk reveals friction, never pre-decompose):
 
-- **Track A, event collector** (`kb-7wzb`): consolidate Berlin events from public sites (IKSK first) and Telegram channels into Switch. First act = brainstorm sitting with the user (`kb-7wzb.1`): outcome, sources, positioning ruling vs ADR-010 canonical-home.
-- **Track B, agentic harness for facilitators** (`kb-k2ds`): capability in `switch-cli`, skills as thin wrappers, all data through Switch. Next = the Challenge 0 walk (`kb-k2ds.1`, needs the user at their phone), then co-design Challenge 1 (`kb-z50e`: website skill / marketing-channel skills / FetLife).
-- **Cross-cutting:** `kb-n41z` turns walks into agentic e2e drives via `/verify scaffold`, after the first hand-walk.
+- **Track A, event collector** (`sb-7wzb`): consolidate Berlin events from public sites (IKSK first) and Telegram channels into Switch. First act = brainstorm sitting with the user (`sb-7wzb.1`): outcome, sources, positioning ruling vs ADR-010 canonical-home.
+- **Track B, agentic harness for facilitators** (`sb-k2ds`): capability in `switch-cli`, skills as thin wrappers, all data through Switch. Next = the Challenge 0 walk (`sb-k2ds.1`, needs the user at their phone), then co-design Challenge 1 (`sb-z50e`: website skill / marketing-channel skills / FetLife).
+- **Cross-cutting:** `sb-n41z` turns walks into agentic e2e drives via `/verify scaffold`, after the first hand-walk.
 
-The UI-polish tail is **frozen** (deferred beads); no new UI investment unless a walk demands it. Business model lives in `kb-uy99`; do not settle it before a facilitator asks to pay.
+The UI-polish tail is **frozen** (deferred beads); no new UI investment unless a walk demands it. Business model lives in `sb-uy99`; do not settle it before a facilitator asks to pay.
 
 ## Beads Issue Tracker
 

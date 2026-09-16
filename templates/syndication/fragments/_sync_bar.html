@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-Per-channel sync-bar badge — single source of truth (kb-lprn Repair 1).
+Per-channel sync-bar badge — single source of truth (sb-lprn Repair 1).
 
 Rendered inline (oob=False, default) in event_syndication and post_syndication,
 and as hx-swap-oob="true" (oob=True) by version_edit in views.py.
@@ -39,7 +39,7 @@ States:
             hx-target="{{ fragment_target }}"
             hx-swap="outerHTML">
         {% csrf_token %}
-        {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+        {% comment %}sb-shzi.2 BUG 2: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
         <input type="hidden" name="selected_pk" :value="selectedPk">
         <button type="submit"
                 class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group"
@@ -61,7 +61,7 @@ States:
       </form>
     {% endwith %}
   {% elif proj.sync_source %}
-    {% comment %}State (ii): sync_source set → Synced from peer channel; follows source edits live (live-share, kb-s41r){% endcomment %}
+    {% comment %}State (ii): sync_source set → Synced from peer channel; follows source edits live (live-share, sb-s41r){% endcomment %}
     <div class="flex items-center gap-2">
       <span class="flex items-center gap-2 px-2.5 py-1.5 border border-emerald-400/20"
             style="background: rgba(52,211,153,0.04)">
@@ -77,7 +77,7 @@ States:
             hx-target="{{ fragment_target }}"
             hx-swap="outerHTML">
         {% csrf_token %}
-        {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
+        {% comment %}sb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
         <input type="hidden" name="selected_pk" :value="selectedPk">
         <button type="submit"
                 class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors"
@@ -98,7 +98,7 @@ States:
             hx-target="{{ fragment_target }}"
             hx-swap="outerHTML">
         {% csrf_token %}
-        {% comment %}kb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
+        {% comment %}sb-shzi.2 BUG 2: thread currently-selected tab pk.{% endcomment %}
         <input type="hidden" name="selected_pk" :value="selectedPk">
         <button type="submit"
                 class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors"

@@ -1,5 +1,5 @@
 """
-TDD tests for the projection review board (kb-a4u.5).
+TDD tests for the projection review board (sb-a4u.5).
 
 Acceptance items covered:
 A1. Board renders one row per eager-created projection with correct status-chip
@@ -83,7 +83,7 @@ def _make_connection(profile, platform="fetlife", destination_id="fl-user", kind
 def _make_content_version(event, name="canonical", provenance="rule_template"):
     """
     Create or get a ContentVersion for an event.
-    provenance is stored on ContentVersion now (kb-wz8m.2).
+    provenance is stored on ContentVersion now (sb-wz8m.2).
     """
     from syndication.models import ContentVersion
 
@@ -101,7 +101,7 @@ def _make_content_version(event, name="canonical", provenance="rule_template"):
 def _make_listing_projection(connection, event, status="draft", provenance="rule_template"):
     """
     Create a listing projection with an associated canonical ContentVersion.
-    provenance lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
+    provenance lives on ContentVersion (sb-wz8m.2), not on PlatformProjection.
     """
     cv = _make_content_version(event, provenance=provenance)
     return PlatformProjection.objects.create(
@@ -118,7 +118,7 @@ def _make_post_content_version(post, name="canonical", provenance="rule_template
     Create or get a POST-scoped ContentVersion (post FK set, event FK null).
     Required for promotion projections — using an event-scoped CV is wrong
     because _resolve_publishable_for_cv would return the event, not the post.
-    (kb-q4u9.3 review finding 5)
+    (sb-q4u9.3 review finding 5)
     """
     from syndication.models import ContentVersion
 
@@ -136,10 +136,10 @@ def _make_post_content_version(post, name="canonical", provenance="rule_template
 def _make_promotion_projection(connection, post, status="draft", provenance="rule_template"):
     """
     Create a promotion projection with an associated POST-scoped ContentVersion.
-    provenance lives on ContentVersion (kb-wz8m.2), not on PlatformProjection.
+    provenance lives on ContentVersion (sb-wz8m.2), not on PlatformProjection.
     Uses a post-scoped CV (post FK non-null, event FK null) so that
     _resolve_publishable_for_cv correctly dispatches to the post hub on redirect.
-    (kb-q4u9.3 review finding 5: was event-scoped, wrong for promotion projections)
+    (sb-q4u9.3 review finding 5: was event-scoped, wrong for promotion projections)
     """
     cv = _make_post_content_version(post, provenance=provenance)
     return PlatformProjection.objects.create(
@@ -176,7 +176,7 @@ class BoardFragmentRenderTest(TestCase):
 
     def test_fragment_renders_only_listing_projections(self):
         """
-        kb-ide0.3: The event composer shows ONLY listing projections (connections
+        sb-ide0.3: The event composer shows ONLY listing projections (connections
         whose kinds contains "listing"). The D3 kinds filter in
         fragment_event_syndication must exclude source_event-linked projections
         on connections that lack "listing" in their kinds.
@@ -235,7 +235,7 @@ class BoardFragmentRenderTest(TestCase):
 
     def test_fragment_excludes_promotion_projections(self):
         """
-        kb-ide0.3: The event composer must NOT show projections on connections
+        sb-ide0.3: The event composer must NOT show projections on connections
         whose kinds list does NOT contain "listing" (promotion-only connections).
 
         The old version of this test was HOLLOW: it used _make_promotion_projection
@@ -290,7 +290,7 @@ class BoardFragmentRenderTest(TestCase):
     def test_fragment_projection_carries_provenance(self):
         """
         Each projection's ContentVersion in context has the correct provenance value.
-        kb-wz8m.2: provenance lives on ContentVersion, not on PlatformProjection.
+        sb-wz8m.2: provenance lives on ContentVersion, not on PlatformProjection.
         """
         proj = _make_listing_projection(self.conn, self.event, provenance="agent_supplied")
 
@@ -331,13 +331,13 @@ class BoardFragmentRenderTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# A2. Override-edit: replaced by edit_version in kb-wz8m.3
+# A2. Override-edit: replaced by edit_version in sb-wz8m.3
 #
-# save_projection_override was removed in kb-wz8m.3 and replaced by edit_version.
+# save_projection_override was removed in sb-wz8m.3 and replaced by edit_version.
 # The equivalent behaviour (persisting body + flipping provenance to manual) is
 # now covered by test_version_ops.EditVersionTest.
 #
-# projection_override stub view removed in kb-wz8m.5 (ADR-008 D1: delete on sight).
+# projection_override stub view removed in sb-wz8m.5 (ADR-008 D1: delete on sight).
 # The version-ops panel IS the replacement.
 # ---------------------------------------------------------------------------
 
@@ -347,8 +347,8 @@ class OverrideEditServiceTest(TestCase):
     edit_version service: persists content fields on ContentVersion AND
     flips ContentVersion.provenance to manual.
 
-    kb-wz8m.3: save_projection_override removed; replaced by edit_version.
-    kb-wz8m.2: override_data removed; body stored on ContentVersion.body.
+    sb-wz8m.3: save_projection_override removed; replaced by edit_version.
+    sb-wz8m.2: override_data removed; body stored on ContentVersion.body.
     provenance lives on ContentVersion, not PlatformProjection.
     """
 
@@ -364,7 +364,7 @@ class OverrideEditServiceTest(TestCase):
         Calling edit_version with body="edited copy" stores
         ContentVersion.body = "edited copy" on the version.
 
-        kb-wz8m.3: edit_version replaces save_projection_override.
+        sb-wz8m.3: edit_version replaces save_projection_override.
         """
         from syndication.services import edit_version
 
@@ -378,7 +378,7 @@ class OverrideEditServiceTest(TestCase):
         After edit_version, ContentVersion.provenance must be 'manual'
         regardless of its prior value (rule_template or agent_supplied).
 
-        kb-wz8m.2: provenance lives on ContentVersion, not PlatformProjection.
+        sb-wz8m.2: provenance lives on ContentVersion, not PlatformProjection.
         """
         from syndication.services import edit_version
 
@@ -877,13 +877,13 @@ class MarkPublishedAPIVerbStructureTest(TestCase):
     def test_edit_version_importable_from_services(self):
         """
         edit_version must exist in syndication.services.
-        kb-wz8m.3: save_projection_override removed; edit_version is the replacement.
+        sb-wz8m.3: save_projection_override removed; edit_version is the replacement.
         """
         from syndication import services
 
         self.assertTrue(
             hasattr(services, "edit_version"),
-            "edit_version must be in syndication.services (replaces save_projection_override, kb-wz8m.3)",
+            "edit_version must be in syndication.services (replaces save_projection_override, sb-wz8m.3)",
         )
 
 
@@ -1329,7 +1329,7 @@ class NoPromoPostsRenderedTextTest(TestCase):
     """
     The no_promo_posts state must render the actual text 'No promo posts yet'
     and the 'Add promo post' CTA in the response body.
-    Updated 'Add promo message' → 'Add promo post' for vocab consistency (kb-shzi.5).
+    Updated 'Add promo message' → 'Add promo post' for vocab consistency (sb-shzi.5).
     """
 
     def setUp(self):
@@ -1344,7 +1344,7 @@ class NoPromoPostsRenderedTextTest(TestCase):
         """
         When no_promo_posts=True, the response body must contain:
         - "No promo posts yet" text
-        - "Add promo post" CTA (kb-shzi.5: unified vocab — was "Add promo message")
+        - "Add promo post" CTA (sb-shzi.5: unified vocab — was "Add promo message")
         """
         _make_connection(self.profile, destination_id="fl-nopromo", kinds=["promotion"])
         response = self.client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
@@ -1358,7 +1358,7 @@ class NoPromoPostsRenderedTextTest(TestCase):
         self.assertIn(
             "Add promo post",
             content,
-            "Template must render 'Add promo post' CTA when no_promo_posts=True (kb-shzi.5 vocab)",
+            "Template must render 'Add promo post' CTA when no_promo_posts=True (sb-shzi.5 vocab)",
         )
 
 
@@ -1566,7 +1566,7 @@ class BatchPublishPartialFailureTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# kb-wz8m.5: Composer + channel-rail board tests
+# sb-wz8m.5: Composer + channel-rail board tests
 # ---------------------------------------------------------------------------
 
 
@@ -1589,7 +1589,7 @@ class ComposerRailBoardRenderTest(TestCase):
 
     def test_fragment_renders_only_listing_cards(self):
         """
-        kb-ide0.3: Event composer shows ONLY listing projections.
+        sb-ide0.3: Event composer shows ONLY listing projections.
         Promotion projections (post-owned) are excluded from the event composer
         tab row — they belong to the post composer.
         """
@@ -1961,7 +1961,7 @@ class VersionOpEndpointTest(TestCase):
 
     def test_edit_version_endpoint_returns_oob_sync_bar_fragment(self):
         """
-        POST edit-version (HX-Request) returns an OOB sync-bar fragment (kb-lprn).
+        POST edit-version (HX-Request) returns an OOB sync-bar fragment (sb-lprn).
 
         The autosave endpoint now returns hx-swap-oob="true" sync-bar elements
         rather than the full syndication fragment. HTMX processes OOB elements
@@ -1995,7 +1995,7 @@ class VersionOpEndpointTest(TestCase):
         """
         POST edit-version persists body to a POST canonical ContentVersion.
 
-        kb-ciqf Fix 2: the version_edit VIEW strips body from EVENT canonical CVs
+        sb-ciqf Fix 2: the version_edit VIEW strips body from EVENT canonical CVs
         (track-live guard — event body comes from event fields, not the canonical CV).
         But POST canonical CVs are intentionally mutable via the master-copy form.
         This test uses a post-scoped canonical to verify body still persists for posts.
@@ -2031,7 +2031,7 @@ class VersionOpEndpointTest(TestCase):
         """
         POST edit-version must NOT write body to an event canonical ContentVersion.
 
-        kb-ciqf Fix 2: the version_edit VIEW strips body from EVENT canonical CVs
+        sb-ciqf Fix 2: the version_edit VIEW strips body from EVENT canonical CVs
         to preserve track-live semantics (ADR-016 D2). Event body is composed from
         live event fields at render time; writing to canonical.body freezes that.
         The view-level guard strips body before calling edit_version.
@@ -2051,7 +2051,7 @@ class VersionOpEndpointTest(TestCase):
         self.assertIsNone(
             cv.body,
             "version_edit must NOT write body to an event canonical CV "
-            "(kb-ciqf Fix 2: track-live preservation — body stays NULL so "
+            "(sb-ciqf Fix 2: track-live preservation — body stays NULL so "
             "recomposition from live event fields continues to work).",
         )
 
@@ -2059,7 +2059,7 @@ class VersionOpEndpointTest(TestCase):
         """
         POST edit-version flips provenance to 'manual' for a POST canonical CV.
 
-        kb-ciqf Fix 2: for POST canonical CVs, body writes are allowed (master-copy
+        sb-ciqf Fix 2: for POST canonical CVs, body writes are allowed (master-copy
         form). Provenance should flip to 'manual' on successful body write.
         """
         from syndication.models import ContentVersion, Post
@@ -2197,7 +2197,7 @@ class BoardAuthzTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# F1: duplicate and copy_from version affordances (kb-wz8m.5)
+# F1: duplicate and copy_from version affordances (sb-wz8m.5)
 # ---------------------------------------------------------------------------
 
 
@@ -2289,7 +2289,7 @@ class VersionCopyFromEndpointTest(TestCase):
         POST version-copy-from (source_projection_pk) returns the refreshed syndication
         fragment containing the COPIED content from the source projection.
 
-        Adversarial-review Finding 3 (kb-kgza.13): the previous assertion `assertIn("<", content)`
+        Adversarial-review Finding 3 (sb-kgza.13): the previous assertion `assertIn("<", content)`
         was hollow — ANY HTML response (including an error page) satisfies it.
 
         Strengthened to assert:
@@ -2344,7 +2344,7 @@ class VersionCopyFromEndpointTest(TestCase):
     def test_copy_from_endpoint_repoints_projection_to_share_source_cv(self):
         """
         POST version-copy-from repoints the target projection to SHARE the source's CV row.
-        kb-s41r live-share: target.content_version_id == source.content_version_id (same row).
+        sb-s41r live-share: target.content_version_id == source.content_version_id (same row).
 
         Note: proj_tgt is given its own independent CV first (not the canonical) so that
         assertNotEqual(old_tgt_cv_pk, src_cv_pk) is meaningful.
@@ -2387,7 +2387,7 @@ class VersionCopyFromEndpointTest(TestCase):
         self.assertEqual(
             proj_tgt.content_version_id,
             proj_src.content_version_id,
-            "kb-s41r: copy-from must make target SHARE the source's CV row (live-follow, not independent copy)",
+            "sb-s41r: copy-from must make target SHARE the source's CV row (live-follow, not independent copy)",
         )
 
     def test_copy_from_endpoint_authz_non_claimant_gets_403(self):
@@ -2544,13 +2544,13 @@ class LiveOnChannelNamesTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# kb-q4u9.3: Typefully-shaped workspace — channel icon-tabs + post hub
+# sb-q4u9.3: Typefully-shaped workspace — channel icon-tabs + post hub
 # ---------------------------------------------------------------------------
 
 
 class ChannelIconTabsRenderTest(TestCase):
     """
-    kb-q4u9.3 D2: The event_syndication fragment must render horizontal channel
+    sb-q4u9.3 D2: The event_syndication fragment must render horizontal channel
     icon-tabs (Typefully shape), not a vertical channel rail.
 
     Assertions on rendered HTML content (not response.context — per the
@@ -2609,8 +2609,8 @@ class ChannelIconTabsRenderTest(TestCase):
         Render-regression: when a projection is at the canonical version (shared
         state), the sync control row must render 'Customize' (the advance action)
         and must NOT render 'Reset' (which is the diverged-state action).
-        Also asserts the 'shared' state label is present (kb-shzi.5: was 'synced').
-        kb-9f1h.6: single-control toggle folded from the original two-button row.
+        Also asserts the 'shared' state label is present (sb-shzi.5: was 'synced').
+        sb-9f1h.6: single-control toggle folded from the original two-button row.
         """
         proj = _make_listing_projection(self.conn_switch, self.event)
         # Sanity: projection must start at the canonical version
@@ -2636,11 +2636,11 @@ class ChannelIconTabsRenderTest(TestCase):
             content,
             "Shared projection: sync control must NOT render 'Reset' (only one action shown per state)",
         )
-        # Shared state: 'shared' label must be present (kb-shzi.5: relabeled from 'synced')
+        # Shared state: 'shared' label must be present (sb-shzi.5: relabeled from 'synced')
         self.assertIn(
             "shared",
             content.lower(),
-            "Shared projection: sync control must render 'Shared' label (kb-shzi.5 vocab)",
+            "Shared projection: sync control must render 'Shared' label (sb-shzi.5 vocab)",
         )
 
     def test_sync_control_diverged_state_shows_reset_only(self):
@@ -2649,7 +2649,7 @@ class ChannelIconTabsRenderTest(TestCase):
         canonical), the sync control row must render 'Reset' (the revert action)
         and must NOT render 'Customize' (which is the synced-state advance action).
         Also asserts the 'custom' state label is present.
-        kb-9f1h.6: single-control toggle folded from the original two-button row.
+        sb-9f1h.6: single-control toggle folded from the original two-button row.
         """
         from syndication.services import customize as svc_customize
 
@@ -2691,7 +2691,7 @@ class ChannelIconTabsRenderTest(TestCase):
         For an event workspace, the Switch tab must be the canonical anchor.
         With Switch + Telegram present, Switch tab must appear BEFORE Telegram
         in the DOM (not alphabetical-first), falsifying the old tautological check.
-        ADR-010 D1, kb-q4u9.3 review finding 4.
+        ADR-010 D1, sb-q4u9.3 review finding 4.
         """
         _make_listing_projection(self.conn_switch, self.event)
         _make_listing_projection(self.conn_tg, self.event)
@@ -2721,7 +2721,7 @@ class ChannelIconTabsRenderTest(TestCase):
 
     def test_event_workspace_has_no_generate_affordance(self):
         """
-        No platform-owned-LLM 'generate' affordance must appear (carried constraint kb-wz8m D-B).
+        No platform-owned-LLM 'generate' affordance must appear (carried constraint sb-wz8m D-B).
         """
         _make_listing_projection(self.conn_switch, self.event)
 
@@ -2743,7 +2743,7 @@ class ChannelIconTabsRenderTest(TestCase):
     def test_event_workspace_has_event_title_in_header(self):
         """
         The event hub page renders the event title in the page header (D1/D5).
-        After kb-ide0.1 D1: the event_facts HTMX-loader section is removed from
+        After sb-ide0.1 D1: the event_facts HTMX-loader section is removed from
         the hub body (facts are embedded in the Switch listing tab as edit-in-place
         inputs). The hub header instead shows the event title directly.
         """
@@ -2754,7 +2754,7 @@ class ChannelIconTabsRenderTest(TestCase):
         self.assertNotIn(
             "fragments/event_facts/",
             content,
-            "Event hub must NOT include the event-facts HTMX-loader after kb-ide0.1 D1 "
+            "Event hub must NOT include the event-facts HTMX-loader after sb-ide0.1 D1 "
             "(facts are now in the Switch listing tab edit-in-place card)",
         )
         # The event title is rendered in the slim header bar
@@ -2767,7 +2767,7 @@ class ChannelIconTabsRenderTest(TestCase):
 
 class PostHubViewTest(TestCase):
     """
-    kb-q4u9.3 item 6: Post-scoped hub/fragment views + routes.
+    sb-q4u9.3 item 6: Post-scoped hub/fragment views + routes.
 
     Today urls.py has only post-create, no post hub/fragment route.
     These tests verify the new post_hub and fragment_post_syndication views exist
@@ -2827,7 +2827,7 @@ class PostHubViewTest(TestCase):
 
     def test_post_workspace_renders_channel_tabs(self):
         """
-        kb-ide0.3: The post syndication fragment renders per-channel tabs in a
+        sb-ide0.3: The post syndication fragment renders per-channel tabs in a
         single top row (D5). The old "Source" header row is gone; the channel
         platform name appears as the tab label.
         """
@@ -2874,7 +2874,7 @@ class PostHubViewTest(TestCase):
 
 class VersionOpRedirectDispatchTest(TestCase):
     """
-    kb-q4u9.3 item 7: Version-op views must dispatch redirect by publishable type.
+    sb-q4u9.3 item 7: Version-op views must dispatch redirect by publishable type.
 
     Today the version-op POST views (version_copy_to, version_edit, version_reset,
     version_duplicate) hardcode redirect("syndication:event-hub", pk=event.pk).
@@ -3000,7 +3000,7 @@ class VersionOpRedirectDispatchTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# kb-q4u9.3 review findings: correctness + parity tests
+# sb-q4u9.3 review findings: correctness + parity tests
 # ---------------------------------------------------------------------------
 
 
@@ -3191,7 +3191,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
 
     def test_editor_shown_on_published_post_projection_with_dirty_then_republish_policy(self):
         """
-        kb-kgza.3 (ADR-016 D5 edit-after-publish): a published post projection with
+        sb-kgza.3 (ADR-016 D5 edit-after-publish): a published post projection with
         dirty_then_republish policy MUST show the editor (including the detach-and-edit
         form action). This replaces the old "Customize/Reset must NOT appear" assertion —
         published projections are now editable per ADR-016 D5.
@@ -3257,7 +3257,7 @@ class PostComposerPublishedStateGatingTest(TestCase):
 
     def test_duplicate_not_shown_on_any_post_projection(self):
         """
-        kb-shzi.5: Duplicate button removed from post composer sync bar (created an
+        sb-shzi.5: Duplicate button removed from post composer sync bar (created an
         orphan ContentVersion with no visible effect — confusing, purpose unclear).
         The version-duplicate endpoint still exists for programmatic use.
         """
@@ -3271,5 +3271,5 @@ class PostComposerPublishedStateGatingTest(TestCase):
         self.assertNotIn(
             version_dup_url,
             content,
-            "Duplicate button must NOT appear in post composer (removed in kb-shzi.5)",
+            "Duplicate button must NOT appear in post composer (removed in sb-shzi.5)",
         )

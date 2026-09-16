@@ -1,5 +1,5 @@
 """
-Tests for kb-58l: Admin keyboard shortcuts for review queues.
+Tests for sb-58l: Admin keyboard shortcuts for review queues.
 
 Covers:
 - EventAdmin.Media.js includes review_shortcuts.js

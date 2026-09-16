@@ -1,5 +1,5 @@
 """
-Studio backend foundations tests (kb-9f1h.1).
+Studio backend foundations tests (sb-9f1h.1).
 
 Three contract groups:
 (a) get_publishables_for_profile — merged Event+Post sorted updated_at desc,

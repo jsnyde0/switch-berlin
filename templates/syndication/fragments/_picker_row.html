@@ -9,7 +9,7 @@
                           normal (unlocked, not vanished) branch (topic leaves don't
                           need a redundant tier label beneath the forum cluster).
 
-  kb-sbhs.3 mutation wiring:
+  sb-sbhs.3 mutation wiring:
   - Checkbox triggers POST to destination-select; response swaps this partial OOB.
   - Hidden companion field ensures uncheck → selected=false is POSTed (not silently
     dropped — memory htmx-autosave-checkbox-uncheck-discard-needs-hidden-companion).
@@ -59,12 +59,12 @@
     </div>
   </div>
 {% else %}
-  {# Normal selectable row: checkbox wired to select endpoint (kb-sbhs.3) #}
+  {# Normal selectable row: checkbox wired to select endpoint (sb-sbhs.3) #}
   <div class="flex items-start gap-3"
        data-connection-pk="{{ conn.pk }}"
        data-picker-row="{{ conn.pk }}">
     {% comment %}
-      HTMX checkbox + hidden companion guard (kb-sbhs.3).
+      HTMX checkbox + hidden companion guard (sb-sbhs.3).
       The hidden field ensures deselect (unchecked) is always POSTed.
       When checked: both hidden (value=false) and checkbox (value=true) are submitted;
         the last value wins for HTMX POST body (checkbox overrides hidden because it
@@ -105,7 +105,7 @@
             <span class="kb-field-hint">{% trans "Agent" %}</span>
           {% endif %}
         {% endif %}
-        {# Overlay: friendly_name + theme_tags autosave (kb-sbhs.3) #}
+        {# Overlay: friendly_name + theme_tags autosave (sb-sbhs.3) #}
         <div class="mt-2 flex flex-col gap-1">
           <input type="text"
                  name="friendly_name"

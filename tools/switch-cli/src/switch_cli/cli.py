@@ -356,7 +356,7 @@ def list_projections(event_id: int, post_id: int):
 
 
 # ---------------------------------------------------------------------------
-# list-connections  (kb-k2ds.3 discoverability)
+# list-connections  (sb-k2ds.3 discoverability)
 # ---------------------------------------------------------------------------
 
 
@@ -381,7 +381,7 @@ def list_connections():
 
 
 # ---------------------------------------------------------------------------
-# enable-promotion  (kb-k2ds.3 — agent-reachable enable-for-promotion verb)
+# enable-promotion  (sb-k2ds.3 — agent-reachable enable-for-promotion verb)
 # ---------------------------------------------------------------------------
 
 
@@ -613,7 +613,7 @@ def telegram_distribute(message: str, dests: tuple):
 
     config_dir = _get_config_dir()
 
-    # Build a SwitchClient for placement reporting (kb-56c2.3 — C3a co-equal seam).
+    # Build a SwitchClient for placement reporting (sb-56c2.3 — C3a co-equal seam).
     # Fail loud on auth/config error before starting the Telegram session.
     try:
         switch_client = SwitchClient()

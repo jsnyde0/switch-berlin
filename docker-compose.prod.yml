@@ -1,13 +1,13 @@
 services:
   app:
     restart: unless-stopped
-    # kb-tel: bind to localhost only on the host. Caddy reverse_proxies to
+    # sb-tel: bind to localhost only on the host. Caddy reverse_proxies to
     # localhost:8000 so this is invisible to it. Defense in depth: blocks
     # reach from other docker bridges / processes on the VPS even if ufw is
     # misconfigured. Dev compose (base file, no overlay) keeps 0.0.0.0 for
     # LAN access from phones / pair-programming partners.
     #
-    # kb-bsp: !override drops the base file's "8000:8000" entry. Compose's
+    # sb-bsp: !override drops the base file's "8000:8000" entry. Compose's
     # default merge strategy for lists is concat, so without !override the
     # final container had BOTH bindings (0.0.0.0:8000 + 127.0.0.1:8000)
     # which raced and failed with "address already in use" on recreate.
@@ -29,7 +29,7 @@ services:
 
   db:
     restart: unless-stopped
-    # Forensic logging (kb-oam): csvlog captures all DDL+DML so we can
+    # Forensic logging (sb-oam): csvlog captures all DDL+DML so we can
     # reconstruct attacker actions after an incident. Default log_directory
     # is `log` inside PGDATA — persisted via the bind mount below.
     #

@@ -19,7 +19,7 @@ User = get_user_model()
 
 @pytest.fixture
 def approved_user(db):
-    """Authenticated vouched user (kb-m69.1: status replaces is_approved)."""
+    """Authenticated vouched user (sb-m69.1: status replaces is_approved)."""
     user = User.objects.create_user(username="tester", email="tester@example.com", password="testpass123")
     user.status = "vouched"
     user.save()
@@ -182,7 +182,7 @@ def test_submit_review_unapproved_user_returns_403(unapproved_user, organizer):
 def test_submit_review_invalid_rating_returns_200_with_error(client_logged_in, organizer):
     """Rating out of range returns 200 with inline error form (not a bare 400 page).
 
-    Updated by kb-ikj: validation errors must render inline within the form, not
+    Updated by sb-ikj: validation errors must render inline within the form, not
     return a bare 400 fragment that replaces the page chrome.
     """
     url = reverse("review-submit")

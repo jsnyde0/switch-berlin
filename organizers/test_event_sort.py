@@ -1,5 +1,5 @@
 """Tests for lowest_rated and most_reviewed event sort variants on the organizer
-detail page (bead kb-dwb).
+detail page (bead sb-dwb).
 
 TDD: written BEFORE the implementation.
 

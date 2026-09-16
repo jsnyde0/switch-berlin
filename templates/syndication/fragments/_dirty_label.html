@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-Single-source dirty-label snippet (kb-kgza.10).
+Single-source dirty-label snippet (sb-kgza.10).
 
 Renders the platform-aware dirty-state label: FetLife has no publishing API so
 the wording must reflect that the user must post manually; every other platform
@@ -16,7 +16,7 @@ Used at:
   - syndication/fragments/post_syndication.html     (tab-dot tooltip)
 
 ADR-008 D2: extraction justified — fifth caller (all five sites differed after
-kb-kgza.6 fixed _channel_editor.html but left the other four with generic copy).
+sb-kgza.6 fixed _channel_editor.html but left the other four with generic copy).
 ADR-008 D3: no surface that lies — FetLife "update the live post" is dishonest.
 {% endcomment %}
 {% if proj.connection.platform == 'fetlife' %}

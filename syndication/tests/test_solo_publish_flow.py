@@ -1,5 +1,5 @@
 """
-Tests for the solo publish flow (kb-ide0.2).
+Tests for the solo publish flow (sb-ide0.2).
 
 Contract under test (D6 from bead design):
 

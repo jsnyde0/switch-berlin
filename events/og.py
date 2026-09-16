@@ -1,5 +1,5 @@
 """
-OG-card image resolution for Switch events (kb-6d7o).
+OG-card image resolution for Switch events (sb-6d7o).
 
 Single resolution point per ADR-003 cheap-foresight: both the live event-page
 og:image tag (events/views.py event_detail) and the studio preview consume

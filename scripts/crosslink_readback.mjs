@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kb-9f1h.7 — context-aware cross-link browser read-back.
+ * sb-9f1h.7 — context-aware cross-link browser read-back.
  *
  * Tests the "Event hub ↗" link in BOTH contexts:
  * (A) IN-STUDIO: open /studio/, click Post row → composer swaps in #studio-main,

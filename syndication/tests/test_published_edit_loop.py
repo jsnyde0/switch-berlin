@@ -1,5 +1,5 @@
 """
-TDD tests for kb-kgza.3: published events/posts are editable and re-publish works.
+TDD tests for sb-kgza.3: published events/posts are editable and re-publish works.
 
 Contract (ADR-016 D5 edit-after-publish):
 1. GET a published event composer (listing projection): the editor INPUTS are present
@@ -513,7 +513,7 @@ class EventHubEditPublishedSwitchListingOOBTest(TestCase):
     The autosave form uses hx-swap="none" so HTMX discards the response body —
     OOB fragments are the ONLY path to the DOM.
 
-    Acceptance criteria (bead kb-nexw.2):
+    Acceptance criteria (bead sb-nexw.2):
     - The response body CONTAINS hx-swap-oob fragments for:
         #channel-dirty-<pk>  (dirty banner)
         #channel-cta-<pk>    (Re-publish CTA)

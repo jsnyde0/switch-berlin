@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.5: Open signup with Turnstile validation.
+TDD tests for sb-m69.5: Open signup with Turnstile validation.
 
 Per ADR-013 D2 (open signup path), ADR-014 D4 (Turnstile on public-facing forms),
 ADR-008 D3 (fail loud — no silent fallback).
@@ -50,7 +50,7 @@ def test_open_signup_form_inherits_allauth_fields():
 @override_settings(DEBUG=True)
 def test_signup_turnstile_bypassed_in_debug():
     """In DEBUG the widget is suppressed, so clean_turnstile_token must not flag
-    a missing token (no network call) — signup is submittable locally (kb-cyp)."""
+    a missing token (no network call) — signup is submittable locally (sb-cyp)."""
     from accounts.forms import OpenSignupForm
 
     form = OpenSignupForm(
@@ -68,7 +68,7 @@ def test_signup_turnstile_bypassed_in_debug():
 @override_settings(DEBUG=False, TURNSTILE_SECRET_KEY="")
 def test_signup_requires_turnstile_when_not_debug():
     """With DEBUG=False the gate is unchanged — a missing secret key fails loud
-    rather than bypassing (kb-cyp / ADR-014 D4)."""
+    rather than bypassing (sb-cyp / ADR-014 D4)."""
     from accounts.forms import OpenSignupForm
 
     form = OpenSignupForm(

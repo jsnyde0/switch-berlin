@@ -1,4 +1,4 @@
-"""Tests for following-as-filter on /events/ (bead kb-wdh0.3).
+"""Tests for following-as-filter on /events/ (bead sb-wdh0.3).
 
 D5: "From organizers you follow" section removed. Following is now a
 ?filter=following query param (sidebar toggle). The view no longer

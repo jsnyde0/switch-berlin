@@ -1,7 +1,7 @@
 {% load i18n %}
 {% comment %}
 Per-channel body editor + CTA block — shared between event_syndication.html
-and post_syndication.html (kb-kgza.9 extraction).
+and post_syndication.html (sb-kgza.9 extraction).
 
 Renders the full channel panel for one projection: shared-content indicator,
 status gate, body form, channel preview, dirty banner, and publish CTAs.
@@ -25,12 +25,12 @@ Context variables (required):
                           post_syndication passes "copy-body-post-" → "copy-body-post-{{ proj.pk }}"
   include_data_copy_body — bool; when True adds data-copy-body="{{ proj.pk }}" to the Copy button.
                            event_syndication passes True; post_syndication passes False.
-                           (Divergence note kb-kgza.9: the event composer button had this
+                           (Divergence note sb-kgza.9: the event composer button had this
                            data-attribute for test selection; post did not.)
   is_post_composer       — bool; when True uses "post" wording in textarea placeholders
                            ("Write your FetLife post…", "Write your post…").
                            When absent/False uses "listing" wording.
-                           (Divergence note kb-kgza.9: event uses "listing", post uses "post".)
+                           (Divergence note sb-kgza.9: event uses "listing", post uses "post".)
 
 Optional (event-composer-only):
   show_switch_event_form — bool; when True (and proj.connection.platform == 'switch'
@@ -41,12 +41,12 @@ Optional (event-composer-only):
   event                  — Event object (required when show_switch_event_form is True)
 
 Sub-region boundaries (LATER BEADS EDIT THESE):
-  (a) Status-gate region  ← kb-kgza.3 edits the guard condition
+  (a) Status-gate region  ← sb-kgza.3 edits the guard condition
       starts: {% if can_edit and proj.status == 'draft' %}
       ends:   {% endif %} (after the mb-7 div)
-  (b) Body-form region    ← kb-kgza.2 rewires the form action
+  (b) Body-form region    ← sb-kgza.2 rewires the form action
       the <form action="{% url 'syndication:version-edit' ... %}"> textarea form
-  (c) Publish + Re-publish CTA region  ← kb-kgza.3 / kb-kgza.6 edit labels/conditions
+  (c) Publish + Re-publish CTA region  ← sb-kgza.3 / sb-kgza.6 edit labels/conditions
       starts: {% if can_edit or can_publish %}
       ends:   {% endif %} (closing the CTA div)
 {% endcomment %}
@@ -69,9 +69,9 @@ Shows when this channel's CV is shared across multiple channels.{% endcomment %}
 {% endif %}
 {% endfor %}
 {% endif %}
-{% comment %}--- (a) STATUS-GATE REGION --- kb-kgza.3 edits this guard condition.
+{% comment %}--- (a) STATUS-GATE REGION --- sb-kgza.3 edits this guard condition.
 Original: can_edit and proj.status == 'draft'
-After kb-kgza.3: also allow published when editable=True (policy-gated from view).
+After sb-kgza.3: also allow published when editable=True (policy-gated from view).
 editable is computed in fragment_event_syndication / fragment_post_syndication from
 edit_after_publish_policy(platform) == 'dirty_then_republish'. The template never
 inlines policy logic (ADR-003 cheap foresight seam).{% endcomment %}
@@ -81,7 +81,7 @@ inlines policy logic (ADR-003 cheap foresight seam).{% endcomment %}
 {% comment %}Switch listing: event-composer-only path. Uses EventForm inputs inside a
       styled card (edit-in-place). Sync controls are separate from the event-edit form
       since they operate on the ContentVersion, not event fields.
-      F4 (kb-lprn lesson): three-state badge — must match _sync_bar.html.
+      F4 (sb-lprn lesson): three-state badge — must match _sync_bar.html.
       Switch is the canonical home (ADR-010 D1) so it is normally state (i).
       State (i)  canonical CV + sync_source NULL → "Shared"
       State (ii) sync_source SET (shares source CV) → "Synced from <peer> · follows source edits live"
@@ -92,7 +92,7 @@ State (iii) own CV + sync_source NULL      → "Custom"{% endcomment %}
 F3: count uses "Shared across N channels" wording (N = total sharers).{% endcomment %}
 <form method="post" action="{% url 'syndication:projection-customize' pk=proj.pk %}" hx-post="{% url 'syndication:projection-customize' pk=proj.pk %}" hx-target="{{ fragment_target }}" hx-swap="outerHTML">
 {% csrf_token %}
-{% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+{% comment %}sb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
 <input type="hidden" name="selected_pk" :value="selectedPk">
 <button type="submit" class="flex items-center gap-2 px-2.5 py-1.5 border border-white/12 hover:border-white/25 transition-colors group" title="{% trans 'Click to customize this channel independently' %}">
 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70 group-hover:bg-emerald-400/50 transition-colors shrink-0"></span>
@@ -110,7 +110,7 @@ F3: count uses "Shared across N channels" wording (N = total sharers).{% endcomm
 </button>
 </form>
 {% elif proj.sync_source %}
-{% comment %}State (ii): sync_source set — "Synced from <peer>" (live-follow, kb-s41r).
+{% comment %}State (ii): sync_source set — "Synced from <peer>" (live-follow, sb-s41r).
 Unusual for Switch (ADR-010 D1) but must render correctly if it occurs.
 Live-share — source's later edits DO propagate (ADR-016 D2 re-resolved 2026-06-09).{% endcomment %}
 <div class="flex items-center gap-2">
@@ -123,7 +123,7 @@ Live-share — source's later edits DO propagate (ADR-016 D2 re-resolved 2026-06
 </span>
 <form method="post" action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-target="{{ fragment_target }}" hx-swap="outerHTML">
 {% csrf_token %}
-{% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+{% comment %}sb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
 <input type="hidden" name="selected_pk" :value="selectedPk">
 <button type="submit" class="kb-mono text-[10px] uppercase tracking-[0.14em] text-base-content/30 hover:text-base-content/55 transition-colors" title="{% trans 'Reset to canonical content' %}">
 ↩ {% trans "Reset" %}
@@ -139,7 +139,7 @@ Live-share — source's later edits DO propagate (ADR-016 D2 re-resolved 2026-06
 </span>
 <form method="post" action="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-post="{% url 'syndication:projection-reset-to-canonical' pk=proj.pk %}" hx-target="{{ fragment_target }}" hx-swap="outerHTML">
 {% csrf_token %}
-{% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+{% comment %}sb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
 <input type="hidden" name="selected_pk" :value="selectedPk">
 <button type="submit" class="kb-mono text-[10px] uppercase tracking-[0.14em] text-amber-300/45 hover:text-amber-300/80 transition-colors" title="{% trans 'Reset to synced canonical content' %}">
 ↩ {% trans "Reset to synced" %}
@@ -148,7 +148,7 @@ Live-share — source's later edits DO propagate (ADR-016 D2 re-resolved 2026-06
 </div>
 {% endif %}
 </div>
-{% comment %}kb-y209.1: Typefully-aligned composer card.
+{% comment %}sb-y209.1: Typefully-aligned composer card.
 Autosave form handles all text/select/checkbox fields (hx-swap=none, debounced).
 Cover image uses a separate multipart form (cannot ride text autosave).
 Progressive disclosure sections (Alpine) surface secondary field groups.
@@ -229,7 +229,7 @@ on the incoming fragment automatically (HTMX htmx:afterSwap + Alpine MutationObs
 <p class="text-red-400 text-xs mt-0.5">{{ event_form.slug.errors|join:", " }}</p>
 {% endif %}
 </div>
-{% comment %}D-IA3 (kb-96tn.2): venue is now a visible inline-editable field.{% endcomment %}
+{% comment %}D-IA3 (sb-96tn.2): venue is now a visible inline-editable field.{% endcomment %}
 <div class="flex flex-col gap-1">
 <label class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/30" for="{{ event_form.venue.id_for_label }}">
 {{ event_form.venue.label }}
@@ -240,7 +240,7 @@ on the incoming fragment automatically (HTMX htmx:afterSwap + Alpine MutationObs
 {% endif %}
 </div>
 </div>
-{% comment %}--- Disclosure toggle strip --- kb-y209.1 progressive disclosure{% endcomment %}
+{% comment %}--- Disclosure toggle strip --- sb-y209.1 progressive disclosure{% endcomment %}
 <div class="flex flex-wrap gap-x-0 pt-0" style="border-top: 1px solid rgba(255,255,255,0.06)">
 <button type="button"
   @click="showPricing = !showPricing"
@@ -417,7 +417,7 @@ A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomm
 </div>
 </div>
 </form>
-{% comment %}--- Cover image: separate multipart form (cannot ride text autosave) --- kb-y209.1{% endcomment %}
+{% comment %}--- Cover image: separate multipart form (cannot ride text autosave) --- sb-y209.1{% endcomment %}
 <form method="post"
   action="{% url 'syndication:event-edit' pk=event.pk %}"
   hx-post="{% url 'syndication:event-edit' pk=event.pk %}"
@@ -449,26 +449,26 @@ These carry the current values silently so the cover-only POST doesn't wipe fiel
 </form>
 </div>
 {% else %}
-{% comment %}--- (b) BODY-FORM REGION --- kb-kgza.2 rewires the form action here.
+{% comment %}--- (b) BODY-FORM REGION --- sb-kgza.2 rewires the form action here.
       Non-Switch-listing: sync control bar + freeform textarea editor.
-      Single-source-of-truth via _sync_bar.html (kb-lprn Repair 1).
+      Single-source-of-truth via _sync_bar.html (sb-lprn Repair 1).
 The badge div carries id="sync-bar-proj-<pk>" so version_edit can OOB-swap it.{% endcomment %}
 <div class="flex items-center flex-wrap gap-x-3 gap-y-2 mb-5 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
 {% include "syndication/fragments/_sync_bar.html" with proj=proj fragment_target=fragment_target consumers_map=consumers_map only %}
-{% comment %}Cycle-guard picker (kb-ide0.4 bullet 6): only INDEPENDENT projections
+{% comment %}Cycle-guard picker (sb-ide0.4 bullet 6): only INDEPENDENT projections
 (sync_source IS NULL) are offerable as sync sources.{% endcomment %}
 {% if projection_rows|length > 1 %}
 {% include "syndication/fragments/_sync_picker.html" with proj=proj projection_rows=projection_rows fragment_target=fragment_target resync_id_prefix=resync_id_prefix only %}
 {% endif %}
 </div>
-{% comment %}channel-body-wrapper: stable OOB target for sibling body re-render (kb-ciqf).
+{% comment %}channel-body-wrapper: stable OOB target for sibling body re-render (sb-ciqf).
 The id is stable regardless of Alpine tab visibility (x-cloak hides parent panel
 but this div is still in the DOM). Sibling body OOB fragments swap this wrapper
 so non-active-tab channels update without a reload.{% endcomment %}
 <div id="channel-body-wrapper-{{ proj.pk }}">
 {% comment %}Bubble-as-editor — the styled textarea IS the platform-skinned
 preview surface. Autosave: hx-swap="none" + debounced trigger keeps focus intact.
-kb-kgza.2: Per-channel body form posts to projection-detach-and-edit (projection-keyed)
+sb-kgza.2: Per-channel body form posts to projection-detach-and-edit (projection-keyed)
 so editing a shared-canonical channel auto-detaches to its own CV (ADR-016 D2).
 The master/source tab body form stays on version-edit (CV-keyed, broadcasts).{% endcomment %}
 <form method="post" action="{% url 'syndication:projection-detach-and-edit' pk=proj.pk %}" hx-post="{% url 'syndication:projection-detach-and-edit' pk=proj.pk %}" hx-swap="none" hx-trigger="input changed delay:600ms" hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
@@ -476,17 +476,17 @@ The master/source tab body form stays on version-edit (CV-keyed, broadcasts).{% 
 {% comment %}Platform-skinned bubble container wraps the textarea.
 Each skin matches _channel_preview.html's visual treatment.{% endcomment %}
 {% if proj.connection.platform == 'telegram' %}
-{% comment %}Telegram: per-destination-type WYSIWYG surface (kb-6yyp D2).
+{% comment %}Telegram: per-destination-type WYSIWYG surface (sb-6yyp D2).
 CHANNEL (own/admin) → channel-post framing: channel name header, post body, no chat bubble.
 GROUP / SUPERGROUP / FORUM_TOPIC / NULL → group-message framing: chat bubble + link-preview card.
 ADR-016 D7 (FIRM): the styled textarea IS the editing surface — ONE surface, no split.{% endcomment %}
 {% if proj.connection.type == 'channel' %}
-{% comment %}kb-6yyp D2: Channel-post framing — own/admin channels.
+{% comment %}sb-6yyp D2: Channel-post framing — own/admin channels.
 Faithful Telegram dark theme (verified live, web.telegram.org/k):
 channel post = neutral dark-grey surface rgb(33,33,33) with white body text,
 NOT a blue box; Telegram blue (#3390ec) is the accent only (channel name + checks).
 Channel posts are flush (no tail). Avatar + channel name shown at top of post.
-kb-h0lc: added avatar + "Switch Berlin" sender name consistent with group-message treatment.{% endcomment %}
+sb-h0lc: added avatar + "Switch Berlin" sender name consistent with group-message treatment.{% endcomment %}
 <div data-testid="tg-channel-post" class="mb-5">
   {% comment %}Small destination header (which Telegram destination) above the post surface.{% endcomment %}
   {% if proj.connection.title or proj.connection.destination_id %}
@@ -517,10 +517,10 @@ kb-h0lc: added avatar + "Switch Berlin" sender name consistent with group-messag
   </div>
 </div>
 {% else %}
-{% comment %}kb-6yyp D2: Group-message framing — GROUP / SUPERGROUP / FORUM_TOPIC / NULL.
+{% comment %}sb-6yyp D2: Group-message framing — GROUP / SUPERGROUP / FORUM_TOPIC / NULL.
 Chat bubble + link-preview card as part of the WYSIWYG surface.
 NULL type (legacy / not yet synced) falls back here — safe default per ADR-008 D3.
-kb-h0lc: Render-as-it-lands = incoming framing (how the audience sees it).
+sb-h0lc: Render-as-it-lands = incoming framing (how the audience sees it).
 Incoming message: left-aligned dark-grey bubble, tail at bottom-LEFT, avatar bottom-left,
 "Switch Berlin" sender name in green at bubble top. NOT blue outgoing.{% endcomment %}
 <div data-testid="tg-group-message" class="mb-5">
@@ -551,7 +551,7 @@ Incoming message: left-aligned dark-grey bubble, tail at bottom-LEFT, avatar bot
                 class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
                 style="color: rgb(236 242 246); padding: 0; resize: vertical; field-sizing: content"
                 placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
-      {% comment %}kb-6yyp D2/D3: WYSIWYG link-preview card nests INSIDE the bubble
+      {% comment %}sb-6yyp D2/D3: WYSIWYG link-preview card nests INSIDE the bubble
       (faithful: Telegram renders the webpage preview within the sender's bubble).
       On incoming dark-grey bubble: Telegram blue left-bar accent, near-white title,
       dimmed description. Image uses the shared card_image_url resolver (events/og.py:18).
@@ -710,7 +710,7 @@ ADR-016 D7: the styled <textarea name="body"> IS the editing surface — one sur
 </div>
 {% endif %}
 {% comment %}D6: No explicit Save button — autosave handles persistence.
-        D-IA4 (kb-96tn.3): "Edited"/"Agent" provenance labels removed from inline —
+        D-IA4 (sb-96tn.3): "Edited"/"Agent" provenance labels removed from inline —
 status is now surfaced via the channel pill's status dot (ADR-016 D5).{% endcomment %}
 <div class="flex items-center gap-3 pt-3"
      style="border-top: 1px solid rgba(255,255,255,0.06)">
@@ -720,16 +720,16 @@ status is now surfaced via the channel pill's status dot (ADR-016 D5).{% endcomm
 </div>
 </form>
 </div>
-{% comment %}end channel-body-wrapper (kb-ciqf OOB target){% endcomment %}
+{% comment %}end channel-body-wrapper (sb-ciqf OOB target){% endcomment %}
 {% endif %}
 </div>
 {% endif %}
 {% comment %}--- end (a) STATUS-GATE REGION ---{% endcomment %}
 {% comment %}Render_error + non-draft preview via _channel_preview.html.
-kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endcomment %}
+sb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endcomment %}
 {% if render_error and proj.status == 'draft' %}
   {% comment %}ADR-008 D3: render failure must be structurally distinct.
-  Finding 2 (kb-6yyp review): _channel_preview.html renders here only the error panel
+  Finding 2 (sb-6yyp review): _channel_preview.html renders here only the error panel
   (its render_error=True branch), NOT a content preview — no duplicate content surface
   alongside the editable textarea. D7's "no separate read-only preview" is satisfied:
   the error panel IS structurally distinct from a content preview (ADR-008 D3 intent). #}{% endcomment %}
@@ -741,10 +741,10 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
   </div>
 {% elif proj.status != 'draft' %}
   {% comment %}Published / ready / failed: content appears ONCE.
-  When editable (kb-kgza.3 policy gate): only the textarea (in the STATUS-GATE block
-  above) renders — suppress the read-only preview to avoid a stale duplicate (kb-kgza.10 C).
+  When editable (sb-kgza.3 policy gate): only the textarea (in the STATUS-GATE block
+  above) renders — suppress the read-only preview to avoid a stale duplicate (sb-kgza.10 C).
   When NOT editable (e.g. ready/failed — no edit policy): still show the preview.
-  The old 'Body' label + raw text duplicate is removed (kb-96tn.2).{% endcomment %}
+  The old 'Body' label + raw text duplicate is removed (sb-96tn.2).{% endcomment %}
   {% if not editable %}
     <div class="mb-6">
       <div style="background: rgba(255,255,255,0.025);
@@ -753,9 +753,9 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
       </div>
     </div>
   {% endif %}
-  {% comment %}kb-96tn.5: dirty banner container — id="channel-dirty-<pk>" for OOB-swap
+  {% comment %}sb-96tn.5: dirty banner container — id="channel-dirty-<pk>" for OOB-swap
   by version_edit (no-reload dirty update). The inner div is conditional on is_dirty.
-  kb-kgza.10 A: banner now uses _dirty_label.html snippet (single source, platform-aware).{% endcomment %}
+  sb-kgza.10 A: banner now uses _dirty_label.html snippet (single source, platform-aware).{% endcomment %}
   <div id="channel-dirty-{{ proj.pk }}">
     {% if row.is_dirty %}
       <div class="flex items-start gap-2 px-3 py-2.5 mb-4"
@@ -769,7 +769,7 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
       </div>
     {% endif %}
   </div>
-  {% comment %}kb-kgza.6: per-channel published status note.
+  {% comment %}sb-kgza.6: per-channel published status note.
   FetLife: no publishing API — content must be posted manually.
   Switch own-page: publishing makes the event live on switch.berlin (DB-driven, real).
   Telegram: publishing calls the Bot API and sends to the channel (real).
@@ -798,8 +798,8 @@ kb-96tn.2: Kill the BODY+PREVIEW double-render — content appears ONCE.{% endco
     {% endif %}
   {% endif %}
 {% endif %}
-{% comment %}--- (c) PUBLISH + RE-PUBLISH CTA REGION --- kb-kgza.3 / kb-kgza.6 edit here.
-kb-kgza.10 B: wrapped in #channel-cta-<pk> for OOB-swap by the dirty-state OOB
+{% comment %}--- (c) PUBLISH + RE-PUBLISH CTA REGION --- sb-kgza.3 / sb-kgza.6 edit here.
+sb-kgza.10 B: wrapped in #channel-cta-<pk> for OOB-swap by the dirty-state OOB
 partial (_channel_dirty_oob.html) so Re-publish CTA appears after a live dirty
 edit without a full page reload.{% endcomment %}
 {% if can_edit or can_publish %}
@@ -809,7 +809,7 @@ edit without a full page reload.{% endcomment %}
            style="border-top: 1px solid rgba(255,255,255,0.07)">
         {% comment %}D6: One Publish / Re-publish CTA — drives internal draft→ready→published
         sequence or re-freezes dirty published projections. No separate Approve gate.{% endcomment %}
-        {% comment %}kb-96tn.5: Re-publish CTA for dirty published projections.{% endcomment %}
+        {% comment %}sb-96tn.5: Re-publish CTA for dirty published projections.{% endcomment %}
         <form method="post"
               action="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
               hx-post="{% url 'syndication:projection-direct-publish' pk=proj.pk %}"
@@ -831,7 +831,7 @@ edit without a full page reload.{% endcomment %}
               hx-target="{{ fragment_target }}"
               hx-swap="outerHTML">
           {% csrf_token %}
-          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          {% comment %}sb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
           <input type="hidden" name="selected_pk" :value="selectedPk">
           <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
         </form>
@@ -845,7 +845,7 @@ edit without a full page reload.{% endcomment %}
               hx-target="{{ fragment_target }}"
               hx-swap="outerHTML">
           {% csrf_token %}
-          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          {% comment %}sb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
           <input type="hidden" name="selected_pk" :value="selectedPk">
           <button type="submit" class="kb-btn text-[9px] px-4 py-2.5 min-h-[44px]">{% trans "Publish" %}</button>
         </form>
@@ -865,7 +865,7 @@ edit without a full page reload.{% endcomment %}
               hx-target="{{ fragment_target }}"
               hx-swap="outerHTML">
           {% csrf_token %}
-          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          {% comment %}sb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
           <input type="hidden" name="selected_pk" :value="selectedPk">
           <button type="submit" class="kb-btn-quiet text-[9px] min-h-[44px]">{% trans "Mark published" %}</button>
         </form>
@@ -880,7 +880,7 @@ edit without a full page reload.{% endcomment %}
               hx-target="{{ fragment_target }}"
               hx-swap="outerHTML">
           {% csrf_token %}
-          {% comment %}kb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
+          {% comment %}sb-shzi.6 BUG: thread currently-selected tab pk so the fragment re-opens it.{% endcomment %}
           <input type="hidden" name="selected_pk" :value="selectedPk">
           <button type="submit"
                   class="kb-btn-secondary text-[9px] px-4 py-2.5 border-rose-400/30 text-rose-400/70 hover:text-rose-400 min-h-[44px]">

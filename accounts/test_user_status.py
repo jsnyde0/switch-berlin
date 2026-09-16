@@ -1,4 +1,4 @@
-"""Tests for kb-m69.1: User.status ENUM replacing is_approved.
+"""Tests for sb-m69.1: User.status ENUM replacing is_approved.
 
 Also covers cheap-foresight fields (ADR-003).
 TDD: all tests were written before implementation.

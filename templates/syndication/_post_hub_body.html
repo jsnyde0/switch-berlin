@@ -2,7 +2,7 @@
 {% comment %}
 Shared post hub body — included by BOTH post_hub.html (full page) and
 post_hub_fragment.html (layout-less HX swap target). One source of truth;
-neither the full page nor the fragment can diverge (kb-9f1h.3 carry-forward).
+neither the full page nor the fragment can diverge (sb-9f1h.3 carry-forward).
 
 Context variables required:
   post         — Post instance
@@ -13,7 +13,7 @@ Context variables required:
                  the link is a plain <a href> — ADR-008 D3: no silent fallback.
 {% endcomment %}
 <div class="w-full pt-4 pb-16" x-data="{}">
-  {% comment %}kb-96tn.9: The composer bar (pills · breadcrumb · publish) now lives
+  {% comment %}sb-96tn.9: The composer bar (pills · breadcrumb · publish) now lives
   INSIDE the post_syndication fragment below — where Alpine x-data + projection
   data are both available. The shell renders no separate bar.{% endcomment %}
   <section id="post-syndication"

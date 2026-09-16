@@ -2,7 +2,7 @@
 Integration tests for Phase 0.4 — cross-feature E2E walkthrough, privacy
 enforcement, invite codes, middleware, CSRF, and kill-switches.
 
-This file covers bead kb-2eu.6. It tests CROSS-FEATURE interactions that span
+This file covers bead sb-2eu.6. It tests CROSS-FEATURE interactions that span
 multiple beads and are not covered by per-bead test files.
 
 Test groups:
@@ -159,9 +159,9 @@ def test_signup_open_with_valid_code(client, valid_invite_code):
 
 @pytest.mark.django_db
 def test_signup_open_without_code(client):
-    """GET /accounts/signup/ renders the form — open signup path (kb-m69.5).
+    """GET /accounts/signup/ renders the form — open signup path (sb-m69.5).
 
-    kb-m69.5 replaced the invite-gated path with an always-open signup using
+    sb-m69.5 replaced the invite-gated path with an always-open signup using
     Turnstile CAPTCHA. The form IS rendered without any invite code.
     """
     response = client.get("/accounts/signup/")
@@ -173,8 +173,8 @@ def test_signup_open_without_code(client):
 @pytest.mark.django_db
 @pytest.mark.skip(
     reason=(
-        "Invite-code redemption is part of the vouched-signup path (kb-m69.7). "
-        "OpenSignupAdapter (kb-m69.5) does not process invite codes."
+        "Invite-code redemption is part of the vouched-signup path (sb-m69.7). "
+        "OpenSignupAdapter (sb-m69.5) does not process invite codes."
     )
 )
 def test_invite_code_redeemed_on_signup(client, valid_invite_code):
@@ -196,7 +196,7 @@ def test_invite_code_redeemed_on_signup(client, valid_invite_code):
 
     valid_invite_code.refresh_from_db()
     # NOTE: This test is skipped — the canonical check would use used_by (not
-    # redeemed_by, which was deleted in kb-m69.12 per ADR-008 D1).
+    # redeemed_by, which was deleted in sb-m69.12 per ADR-008 D1).
     assert valid_invite_code.used_by is not None
 
     # Newly created user should be in 'open' status (not vouched)
@@ -210,14 +210,14 @@ def test_invite_code_redeemed_on_signup(client, valid_invite_code):
 @pytest.mark.django_db
 @pytest.mark.skip(
     reason=(
-        "Invite-code rejection is part of the vouched-signup path (kb-m69.7). "
-        "OpenSignupAdapter (kb-m69.5) does not gate on invite codes."
+        "Invite-code rejection is part of the vouched-signup path (sb-m69.7). "
+        "OpenSignupAdapter (sb-m69.5) does not gate on invite codes."
     )
 )
 def test_redeemed_code_rejected(client, staff_user):
     """GET /accounts/signup/?code=<used> does not render a signup form."""
     # NOTE: This test is skipped. The canonical field is used_by (redeemed_by was
-    # deleted in kb-m69.12 per ADR-008 D1).
+    # deleted in sb-m69.12 per ADR-008 D1).
     already_used = InviteCode.objects.create(created_by=staff_user, used_by=staff_user, used_at=tz.now())
     response = client.get(f"/accounts/signup/?code={already_used.code}")
     content = response.content.decode()
@@ -227,8 +227,8 @@ def test_redeemed_code_rejected(client, staff_user):
 @pytest.mark.django_db
 @pytest.mark.skip(
     reason=(
-        "Expired invite-code rejection is part of the vouched-signup path (kb-m69.7). "
-        "OpenSignupAdapter (kb-m69.5) does not gate on invite codes."
+        "Expired invite-code rejection is part of the vouched-signup path (sb-m69.7). "
+        "OpenSignupAdapter (sb-m69.5) does not gate on invite codes."
     )
 )
 def test_expired_code_rejected(client, staff_user):
@@ -532,8 +532,8 @@ def test_map_enabled_false_hides_map(client, staff_user, published_event):
 @pytest.mark.django_db
 @pytest.mark.skip(
     reason=(
-        "INVITES_ENABLED kill-switch is part of the vouched-signup path (kb-m69.7). "
-        "OpenSignupAdapter (kb-m69.5) does not check INVITES_ENABLED flag."
+        "INVITES_ENABLED kill-switch is part of the vouched-signup path (sb-m69.7). "
+        "OpenSignupAdapter (sb-m69.5) does not check INVITES_ENABLED flag."
     )
 )
 def test_invites_enabled_false_rejects_signup(client, valid_invite_code):

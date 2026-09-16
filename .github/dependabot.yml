@@ -1,6 +1,6 @@
-# Dependabot config — kb-i9s.
+# Dependabot config — sb-i9s.
 #
-# Keeps GitHub Actions SHA pins (kb-yr5) fresh by opening weekly PRs when
+# Keeps GitHub Actions SHA pins (sb-yr5) fresh by opening weekly PRs when
 # upstream actions release patched versions. Each PR is reviewable + revertable
 # — automation surface, not auto-merge.
 #

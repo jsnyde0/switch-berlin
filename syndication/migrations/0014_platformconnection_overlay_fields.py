@@ -13,11 +13,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='platformconnection',
             name='friendly_name',
-            field=models.CharField(blank=True, default=None, help_text='Display-only friendly name override for this destination (kb-sbhs.1). NULL = no override; the picker falls back to `title`. Never message content. Never replaces connection identity (ADR-016 D4). `title` remains the synced source-of-truth — do NOT mutate or replace it.', max_length=300, null=True),
+            field=models.CharField(blank=True, default=None, help_text='Display-only friendly name override for this destination (sb-sbhs.1). NULL = no override; the picker falls back to `title`. Never message content. Never replaces connection identity (ADR-016 D4). `title` remains the synced source-of-truth — do NOT mutate or replace it.', max_length=300, null=True),
         ),
         migrations.AddField(
             model_name='platformconnection',
             name='theme_tags',
-            field=models.JSONField(blank=True, default=list, help_text="Organizer-defined theme tags for the picker tag-filter (kb-sbhs.1). Stored as a JSON array of strings (e.g. ['munich', 'queer']). Default = [] (empty list — additive-only, ADR-008 D3). Never message content. Audience-ready shape (ADR-003): a future Audiences feature reads this without reshaping."),
+            field=models.JSONField(blank=True, default=list, help_text="Organizer-defined theme tags for the picker tag-filter (sb-sbhs.1). Stored as a JSON array of strings (e.g. ['munich', 'queer']). Default = [] (empty list — additive-only, ADR-008 D3). Never message content. Audience-ready shape (ADR-003): a future Audiences feature reads this without reshaping."),
         ),
     ]

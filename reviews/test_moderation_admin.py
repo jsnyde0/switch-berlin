@@ -1,5 +1,5 @@
 """
-TDD tests for bead kb-8qn.7:
+TDD tests for bead sb-8qn.7:
   - FlagAdmin change_view: correct action buttons per target type
   - process_action: ModerationAction creation + side effects
   - process_action: per-target-type action allowlist enforcement (400 on invalid)

@@ -1,5 +1,5 @@
 """
-Foundation tests for kb-i45.1 (updated by kb-m69.1):
+Foundation tests for sb-i45.1 (updated by sb-m69.1):
   - custom User model (AbstractUser subclass with status, approved_at, approved_by)
   - AUTH_USER_MODEL = 'accounts.User'
   - LocaleMiddleware in MIDDLEWARE
@@ -106,7 +106,7 @@ def test_user_model_is_custom():
 
 @pytest.mark.django_db
 def test_user_has_status_field():
-    """User model must have status CharField defaulting to 'open' (kb-m69.1)."""
+    """User model must have status CharField defaulting to 'open' (sb-m69.1)."""
     from django.contrib.auth import get_user_model
 
     User = get_user_model()

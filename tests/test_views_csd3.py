@@ -1,5 +1,5 @@
 """
-TDD tests for kb-csd.3: event_detail and organizer_profile views.
+TDD tests for sb-csd.3: event_detail and organizer_profile views.
 
 RED phase: these tests will fail until the views and templates are implemented.
 """

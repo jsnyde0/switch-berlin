@@ -1,5 +1,5 @@
 """
-TDD tests for the three sync UX behaviors wired in kb-ide0.4 (view/template level).
+TDD tests for the three sync UX behaviors wired in sb-ide0.4 (view/template level).
 
 Contract groups:
 (J) Detach-on-edit (acceptance bullet 4)
@@ -13,7 +13,7 @@ Contract groups:
     - The template must carry Alpine x-data state for the "Discard edits?"
       confirm modal; the modal trigger must appear for synced channels that
       have their own edits (state iii — custom).
-(M) OOB sync-bar update on autosave (kb-lprn)
+(M) OOB sync-bar update on autosave (sb-lprn)
     - POST to version-edit (the autosave endpoint) must return an
       hx-swap-oob="true" sync-bar fragment so the badge updates from the
       server's truth after the save round-trip — NO optimistic client flip.
@@ -110,7 +110,7 @@ def _make_promotion_projection(conn, post, cv, sync_source=None):
 
 class DetachOnEditEventComposerTest(TestCase):
     """
-    kb-s41r (live-share): A follower projection in state (ii) (shares source's CV,
+    sb-s41r (live-share): A follower projection in state (ii) (shares source's CV,
     sync_source NOT NULL) that edits its own per-channel body must:
     1. Detach — fork to its own independent CV (clear sync_source).
     2. Re-render the event_syndication fragment showing "Custom" indicator.
@@ -146,7 +146,7 @@ class DetachOnEditEventComposerTest(TestCase):
         )
         self.source_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
 
-        # kb-s41r live-share: FetLife SHARES canonical CV (not its own snapshot CV)
+        # sb-s41r live-share: FetLife SHARES canonical CV (not its own snapshot CV)
         self.fl_proj = _make_listing_projection(
             self.conn_fetlife, self.event, self.canonical_cv, sync_source=self.source_proj
         )
@@ -209,7 +209,7 @@ class DetachOnEditEventComposerTest(TestCase):
 
 class DetachOnEditPostComposerTest(TestCase):
     """
-    kb-s41r (live-share): A post-composer follower projection in state (ii) (shares
+    sb-s41r (live-share): A post-composer follower projection in state (ii) (shares
     source's CV, sync_source NOT NULL) that edits its own per-channel body must:
     1. Clear sync_source (detach to state iii).
     2. Re-render the post_syndication fragment showing "Custom" indicator.
@@ -248,7 +248,7 @@ class DetachOnEditPostComposerTest(TestCase):
         # Telegram is the "source" projection (on canonical CV; no sync_source itself)
         self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.source_cv)
 
-        # kb-s41r live-share: FetLife SHARES telegram's CV (same row)
+        # sb-s41r live-share: FetLife SHARES telegram's CV (same row)
         self.fl_proj = _make_promotion_projection(
             self.conn_fetlife, self.post, self.source_cv, sync_source=self.tg_proj
         )
@@ -607,7 +607,7 @@ class DiscardConfirmModalPostComposerTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# (M) OOB sync-bar update on autosave — kb-lprn
+# (M) OOB sync-bar update on autosave — sb-lprn
 # ---------------------------------------------------------------------------
 
 
@@ -620,7 +620,7 @@ class OOBSyncBarOnAutosaveDetachTest(TestCase):
     - A sync-bar element keyed by projection pk (id="sync-bar-proj-<pk>")
     - "Custom" text inside that OOB fragment (the server confirms detach)
 
-    kb-s41r live-share: setup uses follower sharing canonical CV (not own snapshot CV).
+    sb-s41r live-share: setup uses follower sharing canonical CV (not own snapshot CV).
     The correct detach path for a follower is projection_detach_and_edit (per-projection
     PK endpoint), NOT version-edit on the shared CV (that's the master path).
 
@@ -650,7 +650,7 @@ class OOBSyncBarOnAutosaveDetachTest(TestCase):
         )
         self.source_proj = _make_listing_projection(self.conn_switch, self.event, self.canonical_cv)
 
-        # kb-s41r live-share: FetLife SHARES canonical CV (not own snapshot CV)
+        # sb-s41r live-share: FetLife SHARES canonical CV (not own snapshot CV)
         self.fl_proj = _make_listing_projection(
             self.conn_fetlife, self.event, self.canonical_cv, sync_source=self.source_proj
         )
@@ -816,7 +816,7 @@ class OOBSyncBarOnAutosavePostDetachTest(TestCase):
     - "Custom" badge text (server confirms detach after edit)
     - The POST fragment target "#post-syndication" in the OOB fragment
 
-    kb-s41r live-share: setup uses follower sharing telegram's CV (not own snapshot CV).
+    sb-s41r live-share: setup uses follower sharing telegram's CV (not own snapshot CV).
     Under live-share, follower edits via projection_detach_and_edit.
 
     The test covers the OOB response path. A separate inline assertion verifies
@@ -862,7 +862,7 @@ class OOBSyncBarOnAutosavePostDetachTest(TestCase):
         # Telegram projection: state (i) — on canonical CV (the "source")
         self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.canonical_cv)
 
-        # kb-s41r live-share: FetLife SHARES telegram's CV (same row, not own snapshot)
+        # sb-s41r live-share: FetLife SHARES telegram's CV (same row, not own snapshot)
         self.fl_proj = _make_promotion_projection(
             self.conn_fetlife,
             self.post,
@@ -942,7 +942,7 @@ class PostInlineSyncBarStateIITest(TestCase):
 
     After Repair 1 (shared _sync_bar.html partial with three states), the inline
     must render "Synced from telegram" for a state-(ii) telegram-sourced FetLife projection.
-    (Label updated to "Synced from" by kb-s41r — live-follow semantics.)
+    (Label updated to "Synced from" by sb-s41r — live-follow semantics.)
 
     Assertions on response.content (NOT response.context).
     """
@@ -982,7 +982,7 @@ class PostInlineSyncBarStateIITest(TestCase):
         # Telegram: state (i) — shares canonical CV
         self.tg_proj = _make_promotion_projection(self.conn_telegram, self.post, self.canonical_cv)
 
-        # kb-s41r live-share: FetLife SHARES telegram's canonical CV (state ii)
+        # sb-s41r live-share: FetLife SHARES telegram's canonical CV (state ii)
         self.fl_proj = _make_promotion_projection(
             self.conn_fetlife,
             self.post,
@@ -1000,7 +1000,7 @@ class PostInlineSyncBarStateIITest(TestCase):
         Falsifiable: before Repair 1 (two-branch post inline), the FetLife projection
         in state (ii) falls into the else-branch and renders "Custom". After Repair 1
         (shared three-state partial), it renders "Synced from telegram".
-        (Label updated to "Synced from" by kb-s41r — live-follow semantics.)
+        (Label updated to "Synced from" by sb-s41r — live-follow semantics.)
         """
         url = reverse("syndication:fragment-post-syndication", kwargs={"pk": self.post.pk})
         response = self.client.get(url)
@@ -1035,13 +1035,13 @@ class PostInlineSyncBarStateIITest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# FIX 1 (kb-s41r) — master edit must NOT detach followers (view-layer)
+# FIX 1 (sb-s41r) — master edit must NOT detach followers (view-layer)
 # ---------------------------------------------------------------------------
 
 
 class MasterEditDoesNotDetachFollowersTest(TestCase):
     """
-    FIX 1 (kb-s41r): POSTing to version-edit on the MASTER/SOURCE content version
+    FIX 1 (sb-s41r): POSTing to version-edit on the MASTER/SOURCE content version
     must NOT detach follower projections. Under live-share, followers share the
     source's CV row — editing the source broadcasts to all sharers without clearing
     their sync_source.
@@ -1165,13 +1165,13 @@ class MasterEditDoesNotDetachFollowersTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# FIX 2 (kb-s41r) — source channel detach-and-edit brings followers along
+# FIX 2 (sb-s41r) — source channel detach-and-edit brings followers along
 # ---------------------------------------------------------------------------
 
 
 class SourceDetachAndEditBringsFollowersAlongTest(TestCase):
     """
-    FIX 2 (kb-s41r): when the SOURCE channel (B) is edited via
+    FIX 2 (sb-s41r): when the SOURCE channel (B) is edited via
     projection_detach_and_edit (it shares a CV with its own follower A), B forks
     to a new CV. A must be re-pointed at B's NEW CV so A continues to follow B's
     latest content. A must NOT be left on B's OLD (stale) CV.

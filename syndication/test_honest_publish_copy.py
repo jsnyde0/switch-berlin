@@ -1,5 +1,5 @@
 """
-Tests for honest publish copy — kb-kgza.6.
+Tests for honest publish copy — sb-kgza.6.
 
 Acceptance:
 - FetLife published channel: does NOT assert external delivery; positively states
@@ -20,14 +20,14 @@ Honest copy decisions (per investigation of services.py + adapters.py):
   posting is not automated.
 - Telegram: publish_telegram_promotion IS called and sends to the Bot API.
   Publishing is real when credentials are configured. No false-success text needed.
-  (Telegram adapter status is WIRED — contradicts the kb-a4u memory which was
-   written before kb-wz8m.4 closed the kb-jgda gap. This finding is reported.)
+  (Telegram adapter status is WIRED — contradicts the sb-a4u memory which was
+   written before sb-wz8m.4 closed the sb-jgda gap. This finding is reported.)
 - Switch own-page: publish_switch_own_page IS called, event becomes live on
   switch.berlin (DB-driven render, no external API needed). Publishing IS real.
 
 Per-channel copy implemented in _channel_editor.html CTA region (sub-region c).
 
-TDD discipline: tests written BEFORE template changes (ADR-016, kb-kgza.6).
+TDD discipline: tests written BEFORE template changes (ADR-016, sb-kgza.6).
 Tests assert on response.content.decode() NOT response.context (hollow-test
 prevention per memory django-view-test-context-vs-content-hollow).
 """
@@ -212,7 +212,7 @@ class FetLifePublishedEventComposerCopyTest(TestCase):
     attestation path (transition_status only). The publish button in the UI
     marks the content as published internally, but nothing is posted to FetLife.
 
-    Harness target for kb-kgza.6:
+    Harness target for sb-kgza.6:
     - Negative: no text claiming it was "posted to FetLife" or "live on FetLife".
     - Positive: concrete honest text present (e.g. "FetLife has no publishing API"
       or "post manually on FetLife").

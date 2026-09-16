@@ -1,4 +1,4 @@
-# Generated for kb-6d7o.2: add publish_rev to PlatformProjection
+# Generated for sb-6d7o.2: add publish_rev to PlatformProjection
 
 from django.db import migrations, models
 

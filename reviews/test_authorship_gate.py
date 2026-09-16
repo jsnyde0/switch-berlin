@@ -1,4 +1,4 @@
-"""Tests for review authorship gate — step-7b (kb-8qn.10).
+"""Tests for review authorship gate — step-7b (sb-8qn.10).
 
 Gate logic:
 - Template only shows the review form when user_has_went_attendance=True

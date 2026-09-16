@@ -1,4 +1,4 @@
-# Migration for kb-m69.4: Profile.verified_domain field
+# Migration for sb-m69.4: Profile.verified_domain field
 #
 # Per ADR-014 D2 (verified_domain admin-set, fast-path).
 # Schema migration only — no backfill needed (new optional field, defaults to NULL).

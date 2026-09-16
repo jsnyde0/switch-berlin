@@ -1,5 +1,5 @@
 """
-TDD tests for the names/tags overlay on PlatformConnection (kb-sbhs.1).
+TDD tests for the names/tags overlay on PlatformConnection (sb-sbhs.1).
 
 These two additive fields decorate a PlatformConnection for display and
 theme-tag filtering — never message content, never replacing connection identity.

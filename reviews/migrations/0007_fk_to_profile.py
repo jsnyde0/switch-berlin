@@ -1,4 +1,4 @@
-# Migration for kb-izj: Update FK references from organizers.Organizer → organizers.Profile
+# Migration for sb-izj: Update FK references from organizers.Organizer → organizers.Profile
 # Django's RenameModel handles the underlying DB constraint rename, but Django's
 # migration framework still needs to record the FK target change in each app.
 

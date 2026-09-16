@@ -1,7 +1,7 @@
 """
 Round-trip test: CLI pairing flow → create-event → event reachable via ORM + API GET + web hub.
 
-Acceptance for kb-a4u.7:
+Acceptance for sb-a4u.7:
 - switch-cli pair <pairing-token> redeems the token and stores the Bearer key.
 - switch-cli create-event ... creates an Event via the real HTTP API.
 - That same Event is verifiable via:
@@ -19,7 +19,7 @@ Auth chain exercised end-to-end per ADR-016 D3 v0 pairing mechanic:
   4. CLI posts to /api/events/ with identity token.
   5. Test verifies the event in three ways (ORM, API, web).
 
-NOTE: kb-a4u.9 (co-equal handler introspection) is OUT OF SCOPE here.
+NOTE: sb-a4u.9 (co-equal handler introspection) is OUT OF SCOPE here.
 This test only proves "CLI-created event is reachable via web + API".
 """
 

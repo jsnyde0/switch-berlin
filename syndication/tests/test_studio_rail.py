@@ -1,5 +1,5 @@
 """
-Studio rail tests (kb-9f1h.3).
+Studio rail tests (sb-9f1h.3).
 
 Assertions are on response.content (NOT response.context — hollow per memory).
 
@@ -11,7 +11,7 @@ Contract groups:
 (d) Active row carries the active-state class when the current path matches.
 (e) Zero-publishables claimant sees the empty-state CTA, never a blank list.
 (f) Partial-body extraction regression: event_hub_fragment + post_hub_fragment
-    still render correctly after the shared-body refactor (kb-9f1h.3 task 6).
+    still render correctly after the shared-body refactor (sb-9f1h.3 task 6).
 
 canonical_refs:
 - ADR-008 D3 (visible empty-state, no dead-end)
@@ -128,7 +128,7 @@ class PostRowSubtitleTest(TestCase):
 
     The separators must NOT be collapsed to '·↳' or otherwise mutated by
     djlint or template rendering (the djlint-reformat-mutates-rendered-output
-    caveat from the kb-9f1h design; caught only by a content assertion).
+    caveat from the sb-9f1h design; caught only by a content assertion).
     """
 
     def setUp(self):
@@ -192,7 +192,7 @@ class RowHtmxAttributesTest(TestCase):
     - hx-push-url pointing to the REAL composer path (not a fragments/ endpoint)
 
     Assertions are on response.content (static attribute-presence, not live
-    window.location — that is kb-9f1h.5's gate per the .3/.4 scope boundary).
+    window.location — that is sb-9f1h.5's gate per the .3/.4 scope boundary).
     """
 
     def setUp(self):
@@ -282,7 +282,7 @@ class ActiveRowTest(TestCase):
 
     The active state is rendered server-side (is_active="true") and also
     via Alpine (x-data active binding) — we assert the server-side attribute
-    presence here (static altitude per kb-9f1h.3 scope boundary).
+    presence here (static altitude per sb-9f1h.3 scope boundary).
     """
 
     def setUp(self):
@@ -399,12 +399,12 @@ class EmptyStateCTATest(TestCase):
 
 class SharedBodyPartialRegressionTest(TestCase):
     """
-    After the shared-body extraction (kb-9f1h.3 carry-forward task 6):
+    After the shared-body extraction (sb-9f1h.3 carry-forward task 6):
     - event_hub.html and event_hub_fragment.html both include _event_hub_body.html
     - post_hub.html and post_hub_fragment.html both include _post_hub_body.html
 
     Both the full page and the fragment must still render correctly. This test
-    is a render-regression assertion per the kb-33do.3 reformat-mutates-output
+    is a render-regression assertion per the sb-33do.3 reformat-mutates-output
     caveat — djlint passing does NOT guarantee the content renders identically.
     """
 
@@ -425,7 +425,7 @@ class SharedBodyPartialRegressionTest(TestCase):
 
     def test_event_hub_fragment_renders_composer_bar(self):
         """
-        kb-96tn.1 / kb-96tn.9: HX-fragment event_hub renders the lazy-load anchor
+        sb-96tn.1 / sb-96tn.9: HX-fragment event_hub renders the lazy-load anchor
         for the composer bar — the bar (pills + 'Studio' breadcrumb + publish) now
         lives INSIDE the event_syndication sub-fragment. The shell has the
         id='event-syndication' section (no longer #composer-pills directly).
@@ -444,7 +444,7 @@ class SharedBodyPartialRegressionTest(TestCase):
 
     def test_post_hub_fragment_renders_composer_bar(self):
         """
-        kb-96tn.1 / kb-96tn.9: HX-fragment post_hub renders the lazy-load anchor
+        sb-96tn.1 / sb-96tn.9: HX-fragment post_hub renders the lazy-load anchor
         for the composer bar — the bar (pills + breadcrumb + publish) now lives
         INSIDE the post_syndication sub-fragment. The shell has id='post-syndication'
         section (no longer #composer-pills directly).

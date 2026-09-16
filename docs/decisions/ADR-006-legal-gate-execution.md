@@ -7,7 +7,7 @@
 
 ## Context
 
-Phase 0.5 is code-complete but not public — the flip to `PUBLIC_READ_ENABLED=True` is gated on a legal-copy review. A structured review (2026-04-22) of `templates/pages/{impressum,privacy,terms}.html` and `templates/reviews/takedown.html` surfaced five P0 gaps (beads `kb-8qp`, `kb-nyr`, `kb-7hg`, `kb-804`, `kb-9hw`), of which two are not simple copy fixes but require a product decision:
+Phase 0.5 is code-complete but not public — the flip to `PUBLIC_READ_ENABLED=True` is gated on a legal-copy review. A structured review (2026-04-22) of `templates/pages/{impressum,privacy,terms}.html` and `templates/reviews/takedown.html` surfaced five P0 gaps (beads `sb-8qp`, `sb-nyr`, `sb-7hg`, `sb-804`, `sb-9hw`), of which two are not simple copy fixes but require a product decision:
 
 1. **Attendance data on kink/queer events qualifies as GDPR Art. 9 "special category" data.** Clicking "attending" on a queer/kink event can reveal sexual orientation. Art. 6(1)(b) ("contract") is not a valid lawful basis for Art. 9; the current privacy policy uses it, which would fail a DPA audit.
 2. **Organizer consent is recorded as implied (`method="telegram_forward_implied"`)** but the privacy policy describes it as "explicit consent at onboarding." Art. 7 GDPR requires a clear affirmative act for "consent"; forwarding a flyer to a bot is not. The claim as written is inaccurate and the basis as implemented is invalid.
@@ -97,8 +97,8 @@ The `AgeGateMiddleware` (`accounts/middleware.py`), active whenever `PUBLIC_READ
 | Approach | Pros | Cons |
 |---|---|---|
 | **Exempt search + social crawlers (chosen)** | OG previews work on every platform; parity with already-exempt search; humans still gated; growth loop functions | Curated card visible in shares with no age check — `reasoned:` same exposure search already creates; card is SFW and content stays gated |
-| Search-only exemption (status quo ante) | Narrowest crawler reach | `direct:` kb-t93r — every social unfurler 302'd to `/age-check/`, OG cards broken platform-wide, defeats ADR-010/ADR-016 |
-| Exempt social crawlers but force the default image only (never the real cover) | Marginally more cautious imagery | `reasoned:` breaks "preview == reality" (kb-6d7o), cover images never reach Telegram, undermines the cover feature; titles/descriptions still show, so the gain is marginal at real cost |
+| Search-only exemption (status quo ante) | Narrowest crawler reach | `direct:` sb-t93r — every social unfurler 302'd to `/age-check/`, OG cards broken platform-wide, defeats ADR-010/ADR-016 |
+| Exempt social crawlers but force the default image only (never the real cover) | Marginally more cautious imagery | `reasoned:` breaks "preview == reality" (sb-6d7o), cover images never reach Telegram, undermines the cover feature; titles/descriptions still show, so the gain is marginal at real cost |
 | Remove the age gate entirely | Simplest | `external:` JuSchG requires an age gate for publicly-reachable adult-themed content; removing it is non-compliant |
 
 **What would invalidate this:** Berlin DPA / JuSchG guidance (or engaged legal counsel) stating that curated OG metadata served to an automated unfurler is itself a regulated "making available" to minors; OR a concrete complaint / Abmahnung citing the link-preview *card* (not the gated page) as the violation. Either signal → re-scope `BOT_AGENTS` to search-only and accept broken social previews, or serve crawlers a minimal non-event card.
@@ -127,5 +127,5 @@ _Cited by D4 (added 2026-06-12):_
 - [ADR-002](ADR-002-phased-rollout-and-legal-gate.md) — legal-gate phasing; names "public share-links with OG preview" as a DSA/JuSchG trigger, the surface D4 governs post-flip.
 - [ADR-010](ADR-010-event-based-product-posture.md) — syndication-as-growth-loop; the downstream interest the crawler exemption protects.
 - [ADR-016](ADR-016-outbound-syndication-architecture-event-post-projections.md) — outbound syndication architecture; OG cards are its external-platform surface.
-- `kb-t93r` — the prod bug (search-only `BOT_AGENTS` 302'd all social unfurlers to `/age-check/`) and fix that surfaced this decision.
-- `kb-6d7o` — the OG-card feature (default image + cache-bust) D4's exemption makes deliverable.
+- `sb-t93r` — the prod bug (search-only `BOT_AGENTS` 302'd all social unfurlers to `/age-check/`) and fix that surfaced this decision.
+- `sb-6d7o` — the OG-card feature (default image + cache-bust) D4's exemption makes deliverable.

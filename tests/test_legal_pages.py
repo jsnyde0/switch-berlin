@@ -1,4 +1,4 @@
-"""Tests for legal pages: Impressum (kb-8qp) and Terms (kb-7hg).
+"""Tests for legal pages: Impressum (sb-8qp) and Terms (sb-7hg).
 
 Verifies:
 - Anonymous GET /impressum/ returns 200 under both PUBLIC_READ_ENABLED states.
@@ -163,7 +163,7 @@ def test_impressum_de_renders_translated_copyright(client, public_read_on):
 
 
 # ===========================================================================
-# Terms tests (kb-7hg)
+# Terms tests (sb-7hg)
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
@@ -317,7 +317,7 @@ def test_terms_de_renders_german_key_phrases(client, public_read_on):
 
 
 # ===========================================================================
-# Privacy tests (kb-nyr)
+# Privacy tests (sb-nyr)
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
@@ -499,7 +499,7 @@ def test_privacy_de_renders_widerruf(client, public_read_on):
 
 
 # ---------------------------------------------------------------------------
-# Group 10: LIA inline text present (Fix kb-9kh.6)
+# Group 10: LIA inline text present (Fix sb-9kh.6)
 # ---------------------------------------------------------------------------
 
 
@@ -529,11 +529,11 @@ def test_privacy_de_lia_inline_text_present(client, public_read_on):
 
 
 # ===========================================================================
-# Takedown tests (kb-9kh.5, kb-9kh.7)
+# Takedown tests (sb-9kh.5, sb-9kh.7)
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
-# Group 11: Takedown mailto not hardcoded (Fix kb-9kh.5)
+# Group 11: Takedown mailto not hardcoded (Fix sb-9kh.5)
 # ---------------------------------------------------------------------------
 
 
@@ -562,7 +562,7 @@ def test_takedown_no_hardcoded_email(client, public_read_on):
 
 
 # ---------------------------------------------------------------------------
-# Group 12: Takedown DE translations present (Fix kb-9kh.7)
+# Group 12: Takedown DE translations present (Fix sb-9kh.7)
 # ---------------------------------------------------------------------------
 
 

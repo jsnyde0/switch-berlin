@@ -1,6 +1,6 @@
-# kb-cyq R0 — Provider-Frequency Landscape
+# sb-cyq R0 — Provider-Frequency Landscape
 
-**Scope:** Phase R0 discovery deliverable for `kb-cyq` (third-party ticket platform research for organizer-hub V1). Maps real organizers in the kink / sex-positive / conscious-sexuality / adjacent-embodied scene to the ticketing/payment providers they actually use, with evidence URLs. Discovery layer — does NOT make platform recommendations; that's Phase R1 deep-scouts and Phase R2 synthesis.
+**Scope:** Phase R0 discovery deliverable for `sb-cyq` (third-party ticket platform research for organizer-hub V1). Maps real organizers in the kink / sex-positive / conscious-sexuality / adjacent-embodied scene to the ticketing/payment providers they actually use, with evidence URLs. Discovery layer — does NOT make platform recommendations; that's Phase R1 deep-scouts and Phase R2 synthesis.
 
 **Method:** Four parallel subagent scouts (2026-05-21), one per niche cluster (A: Berlin/EU explicit kink; B: tantra & conscious-sexuality coaches; C: sex-positive festivals & retreats; D: adjacent embodied/somatic with crossover signal). Each scout returned organizer → provider mappings with evidence URLs. This doc consolidates and synthesizes.
 
@@ -53,7 +53,7 @@ Multiple organizers across all four clusters decouple **consent-vetting** from *
 - **Application forms / invite-only signup** — The Intimate Revolution (own `tickets.theintimaterevolution.com` subdomain, application-gated); Mx Gili (Squarespace gated signup → invite → /signup-2026); Ananda Sarita / Xplore Berlin (email-only).
 - **Member portals** — Klub Verboten (member layer on own site before DICE/RA checkout); Quälgeist e.V. (custom app + on-site calendar).
 
-**Design implication for organizer-hub V1:** Switch facilitator agent can OWN vetting upstream of whichever third-party provider handles the cleaned ticket flow. This is consistent with kb-2ve Phase A authoring-hub framing — Switch as canonical authoring layer, with cleaned projections (and vetting filtration) sitting above per-platform checkout. Vetting is not a feature the third-party platform needs to provide.
+**Design implication for organizer-hub V1:** Switch facilitator agent can OWN vetting upstream of whichever third-party provider handles the cleaned ticket flow. This is consistent with sb-2ve Phase A authoring-hub framing — Switch as canonical authoring layer, with cleaned projections (and vetting filtration) sitting above per-platform checkout. Vetting is not a feature the third-party platform needs to provide.
 
 ### F3. Format dictates provider (clean rule)
 
@@ -81,7 +81,7 @@ Notable boundary case: **Wet Playground (Barcelona) uses Eventbrite for "S*x-Pos
 
 DE/AT education-focused organizers (Karada House, SM Kurse, Kinky Deviants Vienna) prefer **WordPress + Events Calendar plugins** — full control, no platform-policy risk. Same pattern with Squarespace/Wix for solo coaches.
 
-**Implication:** these organizers aren't seeking a third-party platform to outsource to — they're seeking *less* platform dependency. **Switch's V1 leverage path for them is probably not "we route you to a third-party"; it's "Switch projects cleaned tickets to your own self-hosted checkout via Stripe or your existing WordPress plugin."** This is a separate organizer-hub flow shape from the third-party-platform path — worth raising in kb-dko organizer-hub epic scoping.
+**Implication:** these organizers aren't seeking a third-party platform to outsource to — they're seeking *less* platform dependency. **Switch's V1 leverage path for them is probably not "we route you to a third-party"; it's "Switch projects cleaned tickets to your own self-hosted checkout via Stripe or your existing WordPress plugin."** This is a separate organizer-hub flow shape from the third-party-platform path — worth raising in sb-dko organizer-hub epic scoping.
 
 ### F6. Cluster A seed corrections
 
@@ -237,17 +237,17 @@ Full table (24 organizers) in scout output; here are the **highest-crossover-sig
 - **TickeTailor:** Does the API support attendee-count read-back for bidirectional capacity sync with Switch's canonical event? What's the verbatim ToS on "adult content" / "sexual content" / "BDSM"? Any known precedents of bans against organizers in our scene? What's the fee structure for organizers compared to Hipsy/Eventbrite?
 - **Vetting-decouple design:** Switch facilitator agent owns vetting layer upstream of TickeTailor. What does the cleaning flow look like when the explicit canonical event must project to a TickeTailor "Sensual Hearts Temple" cleaning — does TickeTailor require any specific framing, or are organizers already operating openly?
 - **Festival format:** Multi-day festivals lean custom (Conscious Play Fest, Baltic Tantra, Kāma Etna). Does V1 organizer-hub punt on festival format entirely, or do we accept that festivals need a different path (custom-build / WordPress + WooCommerce / Squarespace)?
-- **Self-hosted organizers (Karada, SM Kurse, Kinky Deviants):** Switch's leverage for them is NOT third-party routing — it's projecting cleaned tickets to their own self-hosted checkout. Is this a separate organizer-hub flow shape? Feeds `kb-dko` epic scoping.
+- **Self-hosted organizers (Karada, SM Kurse, Kinky Deviants):** Switch's leverage for them is NOT third-party routing — it's projecting cleaned tickets to their own self-hosted checkout. Is this a separate organizer-hub flow shape? Feeds `sb-dko` epic scoping.
 - **Soul Impact Squarespace vs Shopify discrepancy:** Re-verify if Soul Impact is now confirmed Squarespace or has migrated since the user's earlier observation.
 
 ---
 
 ## canonical_refs
 
-- `kb-cyq` — this bead
-- `kb-6uj` — origin (R1 adversarial review surfacing this research need)
-- `kb-2ve` (closed) — Phase A authoring-hub framing
-- `kb-dko` — downstream organizer-hub epic
+- `sb-cyq` — this bead
+- `sb-6uj` — origin (R1 adversarial review surfacing this research need)
+- `sb-2ve` (closed) — Phase A authoring-hub framing
+- `sb-dko` — downstream organizer-hub epic
 - `docs/decisions/ADR-010-event-based-product-posture.md` — D1(c) FLEXIBLE; ticketing as revenue path
 - `docs/decisions/ADR-011-personal-agent-layer-additive.md` — D1 FLEXIBLE; facilitator agent as integration vehicle
 - `docs/hipsy_analysis.md` — prior deep-scout (2026-05-19)

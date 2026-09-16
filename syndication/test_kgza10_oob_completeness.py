@@ -1,5 +1,5 @@
 """
-TDD tests for kb-kgza.10 — three OOB-completeness fixes.
+TDD tests for sb-kgza.10 — three OOB-completeness fixes.
 
 PROBLEM A — platform-aware dirty label, single source.
   The dirty-banner copy must be platform-aware and extracted to ONE snippet so
@@ -395,7 +395,7 @@ class DirtyLabelSingleSourceTest(TestCase):
     The extracted snippet (_dirty_label.html) IS the one allowed source.
 
     IMPORTANT: derive all paths from __file__ / settings.BASE_DIR, never hardcode
-    absolute paths (prior bead failed CI on exactly this — see bead kb-kgza.10).
+    absolute paths (prior bead failed CI on exactly this — see bead sb-kgza.10).
     """
 
     def _template_content(self, *rel_parts):
@@ -452,7 +452,7 @@ class DirtyLabelSingleSourceTest(TestCase):
         """
         _channel_editor.html dirty banner must NOT contain the raw inline
         "re-publish to update the live post" — it already has the platform-aware
-        branch (kb-kgza.6) but the generic branch copy must be extracted.
+        branch (sb-kgza.6) but the generic branch copy must be extracted.
 
         The FetLife branch text ("your FetLife post manually") IS the accepted
         platform-aware wording and is allowed in _channel_editor.html only via the snippet.

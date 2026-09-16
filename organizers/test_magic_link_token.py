@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.8: MagicLinkToken model.
+TDD tests for sb-m69.8: MagicLinkToken model.
 
 RED phase: written BEFORE implementation.
 Per ADR-014 D3 — magic-link security envelope:

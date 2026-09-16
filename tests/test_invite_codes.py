@@ -1,13 +1,13 @@
 """
 Tests for InviteCode model, management command, and admin.
 
-Covers bead kb-2eu.2:
+Covers bead sb-2eu.2:
 - InviteCode model basic behavior
 - generate_code produces unique, correct-length tokens
 - generate_invite_codes management command
 - InviteCode.usable() predicate
 
-NoSignupAdapter (phase 0.4) has been deleted per ADR-008 D1 (kb-m69.12).
+NoSignupAdapter (phase 0.4) has been deleted per ADR-008 D1 (sb-m69.12).
 OpenSignupAdapter is the canonical adapter.
 """
 

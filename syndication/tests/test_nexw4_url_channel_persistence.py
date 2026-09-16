@@ -1,5 +1,5 @@
 """
-Tests for kb-nexw.4 — Persist the active channel tab across a full page reload
+Tests for sb-nexw.4 — Persist the active channel tab across a full page reload
 via URL query param ?channel=<pk>.
 
 ## What these tests verify
@@ -20,7 +20,7 @@ via URL query param ?channel=<pk>.
    - This is a template-structure assertion: the rendered x-data init expression
      must contain the fallback logic (emitted valid-pk list + fallback).
 
-4. kb-kgza.11 not regressed:
+4. sb-kgza.11 not regressed:
    - The hidden `selected_pk` inputs in forms still carry the tab through
      publish/save HTMX swaps (checked indirectly — the forms still have
      name="selected_pk", verified by importing the existing selected_pk tests).
@@ -68,7 +68,7 @@ def _make_event(profile, title, slug):
         title=title,
         slug=slug,
         start=timezone.now() + timezone.timedelta(days=7),
-        description="Test event for kb-nexw.4",
+        description="Test event for sb-nexw.4",
     )
     EventOrganizer.objects.create(event=event, profile=profile, is_primary=True)
     return event
@@ -111,7 +111,7 @@ def _make_telegram_promotion_connection(profile, destination_id="tg-nexw4"):
 
 class EventComposerUrlChannelWiringTest(TestCase):
     """
-    kb-nexw.4: The event_syndication fragment must wire selectedPk init from
+    sb-nexw.4: The event_syndication fragment must wire selectedPk init from
     the URL ?channel=<pk> param, emit the valid-pk list for validation, and
     write back via history.replaceState on tab switch.
 
@@ -158,7 +158,7 @@ class EventComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             "URLSearchParams",
             content,
-            "kb-nexw.4: event_syndication fragment must contain URLSearchParams "
+            "sb-nexw.4: event_syndication fragment must contain URLSearchParams "
             "to read the ?channel= param from window.location.search on Alpine init. "
             "The x-data selectedPk init must use URLSearchParams.",
         )
@@ -173,7 +173,7 @@ class EventComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             "'channel'",
             content,
-            "kb-nexw.4: event_syndication fragment must reference the 'channel' URL param "
+            "sb-nexw.4: event_syndication fragment must reference the 'channel' URL param "
             "key (e.g. `.get('channel')`) in the Alpine selectedPk init logic.",
         )
 
@@ -188,7 +188,7 @@ class EventComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             "replaceState",
             content,
-            "kb-nexw.4: event_syndication fragment must contain history.replaceState "
+            "sb-nexw.4: event_syndication fragment must contain history.replaceState "
             "so tab clicks update the URL ?channel= param without a navigation entry.",
         )
 
@@ -210,20 +210,20 @@ class EventComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             str(self.sw_proj.pk),
             content,
-            f"kb-nexw.4: event_syndication fragment must emit Switch proj pk "
+            f"sb-nexw.4: event_syndication fragment must emit Switch proj pk "
             f"({self.sw_proj.pk}) in the valid-pk list for URL param validation.",
         )
         self.assertIn(
             str(self.fl_proj.pk),
             content,
-            f"kb-nexw.4: event_syndication fragment must emit FetLife proj pk "
+            f"sb-nexw.4: event_syndication fragment must emit FetLife proj pk "
             f"({self.fl_proj.pk}) in the valid-pk list for URL param validation.",
         )
 
 
 class EventComposerUrlChannelParamRestorationTest(TestCase):
     """
-    kb-nexw.4: When the event_syndication fragment is loaded with
+    sb-nexw.4: When the event_syndication fragment is loaded with
     ?channel=<pk>, the Alpine selectedPk init must resolve to that pk
     (not fall back to the first tab).
 
@@ -286,7 +286,7 @@ class EventComposerUrlChannelParamRestorationTest(TestCase):
         self.assertIn(
             str(self.sw_proj.pk),
             content,
-            f"kb-nexw.4: Switch proj pk ({self.sw_proj.pk}) must be in the rendered "
+            f"sb-nexw.4: Switch proj pk ({self.sw_proj.pk}) must be in the rendered "
             f"markup so the valid-pk list includes it for fallback.",
         )
 
@@ -298,7 +298,7 @@ class EventComposerUrlChannelParamRestorationTest(TestCase):
 
 class PostComposerUrlChannelWiringTest(TestCase):
     """
-    kb-nexw.4: The post_syndication fragment must wire selectedPk init from
+    sb-nexw.4: The post_syndication fragment must wire selectedPk init from
     the URL ?channel= param, emit the valid-pk list (including 'source' for
     the Master copy tab), and write via history.replaceState on tab switch.
     """
@@ -311,7 +311,7 @@ class PostComposerUrlChannelWiringTest(TestCase):
         self.post = Post.objects.create(
             event=self.event,
             headline="Nexw4 PS Post",
-            body="Test body for kb-nexw.4 post composer",
+            body="Test body for sb-nexw.4 post composer",
         )
         self.canonical_cv = ContentVersion.objects.create(
             post=self.post,
@@ -348,7 +348,7 @@ class PostComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             "URLSearchParams",
             content,
-            "kb-nexw.4: post_syndication fragment must contain URLSearchParams "
+            "sb-nexw.4: post_syndication fragment must contain URLSearchParams "
             "to read the ?channel= param on Alpine init.",
         )
 
@@ -362,7 +362,7 @@ class PostComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             "'channel'",
             content,
-            "kb-nexw.4: post_syndication fragment must reference the 'channel' URL param key.",
+            "sb-nexw.4: post_syndication fragment must reference the 'channel' URL param key.",
         )
 
     def test_post_composer_contains_replacestate(self):
@@ -376,7 +376,7 @@ class PostComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             "replaceState",
             content,
-            "kb-nexw.4: post_syndication fragment must contain history.replaceState "
+            "sb-nexw.4: post_syndication fragment must contain history.replaceState "
             "so tab clicks update the URL ?channel= param.",
         )
 
@@ -394,14 +394,14 @@ class PostComposerUrlChannelWiringTest(TestCase):
         self.assertIn(
             "'source'",
             content,
-            "kb-nexw.4: post_syndication fragment must emit 'source' in the valid "
+            "sb-nexw.4: post_syndication fragment must emit 'source' in the valid "
             "channel list (Master copy tab) for URL param validation.",
         )
         # The Telegram proj pk must also appear in the valid-pk list.
         self.assertIn(
             str(self.tg_proj.pk),
             content,
-            f"kb-nexw.4: post_syndication fragment must emit Telegram proj pk "
+            f"sb-nexw.4: post_syndication fragment must emit Telegram proj pk "
             f"({self.tg_proj.pk}) in the valid-pk list.",
         )
 
@@ -413,7 +413,7 @@ class PostComposerUrlChannelWiringTest(TestCase):
 
 class ComposerTwinUrlChannelConsistencyTest(TestCase):
     """
-    kb-nexw.4 twin-consistency: Both the event and post composer shells must
+    sb-nexw.4 twin-consistency: Both the event and post composer shells must
     contain the URL-param wiring (URLSearchParams, 'channel', replaceState).
     Guards against the inline-twin drift trap documented in the bead design.
 
@@ -435,17 +435,17 @@ class ComposerTwinUrlChannelConsistencyTest(TestCase):
         self.assertIn(
             "URLSearchParams",
             content,
-            "kb-nexw.4 twin: event_syndication.html missing URLSearchParams wiring.",
+            "sb-nexw.4 twin: event_syndication.html missing URLSearchParams wiring.",
         )
         self.assertIn(
             "'channel'",
             content,
-            "kb-nexw.4 twin: event_syndication.html missing 'channel' param name.",
+            "sb-nexw.4 twin: event_syndication.html missing 'channel' param name.",
         )
         self.assertIn(
             "replaceState",
             content,
-            "kb-nexw.4 twin: event_syndication.html missing history.replaceState.",
+            "sb-nexw.4 twin: event_syndication.html missing history.replaceState.",
         )
 
     def test_post_syndication_has_url_param_wiring(self):
@@ -454,15 +454,15 @@ class ComposerTwinUrlChannelConsistencyTest(TestCase):
         self.assertIn(
             "URLSearchParams",
             content,
-            "kb-nexw.4 twin: post_syndication.html missing URLSearchParams wiring.",
+            "sb-nexw.4 twin: post_syndication.html missing URLSearchParams wiring.",
         )
         self.assertIn(
             "'channel'",
             content,
-            "kb-nexw.4 twin: post_syndication.html missing 'channel' param name.",
+            "sb-nexw.4 twin: post_syndication.html missing 'channel' param name.",
         )
         self.assertIn(
             "replaceState",
             content,
-            "kb-nexw.4 twin: post_syndication.html missing history.replaceState.",
+            "sb-nexw.4 twin: post_syndication.html missing history.replaceState.",
         )

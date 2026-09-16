@@ -1,5 +1,5 @@
 """
-TDD tests for kb-8j6: event URL scheme includes organizer slug.
+TDD tests for sb-8j6: event URL scheme includes organizer slug.
 
 New scheme: /events/<org-slug>/<event-slug>/
 Replaces: /events/<event-slug>/

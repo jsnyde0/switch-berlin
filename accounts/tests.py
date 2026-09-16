@@ -41,7 +41,7 @@ def test_always_public_prefixes_includes_static():
 
     Without this, unauthenticated users on /accounts/signup/ and /accounts/login/
     cannot fetch the compiled CSS file and those pages render completely unstyled.
-    (kb-cm5 root cause: LoginWallMiddleware redirected /static/ to login for anon users)
+    (sb-cm5 root cause: LoginWallMiddleware redirected /static/ to login for anon users)
     """
     from accounts.middleware import ALWAYS_PUBLIC_PREFIXES
 
@@ -376,7 +376,7 @@ def test_agegate_always_public_prefix_bypasses_gate():
 
 
 # ---------------------------------------------------------------------------
-# AgeGateMiddleware — social link-preview crawler bypass (kb-t93r)
+# AgeGateMiddleware — social link-preview crawler bypass (sb-t93r)
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-# kb-m69.12 — ADR-008 D1: delete NoSignupAdapter compat shim.
+# sb-m69.12 — ADR-008 D1: delete NoSignupAdapter compat shim.
 # Drops InviteCode.redeemed_by and InviteCode.redeemed_at — legacy fields
 # that existed only to support the dead NoSignupAdapter (phase 0.4).
 # The canonical V0 fields are used_by / used_at (added in 0007).

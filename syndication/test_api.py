@@ -1,5 +1,5 @@
 """
-TDD tests for the HTTP API skeleton (kb-a4u.2).
+TDD tests for the HTTP API skeleton (sb-a4u.2).
 
 Tests assert:
 - /api/docs serves the OpenAPI schema (200).
@@ -15,7 +15,7 @@ Tests assert:
 - Non-vouched authenticated user is rejected on protected endpoint (F2/F7 + F8).
 - Malformed/tampered token rejected (F8).
 
-Per harness target (kb-a4u.2): pytest on auth-rejection/acceptance +
+Per harness target (sb-a4u.2): pytest on auth-rejection/acceptance +
 Django test-client GET asserting OpenAPI schema response.
 """
 
@@ -81,7 +81,7 @@ def _register_and_get_api_key(user):
     """
     Helper: run the full pairing flow (register → redeem) and return the raw Bearer key.
 
-    kb-a4u.6 pairing flow:
+    sb-a4u.6 pairing flow:
     1. POST /api/agents/register (session auth) → pairing token
     2. POST /api/agents/redeem (no auth, pairing token) → Bearer API key
 
@@ -105,7 +105,7 @@ def _register_and_get_api_key(user):
 
 class AgentRegisterTest(TestCase):
     """
-    agents/register: now returns a one-time pairing token (kb-a4u.6).
+    agents/register: now returns a one-time pairing token (sb-a4u.6).
 
     The pairing token is the short-lived, single-use envelope. The Bearer API key
     is only issued after redemption at /agents/redeem. The full pairing mechanic
@@ -123,7 +123,7 @@ class AgentRegisterTest(TestCase):
         """
         POST /api/agents/register (authenticated user) → returns pairing_token.
 
-        kb-a4u.6: register now mints a pairing token (not a Bearer key directly).
+        sb-a4u.6: register now mints a pairing token (not a Bearer key directly).
         The Bearer key is issued at /agents/redeem after the agent redeems the token.
         """
         client = Client()
@@ -411,14 +411,14 @@ class StubEndpointSurfaceTest(TestCase):
 
     def test_event_and_post_endpoints_return_list_schema(self):
         """
-        F4 (updated for C3/kb-a4u.3, then kb-k2ds.2): Event, Post, and Projection
+        F4 (updated for C3/sb-a4u.3, then sb-k2ds.2): Event, Post, and Projection
         endpoints all return real list responses — none of them are stubs anymore.
         The OpenAPI contract must be stable for downstream beads.
         """
         token = self._get_identity_token()
         client = Client()
 
-        # Events, Posts, and Projections are all real list endpoints (no stubs, kb-k2ds.2)
+        # Events, Posts, and Projections are all real list endpoints (no stubs, sb-k2ds.2)
         for endpoint in ["/api/events/", "/api/posts/", "/api/projections/"]:
             response = client.get(
                 endpoint,
@@ -430,7 +430,7 @@ class StubEndpointSurfaceTest(TestCase):
             self.assertNotIn(
                 "stub",
                 data,
-                f"{endpoint} must not return the stub marker (ADR-008 D3, kb-k2ds.2)",
+                f"{endpoint} must not return the stub marker (ADR-008 D3, sb-k2ds.2)",
             )
 
 
@@ -681,7 +681,7 @@ class NonVouchedChainTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Venue + tags API parity (kb-y209.3, ADR-016 D3)
+# Venue + tags API parity (sb-y209.3, ADR-016 D3)
 # ---------------------------------------------------------------------------
 
 
@@ -702,7 +702,7 @@ def _get_identity_token_for_user(user):
 
 class EventVenueTagsApiParityTest(TestCase):
     """
-    DB-round-trip tests for venue + tags on the event API (kb-y209.3).
+    DB-round-trip tests for venue + tags on the event API (sb-y209.3).
 
     ADR-016 D3 co-equal API parity: the HTTP API must accept and persist
     venue (id) and tags (list of slugs) exactly as the web EventForm does.
@@ -1015,7 +1015,7 @@ class EventVenueTagsApiParityTest(TestCase):
 
 class ProjectionListApiTest(TestCase):
     """
-    GET /api/projections/ real-data contract (kb-k2ds.2 — replaces the C4/kb-a4u.4 stub).
+    GET /api/projections/ real-data contract (sb-k2ds.2 — replaces the C4/sb-a4u.4 stub).
 
     Covers: the caller's own projections are returned with id/connection identity/
     kind/status; event/post filters narrow the result; cross-tenant scoping never

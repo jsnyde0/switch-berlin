@@ -1,5 +1,5 @@
 """
-Template-structure guard for per-channel autosave trigger scoping (kb-kgza.12).
+Template-structure guard for per-channel autosave trigger scoping (sb-kgza.12).
 
 ROOT CAUSE (verified 2026-06-06): HTMX evaluates `from:<selector>` against the
 WHOLE document, not the local form. Every channel tab is rendered into the DOM
@@ -39,7 +39,7 @@ class ChannelAutosaveTriggerScopeTest(SimpleTestCase):
 
     A document-scoped from: causes every channel's autosave endpoint to fire
     on every keystroke in any channel body, racing against the canonical
-    event-edit form and dropping in-flight content (kb-kgza.12 root cause).
+    event-edit form and dropping in-flight content (sb-kgza.12 root cause).
     """
 
     def test_body_autosave_has_no_document_scoped_from_selector(self):
@@ -109,10 +109,10 @@ class ChannelAutosaveTriggerScopeTest(SimpleTestCase):
 
 class SyndicationTemplatesAutosaveTriggerScopeTest(SimpleTestCase):
     """
-    Directory-level canary (kb-kgza.14): NO autosave hx-trigger anywhere under
+    Directory-level canary (sb-kgza.14): NO autosave hx-trigger anywhere under
     templates/syndication/ may use a document-scoped `from:` selector.
 
-    kb-kgza.12 fixed the two triggers in _channel_editor.html but missed the
+    sb-kgza.12 fixed the two triggers in _channel_editor.html but missed the
     post-composer Master-copy form in fragments/post_syndication.html, which
     carried the identical document-scoped `from:textarea[name='body']` and thus
     the same over-broadcast + data-loss bug. This whole-directory scan ensures
@@ -141,7 +141,7 @@ class SyndicationTemplatesAutosaveTriggerScopeTest(SimpleTestCase):
                 "Found document-scoped `from:` selector(s) in autosave "
                 "hx-trigger attributes under templates/syndication/. These "
                 "fire every matching sibling form per keystroke, racing "
-                "detach-and-edit and dropping typed content (kb-kgza.12/.14 "
+                "detach-and-edit and dropping typed content (sb-kgza.12/.14 "
                 "root cause).\n" + "\n".join(offenders) + "\nFix: remove the `from:` selector so the trigger binds "
                 "to its own form's descendants."
             ),

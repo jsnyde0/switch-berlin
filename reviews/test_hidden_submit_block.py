@@ -1,4 +1,4 @@
-"""TDD tests for bead kb-58p: block re-submission of a hidden review.
+"""TDD tests for bead sb-58p: block re-submission of a hidden review.
 
 Policy (2026-04-22): If a user's review was hidden by a moderator, any
 subsequent re-submission attempt must return HTTP 403 with an error partial.

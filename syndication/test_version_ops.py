@@ -1,5 +1,5 @@
 """
-TDD tests for kb-wz8m.3: snapshot-semantic version operations.
+TDD tests for sb-wz8m.3: snapshot-semantic version operations.
 
 Acceptance assertions:
 - customize: isolates — editing the customized row leaves a canonical-sharing
@@ -869,13 +869,13 @@ class ResetToCanonicalTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# customize → reset_to_canonical round-trip reflected in consumers_map (kb-wz8m.10)
+# customize → reset_to_canonical round-trip reflected in consumers_map (sb-wz8m.10)
 # ---------------------------------------------------------------------------
 
 
 class CustomizeResetConsumersMapRoundTripTest(TestCase):
     """
-    Gap 1 integration test (kb-wz8m.10):
+    Gap 1 integration test (sb-wz8m.10):
 
     customize → reset_to_canonical round-trip reflected in consumers_map.
 
@@ -1196,7 +1196,7 @@ class EditVersionTest(TestCase):
 class SaveProjectionOverrideGoneTest(TestCase):
     """
     save_projection_override must be removed from syndication.services.
-    kb-wz8m.3 owns its removal.
+    sb-wz8m.3 owns its removal.
     """
 
     def test_save_projection_override_not_in_services(self):
@@ -1205,7 +1205,7 @@ class SaveProjectionOverrideGoneTest(TestCase):
 
         self.assertFalse(
             hasattr(services_mod, "save_projection_override"),
-            "save_projection_override must be removed from syndication.services in kb-wz8m.3",
+            "save_projection_override must be removed from syndication.services in sb-wz8m.3",
         )
 
     def test_save_projection_override_not_imported_in_views(self):
@@ -1214,7 +1214,7 @@ class SaveProjectionOverrideGoneTest(TestCase):
 
         self.assertFalse(
             hasattr(views_mod, "save_projection_override"),
-            "views.py must not import save_projection_override after kb-wz8m.3",
+            "views.py must not import save_projection_override after sb-wz8m.3",
         )
 
     def test_save_projection_override_not_imported_in_api(self):
@@ -1223,12 +1223,12 @@ class SaveProjectionOverrideGoneTest(TestCase):
 
         self.assertFalse(
             hasattr(api_mod, "save_projection_override"),
-            "api.py must not import save_projection_override after kb-wz8m.3",
+            "api.py must not import save_projection_override after sb-wz8m.3",
         )
 
 
 # ---------------------------------------------------------------------------
-# kb-q4u9.2 Probe 1: Post-owned ContentVersion paths
+# sb-q4u9.2 Probe 1: Post-owned ContentVersion paths
 #
 # ADR-016 D2: promotion projections FK the post's canonical, not the event's.
 # ADR-008 D3: post-owned version resolving to its event must RAISE.
@@ -1609,7 +1609,7 @@ class PostOwnedVersionResolveEventRaisesTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# kb-q4u9.2 Probe: publish path for post-owned promotion projections
+# sb-q4u9.2 Probe: publish path for post-owned promotion projections
 #
 # Acceptance: per-channel publish AND publish-all-ready over the post projections
 # each invoke the adapter with its OWN channel body (frozen at ready), not the

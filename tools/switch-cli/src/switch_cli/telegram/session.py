@@ -179,7 +179,7 @@ def run_connect(api_id: int, api_hash: str, config_dir: str) -> dict:
 
     Raises:
     - TelegramConfigError if api_id/api_hash are absent (ADR-008 D3).
-      Guard is enforced HERE so sibling callers (kb-ru55.3/.4) get the same
+      Guard is enforced HERE so sibling callers (sb-ru55.3/.4) get the same
       protection; cli.py also validates, but the contract lives in run_connect.
     - SessionCorruptError if session file is corrupt (ADR-008 D3).
     - QRLoginTimeoutError if QR scan times out (ADR-008 D3).

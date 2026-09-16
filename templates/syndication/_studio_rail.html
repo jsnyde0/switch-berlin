@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-Studio left rail — shared partial (kb-shzi.2).
+Studio left rail — shared partial (sb-shzi.2).
 
 Used by:
   - syndication/studio.html (front door, no active publishable)
@@ -16,15 +16,15 @@ Context variables required:
        {% if oob %}hx-swap-oob="true"{% endif %}
        class="hidden sm:flex flex-col shrink-0 w-[232px] pt-6 pb-20 border-r border-white/[0.09]"
        aria-label="{% trans "Publishables" %}">
-  {% comment %}Profile-switcher slot (empty) — reserved for kb-5ok6{% endcomment %}
+  {% comment %}Profile-switcher slot (empty) — reserved for sb-5ok6{% endcomment %}
   <div class="studio-profile-switcher" aria-hidden="true"></div>
   {% comment %}Profile identity kicker{% endcomment %}
   <div class="pr-5 mb-4">
     <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25 truncate"
        title="{{ primary_profile.name }}">{{ primary_profile.name }}</p>
   </div>
-  {% comment %}Nav-sections slot — Channels link (add-channel discoverability, kb-shzi.5).
-  Guarded by primary_profile for consistency with navbar.html (kb-shzi.6 F4).
+  {% comment %}Nav-sections slot — Channels link (add-channel discoverability, sb-shzi.5).
+  Guarded by primary_profile for consistency with navbar.html (sb-shzi.6 F4).
   The rail is only rendered when a primary_profile exists (it's always in context here),
   but the explicit guard mirrors the navbar pattern and makes the intent clear.{% endcomment %}
   {% if primary_profile %}
@@ -41,7 +41,7 @@ Context variables required:
   </div>
   <div class="pr-5 mb-2 flex items-center justify-between">
     <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/25">{% trans "Publishables" %}</p>
-    {% comment %}+ New dropdown — Alpine dropdown, HTMX inline create (kb-96tn.6){% endcomment %}
+    {% comment %}+ New dropdown — Alpine dropdown, HTMX inline create (sb-96tn.6){% endcomment %}
     <div class="relative" x-data="{ open: false }">
       <button type="button"
               @click="open = !open"

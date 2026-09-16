@@ -1,5 +1,5 @@
 """
-Tests for kb-ldo: OrganizerFollow → Follow(user, profile) unification.
+Tests for sb-ldo: OrganizerFollow → Follow(user, profile) unification.
 
 Acceptance clauses verified here:
 1. Follow(user, profile, created_at) model exists with correct field names.

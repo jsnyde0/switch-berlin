@@ -1,7 +1,7 @@
-# kb-cyq R1 P0 — TickeTailor deep-scout
+# sb-cyq R1 P0 — TickeTailor deep-scout
 
 **Date:** 2026-05-21
-**Scope:** Phase R1 P0 deliverable for `kb-cyq`. Deep-scout of TickeTailor — the dominant content-policy-tolerant SaaS in our scene per [R0 synthesis](kb-cyq-r0-provider-landscape.md) (~20 sex-positive/kink/tantra operators across rope/shibari, tantra, festivals, somatic-consent intensives, temple nights).
+**Scope:** Phase R1 P0 deliverable for `sb-cyq`. Deep-scout of TickeTailor — the dominant content-policy-tolerant SaaS in our scene per [R0 synthesis](sb-cyq-r0-provider-landscape.md) (~20 sex-positive/kink/tantra operators across rope/shibari, tantra, festivals, somatic-consent intensives, temple nights).
 **Method:** General-purpose subagent with logged-in CDP access (Chrome on `localhost:9222`, organizer dashboard at `https://app.tickettailor.com/dashboard`). WebFetch for static pages (ToS, AUP, pricing, API docs); `browser-automation` via CDP for organizer-dashboard exploration.
 **Substrate role:** Evidence preserved verbatim; orchestrator synthesis flows from this doc into R2 decision.
 
@@ -63,7 +63,7 @@
 
 ---
 
-## D3. Content-policy precedents (user-reports — outranks ToS prose per kb-cyq acceptance 1b)
+## D3. Content-policy precedents (user-reports — outranks ToS prose per sb-cyq acceptance 1b)
 
 ### Existence proofs — live sex-positive operators on TT
 
@@ -213,8 +213,8 @@ Corroborates and extends the R0 ~20-operator finding. New names (not in R0): Ele
 
 ## canonical_refs
 
-- `kb-cyq` — parent bead (R1 P0 deep-scout deliverable)
-- `docs/research/kb-cyq-r0-provider-landscape.md` — R0 discovery synthesis (predecessor)
+- `sb-cyq` — parent bead (R1 P0 deep-scout deliverable)
+- `docs/research/sb-cyq-r0-provider-landscape.md` — R0 discovery synthesis (predecessor)
 - `docs/hipsy_analysis.md` — comparator prior scout
 - `docs/decisions/ADR-010-event-based-product-posture.md` — D1(c) FLEXIBLE; ticketing as revenue path
 - `docs/decisions/ADR-011-personal-agent-layer-additive.md` — D1 FLEXIBLE; facilitator agent as integration vehicle

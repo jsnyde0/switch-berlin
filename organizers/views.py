@@ -233,7 +233,7 @@ def claim_entry(request, slug):
             intended_method = "admin_review"
             message = form.cleaned_data.get("message", "").strip()
             intent, created = ClaimIntent.objects.get_or_create(user=request.user, profile=profile)
-            # kb-j8u: persist the most recent message so admins see the latest
+            # sb-j8u: persist the most recent message so admins see the latest
             # context if the user re-submits with updated info.
             if message and intent.message != message:
                 intent.message = message

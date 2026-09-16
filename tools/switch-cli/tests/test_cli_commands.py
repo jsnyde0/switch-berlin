@@ -433,7 +433,7 @@ class TestCreatePostCommand_Imagery:
 
 
 class TestListProjectionsCommand:
-    """switch-cli list-projections calls the projections list endpoint (real rows, kb-k2ds.2)."""
+    """switch-cli list-projections calls the projections list endpoint (real rows, sb-k2ds.2)."""
 
     def _mock_token_response(self):
         mock_resp = MagicMock(spec=httpx.Response)
@@ -525,7 +525,7 @@ class TestListProjectionsCommand:
 
 
 class TestListEventsCommand:
-    """switch-cli list-events calls the events list endpoint (kb-k2ds.2)."""
+    """switch-cli list-events calls the events list endpoint (sb-k2ds.2)."""
 
     def _mock_token_response(self):
         mock_resp = MagicMock(spec=httpx.Response)
@@ -584,7 +584,7 @@ class TestListEventsCommand:
 
 
 class TestListConnectionsCommand:
-    """switch-cli list-connections calls the connections list endpoint (kb-k2ds.3 discoverability)."""
+    """switch-cli list-connections calls the connections list endpoint (sb-k2ds.3 discoverability)."""
 
     def _mock_token_response(self):
         mock_resp = MagicMock(spec=httpx.Response)
@@ -652,7 +652,7 @@ class TestListConnectionsCommand:
 
 
 class TestEnablePromotionCommand:
-    """switch-cli enable-promotion <connection-id> calls the enable-promotion endpoint (kb-k2ds.3)."""
+    """switch-cli enable-promotion <connection-id> calls the enable-promotion endpoint (sb-k2ds.3)."""
 
     def _mock_token_response(self):
         mock_resp = MagicMock(spec=httpx.Response)
@@ -773,7 +773,7 @@ class TestEnablePromotionCommand:
 
 
 class TestStudioLinkCommand:
-    """switch-cli studio-link prints a working URL to the review/greenlight workspace (kb-k2ds.2)."""
+    """switch-cli studio-link prints a working URL to the review/greenlight workspace (sb-k2ds.2)."""
 
     def test_studio_link_post_prints_post_hub_url(self, runner, configured_env):
         """studio-link post <id> prints the post-hub URL (posts/<id>/), not the parameterless studio/ route."""

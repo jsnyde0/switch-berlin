@@ -1,5 +1,5 @@
 """
-TDD tests for kb-kgza.2: per-channel body edit auto-detaches from shared canonical CV.
+TDD tests for sb-kgza.2: per-channel body edit auto-detaches from shared canonical CV.
 
 Contract:
 1. Editing a shared-canonical post channel MINTS a new ContentVersion for THAT projection
@@ -618,7 +618,7 @@ class ChannelEditorFormActionTest(TestCase):
 
 class DetachAndEditIdempotenceTest(TestCase):
     """
-    FIX A (kb-kgza.2 adversarial-review): detach_and_edit must be idempotent.
+    FIX A (sb-kgza.2 adversarial-review): detach_and_edit must be idempotent.
 
     If a projection is ALREADY on its own independent CV (state iii: not the
     canonical, only one consumer — this projection), a SECOND call to
@@ -708,7 +708,7 @@ class DetachAndEditIdempotenceTest(TestCase):
 
 class DetachAndEditStateIIConsistencyTest(TestCase):
     """
-    FIX B (kb-kgza.2 adversarial-review): editing a state-ii projection
+    FIX B (sb-kgza.2 adversarial-review): editing a state-ii projection
     (own CV + sync_source SET) via projection-detach-and-edit must clear
     sync_source to NULL, producing a clean state-iii (own CV + sync_source NULL).
 
@@ -782,7 +782,7 @@ class DetachAndEditStateIIConsistencyTest(TestCase):
 
 class DetachAndEditDirtyOOBFlagTest(TestCase):
     """
-    FIX C (kb-kgza.2 adversarial-review): projection_detach_and_edit renders
+    FIX C (sb-kgza.2 adversarial-review): projection_detach_and_edit renders
     _channel_dirty_oob.html WITHOUT oob=True in context, so the dirty pill/banner
     are emitted WITHOUT hx-swap-oob and never update client-side.
 
@@ -873,7 +873,7 @@ class DetachAndEditDirtyOOBFlagTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# FIX 1 (kb-kgza.3 adversarial repair): master/source tab edit of a published
+# FIX 1 (sb-kgza.3 adversarial repair): master/source tab edit of a published
 #         post succeeds (no action_error), all sharing consumers become dirty,
 #         frozen_content is unchanged.
 # ---------------------------------------------------------------------------
@@ -881,7 +881,7 @@ class DetachAndEditDirtyOOBFlagTest(TestCase):
 
 class MasterTabPublishedEditTest(TestCase):
     """
-    FIX 1 (kb-kgza.3): Editing the master/source tab of a PUBLISHED post via
+    FIX 1 (sb-kgza.3): Editing the master/source tab of a PUBLISHED post via
     version-edit MUST succeed (no action_error in the response fragment).
 
     Root cause: version_edit called edit_version WITHOUT _allow_edit_after_publish,
@@ -1136,14 +1136,14 @@ class MasterTabPublishedTemplateGatingTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# FIX 2 (kb-kgza.3 adversarial repair): Published+editable projection renders
+# FIX 2 (sb-kgza.3 adversarial repair): Published+editable projection renders
 #         sync controls (Customize for state-i, Reset for state-iii) inside editor.
 # ---------------------------------------------------------------------------
 
 
 class PublishedEditableSyncControlsTest(TestCase):
     """
-    FIX 2 (kb-kgza.3): For a published+editable projection, the sync controls
+    FIX 2 (sb-kgza.3): For a published+editable projection, the sync controls
     (Customize for state-i, Reset for state-iii) must render INSIDE the opened
     editor.
 

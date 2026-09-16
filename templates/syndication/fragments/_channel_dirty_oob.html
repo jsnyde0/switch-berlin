@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-OOB partial for the channel dirty-state indicators (kb-96tn.5).
+OOB partial for the channel dirty-state indicators (sb-96tn.5).
 
 Emitted by version_edit when a published projection's content version changes,
 so the pill dot + dirty banner update WITHOUT a full page reload.
@@ -16,12 +16,12 @@ Context variables:
   can_publish   — boolean; passed from view to gate the Re-publish CTA (Problem B)
   fragment_target — HTMX hx-target for the CTA forms (Problem B)
 
-kb-kgza.10 additions:
+sb-kgza.10 additions:
   - Dot tooltip + banner now use _dirty_label.html (single source, platform-aware)
   - New #channel-cta-<pk> OOB region: Re-publish CTA appears after live edit (B)
 
 HARD CONSTRAINT: only swap regions OUTSIDE the body textarea to avoid
-re-introducing kb-kgza.12's data-loss (focused textarea replacement).
+re-introducing sb-kgza.12's data-loss (focused textarea replacement).
 {% endcomment %}
 {% comment %}Status dot — keyed by projection pk for OOB replacement.{% endcomment %}
 <span id="channel-dot-{{ proj.pk }}"
@@ -43,7 +43,7 @@ re-introducing kb-kgza.12's data-loss (focused textarea replacement).
     </div>
   {% endif %}
 </div>
-{% comment %}Re-publish CTA — keyed by projection pk for OOB replacement (kb-kgza.10 Problem B).
+{% comment %}Re-publish CTA — keyed by projection pk for OOB replacement (sb-kgza.10 Problem B).
 Swaps #channel-cta-<pk> so the Re-publish button appears after a live dirty edit
 without a full page reload. Only emitted when can_publish is available in context.{% endcomment %}
 {% if can_publish is not None %}

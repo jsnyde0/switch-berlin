@@ -1,5 +1,5 @@
 """
-TDD tests for the Telegram channel promotion adapter (kb-a4u.14).
+TDD tests for the Telegram channel promotion adapter (sb-a4u.14).
 
 Acceptance items covered:
 (a) Happy path → published, external_id == str(message_id), syndicated_at set.
@@ -71,7 +71,7 @@ def _make_telegram_connection(profile, destination_id="-1001234567890", credenti
 def _seed_canonical_cv(event):
     """
     Get-or-create the canonical ContentVersion for an event.
-    Required by the F1 non-null content_version FK (kb-wz8m.2 A1 invariant).
+    Required by the F1 non-null content_version FK (sb-wz8m.2 A1 invariant).
     """
     from syndication.models import ContentVersion
 

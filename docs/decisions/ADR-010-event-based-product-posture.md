@@ -8,7 +8,7 @@
 
 The discovery posture from ADR-009 D4 forbids global engagement-optimized ranking at the feed-ranking layer — the FetLife "Kinky & Popular" feedback-loop failure mode. That constraint binds *how feeds rank*, but does not by itself constrain *what features ship*, *what business model is pursued*, or *how UX patterns are chosen*.
 
-The kb-2ve Phase A long-term vision brainstorm (2026-05-20) surfaced the product-posture-layer expression of the same anti-engagement principle: Switch Berlin's purpose is **facilitating real-world action** — people meeting in the real world, attending events, building community offline. Platform engagement (time-on-platform, return-visit-frequency, follow-counts) is not a goal in itself; it can serve the real-world facilitation goal as an instrument, but it must not become the goal.
+The sb-2ve Phase A long-term vision brainstorm (2026-05-20) surfaced the product-posture-layer expression of the same anti-engagement principle: Switch Berlin's purpose is **facilitating real-world action** — people meeting in the real world, attending events, building community offline. Platform engagement (time-on-platform, return-visit-frequency, follow-counts) is not a goal in itself; it can serve the real-world facilitation goal as an instrument, but it must not become the goal.
 
 Without canonicalization at the product-posture layer, future decisions on features (e.g., should we ship streaks? infinite scroll? engagement-monetization?), UX patterns (notification gamification?), and business model (engagement-revenue?) re-litigate the posture from scratch — exactly the drift FetLife's K&P feedback loop emerged from (engagement was "one signal among many" until incremental re-weighting pulled the system toward demographic concentration).
 
@@ -24,8 +24,8 @@ Switch Berlin's purpose is to facilitate real-world action — people meeting in
 
 - **(a) Engagement metrics as instruments, not goals.** Engagement signals (RSVPs, follows, clicks, dwell time) may legitimately serve product decisions — surface event-listing clarity issues, learn which organizers are useful to highlight, feed bounded ranking per ADR-009 D4. They are evaluated on whether they advance real-world action, not on whether they advance engagement for its own sake.
 - **(b) Feature shipping discipline.** Engagement-driving design patterns (streaks, badges-for-time-on-platform, infinite scroll, notification gamification, return-engagement loops) are evaluated against real-world outcome, not against platform engagement metrics. A feature that would increase platform engagement without advancing real-world impact does not ship.
-- **(c) Business-model constraint.** Revenue paths that monetize engagement (ads, attention-revenue, premium-engagement-features, engagement-based subscription tiers) are blocked because they structurally misalign platform incentives with user goal. Revenue must come from facilitating real-world events (e.g., ticketing fees on the sister platform per kb-2ve Phase A D1, organizer subscriptions tied to event-facilitation value).
-- **(d) Agentic-layer constraint.** Personal agents (kb-2ve Phase A D4) must serve the user's real-world goals; they may not be optimized to keep users on the platform or to drive platform-engagement metrics.
+- **(c) Business-model constraint.** Revenue paths that monetize engagement (ads, attention-revenue, premium-engagement-features, engagement-based subscription tiers) are blocked because they structurally misalign platform incentives with user goal. Revenue must come from facilitating real-world events (e.g., ticketing fees on the sister platform per sb-2ve Phase A D1, organizer subscriptions tied to event-facilitation value).
+- **(d) Agentic-layer constraint.** Personal agents (sb-2ve Phase A D4) must serve the user's real-world goals; they may not be optimized to keep users on the platform or to drive platform-engagement metrics.
 
 **Boundary with ADR-009 D4:** ADR-009 D4 forbids global engagement-optimized ranking at feed-ranking surfaces; it explicitly permits engagement signals within bounded strata as inputs to discovery relevance. This ADR-010 D1 operates one level up: it binds the *goal* of the platform, not the *means*. Bounded engagement signals (ADR-009 D4) are permitted as instruments serving the real-world-action goal (this D1) — the two constraints compose without tension.
 
@@ -35,7 +35,7 @@ Switch Berlin's purpose is to facilitate real-world action — people meeting in
 
 **Rationale:**
 
-- `external:` kb-2ve Phase A brainstorm (user-explicit, 2026-05-20) — "facilitating people to actually do things in the real world, get people together, rather than keep them on the platform." Positioning angle differentiates from FetLife (engagement-monetized) and aligns with the curated-trust framing in ADR-001 D1.
+- `external:` sb-2ve Phase A brainstorm (user-explicit, 2026-05-20) — "facilitating people to actually do things in the real world, get people together, rather than keep them on the platform." Positioning angle differentiates from FetLife (engagement-monetized) and aligns with the curated-trust framing in ADR-001 D1.
 - `external:` ADR-009 D4 rationale chain — FetLife critique digest (K&P feedback loop) demonstrates that engagement-optimization at any layer pulls toward demographic concentration. Product-posture-layer constraint prevents the same drift via feature-shipping discipline rather than only ranking-algorithm discipline.
 - `reasoned:` Business-model alignment between platform and user goal: if revenue comes from engagement, platform incentives diverge from the user's real-world goal. If revenue comes from facilitating real-world events, incentives align. The structural choice is at the business-model layer.
 
@@ -60,7 +60,7 @@ Switch Berlin's purpose is to facilitate real-world action — people meeting in
 
 - All future bead `--design` for features touching engagement signals must cite this ADR in `## canonical_refs` and explicitly justify how the feature advances real-world action.
 - Business-model decisions cannot route through engagement-monetization paths without an in-place ADR-010 evolution.
-- kb-2ve Phase A D3 (deep social-network) and D4 (personal-agent layer) inherit this constraint: features in those layers are evaluated against real-world-action advancement.
+- sb-2ve Phase A D3 (deep social-network) and D4 (personal-agent layer) inherit this constraint: features in those layers are evaluated against real-world-action advancement.
 - Adjacent to but does not modify ADR-009 D4 — D4 binds feed-ranking layer; this D1 binds product-purpose at the meta-level.
 
 ### Carried forward
@@ -72,7 +72,7 @@ Switch Berlin's purpose is to facilitate real-world action — people meeting in
 ### Risk
 
 - Honest application requires platform team to evaluate every feature against "does this advance real-world action" — risk of theatrical compliance (calling everything "real-world aligned"). Mitigation: real-world-outcome metrics (event attendance, organizer feedback on attendee quality, retention measured by real-world-events-attended rather than platform-visits) become first-class success criteria.
-- Tension with sister-platform shape (kb-2ve Phase A D1) — sister platform's third-party organizers (yoga, tantra, wellness) may have engagement-mode business pressures; the sister-platform brand operates at arm's length but the same posture binds Switch Berlin's relationship to it. Cross-reference at sister-platform design time.
+- Tension with sister-platform shape (sb-2ve Phase A D1) — sister platform's third-party organizers (yoga, tantra, wellness) may have engagement-mode business pressures; the sister-platform brand operates at arm's length but the same posture binds Switch Berlin's relationship to it. Cross-reference at sister-platform design time.
 
 ## canonical_refs
 
@@ -82,12 +82,12 @@ Switch Berlin's purpose is to facilitate real-world action — people meeting in
 - [ADR-008 D2](ADR-008-code-posture-refactor-hard-fail-loud.md) — no speculative abstraction; this ADR constrains future decisions without pre-building abstraction.
 - [ADR-003](ADR-003-cheap-foresight-patterns.md) — cheap foresight; the post canonical-anchor "Master copy" slot is shaped now (data/naming only) so Switch can become the post canonical home via a cheap flip once Switch posting ships, without speculative behavioral build (tension with ADR-008 D2 resolved per ADR-003's data-shape-vs-behavior split).
 - [ADR-016 D2](ADR-016-outbound-syndication-architecture-event-post-projections.md) — per-platform projections + sync-from-channel; the UI consequence of D1's canonical-home decision is realized in the composer's anchor presentation.
-- `kb-2ve` (Long-term platform vision brainstorm) — Phase A D3 (deep social) and D4 (personal-agent layer) inherit this constraint; positioning angle (event-based, not engagement-based) originated here.
-- `kb-4pj` (Land discovery posture) — closed; canonicalized as ADR-009 D4. This ADR-010 is the product-purpose-layer companion.
+- `sb-2ve` (Long-term platform vision brainstorm) — Phase A D3 (deep social) and D4 (personal-agent layer) inherit this constraint; positioning angle (event-based, not engagement-based) originated here.
+- `sb-4pj` (Land discovery posture) — closed; canonicalized as ADR-009 D4. This ADR-010 is the product-purpose-layer companion.
 
 ## Open questions deferred
 
 | Question | Resolution path |
 |---|---|
 | Real-world-outcome success metrics — which observable signals constitute "real-world action advancement"? | Defer until first feature requires the discrimination. Likely candidates: event attendance growth, organizer-reported attendee-quality signals, retention measured by real-world-events-attended rather than platform-visits. |
-| Sister-platform brand posture inheritance — does ADR-010 D1 bind sister-platform's UX/feature decisions, or only Switch Berlin's? | Defer; sister-platform shape is FLEXIBLE per kb-2ve Phase A D1. Cross-reference at sister-platform design time. |
+| Sister-platform brand posture inheritance — does ADR-010 D1 bind sister-platform's UX/feature decisions, or only Switch Berlin's? | Defer; sister-platform shape is FLEXIBLE per sb-2ve Phase A D1. Cross-reference at sister-platform design time. |

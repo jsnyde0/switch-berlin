@@ -1,5 +1,5 @@
 """
-Syndication web UI views (kb-a4u.3).
+Syndication web UI views (sb-a4u.3).
 
 Co-equal seam (ADR-016 D3/D6): views call the same syndication.services
 functions as the Ninja API handlers. No parallel persistence implementations.
@@ -64,7 +64,7 @@ from syndication.services import (
 _views_logger = _views_logger_mod.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Rail OOB helper (kb-96tn.6 gap closure)
+# Rail OOB helper (sb-96tn.6 gap closure)
 # ---------------------------------------------------------------------------
 
 
@@ -105,7 +105,7 @@ def _render_rail_oob(request):
 
 
 # ---------------------------------------------------------------------------
-# Sibling body OOB helper (kb-ciqf)
+# Sibling body OOB helper (sb-ciqf)
 # ---------------------------------------------------------------------------
 
 
@@ -155,7 +155,7 @@ def _render_sibling_body_oob_fragments(request, projections, *, skip_pk=None, is
 
 
 # ---------------------------------------------------------------------------
-# Studio front door (kb-9f1h.1)
+# Studio front door (sb-9f1h.1)
 # ---------------------------------------------------------------------------
 
 
@@ -172,7 +172,7 @@ def studio(request):
     (not the raising _get_primary_profile_for_user) so the error path is 403,
     not an uncaught ValueError.
 
-    The studio shell/rail templates are kb-9f1h.3's job; this view renders a
+    The studio shell/rail templates are sb-9f1h.3's job; this view renders a
     minimal placeholder template.
     """
     from organizers.models import ProfileClaim
@@ -228,7 +228,7 @@ def event_create(request):
     GET: render the form.
     POST: call create_event service (co-equal with API), redirect to hub on success.
 
-    HX-Request branching (kb-96tn.6): when requested via HTMX, return the
+    HX-Request branching (sb-96tn.6): when requested via HTMX, return the
     layout-less form fragment (no {% extends %}) for swapping into #studio-main.
     On POST success with HX-Request, return the event hub fragment instead of
     a full-page redirect (keeps rail visible, no full reload).
@@ -257,7 +257,7 @@ def event_create(request):
                 if is_htmx:
                     # HTMX success: return the event hub fragment + an OOB rail
                     # update so the left rail reflects the new event without a
-                    # full-page reload (kb-96tn.6 gap closure).
+                    # full-page reload (sb-96tn.6 gap closure).
                     from django.urls import reverse
 
                     hub_url = reverse("syndication:event-hub", kwargs={"pk": event.pk})
@@ -292,12 +292,12 @@ def event_hub(request, pk):
     The hub page does NOT inline fragment query logic — it just includes
     the fragments by reference. ADR-008 D2: no tab framework speculation.
 
-    HX-Request branching (kb-9f1h.2): when requested via HTMX, return the
+    HX-Request branching (sb-9f1h.2): when requested via HTMX, return the
     layout-less body fragment (no {% extends %} so it can be swapped into
     #studio-main without nesting <head>/<body>). Normal GET returns the full
     page for deep-link/refresh compatibility.
 
-    kb-shzi.2 (BUG 1 fix): the full-page response now renders the studio
+    sb-shzi.2 (BUG 1 fix): the full-page response now renders the studio
     two-pane shell (rail + #studio-main) so that direct GET / refresh /
     deep-link all show the rail — not just in-studio HTMX navigation.
     Rail context (primary_profile, publishables, current_path) is populated
@@ -312,7 +312,7 @@ def event_hub(request, pk):
     if request.headers.get("HX-Request"):
         return render(request, "syndication/event_hub_fragment.html", ctx)
 
-    # Full-page render: populate the studio shell rail context (kb-shzi.2).
+    # Full-page render: populate the studio shell rail context (sb-shzi.2).
     # Fail loud when there is no claim — mirror the studio view's no-claim
     # handling (ADR-008 D3: never synthesize a broken rail on missing data).
     from events.models import Event as _Event
@@ -348,7 +348,7 @@ def event_hub_edit(request, pk):
     Edit an Event via the web form.
     GET: render form pre-populated with current values.
     POST: call update_event service (co-equal with API), redirect to hub on success.
-    HTMX-aware (kb-ide0.1): on HX-Request, return the event_syndication fragment
+    HTMX-aware (sb-ide0.1): on HX-Request, return the event_syndication fragment
     so the edit-in-place card re-renders without a full page reload.
     """
     event = get_object_or_404(Event, pk=pk)
@@ -391,7 +391,7 @@ def event_hub_edit(request, pk):
                         },
                     )
             if request.headers.get("HX-Request"):
-                # kb-nexw.2: emit OOB dirty-banner + Re-publish CTA for each
+                # sb-nexw.2: emit OOB dirty-banner + Re-publish CTA for each
                 # published LISTING projection of this event so the dirty state
                 # reaches the DOM even though hx-swap="none" discards the
                 # main response body (EventForm autosave autosave pattern).
@@ -403,7 +403,7 @@ def event_hub_edit(request, pk):
                 #
                 # Per-row try/except ValueError containment (mirrors version_edit
                 # ~1737-1759): a corrupt sibling must not abort the active edit.
-                # kb-ciqf Fix 1: query ALL listing projections for this event so we
+                # sb-ciqf Fix 1: query ALL listing projections for this event so we
                 # can emit body OOBs for track-live channels (not just published ones).
                 _all_listing_projs = list(
                     PlatformProjection.objects.filter(
@@ -463,7 +463,7 @@ def event_hub_edit(request, pk):
                             request=request,
                         )
                     )
-                # kb-ciqf Fix 1: emit body OOBs for all non-switch listing projections
+                # sb-ciqf Fix 1: emit body OOBs for all non-switch listing projections
                 # (Switch listing uses the EventForm card, not a textarea). The event
                 # master edit updates Event fields, so track-live channels recompose from
                 # the updated event. OOB body updates surface the new content live without
@@ -573,7 +573,7 @@ def fragment_event_posts(request, pk):
 @login_required
 def fragment_event_syndication(request, pk, *, action_error=None):
     """
-    event_syndication fragment: projection review board (kb-a4u.5).
+    event_syndication fragment: projection review board (sb-a4u.5).
 
     Shows one row per projection for the event — both listing projections
     (source_event) and promotion projections (via Posts linked to this event).
@@ -600,7 +600,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     user_can_edit = can_edit(request.user, event)
     user_can_publish = can_publish(request.user, event)
 
-    # kb-ide0.3 D3: Event composer shows ONLY listing projections (connections
+    # sb-ide0.3 D3: Event composer shows ONLY listing projections (connections
     # whose kinds contains "listing"). Promotion projections (post-owned, via
     # PlatformConnection.kinds contains "promotion" only) belong to the post
     # composer, not the event composer. This matches the eager-creation filter
@@ -664,7 +664,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         if content_is_dirty:
             policy = edit_after_publish_policy(proj.connection.platform)
             is_dirty = policy == "dirty_then_republish"
-        # Compute editable flag for this projection (kb-kgza.3 ADR-016 D5).
+        # Compute editable flag for this projection (sb-kgza.3 ADR-016 D5).
         # A published projection is editable when the platform's policy allows
         # edit-after-publish (dirty_then_republish). Draft projections are always
         # editable (the existing status-gate already covers that). The flag is
@@ -675,7 +675,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
         else:
             editable = False  # draft: handled by the existing `can_edit and proj.status == 'draft'` gate
         rendered_rows[proj.pk] = body
-        # kb-6d7o.3: For Telegram projections, compute the card image URL so the
+        # sb-6d7o.3: For Telegram projections, compute the card image URL so the
         # Telegram branch of _channel_preview.html can render the link-preview card.
         # Uses events.og.card_image_url — the same resolver the live event-page
         # og:image tag calls (ADR-003 single resolution point). preview == reality
@@ -720,20 +720,20 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     has_posts = Post.objects.filter(event=event).exists()
     no_promo_posts = has_promotion_connections and not has_posts
 
-    # Build the per-version consumers map for the "live on <channels>" cue (kb-wz8m.5).
+    # Build the per-version consumers map for the "live on <channels>" cue (sb-wz8m.5).
     consumers_map = content_version_consumers_map(event)
 
     # has_ready_projections: true iff ≥1 projection is in 'ready' status (F3).
     # Guards the "Publish all ready" button — no-op when none are ready (ADR-008 D3).
     has_ready_projections = any(row["projection"].status == "ready" for row in projection_rows)
 
-    # kb-ide0.1: thread studio context to the template (same pattern as
+    # sb-ide0.1: thread studio context to the template (same pattern as
     # fragment_post_syndication). The event_syndication template gates
     # studio-specific HTMX attrs on this flag. Without ?studio=1 the fragment
     # serves the standalone context (no hx-target="#studio-main" emitted).
     studio_swap = bool(request.GET.get("studio"))
 
-    # kb-ide0.1 D2: pre-populate the EventForm with the event's current field
+    # sb-ide0.1 D2: pre-populate the EventForm with the event's current field
     # values for the Switch listing edit-in-place card. The form renders structured
     # inputs (title, description, start, etc.) inside the styled listing card.
     # ADR-008 D2: simplest path — same form used by event_hub_edit, same initial dict.
@@ -772,11 +772,11 @@ def fragment_event_syndication(request, pk, *, action_error=None):
             "category": event.category,
         }
     )
-    # kb-y209.1: all 16 previously-hidden fields are now rendered as editable widgets
+    # sb-y209.1: all 16 previously-hidden fields are now rendered as editable widgets
     # in progressive-disclosure sections in the Switch listing card. The HiddenInput
     # override loop is removed — every field keeps its native widget.
 
-    # kb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
+    # sb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
     # re-opens the same channel tab. The action POSTs (customize/reset/duplicate)
     # submit selected_pk as a hidden input; we read it from POST (or GET fallback),
     # validate it against the current projection set, and fall back to first_pk
@@ -789,7 +789,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     else:
         selected_pk = None  # None → template falls back to first_pk
 
-    # kb-96tn.4: available_connections — enabled connections that support 'listing'
+    # sb-96tn.4: available_connections — enabled connections that support 'listing'
     # but have no projection yet for this event. Powers the "…" toggle dropdown.
     # Excludes connections already projected (any status — including published).
     already_projected_conn_ids = set(p.connection_id for p in projections)
@@ -823,7 +823,7 @@ def fragment_event_syndication(request, pk, *, action_error=None):
 
 
 # ---------------------------------------------------------------------------
-# Post hub and fragment (kb-q4u9.3)
+# Post hub and fragment (sb-q4u9.3)
 # ---------------------------------------------------------------------------
 
 
@@ -836,12 +836,12 @@ def post_hub(request, pk):
     Composes the post_syndication fragment via HTMX.
     ADR-008 D2: no tab framework speculation — explicit, named fragment.
 
-    HX-Request branching (kb-9f1h.2): when requested via HTMX, return the
+    HX-Request branching (sb-9f1h.2): when requested via HTMX, return the
     layout-less body fragment (no {% extends %} so it can be swapped into
     #studio-main without nesting <head>/<body>). Normal GET returns the full
     page for deep-link/refresh compatibility.
 
-    kb-shzi.2 (BUG 1 fix): the full-page response now renders the studio
+    sb-shzi.2 (BUG 1 fix): the full-page response now renders the studio
     two-pane shell (rail + #studio-main) so that direct GET / refresh /
     deep-link all show the rail. Same pattern as event_hub.
     """
@@ -856,7 +856,7 @@ def post_hub(request, pk):
     if request.headers.get("HX-Request"):
         return render(request, "syndication/post_hub_fragment.html", ctx)
 
-    # Full-page render: populate the studio shell rail context (kb-shzi.2).
+    # Full-page render: populate the studio shell rail context (sb-shzi.2).
     # Fail loud when there is no claim — mirror the studio view's no-claim
     # handling (ADR-008 D3: never synthesize a broken rail on missing data).
     from events.models import Event as _Event
@@ -895,7 +895,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     connections whose kinds contains "promotion"; listing-only connections are
     excluded, symmetric with the event composer's listing filter).
 
-    ADR-010 D1 (kb-ide0.4): A Post has no native-home channel, so its canonical
+    ADR-010 D1 (sb-ide0.4): A Post has no native-home channel, so its canonical
     is an abstract "Source" anchor. The Source tab is rendered FIRST in the tab row
     — it is the default sync source for all secondary channels. source_row carries
     the canonical ContentVersion body for this tab.
@@ -917,7 +917,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
     user_can_edit = can_edit(request.user, event)
     user_can_publish = can_publish(request.user, event)
 
-    # kb-ide0.3 D3: Post composer shows ONLY promotion projections (connections
+    # sb-ide0.3 D3: Post composer shows ONLY promotion projections (connections
     # whose kinds contains "promotion"). Listing-only connections belong to the
     # event composer, not the post composer. No hard-coded platform names:
     # kinds drives the filter — symmetric with the event-side "listing" guard
@@ -957,7 +957,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         if content_is_dirty:
             policy = edit_after_publish_policy(proj.connection.platform)
             is_dirty = policy == "dirty_then_republish"
-        # Compute editable flag for this projection (kb-kgza.3 ADR-016 D5).
+        # Compute editable flag for this projection (sb-kgza.3 ADR-016 D5).
         # Symmetric with fragment_event_syndication: published → policy-gated,
         # draft → handled by the existing status-gate in _channel_editor.html.
         if proj.status == PlatformProjection.Status.PUBLISHED:
@@ -980,13 +980,13 @@ def fragment_post_syndication(request, pk, *, action_error=None):
 
     has_ready_projections = any(row["projection"].status == "ready" for row in projection_rows)
 
-    # kb-9f1h.7: thread studio context to the template so the "Event hub"
+    # sb-9f1h.7: thread studio context to the template so the "Event hub"
     # cross-link uses HTMX swap attrs only when inside the studio shell.
     # The body partial passes ?studio=1 when studio_swap is True; this view
     # reads it and forwards it to post_syndication.html.
     studio_swap = bool(request.GET.get("studio"))
 
-    # ADR-010 D1 (kb-ide0.4): Resolve the post's canonical ContentVersion for
+    # ADR-010 D1 (sb-ide0.4): Resolve the post's canonical ContentVersion for
     # the "Source" anchor tab (the abstract master a post anchors at, since
     # posts have no native-home channel). Fail loud if absent (A1 invariant) —
     # a missing canonical is a data bug (ADR-008 D3), not a silent gap.
@@ -1009,7 +1009,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         "body": source_body,
     }
 
-    # kb-kgza.3 FIX 1: Compute source_editable — gates the master/source panel
+    # sb-kgza.3 FIX 1: Compute source_editable — gates the master/source panel
     # editor in post_syndication.html so it is INTENTIONALLY editable rather than
     # always-on-but-broken.
     #
@@ -1037,7 +1037,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
             edit_after_publish_policy(proj.connection.platform) == "dirty_then_republish" for proj in projections
         )
 
-    # kb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
+    # sb-shzi.2 (BUG 2 fix): resolve selected_pk so the re-rendered fragment
     # re-opens the same channel tab. The action POSTs (customize/reset/duplicate)
     # submit selected_pk as a hidden input; we read it from POST (or GET fallback),
     # validate it against the current projection set, and fall back to 'source'
@@ -1052,7 +1052,7 @@ def fragment_post_syndication(request, pk, *, action_error=None):
         # No selection or invalid pk — default to 'source' (the Source anchor tab)
         selected_pk = None  # None → template renders 'source' default
 
-    # kb-96tn.4: available_connections — enabled connections that support 'promotion'
+    # sb-96tn.4: available_connections — enabled connections that support 'promotion'
     # but have no projection yet for this post. Powers the "…" toggle dropdown.
     # Excludes connections already projected (any status — including published).
     # Symmetric with fragment_event_syndication's available_connections (listing kind there).
@@ -1152,7 +1152,7 @@ def post_create(request, event_pk):
 
 
 # ---------------------------------------------------------------------------
-# Standalone post creation (kb-96tn.6 — no parent event selected yet)
+# Standalone post creation (sb-96tn.6 — no parent event selected yet)
 # ---------------------------------------------------------------------------
 
 
@@ -1165,7 +1165,7 @@ def post_create_standalone(request):
     where no specific event is pre-selected. The user picks an event, fills
     the headline/body, and submits.
 
-    HX-Request branching (kb-96tn.6): HTMX GET returns a layout-less fragment
+    HX-Request branching (sb-96tn.6): HTMX GET returns a layout-less fragment
     (for swapping into #studio-main). HTMX POST success returns the post hub
     fragment; plain POST redirects to the event hub.
     """
@@ -1325,7 +1325,7 @@ def connection_toggle(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Destination picker (kb-sbhs.2 — RENDER ONLY)
+# Destination picker (sb-sbhs.2 — RENDER ONLY)
 #
 # Renders the synced Telegram inventory as a categorised tree:
 #   Channels / Groups / Forums → Topics
@@ -1346,7 +1346,7 @@ def connection_toggle(request, pk):
 @login_required
 def destination_picker(request):
     """
-    Render-only destination picker (kb-sbhs.2).
+    Render-only destination picker (sb-sbhs.2).
 
     Builds a structured context object grouping PlatformConnections by type:
     - channels: all type=channel rows
@@ -1355,7 +1355,7 @@ def destination_picker(request):
               forum_topic children, each cluster listing its topic leaves
 
     No mutation endpoints — checkboxes are display affordances; POST wiring
-    is Child kb-sbhs.3.
+    is Child sb-sbhs.3.
     """
     from collections import defaultdict
 
@@ -1470,7 +1470,7 @@ def destination_picker(request):
 
 
 # ---------------------------------------------------------------------------
-# Destination picker mutation endpoints (kb-sbhs.3)
+# Destination picker mutation endpoints (sb-sbhs.3)
 #
 # SELECT / DESELECT: sets kinds+enabled (additive — never clobbers existing kinds)
 # OVERLAY writer:    persists friendly_name + theme_tags
@@ -1484,7 +1484,7 @@ def destination_picker(request):
 #
 # The guard is re-derived server-side from DB state — never trusted from client.
 #
-# _derive_selectability now lives in syndication/services.py (kb-k2ds.3) so
+# _derive_selectability now lives in syndication/services.py (sb-k2ds.3) so
 # this web view and the agent-reachable enable-promotion CLI/REST verb
 # (syndication/api.py) share ONE fail-loud gate instead of risking silent
 # divergence (ADR-008 D3 FIRM). Imported below alongside the other service
@@ -1495,7 +1495,7 @@ def destination_picker(request):
 @login_required
 def destination_select(request, pk):
     """
-    Toggle promotion selection for a destination (kb-sbhs.3).
+    Toggle promotion selection for a destination (sb-sbhs.3).
 
     POST selected=true  → add 'promotion' to kinds (additive) + enabled=True
     POST selected=false → remove 'promotion' from kinds
@@ -1568,7 +1568,7 @@ def destination_select(request, pk):
 @login_required
 def destination_overlay(request, pk):
     """
-    Persist the names/tags overlay for a connection (kb-sbhs.3).
+    Persist the names/tags overlay for a connection (sb-sbhs.3).
 
     POST friendly_name + theme_tags (comma-separated string) → save to DB.
 
@@ -1637,7 +1637,7 @@ def destination_overlay(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Projection lifecycle action views (kb-a4u.5, ADR-016 D5/D6)
+# Projection lifecycle action views (sb-a4u.5, ADR-016 D5/D6)
 #
 # Co-equal seam: each view delegates to the matching service function.
 # No lifecycle logic lives here — views are thin routing + authz dispatch.
@@ -1659,7 +1659,7 @@ def _syndication_fragment_response(request, event):
 def _post_syndication_fragment_response(request, post):
     """
     Return the post_syndication fragment for the given post.
-    Post-scoped counterpart to _syndication_fragment_response (kb-q4u9.3).
+    Post-scoped counterpart to _syndication_fragment_response (sb-q4u9.3).
     ADR-008 D2: explicit named delegate, no generic dispatcher.
     """
     return fragment_post_syndication(request, pk=post.pk)
@@ -1670,7 +1670,7 @@ def _publishable_hub_redirect(proj):
     Return the URL for the hub page of the projection's publishable (event or post).
 
     Dispatches by publishable type so version-op views don't AttributeError when
-    a ContentVersion is post-owned (event is null). kb-q4u9.3 item 7.
+    a ContentVersion is post-owned (event is null). sb-q4u9.3 item 7.
 
     listing → event hub
     promotion → post hub (source_post)
@@ -1688,7 +1688,7 @@ def _publishable_hub_redirect_for_cv(content_version):
 
     For version-op views that operate on ContentVersion directly (version_edit,
     version_duplicate, version_copy_to) and need to redirect after the op.
-    kb-q4u9.3 item 7: dispatch by publishable type (event-hub vs post-hub).
+    sb-q4u9.3 item 7: dispatch by publishable type (event-hub vs post-hub).
     """
     event, post = _resolve_publishable_for_cv(content_version)
     if event is not None:
@@ -1701,7 +1701,7 @@ def _publishable_fragment_response(request, proj, action_error=None):
     Return the refreshed syndication fragment for the projection's publishable.
 
     Dispatches by publishable type (event → event_syndication fragment;
-    post → post_syndication fragment). kb-q4u9.3 item 7.
+    post → post_syndication fragment). sb-q4u9.3 item 7.
     """
     if proj.kind == PlatformProjection.Kind.LISTING:
         return fragment_event_syndication(request, pk=proj.source_event.pk, action_error=action_error)
@@ -1715,7 +1715,7 @@ def _publishable_fragment_response_for_cv(request, content_version, action_error
     Return the refreshed syndication fragment for a ContentVersion's publishable.
 
     For version-op views that operate directly on ContentVersion.
-    kb-q4u9.3 item 7: dispatch by publishable type.
+    sb-q4u9.3 item 7: dispatch by publishable type.
     """
     event, post = _resolve_publishable_for_cv(content_version)
     if event is not None:
@@ -1731,7 +1731,7 @@ def _projection_transition_error_response(request, exc, proj):
 
     Dispatches by publishable type (event vs post), mirroring _publishable_fragment_response,
     so that a promotion/post-owned projection error returns the POST fragment rather than
-    corrupting the post workspace with an event fragment. (kb-q4u9.3 review finding 1)
+    corrupting the post workspace with an event fragment. (sb-q4u9.3 review finding 1)
     """
     _views_logger.warning("Illegal transition for projection %r: %s", proj.pk, exc)
     if proj.kind == PlatformProjection.Kind.LISTING:
@@ -1798,7 +1798,7 @@ def projection_publish(request, pk):
 @login_required
 def projection_direct_publish(request, pk):
     """
-    Direct-publish: solo-flow Publish CTA (kb-ide0.2 D6).
+    Direct-publish: solo-flow Publish CTA (sb-ide0.2 D6).
 
     Drives the internal draft→ready→published two-step transparently.
     If the projection is 'draft': approve (freeze frozen_content) then publish.
@@ -1855,7 +1855,7 @@ def projection_mark_published(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Version-op views (kb-wz8m.5, ADR-016 D3/D5)
+# Version-op views (sb-wz8m.5, ADR-016 D3/D5)
 #
 # Each view: resolve objects, gate on login + ownership (via can_edit in
 # the service layer), call the matching services.py function, return the
@@ -1954,7 +1954,7 @@ def projection_detach_and_edit(request, pk):
                 _is_dirty = _policy == "dirty_then_republish"
             else:
                 _is_dirty = False
-            # kb-kgza.10 B: compute can_publish so the OOB partial can render the
+            # sb-kgza.10 B: compute can_publish so the OOB partial can render the
             # Re-publish CTA region (#channel-cta-<pk>) without a full page reload.
             _publishable = _resolve_projection_event(proj)
             _user_can_publish = can_publish(request.user, _publishable)
@@ -1964,7 +1964,7 @@ def projection_detach_and_edit(request, pk):
                     {
                         "proj": proj,
                         "is_dirty": _is_dirty,
-                        "oob": True,  # FIX C (kb-kgza.2): emit hx-swap-oob="true" so HTMX
+                        "oob": True,  # FIX C (sb-kgza.2): emit hx-swap-oob="true" so HTMX
                         # processes the dirty pill/banner OOB swap client-side.
                         # version_edit passes oob=True (views.py ~1651-1655); detach-and-edit
                         # was missing it, leaving the dirty indicator un-updated after detach.
@@ -1974,7 +1974,7 @@ def projection_detach_and_edit(request, pk):
                     request=request,
                 )
             )
-        # kb-ciqf Fix 1: emit body OOBs for sibling projections still on the canonical
+        # sb-ciqf Fix 1: emit body OOBs for sibling projections still on the canonical
         # CV (the projections that share the same publishable but were NOT the edited one).
         # After detach, proj is on its own new CV; siblings still share the original CV.
         # MUST skip proj itself (cursor protection: don't clobber the active textarea).
@@ -2034,7 +2034,7 @@ def projection_reset_to_canonical(request, pk):
     POST only. Calls reset_to_canonical(user, projection) service.
     HTMX-aware: returns refreshed syndication fragment on HX-Request.
     ADR-008 D3: PermissionError → 403; ValueError (missing canonical) → fail loud.
-    kb-q4u9.3 item 7: dispatch by publishable type (event-hub vs post-hub).
+    sb-q4u9.3 item 7: dispatch by publishable type (event-hub vs post-hub).
     """
     proj = get_object_or_404(PlatformProjection, pk=pk)
     if request.method != "POST":
@@ -2110,7 +2110,7 @@ def version_edit(request, pk):
     HTMX-aware: returns refreshed syndication fragment on HX-Request.
     ADR-008 D3: PermissionError → 403; ValueError (frozen consumers) → fail loud.
 
-    Edit-after-publish (ADR-016 D5 / kb-kgza.3): when ALL consumers of the CV are
+    Edit-after-publish (ADR-016 D5 / sb-kgza.3): when ALL consumers of the CV are
     non-draft (published/ready/failed), this is the legitimate master/source-tab
     edit-after-publish flow. The edit broadcasts to all sharers → they become dirty
     (frozen_content snapshot unchanged = no corruption). Pass _allow_edit_after_publish=True
@@ -2131,7 +2131,7 @@ def version_edit(request, pk):
         if field_name in request.POST:
             fields[field_name] = request.POST[field_name]
 
-    # kb-ciqf Fix 2: guard against writing body to an event canonical CV via this
+    # sb-ciqf Fix 2: guard against writing body to an event canonical CV via this
     # view. ADR-016 D2: the intended model is that editing an event's MASTER updates
     # Event MODEL FIELDS (via update_event / event_hub_edit), leaving the canonical
     # CV body NULL so it stays track-live. Any body write on the event canonical
@@ -2161,7 +2161,7 @@ def version_edit(request, pk):
             return _publishable_fragment_response_for_cv(request, version, action_error=str(exc))
         return _publishable_hub_redirect_for_cv(version)
 
-    # kb-s41r FIX 1: under live-share, version_edit is the MASTER/SOURCE edit path.
+    # sb-s41r FIX 1: under live-share, version_edit is the MASTER/SOURCE edit path.
     # Followers share this CV row — editing it broadcasts to them automatically.
     # Do NOT detach followers here: their sync_source must stay intact so they
     # continue rendering "Synced from <source>" (live-follow state).
@@ -2171,7 +2171,7 @@ def version_edit(request, pk):
     # every synced consumer after a master edit — wrong under live-share.)
 
     if request.headers.get("HX-Request"):
-        # kb-lprn: server-driven OOB badge update.
+        # sb-lprn: server-driven OOB badge update.
         # Return OOB sync-bar fragments for every projection sharing this CV so
         # the badge updates from the server's truth after the autosave round-trip.
         # The autosave form uses hx-swap="none" — HTMX ignores the main body but
@@ -2180,7 +2180,7 @@ def version_edit(request, pk):
         # (shared canonical → still "Synced") — the naive optimistic flip lies
         # for broadcast channels (ADR-016 D2 single-row sharing).
         #
-        # kb-96tn.5: also emit dirty-state OOB (channel-dot + channel-dirty)
+        # sb-96tn.5: also emit dirty-state OOB (channel-dot + channel-dirty)
         # for published projections so the pill dot and banner update WITHOUT a
         # full page reload. Published projections that share this CV may become
         # dirty immediately after the autosave — surface it in the same round-trip.
@@ -2210,13 +2210,13 @@ def version_edit(request, pk):
                     request=request,
                 )
             )
-            # kb-96tn.5: OOB dirty-state update for published projections.
+            # sb-96tn.5: OOB dirty-state update for published projections.
             # Compute is_dirty for this projection and emit the channel-dot +
             # channel-dirty OOB fragments so the pill dot updates live.
             # Only published projections can be dirty (is_dirty gates on status).
             # ADR-016 D5 / ADR-003: gate the affordance through edit_after_publish_policy.
             #
-            # FOLD 1 (kb-kgza.10, review Finding 2): per-row containment for the
+            # FOLD 1 (sb-kgza.10, review Finding 2): per-row containment for the
             # broadcast loop.  This loop iterates EVERY projection sharing the edited
             # ContentVersion — a corrupt sibling (e.g. source_event=None) must not
             # abort the autosave of the channel the user is actually editing.
@@ -2231,7 +2231,7 @@ def version_edit(request, pk):
                         _is_dirty = _policy == "dirty_then_republish"
                     else:
                         _is_dirty = False
-                    # kb-kgza.10 B: compute can_publish so the OOB partial can render the
+                    # sb-kgza.10 B: compute can_publish so the OOB partial can render the
                     # Re-publish CTA region (#channel-cta-<pk>) without a full page reload.
                     # Only computed for projections whose CTA OOB fragment is being emitted.
                     _publishable = _resolve_projection_event(_proj)
@@ -2259,7 +2259,7 @@ def version_edit(request, pk):
                         request=request,
                     )
                 )
-        # kb-ciqf Fix 1: emit OOB body-wrapper fragments for all sibling projections
+        # sb-ciqf Fix 1: emit OOB body-wrapper fragments for all sibling projections
         # that have a body textarea (non-switch-listing only — Switch listing uses
         # the EventForm card, not a textarea). This updates sibling channel textareas
         # live so the user sees the new master content without a full reload.
@@ -2319,7 +2319,7 @@ def version_copy_from(request, pk):
     Copy-from: repoint the target projection at a NEW independent copy taken
     from a source (mint a new row from source, FK the projection to it).
 
-    POST only. Takes source_projection_pk (kb-ide0.4): copies from a peer
+    POST only. Takes source_projection_pk (sb-ide0.4): copies from a peer
     PlatformProjection and sets projection.sync_source = that peer
     (snapshot + persisted pointer). Enforces cycle guard: raises ValueError if
     source projection has non-null sync_source (ADR-008 D3 fail-loud —
@@ -2360,7 +2360,7 @@ def version_copy_from(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Add-channel / remove-channel endpoints (kb-96tn.4, ADR-016 D4)
+# Add-channel / remove-channel endpoints (sb-96tn.4, ADR-016 D4)
 #
 # add_channel_event: POST /syndication/events/<pk>/add-channel/
 #   Mints a draft projection for an enabled connection not yet projected.
@@ -2427,7 +2427,7 @@ def add_channel_post(request, pk):
     Idempotent: re-POSTing for an already-projected connection returns 200 (via
     add_projection's idempotency — no duplicate minted).
 
-    Mirror of add_channel_event but scoped to Post (kb-96tn.4 parity).
+    Mirror of add_channel_event but scoped to Post (sb-96tn.4 parity).
     """
     post = get_object_or_404(Post, pk=pk)
     event = post.event
@@ -2504,7 +2504,7 @@ def remove_channel(request, pk):
 @login_required
 def agent_pairing_page(request):
     """
-    Agent pairing page (kb-a4u.6).
+    Agent pairing page (sb-a4u.6).
 
     Allows a logged-in facilitator to start the agent-pairing flow:
     GET: render the pairing form (instructions + "Generate pairing token" button).
@@ -2578,7 +2578,7 @@ def post_projection_batch_publish(request, pk):
     POST only. Calls publish_all_ready_projections_for_post service.
     HTMX-aware: returns refreshed post_syndication fragment on HX-Request.
 
-    Post-scoped counterpart to projection_batch_publish (kb-q4u9.6 MATERIAL FIX 1).
+    Post-scoped counterpart to projection_batch_publish (sb-q4u9.6 MATERIAL FIX 1).
     The event-scoped view wires the whole event; this view scopes to one post.
     On success returns the POST fragment (_post_syndication_fragment_response),
     NOT the event fragment — the post template's hx-target is #post-syndication.
@@ -2605,7 +2605,7 @@ def post_projection_batch_publish(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Coverage view (kb-56c2.2)
+# Coverage view (sb-56c2.2)
 # ---------------------------------------------------------------------------
 
 
@@ -2614,7 +2614,7 @@ def coverage(request, pk):
     """
     Render the per-post coverage surface for Telegram promotion connections.
 
-    Keyed on Post pk (kb-e0ch). Reads reconcile_telegram_coverage() via a
+    Keyed on Post pk (sb-e0ch). Reads reconcile_telegram_coverage() via a
     representative projection and renders per-destination status with an honest
     label for each of the four machine states (placed, failed, pending,
     skipped-pre-existing-draft).
@@ -2624,12 +2624,12 @@ def coverage(request, pk):
     - ADR-008 D3: vanished/flagged_missing destinations rendered flagged-loud,
       never silently dropped. Status driven from server reconcile output, never
       an optimistic client-side flip.
-    - kb-56c2 D6: public-tier destinations render as a deep-link affordance
+    - sb-56c2 D6: public-tier destinations render as a deep-link affordance
       ("open & post manually"), never placed/pending.
-    - kb-56c2 D3: send-checklist = agent-tier placed + public-tier, filtered
+    - sb-56c2 D3: send-checklist = agent-tier placed + public-tier, filtered
       by PlatformConnection.postability; bot-tier excluded; agent-pending excluded.
       Ticking is client-only, no persistence.
-    - kb-56c2 D5: forum rows are forum-level (one row per forum connection).
+    - sb-56c2 D5: forum rows are forum-level (one row per forum connection).
     """
     from django.http import Http404
 

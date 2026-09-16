@@ -1,4 +1,4 @@
-# Migration for kb-m69.8: MagicLinkToken + ClaimIntent models
+# Migration for sb-m69.8: MagicLinkToken + ClaimIntent models
 #
 # Per ADR-014 D2 (ClaimIntent — admin-review path, cheap-foresight cols).
 # Per ADR-014 D3 (MagicLinkToken — (email, profile_id, user_target) envelope;

@@ -23,9 +23,9 @@ class Migration(migrations.Migration):
                     "'agent' (private groups + forum topics, requires agent session), "
                     "'public' (deep-link only). "
                     "null for non-Telegram connections. "
-                    "Read by kb-sbhs D4 picker rendering. "
+                    "Read by sb-sbhs D4 picker rendering. "
                     "Constrained to TelegramPostability choices "
-                    "(single resolution point per kb-ru55.2 re-verify)."
+                    "(single resolution point per sb-ru55.2 re-verify)."
                 ),
                 max_length=50,
                 null=True,

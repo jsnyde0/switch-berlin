@@ -1,5 +1,5 @@
 """
-TDD tests for publish_projection platform dispatch (kb-wz8m.4).
+TDD tests for publish_projection platform dispatch (sb-wz8m.4).
 
 Acceptance:
 - publish_projection on a ready switch projection calls publish_switch_own_page
@@ -399,7 +399,7 @@ class PublishProjectionTelegramDispatchTest(TestCase):
         DISTINCT content. Publishing proj_1 must deliver proj_1's body; publishing
         proj_2 must deliver proj_2's body. A swap FAILS this test.
 
-        Uses customize + edit_version (kb-wz8m.3 ops) to diverge proj_1.
+        Uses customize + edit_version (sb-wz8m.3 ops) to diverge proj_1.
         """
         from syndication.engine import render_projection, transition_status
         from syndication.models import ContentVersion, Post

@@ -1,5 +1,5 @@
 """
-TDD tests for the syndication schema (kb-a4u.1).
+TDD tests for the syndication schema (sb-a4u.1).
 
 Tests assert:
 - Post.event FK resolves to events.Event
@@ -105,7 +105,7 @@ class PlatformProjectionKindStatusTest(TestCase):
             headline="Promo post",
             body="Come along.",
         )
-        # A1 invariant: every projection needs a content_version (kb-wz8m.2 non-null FK).
+        # A1 invariant: every projection needs a content_version (sb-wz8m.2 non-null FK).
         self.canonical_cv, _ = ContentVersion.objects.get_or_create(
             event=self.event,
             name="canonical",
@@ -173,8 +173,8 @@ class PlatformProjectionKindStatusTest(TestCase):
 
     def test_projection_has_content_version_fk(self):
         """
-        content_version FK exists on PlatformProjection (ADR-016 D2, kb-wz8m.2).
-        override_data removed in kb-wz8m.2 — content now lives on ContentVersion.
+        content_version FK exists on PlatformProjection (ADR-016 D2, sb-wz8m.2).
+        override_data removed in sb-wz8m.2 — content now lives on ContentVersion.
         """
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
@@ -183,16 +183,16 @@ class PlatformProjectionKindStatusTest(TestCase):
             connection=self.conn_switch,
             content_version=self.canonical_cv,
         )
-        # content_version attribute must exist and be non-null (A1 invariant, kb-wz8m.2).
+        # content_version attribute must exist and be non-null (A1 invariant, sb-wz8m.2).
         self.assertTrue(
             hasattr(proj, "content_version"),
             "PlatformProjection must have content_version attribute",
         )
         self.assertIsNotNone(proj.content_version)
-        # override_data must NOT exist (removed in kb-wz8m.2)
+        # override_data must NOT exist (removed in sb-wz8m.2)
         self.assertFalse(
             hasattr(proj, "override_data"),
-            "PlatformProjection must NOT have override_data after kb-wz8m.2 cutover",
+            "PlatformProjection must NOT have override_data after sb-wz8m.2 cutover",
         )
 
     def test_projection_has_external_id(self):

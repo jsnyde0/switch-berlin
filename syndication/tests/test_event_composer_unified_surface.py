@@ -1,5 +1,5 @@
 """
-Tests for unified event composer surface (kb-96tn.2).
+Tests for unified event composer surface (sb-96tn.2).
 
 Contract groups:
 (A) No double-render for draft non-Switch channels:
@@ -148,13 +148,13 @@ class NoDraftDoubleRenderTest(TestCase):
             ">Body<",
             content,
             "Draft FetLife channel must NOT render a standalone 'Body' section label — "
-            "the editable bubble is the only surface (kb-96tn.2 double-render fix).",
+            "the editable bubble is the only surface (sb-96tn.2 double-render fix).",
         )
         self.assertNotIn(
             ">Preview<",
             content,
             "Draft FetLife channel must NOT render a separate 'Preview' section label — "
-            "the editable bubble IS the preview (unified surface, kb-96tn.2).",
+            "the editable bubble IS the preview (unified surface, sb-96tn.2).",
         )
 
     def test_draft_fetlife_channel_has_editable_textarea(self):
@@ -172,7 +172,7 @@ class NoDraftDoubleRenderTest(TestCase):
             'name="body"',
             content,
             "Draft FetLife channel MUST have a textarea with name='body' for editing — "
-            "removing the textarea would regress editing (kb-96tn.2).",
+            "removing the textarea would regress editing (sb-96tn.2).",
         )
 
 
@@ -217,7 +217,7 @@ class EditableBubbleStylingTest(TestCase):
             'hx-swap="none"',
             content,
             "Draft FetLife channel must still have the autosave hx-post (hx-swap='none') "
-            "— autosave wiring must be preserved (kb-96tn.2).",
+            "— autosave wiring must be preserved (sb-96tn.2).",
         )
 
     def test_draft_fetlife_editor_has_platform_styled_container(self):
@@ -283,7 +283,7 @@ class NoPublishedDoubleRenderTest(TestCase):
             ">Body<",
             content,
             "Published channel must NOT render a standalone 'Body' section label — "
-            "the content appears once via the Preview block (kb-96tn.2).",
+            "the content appears once via the Preview block (sb-96tn.2).",
         )
 
     def test_published_channel_shows_content_preview(self):
@@ -302,7 +302,7 @@ class NoPublishedDoubleRenderTest(TestCase):
             "fl-test-user",
             content,
             "Published channel MUST still render the content preview — "
-            "the destination_id must appear in the preview block (kb-96tn.2).",
+            "the destination_id must appear in the preview block (sb-96tn.2).",
         )
 
 
@@ -347,14 +347,14 @@ class VenueVisibleInSwitchCardTest(TestCase):
             'type="hidden" name="venue"',
             content,
             "D-IA3: venue must NOT be a hidden input in the Switch listing card — "
-            "it must be a visible inline-editable field (kb-96tn.2).",
+            "it must be a visible inline-editable field (sb-96tn.2).",
         )
         # The venue field name must also NOT appear as a hidden input in the alternate order
         self.assertNotIn(
             'name="venue" type="hidden"',
             content,
             "D-IA3: venue must NOT be a hidden input in the Switch listing card — "
-            "it must be a visible inline-editable field (kb-96tn.2).",
+            "it must be a visible inline-editable field (sb-96tn.2).",
         )
 
     def test_venue_field_label_visible_in_switch_listing_card(self):
@@ -372,5 +372,5 @@ class VenueVisibleInSwitchCardTest(TestCase):
         self.assertTrue(
             "Venue" in content,
             "D-IA3: 'Venue' label must appear in the Switch listing card — "
-            "venue must be surfaced as a visible inline-editable field (kb-96tn.2).",
+            "venue must be surfaced as a visible inline-editable field (sb-96tn.2).",
         )

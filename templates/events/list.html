@@ -97,7 +97,7 @@
             {% with sort_active=sort|default:"date" %}
               <div role="tablist" class="flex flex-col gap-1.5">
                 {# djlint:off #}
-                {# Sort-tab hrefs: inline to prevent djlint line-wrap injecting newlines into href attribute value (kb-33do.3) #}
+                {# Sort-tab hrefs: inline to prevent djlint line-wrap injecting newlines into href attribute value (sb-33do.3) #}
                 <c-kb.tab href="?{% if filter_query_string %}{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'date'" label="{% trans 'Latest' %}" />
                 {% if trending_enabled %}
                   <c-kb.tab href="?sort=trending{% if filter_query_string %}&{{ filter_query_string }}{% endif %}{% if bounds_param %}&bounds={{ bounds_param }}{% endif %}" :active="sort_active == 'trending'" label="{% trans 'Trending' %}" />

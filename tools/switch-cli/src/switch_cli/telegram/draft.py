@@ -155,7 +155,7 @@ async def distribute(
 
     After all placements are attempted, reports outcomes to the Switch API via
     switch_client.report_telegram_placements() if switch_client is provided
-    (kb-56c2.3 — C3a co-equal seam, ADR-016 D3).
+    (sb-56c2.3 — C3a co-equal seam, ADR-016 D3).
 
     Args:
         client: authenticated Telethon TelegramClient.
@@ -175,7 +175,7 @@ async def distribute(
         UnknownDestinationError if any --dest is not in the inventory (ADR-008 D3).
 
     D1 (FIRM, ADR-018 D2): never calls send_message or any auto-send variant.
-    D4 (kb-56c2.3): report payload contains NO session/content fields (ADR-018 D4).
+    D4 (sb-56c2.3): report payload contains NO session/content fields (ADR-018 D4).
     """
     # Validate ALL destinations before placing any draft (fail-fast, ADR-008 D3)
     resolved_entries = []
@@ -197,7 +197,7 @@ async def distribute(
             }
         results.append(result)
 
-    # Report outcomes to the Switch API (kb-56c2.3 — C3a co-equal seam)
+    # Report outcomes to the Switch API (sb-56c2.3 — C3a co-equal seam)
     # Payload shape: {destination_id, topic_id?, status, error_detail?}
     # METADATA-ONLY — no session/content fields (ADR-018 D4).
     if switch_client is not None:
@@ -235,7 +235,7 @@ async def run_distribute(
 
     Args:
         switch_client: optional SwitchClient for reporting placement outcomes
-            to the C3a placement-report verb (kb-56c2.3). If provided, outcomes
+            to the C3a placement-report verb (sb-56c2.3). If provided, outcomes
             are POSTed to POST /api/telegram/placements after each destination
             is resolved. If omitted, no reporting occurs (e.g. in tests that
             don't need the report side-effect).

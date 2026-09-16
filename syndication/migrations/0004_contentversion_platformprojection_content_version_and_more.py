@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='platformprojection',
             name='content_version',
-            field=models.ForeignKey(blank=True, help_text='RESERVED: ContentVersion this projection draws editorial content from. Null until kb-wz8m.2 cutover. Behavior: kb-wz8m.2.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='projections', to='syndication.contentversion'),
+            field=models.ForeignKey(blank=True, help_text='RESERVED: ContentVersion this projection draws editorial content from. Null until sb-wz8m.2 cutover. Behavior: sb-wz8m.2.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='projections', to='syndication.contentversion'),
         ),
         migrations.AddConstraint(
             model_name='contentversion',

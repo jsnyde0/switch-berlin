@@ -1,6 +1,6 @@
-# kb-0cj R0 — Payment processor landscape
+# sb-0cj R0 — Payment processor landscape
 
-**Scope:** Phase R0 broad survey of payment processors relevant to explicit / sex-positive / kink event ticketing in the EU. Surfaced from kb-cyq R1 (TickeTailor deep-scout) load-bearing finding: **TickeTailor is NOT merchant-of-record** — it routes to organizer's own Stripe / PayPal / Square account. Therefore the **payment processor's ToS, not the ticket platform's, is the financial-existential gate.** This is true regardless of which ticket SaaS sits above. R0 maps the landscape; does NOT recommend.
+**Scope:** Phase R0 broad survey of payment processors relevant to explicit / sex-positive / kink event ticketing in the EU. Surfaced from sb-cyq R1 (TickeTailor deep-scout) load-bearing finding: **TickeTailor is NOT merchant-of-record** — it routes to organizer's own Stripe / PayPal / Square account. Therefore the **payment processor's ToS, not the ticket platform's, is the financial-existential gate.** This is true regardless of which ticket SaaS sits above. R0 maps the landscape; does NOT recommend.
 
 **Method:** WebFetch ToS pages (where reachable), WebSearch precedent mining (Reddit / 404 Media / sex-worker advocacy), checkout-flow inspection on R0 directory sample. 2026-05-21.
 
@@ -230,11 +230,11 @@ The risk surface is not "Switch introduces processor risk by routing." The risk 
 
 ## canonical_refs
 
-- `kb-0cj` — this bead
-- `kb-cyq` — parent (R0 directory + R1 TickeTailor scout)
-- `kb-cyq` R1 finding: TickeTailor is not MoR — this entire R0 is downstream of that
-- `docs/research/kb-cyq-r0-provider-landscape.md` — directory source for D6
-- `docs/research/kb-cyq-r1-tickettailor-deepscout.md` — origin of the not-MoR finding
+- `sb-0cj` — this bead
+- `sb-cyq` — parent (R0 directory + R1 TickeTailor scout)
+- `sb-cyq` R1 finding: TickeTailor is not MoR — this entire R0 is downstream of that
+- `docs/research/sb-cyq-r0-provider-landscape.md` — directory source for D6
+- `docs/research/sb-cyq-r1-tickettailor-deepscout.md` — origin of the not-MoR finding
 - `docs/decisions/ADR-010-event-based-product-posture.md` — D1(c) ticketing as revenue path
 - `docs/decisions/ADR-011-personal-agent-layer-additive.md` — facilitator-agent as integration vehicle
 - `docs/hipsy_analysis.md` — Hipsy uses Mollie; Mollie's adult-content ban therefore reaches Hipsy's organizers

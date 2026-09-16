@@ -1,6 +1,6 @@
 """Tests for ingestion/tasks_flags.py — finalize_attendance and recompute_aggregates.
 
-Bead: kb-8qn.4 — step-3: finalize_attendance task + recompute_aggregates extension.
+Bead: sb-8qn.4 — step-3: finalize_attendance task + recompute_aggregates extension.
 """
 
 from datetime import timedelta

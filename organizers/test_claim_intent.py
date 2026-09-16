@@ -1,5 +1,5 @@
 """
-TDD tests for kb-m69.8: ClaimIntent model.
+TDD tests for sb-m69.8: ClaimIntent model.
 
 RED phase: written BEFORE implementation.
 Per ADR-014 D2 — admin-review fallback track captures the user's intent to claim.

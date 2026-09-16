@@ -1,5 +1,5 @@
 """
-Tests for kb-kgza.5: Studio breadcrumb links to the publishables index.
+Tests for sb-kgza.5: Studio breadcrumb links to the publishables index.
 
 Contract:
 1. Route resolution: reverse('syndication:studio') resolves; GET returns 200
@@ -9,7 +9,7 @@ Contract:
    + hx-push-url (gated on studio_swap context flag).
 3. No NoReverseMatch anywhere in the templates.
 
-Harness target (kb-kgza.5):
+Harness target (sb-kgza.5):
   Signal: route resolution + content test.
   Expected green: reverse(syndication:studio) resolves, view returns 200,
   rendered breadcrumb contains an anchor href to it with hx-* attrs.

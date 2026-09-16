@@ -3,7 +3,7 @@ Unit tests for switch-cli telegram connect command.
 
 Tests drive the Telethon QR-login codepath with a mocked Telethon client.
 No live MTProto connection is made — live handshake deferred to integration
-child kb-ru55.6.
+child sb-ru55.6.
 
 TDD discipline: RED → GREEN → REFACTOR.
 
@@ -359,7 +359,7 @@ class TestFailLoud:
         """
         run_connect() itself must raise TelegramConfigError when api_id is 0/None
         (Finding 3 — the contract documented in the docstring must be enforced
-        inside run_connect, not only in cli.py, so sibling callers kb-ru55.3/.4
+        inside run_connect, not only in cli.py, so sibling callers sb-ru55.3/.4
         get the same protection).
         """
         with pytest.raises(TelegramConfigError):

@@ -1,6 +1,6 @@
 name: deploy
 
-# Production deploy workflow for switch.berlin (kb-6nq.5).
+# Production deploy workflow for switch.berlin (sb-6nq.5).
 #
 # Pulls main into /opt/switch-berlin/app on the VPS, renders .env from GH
 # Secrets, builds + brings up the compose stack, applies migrations, runs
@@ -30,7 +30,7 @@ jobs:
       group: deploy-prod
       cancel-in-progress: false
     steps:
-      # kb-bsp: checkout is load-bearing — the Caddyfile step (line below) scp's
+      # sb-bsp: checkout is load-bearing — the Caddyfile step (line below) scp's
       # infra/Caddyfile from the runner's cwd. Without checkout, that scp fails
       # silently for ~8 days (2026-05-14 → 2026-05-22).
       - uses: actions/checkout@v4
@@ -63,7 +63,7 @@ jobs:
           echo "deployed-sha=$(git rev-parse --short HEAD)"
           EOF
 
-      # Streams .env to VPS via sudo install — survives prior root-owned .env (see kb-j1l)
+      # Streams .env to VPS via sudo install — survives prior root-owned .env (see sb-j1l)
       - name: Render /opt/switch-berlin/app/.env on VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -87,7 +87,7 @@ jobs:
         run: |
           umask 077
           # Derive POSTGRES_PASSWORD from DATABASE_URL so one secret rotation
-          # (kb-vb7) propagates to both the connection URL and postgres init.
+          # (sb-vb7) propagates to both the connection URL and postgres init.
           case "$DATABASE_URL" in
             postgres://*|postgresql://*) ;;
             *)
@@ -136,7 +136,7 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
-          # infra/Caddyfile is the source of truth (kb-c14). cloud-init only
+          # infra/Caddyfile is the source of truth (sb-c14). cloud-init only
           # seeds the first-boot copy; ongoing deploys land here. Validate
           # before replacing so a syntax error can't take down TLS termination.
           scp -i ~/.ssh/deploy_key infra/Caddyfile "${VPS_USER}@${VPS_HOST}:/tmp/Caddyfile.new"
@@ -174,7 +174,7 @@ jobs:
         run: |
           # Realign pg_authid with DATABASE_URL secret. PGDATA persists across
           # deploys via the prod-overlay bind mount, so if the GH secret changes
-          # the role password drifts (kb-3w6). 'host all all 127.0.0.1/32 trust'
+          # the role password drifts (sb-3w6). 'host all all 127.0.0.1/32 trust'
           # in pg_hba.conf lets us reset without knowing the current password.
           ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'bash -s' <<'EOF'
           set -euxo pipefail
@@ -182,13 +182,13 @@ jobs:
           COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
           # sed -n + p flag: prints only on successful substitution. Without -n,
           # sed echoes the input unchanged on a no-match, leaving DB_PASS set to
-          # garbage and the -z guard never firing (kb-vb7 incident, 2026-05-13).
+          # garbage and the -z guard never firing (sb-vb7 incident, 2026-05-13).
           DB_PASS=$(grep '^DATABASE_URL=' .env | sed -nE 's|^DATABASE_URL=postgres(ql)?://[^:]+:([^@]+)@.*|\2|p')
           if [ -z "${DB_PASS:-}" ]; then
             echo "ERROR: could not extract password from DATABASE_URL in .env (regex miss)" >&2
             exit 1
           fi
-          # Pipe SQL via stdin so $DB_PASS never lands in psql's argv (kb-5k3:
+          # Pipe SQL via stdin so $DB_PASS never lands in psql's argv (sb-5k3:
           # /proc/*/cmdline + remote shell history would otherwise expose it).
           printf "ALTER USER postgres WITH PASSWORD '%s';\n" "${DB_PASS//\'/\'\'}" \
             | $COMPOSE exec -T db psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 >/dev/null
@@ -207,13 +207,13 @@ jobs:
           set -euxo pipefail
           cd /opt/switch-berlin/app
           COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
-          # kb-bsp: explicit stop+rm of the app container before recreate to
+          # sb-bsp: explicit stop+rm of the app container before recreate to
           # avoid "port 8000 already in use" when a prior failed deploy left a
           # stale app-app-1 holding 127.0.0.1:8000. --force-recreate alone has
           # raced the port reclaim. db is left running (data + healthcheck).
           $COMPOSE stop app || true
           $COMPOSE rm -f app || true
-          # kb-bsp: also reap any container holding port 8000 from outside this
+          # sb-bsp: also reap any container holding port 8000 from outside this
           # compose project (e.g. an orphan from the pre-rebrand kinky-bubbles
           # era). Diagnostic: print and then kill. Empty result is fine.
           echo "--- diagnostic: containers publishing :8000 ---"
@@ -226,7 +226,7 @@ jobs:
             docker stop $ORPHANS || true
             docker rm -f $ORPHANS || true
           fi
-          # kb-bsp: belt-and-braces — kill any leftover process holding :8000
+          # sb-bsp: belt-and-braces — kill any leftover process holding :8000
           # (e.g. a hand-started gunicorn from a debug session, or a docker
           # restart loop container that ss didn't catch in the diagnostic
           # window). fuser -k sends SIGKILL; safe because nothing legitimate
@@ -245,7 +245,7 @@ jobs:
           $COMPOSE ps
           EOF
 
-      # kb-vixx: the recreate step's `up -d` only prints "service init didn't
+      # sb-vixx: the recreate step's `up -d` only prints "service init didn't
       # complete successfully: exit 1" — the init container's actual stderr (the
       # migration traceback) is NOT captured, which left a prod deploy break blind
       # for ~4 days (2026-05-29 → 2026-06-03). Dump init's logs on any failure so

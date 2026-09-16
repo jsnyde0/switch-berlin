@@ -1,5 +1,5 @@
 """
-Seed dev data for the destination picker (kb-sbhs.2 browser verification).
+Seed dev data for the destination picker (sb-sbhs.2 browser verification).
 
 Run via:
   docker compose exec app python manage.py shell < scripts/seed_picker_dev.py

@@ -1,7 +1,7 @@
 # Production Data-Loss Incident: Root Cause + Restore Plan (Rev 2)
 
 **Incident:** switch.berlin DB wiped (events / profiles / venues / users → 0 rows)
-**Bead:** `kb-vp8`
+**Bead:** `sb-vp8`
 **Author:** picked up from `docs/handoff-2026-05-12-data-loss.md`
 **Date:** 2026-05-13 UTC
 **Status:** Root cause confirmed. Rev 2 plan post-adversarial-review. **Executing now per operator approval 2026-05-13.**
@@ -78,10 +78,10 @@ Anything written to the DB between 16:59 UTC May 11 and the attack. Per pre-flig
 ### Schema state of snapshot vs. current code
 Snapshot's `django_migrations` is at an older head than current code. Migrations to re-apply (per F5 corrected list — verified by `git log --diff-filter=A`):
 
-- `events 0010_eventorganizer_and_more` (kb-n0y, FK→M2M data-preserving)
-- `events 0011_eventfacilitator_event_facilitators` (kb-qhl, additive M2M)
-- `organizers 0007_rename_organizer_to_profile` (kb-izj, RenameModel)
-- `organizers 0008_add_follow_model` (kb-ldo, copy from OrganizerFollow → Follow)
+- `events 0010_eventorganizer_and_more` (sb-n0y, FK→M2M data-preserving)
+- `events 0011_eventfacilitator_event_facilitators` (sb-qhl, additive M2M)
+- `organizers 0007_rename_organizer_to_profile` (sb-izj, RenameModel)
+- `organizers 0008_add_follow_model` (sb-ldo, copy from OrganizerFollow → Follow)
 - `ingestion 0006_approvedsender_fk_to_profile`
 - `reviews 0007_fk_to_profile`
 - Plus any `sessions`/`sites`/`venues 0002` Django-internal applies from new app installations.
@@ -201,9 +201,9 @@ docker exec app-db-1 psql -h 127.0.0.1 -U postgres -d postgres -c "SELECT 'event
 ```
 
 Expected (F11 corrected — `accounts_user` may legitimately be 0 if Jonatan only registered on May 12):
-- `events_event` ≥ 32 (kb-99z seeded 32)
-- `organizers_profile` ≥ 3 (kb-99z seeded 3)
-- `venues_venue` ≥ 17 (kb-5x9 markers; some events share venue)
+- `events_event` ≥ 32 (sb-99z seeded 32)
+- `organizers_profile` ≥ 3 (sb-99z seeded 3)
+- `venues_venue` ≥ 17 (sb-5x9 markers; some events share venue)
 - `accounts_user` ∈ {0, 1+} (depends on signup history)
 - `django_migrations` ≈ 80-85 (lower than current 90; Step 9 fixes)
 
@@ -269,15 +269,15 @@ Then inspect the fresh restic snapshot's size — expect ~133+ KiB (definitely n
 
 ```bash
 # (rotate postgres superuser password — almost certainly known to attacker, deploys also rotated; audit secrets)
-bd create --title="Rotate postgres superuser password + audit all DB-user secrets post-ransomware" --description="kb-3w6's self-heal rotated the postgres password; verify no other compromised secrets remain (e.g. pasted into logs, prior workflow runs)." --type=task --priority=0
+bd create --title="Rotate postgres superuser password + audit all DB-user secrets post-ransomware" --description="sb-3w6's self-heal rotated the postgres password; verify no other compromised secrets remain (e.g. pasted into logs, prior workflow runs)." --type=task --priority=0
 # (verify backup drill cadence)
-bd create --title="Verify backup restore drill cadence — quarterly tabletop" --description="We relied on restic to recover from kb-vp8; prove restore-from-snapshot works on a schedule, not only under incident." --type=task --priority=2
+bd create --title="Verify backup restore drill cadence — quarterly tabletop" --description="We relied on restic to recover from sb-vp8; prove restore-from-snapshot works on a schedule, not only under incident." --type=task --priority=2
 # (alerting on backup size regression)
 bd create --title="Alert on kb-backup snapshot size regression (>5x drop)" --description="3.5 KiB vs 133 KiB went unnoticed for ~12h. Threshold alarm." --type=task --priority=1
 # (PG forensic logging)
 bd create --title="Enable PG logging_collector + log_statement='mod' on prod for forensic logs" --description="The ransomware wipe SQL is unrecoverable because PG logs went to stderr only. Persistent log_statement=mod would have captured DROP/TRUNCATE/DELETE." --type=task --priority=2
 
-bd close kb-vp8 --reason="Restored from restic snapshot ee28dab3. Root cause + restore plan executed per docs/incident-2026-05-12-data-loss-restore-plan.md. Follow-ups filed."
+bd close sb-vp8 --reason="Restored from restic snapshot ee28dab3. Root cause + restore plan executed per docs/incident-2026-05-12-data-loss-restore-plan.md. Follow-ups filed."
 ```
 
 ---
@@ -313,7 +313,7 @@ docker exec app-db-1 pg_restore -h 127.0.0.1 -U postgres -d readme_to_recover --
 1. ✅ Compose overlay used everywhere.
 2. ✅ Trust path (`-h 127.0.0.1` inside `app-db-1`).
 3. ✅ No compound bash commands; SQL without trailing semicolons.
-4. ✅ Beads tracking; kb-vp8 will close with reason.
+4. ✅ Beads tracking; sb-vp8 will close with reason.
 5. ✅ 5432 already `127.0.0.1`-bound.
 6. ✅ `RESTIC_PASSWORD` via `systemd-run -p EnvironmentFile=` — never in argv.
 7. ✅ Rollback dumps stored OUTSIDE the bind-mount tree (`/root/`).
@@ -372,7 +372,7 @@ docker exec app-db-1 pg_restore -h 127.0.0.1 -U postgres -d readme_to_recover --
 ### Step 9 — Forward migrate (encountered gotcha)
 - `docker compose up -d app` ✓
 - `manage.py migrate --no-input` **failed**: `InconsistentMigrationHistory: ingestion 0003 applied before organizers 0007`.
-- **Root cause:** when kb-izj (RenameModel Organizer→Profile) landed, older migrations on disk had their `dependencies` list updated to inject `('organizers', '0007_rename_organizer_to_profile')`. Snapshot's recorded applied state pre-dates 0007 → consistency check refuses to budge.
+- **Root cause:** when sb-izj (RenameModel Organizer→Profile) landed, older migrations on disk had their `dependencies` list updated to inject `('organizers', '0007_rename_organizer_to_profile')`. Snapshot's recorded applied state pre-dates 0007 → consistency check refuses to budge.
 - **Fix:** generated organizers 0007's exact DDL via Django shell with `unittest.mock.patch.object(MigrationLoader, 'check_consistent_history', lambda *a, **kw: None)`, then applied via psql in a single transaction (including index creation for `claimed_by_id` FK that `collect_sql` omits), then inserted into `django_migrations` manually.
 - SQL file: `/tmp/organizers_0007.sql` (locally on agent side); piped via `cat ... | ssh host docker exec -i ... psql -v ON_ERROR_STOP=1`.
 - After organizers 0007 was recorded: `manage.py migrate` applied the remaining 6 migrations cleanly:
@@ -407,8 +407,8 @@ docker exec app-db-1 pg_restore -h 127.0.0.1 -U postgres -d readme_to_recover --
 - `systemctl start kb-backup.service` (immediate run): processed **139.943 KiB**, restic snapshot **`f1357f35`** ✓ (vs 3.557 KiB on the empty post-attack snapshot — **39× confirmed-non-trivial restore**).
 
 ### Step 13 — beads
-- Filed kb-vb7 (P0 secret audit), kb-336 (P1 backup-size alert), kb-u6p (P2 restore drill), kb-oam (P2 PG forensic logging) — all linked `--type=related` to kb-vp8.
-- kb-vp8 closed.
+- Filed sb-vb7 (P0 secret audit), sb-336 (P1 backup-size alert), sb-u6p (P2 restore drill), sb-oam (P2 PG forensic logging) — all linked `--type=related` to sb-vp8.
+- sb-vp8 closed.
 - `bd remember` saved `django-migrate-after-restore-from-old-snapshot-gotcha` so future agents recognise the Step 9 footgun.
 
 ### Outcome

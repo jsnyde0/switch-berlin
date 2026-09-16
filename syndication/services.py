@@ -1,16 +1,16 @@
 """
-Syndication service layer (kb-a4u.2 + kb-a4u.3, ADR-016 D6).
+Syndication service layer (sb-a4u.2 + sb-a4u.3, ADR-016 D6).
 
 Per ADR-016 D6: the API handlers and HTMX views share ONE auth + service
 layer. Persistence logic lives here, not in the Ninja handlers, so the
-co-equal-API test (kb-a4u.9) can assert both surfaces hit identical
+co-equal-API test (sb-a4u.9) can assert both surfaces hit identical
 persistence + auth.
 
 Actor-marker (ADR-017 D1): agent (Bearer) and web (session) have identical
 authority — they both resolve to the same User. The actor_marker string is
 audit-only provenance for the generated_by / provenance projection fields.
 
-kb-a4u.3 additions:
+sb-a4u.3 additions:
 - create_event: persist all ADR-016 D1 fields, create EventOrganizer row,
   eager-create listing projections per enabled listing-capable connection.
 - update_event: patch an event through the authz seam.
@@ -52,7 +52,7 @@ def get_actor_marker(request: HttpRequest) -> str:
 
 def register_agent_credential(user):
     """
-    Issue a new AgentPairingToken for user (kb-a4u.6 pairing-token mechanic).
+    Issue a new AgentPairingToken for user (sb-a4u.6 pairing-token mechanic).
 
     The v0 decided mechanic is one-time pairing-token redemption (NOT raw key-paste):
     1. This function mints a SHORT-LIVED, SINGLE-USE pairing token.
@@ -76,7 +76,7 @@ def redeem_pairing_token(raw_pairing_token: str):
     Redeem a pairing token: validate it, mark it used, and issue a long-lived
     Bearer key (AgentCredential) bound to the registering User.
 
-    This is the second step of the pairing flow (kb-a4u.6):
+    This is the second step of the pairing flow (sb-a4u.6):
     - Acquires a row-level lock on the pairing token (SELECT FOR UPDATE) inside
       an atomic transaction to prevent TOCTOU double-redemption (finding #1).
     - Re-checks validity under the lock (expired / used) — fail loud (ADR-008 D3).
@@ -149,7 +149,7 @@ def exchange_api_key_for_identity_token(raw_api_key: str):
 
 
 # ---------------------------------------------------------------------------
-# Telegram inventory ingest service (kb-ru55.2)
+# Telegram inventory ingest service (sb-ru55.2)
 # ---------------------------------------------------------------------------
 
 # Fields that must NEVER appear in an inventory payload (ADR-018 D4, bead D2).
@@ -163,7 +163,7 @@ def ingest_telegram_inventory(user, inventory: list[dict]) -> dict:
     Upsert one PlatformConnection per postable Telegram destination for the
     authenticated user's organizer profile.
 
-    Contract (kb-ru55.2):
+    Contract (sb-ru55.2):
     - Each item in inventory must NOT carry session_string, access_hash, or content
       (ADR-018 D4 / bead D2). Raises ValueError on violation — caller returns 422.
     - One PlatformConnection per {organizer, platform="telegram", destination_id,
@@ -178,14 +178,14 @@ def ingest_telegram_inventory(user, inventory: list[dict]) -> dict:
 
     Raises ValueError if any payload item contains a forbidden field.
 
-    NOTE — kinds=[] seam (by design, kb-ru55.2 Finding 2):
+    NOTE — kinds=[] seam (by design, sb-ru55.2 Finding 2):
     Synced rows are created with kinds=[] (the PlatformConnection default).
     This means synced Telegram destinations are inventory-only — they are NOT
     automatically promotion-enabled. _eager_create_promotion_projections skips
     connections without "promotion" in kinds, so no projections are created
     at ingest time. This is intentional: enabling a destination for promotion
     (setting kinds=["promotion"]) is the connection-management / picker's
-    responsibility (kb-sbhs), NOT the ingest verb's. The sync step surfaces
+    responsibility (sb-sbhs), NOT the ingest verb's. The sync step surfaces
     the inventory; the user explicitly enables specific destinations via the
     picker UI. Do NOT change this behavior here.
     """
@@ -272,7 +272,7 @@ def ingest_telegram_inventory(user, inventory: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Telegram placement report service (kb-56c2.1)
+# Telegram placement report service (sb-56c2.1)
 # ---------------------------------------------------------------------------
 
 # Fields that must NEVER appear in a placement report payload (ADR-018 D4).
@@ -286,7 +286,7 @@ def report_telegram_placements(user, placements: list[dict]) -> dict:
     Write/update TelegramPlacement records from an agent placement report.
 
     Called by the POST /api/telegram/placements verb (agent-tier co-equal seam).
-    Mirrors ingest_telegram_inventory for style (kb-56c2.1 C3a).
+    Mirrors ingest_telegram_inventory for style (sb-56c2.1 C3a).
 
     Contract:
     - Each item must NOT carry session_string, access_hash, or content
@@ -320,7 +320,7 @@ def report_telegram_placements(user, placements: list[dict]) -> dict:
             raise ValueError(
                 f"Placement report payload must not carry credential or content fields. "
                 f"Forbidden field(s) present: {sorted_bad}. "
-                f"ADR-018 D4 / kb-56c2.1: the server stores placement metadata only; "
+                f"ADR-018 D4 / sb-56c2.1: the server stores placement metadata only; "
                 f"session credentials live agent-side."
             )
 
@@ -416,7 +416,7 @@ def report_telegram_placements(user, placements: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Telegram coverage reconciliation service (kb-56c2.1)
+# Telegram coverage reconciliation service (sb-56c2.1)
 # ---------------------------------------------------------------------------
 
 
@@ -439,14 +439,14 @@ def reconcile_telegram_coverage(projection) -> list[dict]:
         "is_flagged_missing": bool,
       }
 
-    Status assignment rules (kb-56c2 D1, D2, D6):
+    Status assignment rules (sb-56c2 D1, D2, D6):
     - bot/agent-tier connections WITH a TelegramPlacement record:
         return the stored status (placed / failed / skipped-pre-existing-draft)
     - bot/agent-tier connections WITHOUT a TelegramPlacement record:
         return "pending" (computed — absence of record = not placed yet)
     - public-tier connections:
         return "deep-link" (human-action affordance — NOT placed, NOT pending,
-        NEVER a stored bot/agent record — kb-56c2 D6)
+        NEVER a stored bot/agent record — sb-56c2 D6)
     - flagged_missing connections:
         is_flagged_missing=True in the result (status assignment still applies)
 
@@ -500,7 +500,7 @@ def reconcile_telegram_coverage(projection) -> list[dict]:
 
         if postability == "public":
             # Public-tier is a human-action affordance — NOT placed, NOT pending
-            # (kb-56c2 D6 / ADR-018 D2 FIRM).
+            # (sb-56c2 D6 / ADR-018 D2 FIRM).
             status = "deep-link"
             error_detail = None
         elif placement is not None:
@@ -545,7 +545,7 @@ def validate_identity_token(raw_token: str):
 
 
 # ---------------------------------------------------------------------------
-# Event CRUD (kb-a4u.3, ADR-016 D1/D4/D5)
+# Event CRUD (sb-a4u.3, ADR-016 D1/D4/D5)
 # ---------------------------------------------------------------------------
 
 
@@ -608,7 +608,7 @@ def _ensure_canonical_content_version(event=None, post=None):
     Creates it with all editorial fields NULL (track-live semantics) if absent.
     This is idempotent: if a canonical version already exists, it is returned as-is.
 
-    ADR-016 D2 (kb-wz8m.2): A1 canonical version is seeded EMPTY.
+    ADR-016 D2 (sb-wz8m.2): A1 canonical version is seeded EMPTY.
     NULL editorial fields = derive from live canonical Event/Post at render time.
     """
     from syndication.models import ContentVersion
@@ -648,7 +648,7 @@ def _eager_create_listing_projections(event, canonical_cv=None):
     carried-forward, revised 2026-05-26 — no visibility write-gate).
 
     All created projections FK to the canonical ContentVersion (A1 seed,
-    kb-wz8m.2). canonical_cv is passed in to avoid redundant DB round-trips.
+    sb-wz8m.2). canonical_cv is passed in to avoid redundant DB round-trips.
     """
     from events.models import EventOrganizer
     from syndication.models import PlatformConnection, PlatformProjection
@@ -764,11 +764,11 @@ def _eager_create_promotion_projections(post, canonical_cv=None):
 
 
 # ---------------------------------------------------------------------------
-# Enable-for-promotion (kb-k2ds.3, ADR-016 D1/D6, ADR-008 D3)
+# Enable-for-promotion (sb-k2ds.3, ADR-016 D1/D6, ADR-008 D3)
 #
 # Shared selectability guard + additive-mutation helper used by BOTH:
-# - the HTMX destination_select view (web path, kb-sbhs.3)
-# - the agent-reachable enable-promotion CLI/REST verb (kb-k2ds.3)
+# - the HTMX destination_select view (web path, sb-sbhs.3)
+# - the agent-reachable enable-promotion CLI/REST verb (sb-k2ds.3)
 #
 # Moved here (from views.py) so the two callers share ONE fail-loud gate
 # instead of risking silent divergence (ADR-008 D3 FIRM).
@@ -818,11 +818,11 @@ def _derive_selectability(conn, agent_connected):
 
 def enable_promotion(user, connection):
     """
-    Enable a PlatformConnection for promotion (kb-k2ds.3 acceptance (1)).
+    Enable a PlatformConnection for promotion (sb-k2ds.3 acceptance (1)).
 
     Additive mutation: append 'promotion' to connection.kinds (only if absent)
     and set enabled=True. Replicates the web destination_select "select" path
-    (kb-sbhs.3, views.py) — the two callers share this ONE fail-loud gate so
+    (sb-sbhs.3, views.py) — the two callers share this ONE fail-loud gate so
     they cannot silently diverge (ADR-008 D3 FIRM).
 
     Fail-loud gates (raise ValueError — never a silent no-op, never fabricates
@@ -864,7 +864,7 @@ def enable_promotion(user, connection):
 
 
 # Event field names accepted by create_event / update_event.
-# Covers the full v0 field set per kb-a4u acceptance criterion 1.
+# Covers the full v0 field set per sb-a4u acceptance criterion 1.
 # venue is a direct FK column; tags is M2M and handled separately.
 _EVENT_FIELDS = {
     "title",
@@ -946,7 +946,7 @@ def create_event(user, **kwargs):
     # Create the EventOrganizer through-table row (ADR-007 D2, ADR-017 D1)
     EventOrganizer.objects.create(event=event, profile=profile, is_primary=True)
 
-    # A1 seed (kb-wz8m.2): create the canonical ContentVersion FIRST so that
+    # A1 seed (sb-wz8m.2): create the canonical ContentVersion FIRST so that
     # eager projections can FK to it in the same call.
     canonical_cv = _ensure_canonical_content_version(event)
 
@@ -990,7 +990,7 @@ def update_event(user, event, **kwargs):
 
 
 # ---------------------------------------------------------------------------
-# Cover image authoring (kb-a4u.19, ADR-016 D1)
+# Cover image authoring (sb-a4u.19, ADR-016 D1)
 # ---------------------------------------------------------------------------
 
 
@@ -1028,7 +1028,7 @@ def set_event_cover(user, event, uploaded_file):
 
 
 # ---------------------------------------------------------------------------
-# Post CRUD (kb-a4u.3, ADR-016 D1/D4)
+# Post CRUD (sb-a4u.3, ADR-016 D1/D4)
 # ---------------------------------------------------------------------------
 
 _POST_FIELDS = {
@@ -1064,7 +1064,7 @@ def create_post(user, event, **kwargs):
     post_kwargs = {k: v for k, v in kwargs.items() if k in _POST_FIELDS}
     post = Post.objects.create(event=event, **post_kwargs)
 
-    # A1 seed (kb-q4u9.2): create the canonical ContentVersion for the POST
+    # A1 seed (sb-q4u9.2): create the canonical ContentVersion for the POST
     # (ADR-016 D2: promotion projections FK the post's canonical, not the
     # event's). ContentVersion.post=post, ContentVersion.event=None.
     canonical_cv = _ensure_canonical_content_version(post=post)
@@ -1141,7 +1141,7 @@ def edit_after_publish_policy(platform: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Projection lifecycle actions (kb-a4u.5, ADR-016 D5)
+# Projection lifecycle actions (sb-a4u.5, ADR-016 D5)
 #
 # Co-equal seam (ADR-016 D6): all lifecycle actions are service functions
 # called by BOTH the Ninja API handlers and the HTMX view actions.
@@ -1177,13 +1177,13 @@ def _resolve_projection_event(projection):
 
 
 # ---------------------------------------------------------------------------
-# ContentVersion snapshot-semantic operations (kb-wz8m.3, ADR-016 D2, ADR-017 D2)
+# ContentVersion snapshot-semantic operations (sb-wz8m.3, ADR-016 D2, ADR-017 D2)
 #
 # All version ops are can_edit-gated through the existing auth seam (ADR-017 D2).
 # Non-claimant → PermissionError.
 #
-# Co-equal-ready: no HTTP endpoints here (deferred per ADR-008 D2; kb-f6yp).
-# These service functions are callable identically by HTMX views (kb-wz8m.5)
+# Co-equal-ready: no HTTP endpoints here (deferred per ADR-008 D2; sb-f6yp).
+# These service functions are callable identically by HTMX views (sb-wz8m.5)
 # and any future Ninja handler (ADR-016 D3).
 #
 # Deferred (ADR-008 D2, no first caller): cross-row Link, derived_from lineage,
@@ -1243,7 +1243,7 @@ def consumers(version):
     This is the per-version "live on" data — how many projections share this row.
 
     No auth gate: consumers is a read-only query callable by any service layer
-    code (e.g. the board rendering in kb-wz8m.5).
+    code (e.g. the board rendering in sb-wz8m.5).
     """
     return version.projections.all()
 
@@ -1261,7 +1261,7 @@ def content_version_consumers_map(event=None, post=None):
     Exactly one of event/post must be provided (ADR-008 D3: fail loud if both
     or neither are given).
 
-    kb-wz8m.5 (UI) consumes this for the board's per-version channel summary.
+    sb-wz8m.5 (UI) consumes this for the board's per-version channel summary.
     """
     from syndication.models import ContentVersion
 
@@ -1475,7 +1475,7 @@ def copy_to(user, source_version, target_projections):
 
 def sync_projection_from(user, target, source):
     """
-    Sync a target projection FROM a source projection (kb-s41r live-share).
+    Sync a target projection FROM a source projection (sb-s41r live-share).
 
     Mechanism: live-share + persisted pointer (ADR-016 D2 re-resolved 2026-06-09):
     1. Cycle guard (ADR-008 D3 fail-loud): RAISE if source.sync_source is non-null.
@@ -1484,7 +1484,7 @@ def sync_projection_from(user, target, source):
     2. Auth gate: user must be able to edit target's event (can_edit seam).
     3. SHARE source's current content_version row with the target (same FK, no copy).
        A source/master edit then broadcasts to all sharers automatically via the
-       existing single-row write-once-broadcast + kb-ciqf live-OOB sibling re-render.
+       existing single-row write-once-broadcast + sb-ciqf live-OOB sibling re-render.
     4. Set target.sync_source = source (persisted pointer for reload survival + UI state).
 
     LIVE propagation: source edits after this call DO flow to target (shared row).
@@ -1576,7 +1576,7 @@ def reset_to_canonical(user, projection):
     a data bug — fail loud (ADR-008 D3), do NOT silently create a new row.
 
     If a customized version row is left with zero consumers after reset, it is
-    left in place (GC is out of scope per kb-wz8m.3 acceptance).
+    left in place (GC is out of scope per sb-wz8m.3 acceptance).
     """
     from syndication.authz import can_edit
     from syndication.models import ContentVersion, PlatformProjection
@@ -1621,7 +1621,7 @@ def reset_to_canonical(user, projection):
     # canonical-CV + sync_source NULL.  Without this, resetting a peer-synced
     # channel left it in the invalid intermediate (canonical-CV + non-null
     # sync_source) — which made the _sync_bar render "Synced from <peer>"
-    # forever, preventing the user from returning to master. (kb-nexw.1)
+    # forever, preventing the user from returning to master. (sb-nexw.1)
     if projection.sync_source_id is not None:
         detach_sync_source(projection)
     projection.save(update_fields=["content_version", "updated_at"])
@@ -1647,7 +1647,7 @@ def edit_version(user, version, _allow_edit_after_publish=False, **fields):
     draft consumer) is always permitted — frozen consumers are unaffected.
 
     _allow_edit_after_publish=True: skip the "all-consumers-non-draft" guard.
-    Used by detach_and_edit (kb-kgza.2) when the newly-detached CV's single
+    Used by detach_and_edit (sb-kgza.2) when the newly-detached CV's single
     consumer is published (ADR-016 D5 edit-after-publish). The edit dirties
     the projection; frozen_content (the published snapshot) is unchanged, so
     there is no silent corruption. Fail loud only on genuine corruption.
@@ -1712,7 +1712,7 @@ def edit_version(user, version, _allow_edit_after_publish=False, **fields):
 
 def detach_and_edit(user, projection, **fields):
     """
-    Customize-then-edit for a per-channel projection (kb-kgza.2).
+    Customize-then-edit for a per-channel projection (sb-kgza.2).
 
     Used when a promotion or listing projection is in state (i) — sharing the
     canonical CV (content_version.name == 'canonical', sync_source NULL) — and
@@ -1721,7 +1721,7 @@ def detach_and_edit(user, projection, **fields):
 
       editing a per-channel tab AUTO-DETACHES it to an independent version.
 
-    Idempotent (FIX A, kb-kgza.2): if the projection is ALREADY on its own
+    Idempotent (FIX A, sb-kgza.2): if the projection is ALREADY on its own
     independent CV (sole consumer, not the canonical), edit IN PLACE via
     edit_version — do NOT call customize again (which would mint a new orphaned
     CV on every autosave keystroke-batch).
@@ -1731,11 +1731,11 @@ def detach_and_edit(user, projection, **fields):
     consumer projection. Any of these cases means a customize is required
     before editing.
 
-    FIX B (kb-kgza.2): if the projection has sync_source set (state ii — shares
+    FIX B (sb-kgza.2): if the projection has sync_source set (state ii — shares
     source's CV, sync_source SET), clear it after forking so the result is a
     clean state-iii (own CV + sync_source NULL), as ADR-016 D2 mandates.
 
-    FIX 2 (kb-s41r): if the edited projection IS itself a source (it has live
+    FIX 2 (sb-s41r): if the edited projection IS itself a source (it has live
     followers — other projections with sync_source pointing at it), re-point
     those followers to the NEW CV after the fork so they stay in sync. A
     follower must never be left on the source's old stale CV while still showing
@@ -1770,7 +1770,7 @@ def detach_and_edit(user, projection, **fields):
     needs_customize = current_cv.name == "canonical" or consumer_count > 1
 
     if needs_customize:
-        # kb-s41r FIX 2: find live followers (projections whose sync_source points at
+        # sb-s41r FIX 2: find live followers (projections whose sync_source points at
         # THIS projection) BEFORE forking, so we can re-point them to the new CV.
         # A live follower A (sync_source=B) currently shares B's CV. When B forks,
         # A must be brought along to B's new CV — otherwise A stays on B's OLD
@@ -1953,7 +1953,7 @@ def republish_projection(user, projection):
 
     # Re-materialize: capture the current effective content into frozen_content.
     # This is the re-freeze step that makes the dirty projection clean again.
-    # kb-6d7o.2: bump publish_rev BEFORE materialization so the frozen body carries
+    # sb-6d7o.2: bump publish_rev BEFORE materialization so the frozen body carries
     # the new ?v=<publish_rev> in the embedded versioned URL.
     from syndication.engine import _bump_publish_rev
 
@@ -1981,7 +1981,7 @@ def publish_projection_direct(user, projection):
     Direct-publish: drive the internal draft→ready→published two-step transparently,
     OR re-publish a dirty published projection.
 
-    Solo-flow CTA (kb-ide0.2 D6): the user sees one Publish / Re-publish button;
+    Solo-flow CTA (sb-ide0.2 D6): the user sees one Publish / Re-publish button;
     this service drives the correct path based on current status.
 
     - If projection is 'draft': call approve_projection (draft→ready, freezes
@@ -2101,7 +2101,7 @@ def publish_all_ready_projections(user, event):
 
 
 # ---------------------------------------------------------------------------
-# Post-hoc projection reconciliation (kb-96tn.4, ADR-016 D4)
+# Post-hoc projection reconciliation (sb-96tn.4, ADR-016 D4)
 #
 # add_projection(publishable, connection): mint a draft PlatformProjection for
 # an existing Event/Post × connection IF none exists; idempotent; fail loud on
@@ -2331,7 +2331,7 @@ def publish_all_ready_projections_for_post(user, post):
 
 
 # ---------------------------------------------------------------------------
-# Projection listing (kb-k2ds.2 — agent front-door verb, replaces stub)
+# Projection listing (sb-k2ds.2 — agent front-door verb, replaces stub)
 #
 # Co-equal seam (ADR-016 D3): the REST API delegates here so the web UI and
 # an agent hit the same query logic. Scoping mirrors events_list's auth

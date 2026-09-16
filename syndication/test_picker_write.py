@@ -1,5 +1,5 @@
 """
-TDD write tests for the destination picker mutation layer (kb-sbhs.3).
+TDD write tests for the destination picker mutation layer (sb-sbhs.3).
 
 Tests assert against real DB state and server responses (NOT only view context).
 Server-side guard, kinds additivity, projection-eligibility, overlay writer, auth.

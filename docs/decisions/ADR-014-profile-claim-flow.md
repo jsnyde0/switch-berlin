@@ -6,9 +6,9 @@
 
 ## Context
 
-Switch Berlin (V0 pre-launch) hosts Profiles that are **admin-curated from public sources during Phase 0.5** — IKSK, Lavinia, etc. exist as Profile rows whether or not the named human or collective has signed up. Once the public-read flip (kb-9hw) ships, those humans will discover the platform hosts their pages and need a way to **claim** them and gain edit rights.
+Switch Berlin (V0 pre-launch) hosts Profiles that are **admin-curated from public sources during Phase 0.5** — IKSK, Lavinia, etc. exist as Profile rows whether or not the named human or collective has signed up. Once the public-read flip (sb-9hw) ships, those humans will discover the platform hosts their pages and need a way to **claim** them and gain edit rights.
 
-The claim flow has to honor three concrete realities surfaced during the kb-m69 brainstorm:
+The claim flow has to honor three concrete realities surfaced during the sb-m69 brainstorm:
 
 1. **Collectives have multiple co-organizers.** IKSK is fronted by ~3 humans. The current schema (`Profile.claimed_by = FK(User, null=True)` per ADR-007 D5) forces one of them to fictitiously "own" IKSK.
 2. **Most facilitators don't operate domains.** Jana Felix Ruckert (`jana.felixruckert@gmx.de`) can't be verified via email-domain match — admin review must remain the universal fallback.
@@ -58,14 +58,14 @@ Ergonomic accessors:
 
 **Rationale:**
 - `reasoned:` Collectives like IKSK have multiple co-organizers. A single-FK shape forces a fiction (one human "owns" IKSK) that breaks down on day one. The through-model preserves the unified "Profile is claimable" semantic at the property level while flexing cardinality from 0..1 to 0..N.
-- `external:` Crunchbase's "Manage My Company" flow (scout, kb-m69) uses a multi-employee verified-edit model — multiple verified employees can edit the same company page. Maps cleanly onto our co-organizer reality.
+- `external:` Crunchbase's "Manage My Company" flow (scout, sb-m69) uses a multi-employee verified-edit model — multiple verified employees can edit the same company page. Maps cleanly onto our co-organizer reality.
 - `direct:` Person Profiles will typically have 1 claim (the human themselves); collective Profiles will typically have 1–N. The same shape serves both, matching ADR-007 D1's unified-Profile discipline.
 - `reasoned:` `role` field is cheap foresight (ADR-003) — V0 collapses to `"admin"` for all claims; richer hierarchies (`"contributor"` with reduced edit rights, `"former"` for archived claims) accommodated by enum extension without schema migration.
 
 **Alternatives:**
 | Alternative | Why rejected |
 |---|---|
-| Keep single-FK `Profile.claimed_by` (ADR-007 D5 status quo) | `direct:` Cannot represent IKSK's actual co-organizer reality without out-of-band coordination. Surfaced during kb-m69 brainstorm. |
+| Keep single-FK `Profile.claimed_by` (ADR-007 D5 status quo) | `direct:` Cannot represent IKSK's actual co-organizer reality without out-of-band coordination. Surfaced during sb-m69 brainstorm. |
 | Separate `Agency` entity (Upwork model) | `reasoned:` Adds an entity layer not yet needed; `Profile(kind=collective)` already plays this role. Cheap foresight: through-model + `role` field accommodates richer hierarchies later. |
 | Pivot ApprovedSender to point at User instead of Profile | `reasoned:` Breaks the Phase 0.5 admin-curated workflow where ApprovedSender pre-exists for an unclaimed Profile. Telegram → Profile direction must remain. |
 | `Profile.claimants = M2M(User)` plain M2M (no through) | `reasoned:` Loses the verification metadata (`verified_at`, `verified_method`, `verified_by_admin`) — these aren't auxiliary, they're load-bearing for the audit trail required by ADR-006 (legal gate) and the curated-trust model (ADR-001 D1). |
@@ -90,8 +90,8 @@ Both tracks pass through the magic-link confirmation step (proves the submitter 
 **Firmness:** EXPLORATORY (pending dogfooding the actual claim volume + admin labor load).
 
 **Rationale:**
-- `direct:` Per kb-m69 D1: many facilitators (e.g., Jana Felix Ruckert with a generic gmx.de email) won't have a matching domain. Admin-review must remain the **universal fallback**; the fast-path is opt-in per Profile and only operates when admin has explicitly set `verified_domain`.
-- `external:` Crunchbase's "Manage My Company" flow (scout, kb-m69) uses email-domain match → instant verification with email-support fallback for mismatches. Their help article on the buried claim flow has –15 net helpfulness — **putting the claim button on the profile page itself** is the corrective lesson; web-first entry from the Profile surface is non-negotiable.
+- `direct:` Per sb-m69 D1: many facilitators (e.g., Jana Felix Ruckert with a generic gmx.de email) won't have a matching domain. Admin-review must remain the **universal fallback**; the fast-path is opt-in per Profile and only operates when admin has explicitly set `verified_domain`.
+- `external:` Crunchbase's "Manage My Company" flow (scout, sb-m69) uses email-domain match → instant verification with email-support fallback for mismatches. Their help article on the buried claim flow has –15 net helpfulness — **putting the claim button on the profile page itself** is the corrective lesson; web-first entry from the Profile surface is non-negotiable.
 - `external:` GitHub's repo-claim and Eventbrite's organizer-claim flows both surface the claim entry on the public entity page itself (not a separate "claim center"), confirming the pattern.
 - `reasoned:` Two-track verification preserves ADR-001 D1's curated-trust default (admin review) while adding a labor-saving fast-path. Admin retains control: fast-path only activates when admin opts a Profile into it by setting `verified_domain`.
 
@@ -100,7 +100,7 @@ Both tracks pass through the magic-link confirmation step (proves the submitter 
 |---|---|
 | Bot-first claim (Telegram DM → admin keyboard) | `reasoned:` Couples identity to a third party; while Berlin scene is Telegram-native, web-first matches the broader user base (incoming facilitators discovering us via their public Profile URL share). Telegram link remains a separate primitive (ApprovedSender flow) downstream. |
 | Always-admin-review (no fast-path) | `reasoned:` Admin labor scales linearly with claim rate; unnecessary friction for orgs with verifiable domains. Fast-path is opt-in so admin retains control. Invalidation predicate captures the reversal path: if fast-path abuse appears, retire it without affecting the admin-review default. |
-| DNS-TXT verification (GitHub pattern) | `external:` GitHub scout (kb-m69) — DNS verification is org-only and impractical for individual facilitators who don't operate domains. Email-domain match achieves the same evidence threshold (proves control of an address on the domain) without the DNS-edit barrier. |
+| DNS-TXT verification (GitHub pattern) | `external:` GitHub scout (sb-m69) — DNS verification is org-only and impractical for individual facilitators who don't operate domains. Email-domain match achieves the same evidence threshold (proves control of an address on the domain) without the DNS-edit barrier. |
 | Self-serve claim with no verification (just "I claim this") | `reasoned:` Violates ADR-001 D1's curated-trust posture. Anyone could claim IKSK by clicking a button. |
 
 **Invalidation:**
@@ -132,7 +132,7 @@ Both tracks pass through the magic-link confirmation step (proves the submitter 
 | 7-day expiry (looser) | `reasoned:` Longer replay window for a security-load-bearing action (gaining edit rights on a public-facing Profile). 1 day is the industry-standard floor; tighter is overkill for non-financial actions. |
 | 1-hour expiry (tighter) | `reasoned:` Legitimate users frequently check email asynchronously (next morning, after a meeting). 1-hour creates UX cliff with no security benefit at this attack value level. |
 | Multi-use token (until expiry) | `reasoned:` Replay risk on shared/leaked email accounts. Single-use is cheap to implement and closes a clear attack class. |
-| No Turnstile (rely on rate-limiting alone) | `reasoned:` Rate-limiting alone is leaky against distributed automated submission; Turnstile is the orthogonal mitigation already established for similar forms per kb-m69 D10. |
+| No Turnstile (rely on rate-limiting alone) | `reasoned:` Rate-limiting alone is leaky against distributed automated submission; Turnstile is the orthogonal mitigation already established for similar forms per sb-m69 D10. |
 
 **Invalidation:**
 - Click-through rate within 24h drops below 70% (significant fraction of legitimate users miss the window) → extend to 48–72h with corresponding security review.
@@ -176,10 +176,10 @@ Both tracks pass through the magic-link confirmation step (proves the submitter 
 - [ADR-008 D1](ADR-008-code-posture-refactor-hard-fail-loud.md) — D1 predicates (firmness, rationale, alternatives, invalidation, warrant tags); D2 no speculative behavioral abstraction (claim flow ships the simplest two-track form; richer roles deferred); D3 fail-loud on data integrity (no silent fallback on domain-match parse failure or magic-link token tampering).
 - [ADR-011 D1](ADR-011-adrs-reflect-target-architecture.md) — FIRM in-place ADR evolution; routes the ADR-007 D5 evolution.
 - [ADR-013 D1+D3](ADR-013-user-trust-model.md) — EXPLORATORY user trust posture; claim-completion is a downstream signal for `User.status` transitions; ADR-013-referenced Turnstile primitive applies at D3's pre-issuance gate.
-- [bead kb-m69](https://github.com/jsnyde0/switch-berlin) — origin brainstorm (Identity and Trust Model). D1 (web-first claim with email-domain fast-path) and D2 (multi-claimant ProfileClaim through-model) canonicalized in this ADR.
+- [bead sb-m69](https://github.com/jsnyde0/switch-berlin) — origin brainstorm (Identity and Trust Model). D1 (web-first claim with email-domain fast-path) and D2 (multi-claimant ProfileClaim through-model) canonicalized in this ADR.
 
 ## Post-write follow-ups (filed as separate beads per ADR-008 D4)
 
 - ADR-007 D5 in-place evolution lands in the **same commit** as this file (the through-model is the substrate this ADR builds on; splitting would create a substrate-less ADR for the duration of the gap).
-- `/decompose kb-m69` once all three trust-cluster ADRs (ADR-012, ADR-013, ADR-014) are in place — split into implementation children spanning schema migration, claim views, admin queue surface, and magic-link plumbing.
-- Cross-link review: ADR-013 already references "forthcoming ADR" for User trust model (kb-f7n captures the ADR-012 forward-ref cleanup); no equivalent forward-ref cleanup is currently needed for ADR-014 because ADR-013 cites trust-model decisions, not claim-flow.
+- `/decompose sb-m69` once all three trust-cluster ADRs (ADR-012, ADR-013, ADR-014) are in place — split into implementation children spanning schema migration, claim views, admin queue surface, and magic-link plumbing.
+- Cross-link review: ADR-013 already references "forthcoming ADR" for User trust model (sb-f7n captures the ADR-012 forward-ref cleanup); no equivalent forward-ref cleanup is currently needed for ADR-014 because ADR-013 cites trust-model decisions, not claim-flow.

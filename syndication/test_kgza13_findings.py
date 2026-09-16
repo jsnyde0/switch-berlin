@@ -1,5 +1,5 @@
 """
-TDD tests for kb-kgza.13 — three correctness findings on the edit/publish surface.
+TDD tests for sb-kgza.13 — three correctness findings on the edit/publish surface.
 
 FINDING 1: Two silent is_dirty swallows (ADR-008 D3 fail-loud)
   - projection_detach_and_edit: views.py:1521-1522
@@ -11,7 +11,7 @@ FINDING 1: Two silent is_dirty swallows (ADR-008 D3 fail-loud)
   ValueError. If `_materialize_effective_fields` raises (e.g., missing source_event),
   the swallow hides it. The fix: remove the try/except, let ValueError propagate.
 
-  Adversarial-review Finding 2 (kb-kgza.13): the deletion proof (grep for absence of
+  Adversarial-review Finding 2 (sb-kgza.13): the deletion proof (grep for absence of
   `_content_is_dirty = False`) is a necessary but not sufficient canary — it would miss
   a re-introduction under a different spelling. The behavioral tests below (class
   F1BehavioralPropagationTest) prove the invariant violation is surfaced through
@@ -231,7 +231,7 @@ class F1IsDirtySwallowRemovedTest(TestCase):
 
 # ---------------------------------------------------------------------------
 # FINDING 1B — Behavioral propagation: invariant violation surfaces through
-# the edit-path endpoints (adversarial-review Finding 2, kb-kgza.13)
+# the edit-path endpoints (adversarial-review Finding 2, sb-kgza.13)
 # ---------------------------------------------------------------------------
 
 

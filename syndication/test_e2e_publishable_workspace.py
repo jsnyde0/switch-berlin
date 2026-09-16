@@ -1,6 +1,6 @@
 """
 End-to-end integration probe for the syndication publishable-workspace epic
-(kb-q4u9.5).
+(sb-q4u9.5).
 
 Exercises the REAL HTTP endpoints the composer uses — not the service functions
 directly (that's child B's probe; here we hit the VIEWS to prove the UI seam).
@@ -643,7 +643,7 @@ class AnchorConfirmationTest(TestCase):
 
     def test_post_workspace_renders_single_top_row_no_event_hub_link(self):
         """
-        kb-96tn.1 (composer bar): GET the post_syndication fragment and assert
+        sb-96tn.1 (composer bar): GET the post_syndication fragment and assert
         the single top row renders WITHOUT the old 'Event Workspace ↗' cross-link.
         The back-link to the event hub is now the breadcrumb in the composer bar
         (_post_hub_body.html), not in the fragment itself.
@@ -674,19 +674,19 @@ class AnchorConfirmationTest(TestCase):
 
         content = fragment_response.content.decode("utf-8")
 
-        # kb-96tn.1: The 'Event Workspace ↗' link was removed from the fragment.
+        # sb-96tn.1: The 'Event Workspace ↗' link was removed from the fragment.
         # The breadcrumb in the composer bar (_post_hub_body.html) is now the
         # back-link. The fragment must NOT contain the old link text.
         self.assertNotIn(
             "Event Workspace",
             content,
             "Post syndication fragment must NOT render the old 'Event Workspace ↗' "
-            "cross-link — the breadcrumb in the composer bar is the back-link (kb-96tn.1).",
+            "cross-link — the breadcrumb in the composer bar is the back-link (sb-96tn.1).",
         )
 
 
 # ---------------------------------------------------------------------------
-# Post-scoped publish-all-ready seam (kb-q4u9.6 MATERIAL FIX 1).
+# Post-scoped publish-all-ready seam (sb-q4u9.6 MATERIAL FIX 1).
 #
 # The event-scoped batch-publish was wired into the post workspace button.
 # This test proves the post-scoped endpoint:
@@ -698,7 +698,7 @@ class AnchorConfirmationTest(TestCase):
 
 class PostScopedPublishAllReadyTest(TestCase):
     """
-    Prove the post-scoped publish-all-ready endpoint (kb-q4u9.6 MATERIAL FIX 1):
+    Prove the post-scoped publish-all-ready endpoint (sb-q4u9.6 MATERIAL FIX 1):
 
     1. Create a post with ≥2 ready promotion projections carrying DIVERGENT bodies.
     2. Create a second post + listing projection (must NOT be published by this call).
@@ -946,7 +946,7 @@ class PostScopedPublishAllReadyTest(TestCase):
 
 # ---------------------------------------------------------------------------
 # Post card navigation: post card in the event hub must link to the post
-# composer (syndication:post-hub). kb-q4u9.6 MATERIAL FIX 2.
+# composer (syndication:post-hub). sb-q4u9.6 MATERIAL FIX 2.
 # ---------------------------------------------------------------------------
 
 

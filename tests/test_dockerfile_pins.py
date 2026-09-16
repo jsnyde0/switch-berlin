@@ -1,5 +1,5 @@
 """
-Static analysis tests for Dockerfile base image pinning (kb-mhi).
+Static analysis tests for Dockerfile base image pinning (sb-mhi).
 
 Verifies that all FROM and COPY --from lines reference immutable sha256 digests
 so builds are deterministic and supply-chain compromises become reviewable PRs.

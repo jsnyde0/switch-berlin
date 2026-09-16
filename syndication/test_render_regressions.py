@@ -1,5 +1,5 @@
 """
-Render-content regression tests for djlint reformat sweep (kb-33do.3).
+Render-content regression tests for djlint reformat sweep (sb-33do.3).
 
 These tests assert against the RENDERED HTML string, not response.context,
 because the regression class (whitespace mangling, separator stripping) is
@@ -49,7 +49,7 @@ class ConnectionsListKindsChipTest(TestCase):
     Regression: connections_list.html renders kinds as kb-tag chips, not a
     separator-joined span.
 
-    The redesign (kb-bxdm) replaced the ' · ' separator pattern with individual
+    The redesign (sb-bxdm) replaced the ' · ' separator pattern with individual
     kb-tag elements, one per kind. Each chip must render its label text in the
     HTML output. Listing shows with kb-tag-accent, Promotion with purple tint.
     """

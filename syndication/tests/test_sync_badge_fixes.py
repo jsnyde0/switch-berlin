@@ -1,5 +1,5 @@
 """
-Tests for adversarial-review findings on the kb-shzi.5 sync-badge relabel.
+Tests for adversarial-review findings on the sb-shzi.5 sync-badge relabel.
 
 Findings addressed:
   F2b - State-(i) Customize form must ALWAYS render even when consumers_map
@@ -353,7 +353,7 @@ class InlineSwitchBarCountWordingTest(TestCase):
 
 class InlineSwitchBarThreeStatesTest(TestCase):
     """
-    F4 (kb-lprn bug shape): The inline Switch listing sync bar in
+    F4 (sb-lprn bug shape): The inline Switch listing sync bar in
     event_syndication.html is a 2-branch if/else:
       canonical → "Shared"
       else      → "Custom"
@@ -421,7 +421,7 @@ class InlineSwitchBarThreeStatesTest(TestCase):
         so Switch B in state (ii) incorrectly renders "Custom".
 
         After F4 fix: the elif/three-state is present, Switch B renders "Synced from"
-        (live-follow label, kb-s41r — was "Copied from" snapshot label before kb-s41r).
+        (live-follow label, sb-s41r — was "Copied from" snapshot label before sb-s41r).
         """
         url = reverse("syndication:fragment-event-syndication", kwargs={"pk": self.event.pk})
         response = self.client.get(url)
@@ -433,7 +433,7 @@ class InlineSwitchBarThreeStatesTest(TestCase):
             content,
             "F4: Inline Switch listing sync bar must render 'Synced from' for a "
             "state-(ii) Switch projection (own CV + sync_source set). Before F4 fix "
-            "it fell through to 'Custom'; label updated to 'Synced from' by kb-s41r "
+            "it fell through to 'Custom'; label updated to 'Synced from' by sb-s41r "
             "(live-follow semantics). "
             f"Content excerpt: {content[:3000]!r}",
         )
@@ -509,14 +509,14 @@ class ConsumerCountWordingIntegrationTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# kb-s41r — State-(ii) label must say "Synced from" + "follows source edits live"
-#            (live-follow semantics, replaces kb-nexw.3 snapshot copy)
+# sb-s41r — State-(ii) label must say "Synced from" + "follows source edits live"
+#            (live-follow semantics, replaces sb-nexw.3 snapshot copy)
 # ---------------------------------------------------------------------------
 
 
 class StateTwoLiveLabelTest(TestCase):
     """
-    kb-s41r: State-(ii) — sync_source set (shares source's CV) — is LIVE-FOLLOW.
+    sb-s41r: State-(ii) — sync_source set (shares source's CV) — is LIVE-FOLLOW.
     The source channel's later edits DO propagate (ADR-016 D2 re-resolved 2026-06-09).
 
     The correct labels are:
@@ -590,12 +590,12 @@ class StateTwoLiveLabelTest(TestCase):
         self.assertIn(
             "Synced from",
             rendered,
-            f"kb-s41r: _sync_bar.html state (ii) must render 'Synced from' (live-follow label). Got: {rendered!r}",
+            f"sb-s41r: _sync_bar.html state (ii) must render 'Synced from' (live-follow label). Got: {rendered!r}",
         )
         self.assertNotIn(
             "Copied from",
             rendered,
-            "kb-s41r: _sync_bar.html state (ii) must NOT render 'Copied from' "
+            "sb-s41r: _sync_bar.html state (ii) must NOT render 'Copied from' "
             f"(old snapshot label). Got: {rendered!r}",
         )
 
@@ -625,12 +625,12 @@ class StateTwoLiveLabelTest(TestCase):
         self.assertIn(
             "follows",
             rendered,
-            f"kb-s41r: _sync_bar.html state (ii) sub-label must say 'follows' (live-follow). Got: {rendered!r}",
+            f"sb-s41r: _sync_bar.html state (ii) sub-label must say 'follows' (live-follow). Got: {rendered!r}",
         )
         self.assertNotIn(
             "won't follow later edits",
             rendered,
-            "kb-s41r: _sync_bar.html state (ii) must NOT say "
+            "sb-s41r: _sync_bar.html state (ii) must NOT say "
             f"'won't follow later edits' (old snapshot copy). Got: {rendered!r}",
         )
 
@@ -650,13 +650,13 @@ class StateTwoLiveLabelTest(TestCase):
         self.assertIn(
             "Synced from",
             content,
-            "kb-s41r: _channel_editor.html inline twin state (ii) must render "
+            "sb-s41r: _channel_editor.html inline twin state (ii) must render "
             f"'Synced from'. Content excerpt: {content[:3000]!r}",
         )
         self.assertNotIn(
             "Copied from",
             content,
-            "kb-s41r: _channel_editor.html inline twin state (ii) must NOT render "
+            "sb-s41r: _channel_editor.html inline twin state (ii) must NOT render "
             f"'Copied from' (old snapshot label). Content excerpt: {content[:3000]!r}",
         )
 
@@ -673,20 +673,20 @@ class StateTwoLiveLabelTest(TestCase):
         self.assertIn(
             "follows",
             content,
-            "kb-s41r: _channel_editor.html inline twin state (ii) sub-label must "
+            "sb-s41r: _channel_editor.html inline twin state (ii) sub-label must "
             f"say 'follows' (live-follow). Content excerpt: {content[:3000]!r}",
         )
         self.assertNotIn(
             "won't follow later edits",
             content,
-            "kb-s41r: _channel_editor.html inline twin state (ii) must NOT say "
+            "sb-s41r: _channel_editor.html inline twin state (ii) must NOT say "
             f"'won't follow later edits' (old snapshot copy). Content excerpt: {content[:3000]!r}",
         )
 
 
 class StateTwoLiveLabelTwinParityGuardTest(TestCase):
     """
-    kb-s41r twin-parity structural guard: both _sync_bar.html AND the inline
+    sb-s41r twin-parity structural guard: both _sync_bar.html AND the inline
     twin in _channel_editor.html must use the live-follow label, not the old
     snapshot label.
 
@@ -714,13 +714,13 @@ class StateTwoLiveLabelTwinParityGuardTest(TestCase):
         self.assertIn(
             'trans "Synced from"',
             content,
-            "kb-s41r: _sync_bar.html must contain '{% trans \"Synced from\" %}' "
+            "sb-s41r: _sync_bar.html must contain '{% trans \"Synced from\" %}' "
             "(live-follow label) in state (ii) markup.",
         )
         self.assertNotIn(
             'trans "Copied from"',
             content,
-            "kb-s41r: _sync_bar.html must NOT contain '{% trans \"Copied from\" %}' "
+            "sb-s41r: _sync_bar.html must NOT contain '{% trans \"Copied from\" %}' "
             "in state (ii) markup — use 'Synced from' instead.",
         )
 
@@ -734,12 +734,12 @@ class StateTwoLiveLabelTwinParityGuardTest(TestCase):
         self.assertIn(
             'trans "Synced from"',
             content,
-            "kb-s41r: _channel_editor.html inline twin must contain '{% trans \"Synced from\" %}' "
+            "sb-s41r: _channel_editor.html inline twin must contain '{% trans \"Synced from\" %}' "
             "(live-follow label) in state (ii) markup.",
         )
         self.assertNotIn(
             'trans "Copied from"',
             content,
-            "kb-s41r: _channel_editor.html inline twin must NOT contain "
+            "sb-s41r: _channel_editor.html inline twin must NOT contain "
             "'{% trans \"Copied from\" %}' — use 'Synced from' instead.",
         )

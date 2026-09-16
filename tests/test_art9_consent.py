@@ -1,4 +1,4 @@
-"""Art. 9(2)(a) attendance consent tests — bead kb-9kh.1.
+"""Art. 9(2)(a) attendance consent tests — bead sb-9kh.1.
 
 TDD tests written BEFORE implementation. All tests must fail initially
 (no art9_consent_given_at field, no consent module, no gates).

@@ -1,5 +1,5 @@
 """
-TDD tests for kb-96tn.4: add_projection / reconcile_projections service verbs
+TDD tests for sb-96tn.4: add_projection / reconcile_projections service verbs
 and the add-channel / remove-channel view endpoints.
 
 Harness signal:
@@ -518,7 +518,7 @@ class AddChannelDropdownContextTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 6. add_channel_post view endpoint — POST tests (kb-96tn.4 parity)
+# 6. add_channel_post view endpoint — POST tests (sb-96tn.4 parity)
 # ---------------------------------------------------------------------------
 
 

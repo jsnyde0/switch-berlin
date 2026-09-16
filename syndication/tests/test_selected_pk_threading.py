@@ -1,5 +1,5 @@
 """
-Tests for kb-shzi.6 — Thread selected_pk through ALL fragment-swapping forms.
+Tests for sb-shzi.6 — Thread selected_pk through ALL fragment-swapping forms.
 
 Harness target:
   (a) Template assertions: GET fragment → assert form HTML contains
@@ -203,7 +203,7 @@ def _assert_form_has_selected_pk_input(test_case, content, action_url, msg_prefi
 
 class InlineSwitchBarCustomizeTabPersistenceTest(TestCase):
     """
-    kb-shzi.6 STEP 2: Inline Switch listing sync bar — state (i) Customize form.
+    sb-shzi.6 STEP 2: Inline Switch listing sync bar — state (i) Customize form.
 
     The inline bar in event_syndication.html (NOT _sync_bar.html) has its OWN
     Customize form for the Switch listing projection. The form must contain
@@ -250,7 +250,7 @@ class InlineSwitchBarCustomizeTabPersistenceTest(TestCase):
             self,
             content,
             customize_url,
-            msg_prefix="kb-shzi.6 inline Switch bar Customize form: ",
+            msg_prefix="sb-shzi.6 inline Switch bar Customize form: ",
         )
 
     def test_inline_switch_customize_with_selected_pk_seeds_that_tab(self):
@@ -273,7 +273,7 @@ class InlineSwitchBarCustomizeTabPersistenceTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                f"kb-shzi.6 inline Switch bar Customize: x-data selectedPk must be "
+                f"sb-shzi.6 inline Switch bar Customize: x-data selectedPk must be "
                 f"seeded to {self.fl_proj.pk} (the selected tab), not reset to first. "
             ),
         )
@@ -281,7 +281,7 @@ class InlineSwitchBarCustomizeTabPersistenceTest(TestCase):
 
 class InlineSwitchBarResetStateIITabPersistenceTest(TestCase):
     """
-    kb-shzi.6 STEP 2: Inline Switch listing sync bar — state (ii) Reset form.
+    sb-shzi.6 STEP 2: Inline Switch listing sync bar — state (ii) Reset form.
 
     State (ii): own CV + sync_source SET → Reset button calls projection-reset-to-canonical.
     Form must have name="selected_pk" so browsers thread the selected tab.
@@ -351,7 +351,7 @@ class InlineSwitchBarResetStateIITabPersistenceTest(TestCase):
             self,
             content,
             reset_url,
-            msg_prefix="kb-shzi.6 inline Switch bar Reset state(ii) form: ",
+            msg_prefix="sb-shzi.6 inline Switch bar Reset state(ii) form: ",
         )
 
     def test_inline_switch_reset_stateii_with_selected_pk_seeds_that_tab(self):
@@ -374,7 +374,7 @@ class InlineSwitchBarResetStateIITabPersistenceTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                f"kb-shzi.6 inline Switch bar Reset state(ii): x-data selectedPk must be "
+                f"sb-shzi.6 inline Switch bar Reset state(ii): x-data selectedPk must be "
                 f"seeded to {self.fl_proj.pk} (the selected tab). "
             ),
         )
@@ -382,7 +382,7 @@ class InlineSwitchBarResetStateIITabPersistenceTest(TestCase):
 
 class InlineSwitchBarResetStateIIITabPersistenceTest(TestCase):
     """
-    kb-shzi.6 STEP 2: Inline Switch listing sync bar — state (iii) Reset form.
+    sb-shzi.6 STEP 2: Inline Switch listing sync bar — state (iii) Reset form.
 
     State (iii): own CV + sync_source NULL → Reset to synced button.
     Form must have name="selected_pk".
@@ -448,7 +448,7 @@ class InlineSwitchBarResetStateIIITabPersistenceTest(TestCase):
             self,
             content,
             reset_url,
-            msg_prefix="kb-shzi.6 inline Switch bar Reset state(iii) form: ",
+            msg_prefix="sb-shzi.6 inline Switch bar Reset state(iii) form: ",
         )
 
     def test_inline_switch_reset_stateiii_with_selected_pk_seeds_that_tab(self):
@@ -471,7 +471,7 @@ class InlineSwitchBarResetStateIIITabPersistenceTest(TestCase):
             content,
             self.fl_proj.pk,
             msg_prefix=(
-                f"kb-shzi.6 inline Switch bar Reset state(iii): x-data selectedPk must be "
+                f"sb-shzi.6 inline Switch bar Reset state(iii): x-data selectedPk must be "
                 f"seeded to {self.fl_proj.pk} (the selected tab). "
             ),
         )
@@ -484,7 +484,7 @@ class InlineSwitchBarResetStateIIITabPersistenceTest(TestCase):
 
 class EventComposerPublishFormsHaveSelectedPkTest(TestCase):
     """
-    kb-shzi.6: Event composer publish forms must contain name="selected_pk".
+    sb-shzi.6: Event composer publish forms must contain name="selected_pk".
 
     Covers projection-direct-publish (draft), projection-publish (ready),
     projection-mark-published (ready), projection-approve (draft "retry"),
@@ -526,7 +526,7 @@ class EventComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             dp_url,
-            msg_prefix="kb-shzi.6 event composer direct-publish form: ",
+            msg_prefix="sb-shzi.6 event composer direct-publish form: ",
         )
 
     def test_event_batch_publish_form_has_selected_pk_input(self):
@@ -549,7 +549,7 @@ class EventComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             batch_url,
-            msg_prefix="kb-shzi.6 event composer batch-publish form: ",
+            msg_prefix="sb-shzi.6 event composer batch-publish form: ",
         )
 
     def test_event_projection_publish_form_has_selected_pk_input(self):
@@ -567,7 +567,7 @@ class EventComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             pub_url,
-            msg_prefix="kb-shzi.6 event composer projection-publish form: ",
+            msg_prefix="sb-shzi.6 event composer projection-publish form: ",
         )
 
     def test_event_mark_published_form_has_selected_pk_input(self):
@@ -584,7 +584,7 @@ class EventComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             mkp_url,
-            msg_prefix="kb-shzi.6 event composer mark-published form: ",
+            msg_prefix="sb-shzi.6 event composer mark-published form: ",
         )
 
     def test_event_approve_retry_form_has_selected_pk_input(self):
@@ -603,7 +603,7 @@ class EventComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             approve_url,
-            msg_prefix="kb-shzi.6 event composer approve/retry form: ",
+            msg_prefix="sb-shzi.6 event composer approve/retry form: ",
         )
 
 
@@ -614,7 +614,7 @@ class EventComposerPublishFormsHaveSelectedPkTest(TestCase):
 
 class PostComposerPublishFormsHaveSelectedPkTest(TestCase):
     """
-    kb-shzi.6: Post composer publish forms must contain name="selected_pk".
+    sb-shzi.6: Post composer publish forms must contain name="selected_pk".
 
     Covers projection-direct-publish (draft), projection-publish (ready),
     projection-mark-published (ready), projection-approve (draft "retry").
@@ -684,7 +684,7 @@ class PostComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             dp_url,
-            msg_prefix="kb-shzi.6 post composer direct-publish form: ",
+            msg_prefix="sb-shzi.6 post composer direct-publish form: ",
         )
 
     def test_post_projection_publish_form_has_selected_pk_input(self):
@@ -701,7 +701,7 @@ class PostComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             pub_url,
-            msg_prefix="kb-shzi.6 post composer projection-publish form: ",
+            msg_prefix="sb-shzi.6 post composer projection-publish form: ",
         )
 
     def test_post_mark_published_form_has_selected_pk_input(self):
@@ -718,7 +718,7 @@ class PostComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             mkp_url,
-            msg_prefix="kb-shzi.6 post composer mark-published form: ",
+            msg_prefix="sb-shzi.6 post composer mark-published form: ",
         )
 
     def test_post_approve_retry_form_has_selected_pk_input(self):
@@ -736,7 +736,7 @@ class PostComposerPublishFormsHaveSelectedPkTest(TestCase):
             self,
             content,
             approve_url,
-            msg_prefix="kb-shzi.6 post composer approve/retry form: ",
+            msg_prefix="sb-shzi.6 post composer approve/retry form: ",
         )
 
 

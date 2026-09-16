@@ -130,7 +130,7 @@ Reuse existing clean primitives where a real need exists — e.g. `browser-autom
 
 The product harness solves the facilitator's whole promotion problem, but Switch builds an **owned delivery rail only for channels no external tool serves**. Where a commodity tool clearly serves a channel, the harness's skill teaches the agent to **drive that external tool** instead — we never build an owned adapter for a commodity-served channel.
 
-**Data-through-Switch invariant:** regardless of delivery rail, the canonical Event + Post, the per-channel projections, and the toned copy (content-policy cleaning, kb-o0j) live on Switch. The agent's workflow starts from Switch as source of truth (Switch-first data flow), and deliveries made via external tools **report placement back** to Switch so coverage tracking stays complete. The report-back verb is walk-pulled — build it when a challenge walk demands it (ADR-008 D2), not speculatively.
+**Data-through-Switch invariant:** regardless of delivery rail, the canonical Event + Post, the per-channel projections, and the toned copy (content-policy cleaning, sb-o0j) live on Switch. The agent's workflow starts from Switch as source of truth (Switch-first data flow), and deliveries made via external tools **report placement back** to Switch so coverage tracking stays complete. The report-back verb is walk-pulled — build it when a challenge walk demands it (ADR-008 D2), not speculatively.
 
 **Per-channel split at time of writing** (target-facilitator channels: Telegram, FetLife, Instagram, newsletters):
 
@@ -168,7 +168,7 @@ The product harness solves the facilitator's whole promotion problem, but Switch
 - `switch-cli` is the default home for new load-bearing capability; skills/hooks wrap it. A new skill that *does* something is a review flag to push the doing into the CLI.
 - The primitive ledger is updated as walks build/reuse primitives — it is the running dependency-isolation surface, not a one-time doc.
 - No cross-harness publishing, SDK, adapter, or packaging machinery is built until a real second consumer exists (D2/D5).
-- No new owned adapter for a commodity-served channel (D6) — Instagram and newsletter delivery are composed via external tools the agent drives; the walk-pulled build list narrows to Switch-surface verbs (find/list events, studio link, enable-for-promotion, report-back) and the toning policy (kb-o0j), which D6 makes *more* central: kink-aware content cleaning is what makes commodity channels usable for explicit events at all, and no external tool will carry it.
+- No new owned adapter for a commodity-served channel (D6) — Instagram and newsletter delivery are composed via external tools the agent drives; the walk-pulled build list narrows to Switch-surface verbs (find/list events, studio link, enable-for-promotion, report-back) and the toning policy (sb-o0j), which D6 makes *more* central: kink-aware content cleaning is what makes commodity channels usable for explicit events at all, and no external tool will carry it.
 
 ### Carried forward
 - ADR-011 D1 — feature placement (core web-UI-complete vs agent-extended); this ADR adds the packaging/distribution discipline for the agent-extended layer it defines.
@@ -189,9 +189,9 @@ The product harness solves the facilitator's whole promotion problem, but Switch
 - [ADR-008 D2](ADR-008-code-posture-refactor-hard-fail-loud.md) — no speculative abstraction (the primary brake on D2/D4/D5); D3/D4 fail-loud + retry posture bind any I/O-bearing primitive.
 - [ADR-003](ADR-003-cheap-foresight-patterns.md) — cheap foresight = data shape + naming only; governs the ledger-not-machinery choice in D3.
 - [ADR-010 D1](ADR-010-event-based-product-posture.md) — Switch-as-canonical-home growth loop; upstream of D6's data-through-Switch invariant.
-- bd bead `kb-o0j` — facilitator cleaning/toning policy; the content brain D6 keeps on Switch regardless of delivery rail.
+- bd bead `sb-o0j` — facilitator cleaning/toning policy; the content brain D6 keeps on Switch regardless of delivery rail.
 - [`docs/harness-primitive-ledger.md`](../harness-primitive-ledger.md) — the D3 primitive ledger.
-- bd memory `challenge-driven-dogfood-as-design-main-thread` — the dogfood walks (Challenge 0, `kb-k2ds`) are where this ADR gets grounded.
+- bd memory `challenge-driven-dogfood-as-design-main-thread` — the dogfood walks (Challenge 0, `sb-k2ds`) are where this ADR gets grounded.
 - bd memory `studio-composer-browser-readback-recipe` — the canonical browser-automation reuse instance (D5).
 
 ## Open questions deferred

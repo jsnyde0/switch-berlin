@@ -1,4 +1,4 @@
-# Migration for kb-izj: Rename Organizer → Profile with kind discriminator
+# Migration for sb-izj: Rename Organizer → Profile with kind discriminator
 #
 # Strategy: RenameModel to preserve the organizers_organizer DB table
 # (Django will rename it to organizers_profile), plus field additions/renames.

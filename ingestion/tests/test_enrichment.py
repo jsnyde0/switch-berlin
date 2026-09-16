@@ -118,7 +118,7 @@ class TestEnrichUrlsSkipsUnsafe:
         assert "Public page" in result["url_content"]
 
     def test_redirect_response_is_skipped(self):
-        """A 30x response on a safe URL must not be followed (kb-97n SSRF)."""
+        """A 30x response on a safe URL must not be followed (sb-97n SSRF)."""
         mock_resp = MagicMock()
         mock_resp.text = ""
         mock_resp.status_code = 302

@@ -1,5 +1,5 @@
 """
-Post master model tests (kb-shzi.4).
+Post master model tests (sb-shzi.4).
 
 Contract under test:
 1. CAPABILITY-AWARE GATE (ADR-008 D3 + ADR-010 D1):
@@ -12,13 +12,13 @@ Contract under test:
 2. RELABEL master anchor (ADR-010 D1 cheap-foresight):
    The post composer renders the master anchor labeled 'Master copy' (NOT 'Source').
    Helper text ("edits here feed every channel" or similar) is present.
-   The abstract canonical anchor tab key ('source') still functions (kb-shzi.2
+   The abstract canonical anchor tab key ('source') still functions (sb-shzi.2
    selected_pk='source' default must not be broken).
 
 3. REGRESSION guard:
    Editing the master copy (canonical CV) still feeds channels (existing sync
    mechanism not broken).
-   kb-shzi.2 server-driven selected_pk survives for posts (tab-persistence).
+   sb-shzi.2 server-driven selected_pk survives for posts (tab-persistence).
 
 Assertions are on response.content (NOT response.context — hollow-test anti-pattern).
 """
@@ -336,7 +336,7 @@ class PostMasterAnchorLabelTest(TestCase):
 
     def test_post_composer_selected_pk_source_default_still_works(self):
         """
-        kb-shzi.2 regression: the 'source' tab key for x-data selectedPk must
+        sb-shzi.2 regression: the 'source' tab key for x-data selectedPk must
         still be present (the server-driven selected_pk default). The template
         must contain selectedPk: 'source' as the fallback in the x-data attribute
         so Alpine defaults to the master anchor tab.
@@ -358,7 +358,7 @@ class PostMasterAnchorLabelTest(TestCase):
     def test_post_composer_master_anchor_panel_shown_when_source_selected(self):
         """
         The master anchor panel must use x-show="selectedPk === 'source'" —
-        still controlled by the 'source' key (kb-shzi.2 compatibility).
+        still controlled by the 'source' key (sb-shzi.2 compatibility).
         """
         url = f"/syndication/posts/{self.post.pk}/fragments/post_syndication/"
         response = self.client.get(url)
@@ -370,12 +370,12 @@ class PostMasterAnchorLabelTest(TestCase):
             "selectedPk === 'source'",
             content,
             "Master anchor panel x-show must use selectedPk === 'source' "
-            "so the 'source' Alpine key still controls visibility (kb-shzi.2 compat).",
+            "so the 'source' Alpine key still controls visibility (sb-shzi.2 compat).",
         )
 
     def test_post_composer_selected_pk_server_driven_survives_for_non_source_tab(self):
         """
-        kb-shzi.2: When selected_pk is posted, the re-rendered fragment opens
+        sb-shzi.2: When selected_pk is posted, the re-rendered fragment opens
         that tab. We verify that a non-source tab selection (via POST with
         selected_pk) is reflected in the x-data selectedPk seed in the response.
         """

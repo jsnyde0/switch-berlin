@@ -1,4 +1,4 @@
-"""TDD tests for kb-m69.7: InviteGrant audit-log model.
+"""TDD tests for sb-m69.7: InviteGrant audit-log model.
 
 Per ADR-013 D4 (InviteGrant audit-log model).
 Per ADR-003 (cheap-foresight — grantor nullable for admin-grants).

@@ -1,4 +1,4 @@
-"""TDD tests for kb-m69.7: InviteCode model extensions.
+"""TDD tests for sb-m69.7: InviteCode model extensions.
 
 Per ADR-013 D6 (V0 admin-grant invite economy).
 Per ADR-008 D3 (fail loud on invalid invite).

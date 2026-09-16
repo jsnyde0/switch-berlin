@@ -1,4 +1,4 @@
-"""Tests for kb-2xe: takedown_view malformed URL error path (ADR-008 D3).
+"""Tests for sb-2xe: takedown_view malformed URL error path (ADR-008 D3).
 
 Acceptance:
 - A malformed takedown URL produces a specific 'invalid URL' error response

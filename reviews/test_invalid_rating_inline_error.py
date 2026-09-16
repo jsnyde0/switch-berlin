@@ -1,4 +1,4 @@
-"""Regression tests for kb-ikj: invalid rating must render inline form error.
+"""Regression tests for sb-ikj: invalid rating must render inline form error.
 
 Bug: submitting an invalid/empty rating returned a 400 with only the bare
 _rating_form.html fragment rendered in error-only mode (just a <p> tag).

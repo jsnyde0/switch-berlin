@@ -1,5 +1,5 @@
 """
-TDD tests for kb-6d7o.2: versioned canonical URL embedded in Telegram promotion body.
+TDD tests for sb-6d7o.2: versioned canonical URL embedded in Telegram promotion body.
 
 Contract:
 1. FIRST-PUBLISH: The sent Bot API payload text contains the canonical event URL
@@ -8,11 +8,11 @@ Contract:
 
 2. REPUBLISH: After an edit-after-publish, republish_projection increments
    publish_rev AND the re-materialized frozen_content['body'] carries the new ?v=.
-   (Re-dispatch to Telegram is deferred to kb-rsl4 — asserts frozen body only.)
+   (Re-dispatch to Telegram is deferred to sb-rsl4 — asserts frozen body only.)
 
 3. A draft ContentVersion edit leaves publish_rev unchanged.
 
-Send-sequence fact (ADR-016, kb-6d7o.2 design):
+Send-sequence fact (ADR-016, sb-6d7o.2 design):
   publish_telegram_promotion calls render_projection() while status is 'ready',
   builds the payload, SENDS it, then calls transition_status('published').
   So the body Telegram receives is the draft→ready frozen body. The versioned URL
@@ -190,11 +190,11 @@ class RepublishBumpsRevAndFreezeBodyTest(TestCase):
     publish_rev AND (for telegram) the re-materialized frozen_content['body']
     carries the new ?v=.
 
-    Re-dispatch to Telegram is deferred (kb-rsl4 — out of scope here).
+    Re-dispatch to Telegram is deferred (sb-rsl4 — out of scope here).
     Assert frozen body (the correct observable for re-freeze-only v0).
 
     Both tests use a Telegram connection (URL embed is telegram-only per Fix 1
-    of kb-6d7o.2 review correction). republish_projection is re-freeze-only —
+    of sb-6d7o.2 review correction). republish_projection is re-freeze-only —
     no httpx.post call is made.
     """
 
@@ -345,7 +345,7 @@ class DraftEditLeavesPublishRevUnchangedTest(TestCase):
 
 class NonTelegramPromotionBodyHasNoVersionedUrlTest(TestCase):
     """
-    Fix 1 (kb-6d7o.2 review correction): the ?v= versioned URL is a Telegram
+    Fix 1 (sb-6d7o.2 review correction): the ?v= versioned URL is a Telegram
     link-preview cache-bust artifact. Non-telegram promotion projections (FetLife,
     Switch, etc.) must NOT have the URL appended to their body.
 
@@ -405,7 +405,7 @@ class NonTelegramPromotionBodyHasNoVersionedUrlTest(TestCase):
 
 class TelegramPromotionOrganizerlesEventRaisesTest(TestCase):
     """
-    Fix 2 (kb-6d7o.2 review correction, ADR-008 D3): when a telegram promotion
+    Fix 2 (sb-6d7o.2 review correction, ADR-008 D3): when a telegram promotion
     projection's event lacks the organizer (or slug) needed to build the event-detail
     URL, _materialize_promotion_fields must RAISE ValueError at the freeze site with
     a clear message naming the projection and the missing data.

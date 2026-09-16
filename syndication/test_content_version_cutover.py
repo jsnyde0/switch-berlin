@@ -1,5 +1,5 @@
 """
-TDD tests for kb-wz8m.2: ContentVersion cutover.
+TDD tests for sb-wz8m.2: ContentVersion cutover.
 
 Acceptance assertions:
   (a) event-create seeds exactly ONE canonical ContentVersion that all eager
@@ -173,7 +173,7 @@ class CanonicalVersionSeedTest(TestCase):
         create_post seeds a canonical ContentVersion for the POST (not the Event)
         and points eager promotion projections FK at it.
 
-        ADR-016 D2 (kb-q4u9.2): promotion projections FK the post's canonical
+        ADR-016 D2 (sb-q4u9.2): promotion projections FK the post's canonical
         (ContentVersion.post set, ContentVersion.event null), not the event's.
         """
         from syndication.services import create_post
@@ -437,7 +437,7 @@ class FieldsRemovedTest(TestCase):
         pp = PlatformProjection()
         self.assertFalse(
             hasattr(pp, "override_data"),
-            "PlatformProjection must NOT have override_data (removed in kb-wz8m.2)",
+            "PlatformProjection must NOT have override_data (removed in sb-wz8m.2)",
         )
 
     def test_provenance_field_removed_from_platform_projection(self):
@@ -448,7 +448,7 @@ class FieldsRemovedTest(TestCase):
         pp = PlatformProjection()
         self.assertFalse(
             hasattr(pp, "provenance"),
-            "PlatformProjection must NOT have provenance (moved to ContentVersion in kb-wz8m.2)",
+            "PlatformProjection must NOT have provenance (moved to ContentVersion in sb-wz8m.2)",
         )
 
     def test_generated_by_field_removed_from_platform_projection(self):
@@ -459,7 +459,7 @@ class FieldsRemovedTest(TestCase):
         pp = PlatformProjection()
         self.assertFalse(
             hasattr(pp, "generated_by"),
-            "PlatformProjection must NOT have generated_by (moved to ContentVersion in kb-wz8m.2)",
+            "PlatformProjection must NOT have generated_by (moved to ContentVersion in sb-wz8m.2)",
         )
 
     def test_last_generated_at_field_removed_from_platform_projection(self):
@@ -470,7 +470,7 @@ class FieldsRemovedTest(TestCase):
         pp = PlatformProjection()
         self.assertFalse(
             hasattr(pp, "last_generated_at"),
-            "PlatformProjection must NOT have last_generated_at (moved to ContentVersion in kb-wz8m.2)",
+            "PlatformProjection must NOT have last_generated_at (moved to ContentVersion in sb-wz8m.2)",
         )
 
     def test_content_version_fk_non_null_after_create_event(self):
@@ -666,7 +666,7 @@ class AgentAssistedDedicatedVersionTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# kb-q4u9.2 Probe 2: Migration 0007 backfill
+# sb-q4u9.2 Probe 2: Migration 0007 backfill
 #
 # Tests that migration 0007 correctly backfills existing dogfood data:
 # - Mints a canonical ContentVersion per existing Post
@@ -689,7 +689,7 @@ def _get_0007_migration_context():
     schema assumptions.
 
     Pattern from tests/test_organizer_lia_migration.py, extended to surface the
-    historical apps object per the kb-q4u9.2 review request.
+    historical apps object per the sb-q4u9.2 review request.
     """
     from django.db import connections
     from django.db.migrations.executor import MigrationExecutor
@@ -725,7 +725,7 @@ def _get_0007_migration_context():
     "support inside a test transaction (NotSupportedError: FK constraint checks are "
     "enabled). These tests run on the default Postgres path; the SQLite test_settings "
     "path uses syncdb + syndication.test_migrations so the schema editor is not needed "
-    "for normal test coverage. See kb-33do.2 for the full root cause.",
+    "for normal test coverage. See sb-33do.2 for the full root cause.",
 )
 class Migration0007BackfillTest(TestCase):
     """

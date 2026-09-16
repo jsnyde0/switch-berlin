@@ -1,5 +1,5 @@
 """
-Co-equal API integration test (kb-a4u.9, ADR-016 D3/D6).
+Co-equal API integration test (sb-a4u.9, ADR-016 D3/D6).
 
 Proves that Switch has NO private fast-path: for the same logical operation
 (Event-create, Post-create), both the Web UI surface and the HTTP API surface

@@ -1,12 +1,12 @@
 """
-TDD tests for the syndication schema refactor (kb-a4u.18, updated kb-wz8m.2).
+TDD tests for the syndication schema refactor (sb-a4u.18, updated sb-wz8m.2).
 
 Tests assert:
 - PlatformConnection model exists with the required fields
 - PlatformProjection.connection FK resolves to a PlatformConnection (not a string)
 - platform_id field is removed from PlatformProjection
 - override_data, provenance, generated_by, last_generated_at are removed from
-  PlatformProjection (kb-wz8m.2 cutover — these now live on ContentVersion)
+  PlatformProjection (sb-wz8m.2 cutover — these now live on ContentVersion)
 - ContentVersion carries provenance, generated_by, last_generated_at
 
 Schema/migration layer only — no behavioral logic.
@@ -166,7 +166,7 @@ class PlatformProjectionConnectionFKTest(TestCase):
 
 class PlatformProjectionRemovedFieldsTest(TestCase):
     """
-    kb-wz8m.2 cutover: override_data, provenance, generated_by, last_generated_at
+    sb-wz8m.2 cutover: override_data, provenance, generated_by, last_generated_at
     are removed from PlatformProjection. These fields now live on ContentVersion.
     ADR-008 D1: no back-compat shims — removed outright, no deprecation paths.
     """
@@ -196,7 +196,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
         )
 
     def test_projection_has_no_override_data_field(self):
-        """override_data is removed from PlatformProjection (kb-wz8m.2)."""
+        """override_data is removed from PlatformProjection (sb-wz8m.2)."""
         proj = PlatformProjection.objects.create(
             kind=PlatformProjection.Kind.LISTING,
             status=PlatformProjection.Status.DRAFT,
@@ -206,7 +206,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
         )
         self.assertFalse(
             hasattr(proj, "override_data"),
-            "PlatformProjection must NOT have override_data after kb-wz8m.2 cutover",
+            "PlatformProjection must NOT have override_data after sb-wz8m.2 cutover",
         )
 
     def test_projection_has_no_provenance_field(self):
@@ -220,7 +220,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
         )
         self.assertFalse(
             hasattr(proj, "provenance"),
-            "PlatformProjection must NOT have provenance after kb-wz8m.2 cutover",
+            "PlatformProjection must NOT have provenance after sb-wz8m.2 cutover",
         )
 
     def test_projection_has_no_generated_by_field(self):
@@ -234,7 +234,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
         )
         self.assertFalse(
             hasattr(proj, "generated_by"),
-            "PlatformProjection must NOT have generated_by after kb-wz8m.2 cutover",
+            "PlatformProjection must NOT have generated_by after sb-wz8m.2 cutover",
         )
 
     def test_projection_has_no_last_generated_at_field(self):
@@ -248,7 +248,7 @@ class PlatformProjectionRemovedFieldsTest(TestCase):
         )
         self.assertFalse(
             hasattr(proj, "last_generated_at"),
-            "PlatformProjection must NOT have last_generated_at after kb-wz8m.2 cutover",
+            "PlatformProjection must NOT have last_generated_at after sb-wz8m.2 cutover",
         )
 
 

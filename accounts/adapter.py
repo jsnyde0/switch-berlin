@@ -59,7 +59,7 @@ def validate_turnstile_token(token: str, secret_key: str) -> bool:
 
 
 class OpenSignupAdapter(DefaultAccountAdapter):
-    """Open signup adapter (kb-m69.5): Turnstile-gated, email-verified, auto-Profile.
+    """Open signup adapter (sb-m69.5): Turnstile-gated, email-verified, auto-Profile.
 
     Per ADR-013 D2 (open signup path), ADR-014 D4 (Turnstile), ADR-008 D3 (fail loud).
     """

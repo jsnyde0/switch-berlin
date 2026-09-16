@@ -1,5 +1,5 @@
 """
-TDD tests for EventOrganizer M2M migration (kb-n0y).
+TDD tests for EventOrganizer M2M migration (sb-n0y).
 
 Acceptance criteria covered:
   (a) EventOrganizer model fields (AC-1)

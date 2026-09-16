@@ -1,5 +1,5 @@
 """
-[kb-m69.2] Event.visibility ENUM, source-derived backfill,
+[sb-m69.2] Event.visibility ENUM, source-derived backfill,
 queryset manager, is_indexable, sitemap exclusion.
 
 ADR-012 D1 (3-tier shape), D2 (source-derived defaults), D3 (access matrix).
@@ -35,7 +35,7 @@ def make_event(title="Test", slug=None, visibility="public", **kwargs):
 
 
 def make_user(username, status="open"):
-    """Create a user with the given status (User.status field from kb-m69.1)."""
+    """Create a user with the given status (User.status field from sb-m69.1)."""
     user = User.objects.create_user(username=username, email=f"{username}@example.com", password="x")
     user.status = status
     user.save(update_fields=["status"])

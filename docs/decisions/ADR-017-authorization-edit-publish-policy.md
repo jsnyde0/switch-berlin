@@ -6,11 +6,11 @@
 
 ## Context
 
-The kb-a4u decomposition adversarial review (R1-F7) + scope-check surfaced that v0 ships `EventOrganizer`/`EventFacilitator` through-table rows with **no edit-permission gate** under an explicit single-facilitator-dogfooding assumption (kb-7oz). That assumption is safe for v0 (one facilitator, one claimant) but undefined the moment a second organizer or co-host exists — and the outbound-syndication work (ADR-016) adds a paired-agent principal that acts on a facilitator's behalf, widening the authorization surface.
+The sb-a4u decomposition adversarial review (R1-F7) + scope-check surfaced that v0 ships `EventOrganizer`/`EventFacilitator` through-table rows with **no edit-permission gate** under an explicit single-facilitator-dogfooding assumption (sb-7oz). That assumption is safe for v0 (one facilitator, one claimant) but undefined the moment a second organizer or co-host exists — and the outbound-syndication work (ADR-016) adds a paired-agent principal that acts on a facilitator's behalf, widening the authorization surface.
 
 The existing schema carries no permission semantics: `EventOrganizer` has only `is_primary` (descriptive), `EventFacilitator.role` is free-text credit ("Lead", "DJ"), and `ProfileClaim.role` is `"admin"` with a "cheap foresight for future roles" comment. Authorization is genuinely unbuilt. This ADR canonicalizes the policy so downstream beads (C3 authoring, C5 review, C7 CLI, the adapters, the agent path) don't each invent ad-hoc `is_primary` checks that drift.
 
-The C3/C5 authoring-UX brainstorm (2026-05-26) converged the policy; this ADR is its canonicalization (kb-7oz).
+The C3/C5 authoring-UX brainstorm (2026-05-26) converged the policy; this ADR is its canonicalization (sb-7oz).
 
 ## Decisions
 
@@ -95,9 +95,9 @@ At v0 none of this is built — `role` stays `admin` and the D2 predicate's role
 
 ### Direct
 
-- C3 (kb-a4u.3) authoring, C5 (kb-a4u.5) review, C7 (kb-a4u.7) CLI, and the adapter/agent publish paths all gate edit/publish through the D2 predicate. C3's existing "co-host rows without edit-gate" note is now superseded: co-*organizers* DO get edit (via D1); the gate exists and is the predicate, it's just trivially satisfied for the v0 single-facilitator case.
+- C3 (sb-a4u.3) authoring, C5 (sb-a4u.5) review, C7 (sb-a4u.7) CLI, and the adapter/agent publish paths all gate edit/publish through the D2 predicate. C3's existing "co-host rows without edit-gate" note is now superseded: co-*organizers* DO get edit (via D1); the gate exists and is the predicate, it's just trivially satisfied for the v0 single-facilitator case.
 - No new permission field or model ships at v0. The predicate reads `EventOrganizer` membership + `ProfileClaim` claimancy; `ProfileClaim.role` is consulted but trivially `admin`.
-- The kb-7oz follow-up bead is satisfied by this ADR (close-and-link).
+- The sb-7oz follow-up bead is satisfied by this ADR (close-and-link).
 
 ### Carried forward
 
@@ -118,5 +118,5 @@ Overlap with ADR-014 scored moderate (3.5/5) — `ProfileClaim`/`role` is the sh
 - [ADR-008 D2](ADR-008-code-posture-refactor-hard-fail-loud.md) — no speculative abstraction; predicate + role-field seam, not a permission framework.
 - [ADR-003](ADR-003-cheap-foresight-patterns.md) — cheap foresight on shape: the D2 predicate seam and D3 `ProfileClaim.role` seam are shape commitments, behavior deferred.
 - [ADR-009](ADR-009-mutual-connection-graph-and-identity-visibility.md) — read-side visibility/access (orthogonal: this ADR governs write authority, not who can view an event).
-- `kb-7oz` — the deferred authorization-policy bead this ADR canonicalizes (discovered-from kb-a4u; close-and-link).
-- `kb-a4u.3` — C3 authoring bead whose "co-host rows without edit-gate" v0 note this ADR supersedes.
+- `sb-7oz` — the deferred authorization-policy bead this ADR canonicalizes (discovered-from sb-a4u; close-and-link).
+- `sb-a4u.3` — C3 authoring bead whose "co-host rows without edit-gate" v0 note this ADR supersedes.

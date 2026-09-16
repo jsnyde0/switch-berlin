@@ -1,5 +1,5 @@
 """
-TDD tests for kb-ciqf: sibling channel OOB re-render + event canonical freeze fix.
+TDD tests for sb-ciqf: sibling channel OOB re-render + event canonical freeze fix.
 
 BUG A (POST) — version_edit autosave on a shared canonical CV must emit
   hx-swap-oob body fragments for SIBLING channels (not the edited projection).
@@ -317,7 +317,7 @@ class DetachAndEditSiblingBodyOOBTest(TestCase):
         response = self.client.post(url, {"body": "FL custom body"}, HTTP_HX_REQUEST="true")
         content = response.content.decode()
 
-        # Sentinel against a tautological pass (kb-ciqf adversarial-review Finding 6):
+        # Sentinel against a tautological pass (sb-ciqf adversarial-review Finding 6):
         # the negative assertion below is meaningless if the response emitted no OOB at
         # all. Require the Telegram sibling OOB to be present AND an hx-swap-oob marker,
         # so "the edited projection is absent" can only pass because it was SKIPPED, not

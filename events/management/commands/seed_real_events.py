@@ -1,4 +1,4 @@
-"""Seed real Berlin kink/queer events as draft Events (bead kb-lqw).
+"""Seed real Berlin kink/queer events as draft Events (bead sb-lqw).
 
 Creates 3 approved Organizers (IKSK Berlin, Kachenka, Karada House) and 32
 draft Events with titles, descriptions, start datetimes, and suggested_tags
@@ -679,7 +679,7 @@ EVENTS: list[dict] = [
 
 
 class Command(BaseCommand):
-    help = "Seed real Berlin kink/queer Events as drafts (bead kb-lqw)."
+    help = "Seed real Berlin kink/queer Events as drafts (bead sb-lqw)."
 
     def add_arguments(self, parser):
         parser.add_argument(

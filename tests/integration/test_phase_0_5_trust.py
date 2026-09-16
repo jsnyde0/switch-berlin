@@ -1,8 +1,8 @@
 """
-Integration tests for Phase 0.5 — trust-cluster end-to-end (kb-m69.10).
+Integration tests for Phase 0.5 — trust-cluster end-to-end (sb-m69.10).
 
-Exercises the conjunction of 9 schema-and-behavior beads (kb-m69.1 through
-kb-m69.9): signup paths, profile-claim flows, and the event-visibility access
+Exercises the conjunction of 9 schema-and-behavior beads (sb-m69.1 through
+sb-m69.9): signup paths, profile-claim flows, and the event-visibility access
 matrix.
 
 ADR refs:
@@ -653,7 +653,7 @@ def test_flow_h_unlisted_event_has_noindex_header(vouched_user, unlisted_event):
 
 
 # ---------------------------------------------------------------------------
-# Flow I — EVENT_VISIBILITY_TRUSTED_STATUSES knob (kb-5i2)
+# Flow I — EVENT_VISIBILITY_TRUSTED_STATUSES knob (sb-5i2)
 # ---------------------------------------------------------------------------
 
 
@@ -702,7 +702,7 @@ def test_flow_i_knob_flip_grants_open_user_semi_public_access(open_user, semi_pu
 @override_settings(**TURNSTILE_SETTINGS)
 def test_admin_review_claim_persists_message_for_admin_queue(vouched_user):
     """
-    kb-j8u: when a user submits the claim form on the admin-review track with
+    sb-j8u: when a user submits the claim form on the admin-review track with
     a non-empty message, the message is persisted on the ClaimIntent so the
     admin can read it in the review queue.
     """
@@ -738,7 +738,7 @@ def test_admin_review_claim_persists_message_for_admin_queue(vouched_user):
 @override_settings(**TURNSTILE_SETTINGS)
 def test_admin_review_claim_without_message_leaves_field_blank(vouched_user):
     """
-    kb-j8u: the message field is optional. A claim submitted without a message
+    sb-j8u: the message field is optional. A claim submitted without a message
     creates a ClaimIntent with message='' (blank), not an error.
     """
     profile = Profile.objects.create(

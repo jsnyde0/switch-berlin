@@ -1,4 +1,4 @@
-"""TDD tests for kb-m69.7: Vouched signup path.
+"""TDD tests for sb-m69.7: Vouched signup path.
 
 Per ADR-013 D2 (two signup paths: open + vouched).
 Per ADR-008 D3 (fail loud on invalid invite).

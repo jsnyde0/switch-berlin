@@ -1,5 +1,5 @@
 """
-Tests for WYSIWYG Telegram composer surface (kb-6yyp).
+Tests for WYSIWYG Telegram composer surface (sb-6yyp).
 
 Contract groups:
 (A) One editable styled surface — no textarea + read-only preview split.
@@ -279,7 +279,7 @@ class TelegramPerTypeRenderTest(TestCase):
             'data-testid="tg-channel-post"',
             content,
             "Telegram CHANNEL must render with channel-post framing "
-            "(data-testid='tg-channel-post') — bead kb-6yyp D2.",
+            "(data-testid='tg-channel-post') — bead sb-6yyp D2.",
         )
 
     def test_channel_type_does_not_render_group_message(self):
@@ -300,7 +300,7 @@ class TelegramPerTypeRenderTest(TestCase):
             'data-testid="tg-group-message"',
             content,
             "Telegram CHANNEL must NOT render group-message style — "
-            "channel-post framing only (kb-6yyp D2).",
+            "channel-post framing only (sb-6yyp D2).",
         )
 
     def test_group_type_renders_group_message_framing(self):
@@ -322,7 +322,7 @@ class TelegramPerTypeRenderTest(TestCase):
             'data-testid="tg-group-message"',
             content,
             "Telegram GROUP must render with group-message framing "
-            "(data-testid='tg-group-message') — bead kb-6yyp D2.",
+            "(data-testid='tg-group-message') — bead sb-6yyp D2.",
         )
 
     def test_supergroup_type_renders_group_message_framing(self):
@@ -342,7 +342,7 @@ class TelegramPerTypeRenderTest(TestCase):
         self.assertIn(
             'data-testid="tg-group-message"',
             content,
-            "Telegram SUPERGROUP must render with group-message framing — kb-6yyp D2.",
+            "Telegram SUPERGROUP must render with group-message framing — sb-6yyp D2.",
         )
 
     def test_forum_topic_type_renders_group_message_framing(self):
@@ -362,7 +362,7 @@ class TelegramPerTypeRenderTest(TestCase):
         self.assertIn(
             'data-testid="tg-group-message"',
             content,
-            "Telegram FORUM_TOPIC must render with group-message framing — kb-6yyp D2.",
+            "Telegram FORUM_TOPIC must render with group-message framing — sb-6yyp D2.",
         )
 
     def test_channel_type_does_not_render_wysiwyg_card(self):
@@ -384,7 +384,7 @@ class TelegramPerTypeRenderTest(TestCase):
             'data-testid="tg-wysiwyg-card"',
             content,
             "Telegram CHANNEL must NOT render the link-preview card — "
-            "channel-post framing only (kb-6yyp D2).",
+            "channel-post framing only (sb-6yyp D2).",
         )
 
     def test_group_type_renders_wysiwyg_card(self):
@@ -406,7 +406,7 @@ class TelegramPerTypeRenderTest(TestCase):
             'data-testid="tg-wysiwyg-card"',
             content,
             "Telegram GROUP draft must render the WYSIWYG link-preview card "
-            "(data-testid='tg-wysiwyg-card') — kb-6yyp D2/D3.",
+            "(data-testid='tg-wysiwyg-card') — sb-6yyp D2/D3.",
         )
 
     def test_null_type_falls_back_to_group_message_framing(self):
@@ -490,7 +490,7 @@ class TelegramWysiwygCardImageEqualityTest(TestCase):
             expected_url,
             content,
             f"WYSIWYG GROUP card image must equal card_image_url result '{expected_url}' — "
-            "structural equality guarantee (ADR-016 D3, kb-6yyp C).",
+            "structural equality guarantee (ADR-016 D3, sb-6yyp C).",
         )
 
     def test_forum_topic_wysiwyg_card_image_equals_resolver(self):
@@ -520,7 +520,7 @@ class TelegramWysiwygCardImageEqualityTest(TestCase):
             expected_url,
             content,
             f"WYSIWYG FORUM_TOPIC card image must equal card_image_url result '{expected_url}' — "
-            "structural equality guarantee (ADR-016 D3, kb-6yyp C).",
+            "structural equality guarantee (ADR-016 D3, sb-6yyp C).",
         )
 
     def test_wysiwyg_card_image_default_og_asset_for_no_cover(self):
@@ -554,7 +554,7 @@ class TelegramWysiwygCardImageEqualityTest(TestCase):
 # ---------------------------------------------------------------------------
 # (A2) _channel_preview.html per-type branching for non-draft projections
 # ---------------------------------------------------------------------------
-# Finding 1 (kb-6yyp review): _channel_preview.html renders for Telegram when
+# Finding 1 (sb-6yyp review): _channel_preview.html renders for Telegram when
 #   (a) render_error=True AND proj.status == 'draft'  [error-panel only, no content]
 #   (b) proj.status != 'draft' AND not editable       [content preview, reached here]
 # The per-type branching must be the SAME as _channel_editor.html for case (b).
@@ -601,7 +601,7 @@ class TelegramPreviewPerTypeTest(TestCase):
             'data-testid="tg-channel-post-preview"',
             content,
             "Ready Telegram CHANNEL must render channel-post-preview framing in "
-            "_channel_preview.html (kb-6yyp Finding 1).",
+            "_channel_preview.html (sb-6yyp Finding 1).",
         )
 
     def test_ready_channel_does_not_render_chat_bubble_preview(self):
@@ -627,7 +627,7 @@ class TelegramPreviewPerTypeTest(TestCase):
             "rounded-2xl rounded-tl-sm",
             content,
             "Ready Telegram CHANNEL must NOT render the chat-bubble (group-message) "
-            "framing in the read-only preview (kb-6yyp Finding 1).",
+            "framing in the read-only preview (sb-6yyp Finding 1).",
         )
 
     def test_ready_group_renders_group_message_preview(self):
@@ -652,7 +652,7 @@ class TelegramPreviewPerTypeTest(TestCase):
             "rounded-2xl rounded-tl-sm",
             content,
             "Ready Telegram GROUP must render the chat-bubble (group-message) "
-            "framing in the read-only preview (kb-6yyp Finding 1).",
+            "framing in the read-only preview (sb-6yyp Finding 1).",
         )
 
 
@@ -664,7 +664,7 @@ class TelegramPreviewPerTypeTest(TestCase):
 class NonTelegramChannelsUnaffectedTest(TestCase):
     """
     (D) Regression: FetLife and Switch channel editor rendering is unchanged by
-    the Telegram per-type branching introduced in kb-6yyp.
+    the Telegram per-type branching introduced in sb-6yyp.
 
     Specifically:
     - FetLife renders its own platform skin (warm-purple body text).
@@ -710,7 +710,7 @@ class NonTelegramChannelsUnaffectedTest(TestCase):
         (D1) A FetLife draft projection must render the FetLife native skin
         and must NOT emit any Telegram data-testids.
 
-        Skin updated (kb-bqgo): faithful live FetLife colours — dark near-black
+        Skin updated (sb-bqgo): faithful live FetLife colours — dark near-black
         bg rgb(27,27,27), body text rgb(204,204,204), red category chip
         rgba(204,0,0,...). No longer uses the old warm-purple rgb(210 165 230).
         """

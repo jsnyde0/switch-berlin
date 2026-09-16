@@ -5,13 +5,13 @@
 {% endblock %}
 {% block content %}
   {% comment %}
-    Coverage view (kb-56c2.2).
+    Coverage view (sb-56c2.2).
     Renders per-destination coverage status for a Telegram distribution run.
     ADR-018 D2 FIRM: no "sent" badge anywhere — the machine cannot observe the human's native send.
     ADR-008 D3: vanished (flagged_missing) destinations rendered flagged-loud, never silently dropped.
-    kb-56c2 D6: public-tier = deep-link affordance, never placed/pending.
-    kb-56c2 D3: send-checklist = agent-tier placed + public-tier; ticking is client-only (no persistence).
-    kb-56c2 D5: forum rows are forum-level.
+    sb-56c2 D6: public-tier = deep-link affordance, never placed/pending.
+    sb-56c2 D3: send-checklist = agent-tier placed + public-tier; ticking is client-only (no persistence).
+    sb-56c2 D5: forum rows are forum-level.
   {% endcomment %}
   <div class="max-w-3xl mx-auto pt-10">
     {# ── Header ──────────────────────────────────────────────────── #}
@@ -62,7 +62,7 @@
                   </div>
                 </div>
               {% elif item.postability == "public" %}
-                {# Public-tier: deep-link affordance — NEVER placed/pending (kb-56c2 D6 / ADR-018 D2) #}
+                {# Public-tier: deep-link affordance — NEVER placed/pending (sb-56c2 D6 / ADR-018 D2) #}
                 <div class="flex items-start gap-3" data-public-tier>
                   <div class="flex flex-col gap-1 min-w-0">
                     <span class="kb-kicker truncate">{{ item.title|default:item.destination_id }}</span>
@@ -135,7 +135,7 @@
       </div>
     {% endif %}
     {# ── Send-checklist ──────────────────────────────────────────── #}
-    {# kb-56c2 D3: agent-tier placed + public-tier; ticking is client-only, no persistence #}
+    {# sb-56c2 D3: agent-tier placed + public-tier; ticking is client-only, no persistence #}
     {% if send_checklist %}
       <section class="mb-10" aria-labelledby="send-checklist-heading">
         <h2 class="kb-eyebrow kb-eyebrow-strong tracking-[0.22em] mb-4"

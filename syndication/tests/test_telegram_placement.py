@@ -1,6 +1,6 @@
 """
 TDD tests for the TelegramPlacement model + placement-report API verb +
-bot-tier inline write + reconciliation service (kb-56c2.1).
+bot-tier inline write + reconciliation service (sb-56c2.1).
 
 Harness target (from bead --design):
 (a) model persists a record per (projection,connection) with the THREE stored
@@ -723,7 +723,7 @@ class ReconciliationServiceTest(TestCase):
     def test_public_tier_returns_deep_link_affordance_not_placed_not_pending(self):
         """
         A selected public-tier connection returns a 'deep-link' affordance
-        — NOT 'placed', NOT 'pending' (ADR-018 D2 / kb-56c2 D6).
+        — NOT 'placed', NOT 'pending' (ADR-018 D2 / sb-56c2 D6).
         """
         from syndication.services import reconcile_telegram_coverage
 
@@ -747,7 +747,7 @@ class ReconciliationServiceTest(TestCase):
         self.assertEqual(
             result["status"],
             "deep-link",
-            "Public-tier connection must return 'deep-link' human-action affordance (kb-56c2 D6)",
+            "Public-tier connection must return 'deep-link' human-action affordance (sb-56c2 D6)",
         )
 
     def test_flagged_missing_connection_surfaced_flagged(self):
@@ -846,7 +846,7 @@ class ReconciliationServiceTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# (kb-56c2.6) Multi-topic forum: report verb must resolve by FULL unique key
+# (sb-56c2.6) Multi-topic forum: report verb must resolve by FULL unique key
 # (organizer, platform, destination_id, topic_id)
 # ---------------------------------------------------------------------------
 
@@ -858,7 +858,7 @@ class MultiTopicForumPlacementReportTest(TestCase):
     MultipleObjectsReturned when a forum had multiple subscribed topics
     sharing the same destination_id.
 
-    Harness target (a)-(d) from kb-56c2.6 --design.
+    Harness target (a)-(d) from sb-56c2.6 --design.
     """
 
     def setUp(self):

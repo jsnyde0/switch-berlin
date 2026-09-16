@@ -1,5 +1,5 @@
 """
-TDD tests for kb-izj: Rename Organizer → Profile with kind discriminator.
+TDD tests for sb-izj: Rename Organizer → Profile with kind discriminator.
 
 RED phase: these tests are written BEFORE the implementation.
 They describe the target state of the model after the rename.
@@ -11,7 +11,7 @@ Written per ADR-007 D1 (FIRM):
   - telegram_link (renamed from telegram_channel)
   - all existing fields preserved
 
-Note: claimed_by FK removed per kb-m69.3 (ADR-008 D1 no compat shim).
+Note: claimed_by FK removed per sb-m69.3 (ADR-008 D1 no compat shim).
 claim semantics now via ProfileClaim through-model (ADR-014 D1).
 """
 

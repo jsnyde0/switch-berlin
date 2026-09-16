@@ -1,5 +1,5 @@
 """
-Tests for kb-i45.3: django-q2 heartbeat task + 5-minute schedule.
+Tests for sb-i45.3: django-q2 heartbeat task + 5-minute schedule.
 
 Tests are written FIRST (TDD) and are expected to FAIL until implementation is complete.
 """

@@ -1,4 +1,4 @@
-"""Tests for Attendance model + privacy enforcement (kb-2eu.3).
+"""Tests for Attendance model + privacy enforcement (sb-2eu.3).
 
 RED-GREEN-REFACTOR — write failing tests first.
 """

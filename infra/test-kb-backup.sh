@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tests for kb-backup.sh behaviors added in kb-omx:
+# Tests for kb-backup.sh behaviors added in sb-omx:
 #   1. Absolute 50KiB floor: --simulate-tiny-dump exits non-zero
 #   2. --simulate-tiny-dump outputs size-floor alert message with floor info
 #   3. Existing --test-alert still works (exits 0 when telegram unconfigured)
@@ -30,7 +30,7 @@ check() {
     fi
 }
 
-echo "=== kb-omx: kb-backup.sh unit tests ==="
+echo "=== sb-omx: kb-backup.sh unit tests ==="
 echo ""
 
 # Test 1: --simulate-tiny-dump exits non-zero

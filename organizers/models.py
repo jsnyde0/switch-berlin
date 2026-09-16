@@ -223,7 +223,7 @@ class ProfileClaim(models.Model):
         default="",
         help_text=(
             "Optional reason recorded by admin on claim revoke"
-            " (ADR-003 cheap-foresight; kb-m69.9). Populated by S9 admin revoke action."
+            " (ADR-003 cheap-foresight; sb-m69.9). Populated by S9 admin revoke action."
         ),
     )
 
@@ -395,7 +395,7 @@ class ClaimIntent(models.Model):
     # Cheap-foresight: resolution timestamp (approved or rejected)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
-    # User-supplied context for the admin reviewer (kb-j8u). Optional but
+    # User-supplied context for the admin reviewer (sb-j8u). Optional but
     # encouraged when no email-domain match exists — gives the admin enough
     # to approve directly or reach out via user.email for more info.
     message = models.TextField(

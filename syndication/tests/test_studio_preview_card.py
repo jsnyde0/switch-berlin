@@ -1,5 +1,5 @@
 """
-Studio composer: Telegram link-preview card tests (kb-6d7o.3).
+Studio composer: Telegram link-preview card tests (sb-6d7o.3).
 
 Contract groups:
 (A) Telegram projection preview (non-draft, so _channel_preview.html is rendered)
