@@ -4,7 +4,7 @@ This file provides instructions and context for AI coding agents working on this
 
 ## Current focus (updated 2026-09-15)
 
-**Vision:** replace FetLife with a better alternative ("FetLife meets Hipsy"). **Growth logic:** a Switch already populated with real events and claimable organizer profiles attracts visitors, which attracts promoters, who claim their profile and manage events through the agent harness, including events not public anywhere. Canonical: bd memory `switch-two-track-spine-and-vision` (spine) + `challenge-driven-dogfood-as-design-main-thread` (method) + [ADR-019](docs/decisions/ADR-019-agent-harness-as-a-product.md).
+**Vision:** replace FetLife with a better alternative ("FetLife meets Hipsy"). **Growth logic:** a Switch already populated with real events and claimable organizer profiles attracts visitors, which attracts promoters, who claim their profile and manage events through the agent harness, including events not public anywhere. Canonical: mem `switch-two-track-spine-and-vision` (spine) + `challenge-driven-dogfood-as-design-main-thread` (method) + [ADR-019](docs/decisions/ADR-019-agent-harness-as-a-product.md).
 
 **Two parallel tracks, both challenge/walk-driven** (walk one honest journey, file children only as the walk reveals friction, never pre-decompose):
 
