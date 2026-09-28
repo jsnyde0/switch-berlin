@@ -1,6 +1,6 @@
 # ADR-018: Syndication channel push mechanisms and the draft-only MTProto posture
 
-**Status:** Accepted 2026-06-11 (D5 added 2026-06-15)
+**Status:** Accepted 2026-06-11 (D5 added 2026-06-15; D6 read-for-collection tier added 2026-09-28)
 **Parent:** [ADR-016 — outbound syndication architecture](ADR-016-outbound-syndication-architecture-event-post-projections.md) (the data model + publish lifecycle this ADR gives a *transport mechanism* to — ADR-016 owns what a projection IS and its state machine; this ADR owns how a projection physically reaches the destination platform); [ADR-011 D1 — personal-agent layer](ADR-011-personal-agent-layer-additive.md) (agent-extended scope may be agent-only — the saveDraft tier is such a capability); [ADR-017 D1 — agent is the user's delegate](ADR-017-authorization-edit-publish-policy.md) (the agent acts with the user's authority — here, on the user's own Telegram account)
 **Scope:** arch — how an outbound projection is *physically delivered* to a destination platform, and the ToS-risk posture of acting on a user's own messaging account. Distinct from ADR-016 (the canonical data model, projection lifecycle, and publish state machine) and from ADR-017 (who is *authorized* to publish). This ADR governs *transport + risk*, not model, lifecycle, or authz.
 
@@ -146,6 +146,33 @@ Instead it renders as an explicit deep-link human-action affordance ("open & pos
 **What would invalidate this:**
 
 - Telegram exposes a deep-link callback (or any read-back) that confirms the human posted, making the public tier machine-observable — at which point the tier could gain a real machine-confirmed state and this exclusion is revisited.
+
+### D6: Reading channels for collection uses the same user-session tier, agent-side, read-only (added 2026-09-28)
+
+**Firmness: FLEXIBLE** — converged in the sb-7wzb.1 brainstorm with the user; a placement plus risk-acceptance decision, revisited when the first collector walk (Track A, epic sb-7wzb) reports.
+
+The Track A event collector reads posts from Telegram channels, groups and forum topics the user's own account is a member of, through a `switch-cli` verb holding the user's MTProto session **on the user's machine** (same custody as D4), and pushes the collected rows to Switch. It **only reads**: D2 (never send) is untouched, and the same D3 "under observation" baseline is accepted. The user joins channels by hand in their own client; the collector never joins, never touches member lists, never runs extra accounts. Two alternatives are deliberately **not** taken now, by user ruling: the login-free public web preview (`t.me/s/<channel>`, server-side, public channels only) and a bot added as channel admin (needs organizer cooperation; parked until organizers want it).
+
+**Accepted risk, named:** Telegram's API terms (section 1) prohibit using "data obtained from the Telegram platform to train, fine-tune or otherwise engage in the development, enhancement or deployment of artificial intelligence". The ingestion pipeline runs an LLM extractor over collected text. The clause reads as aimed at training data, but "deployment" is broad. The exposure already exists via the forward-bot; the user accepted it 2026-09-28 at current scale (zero visitors). It is recorded in `docs/compliance/organizer-lia.md` by the walk and revisited at the ADR-002 legal gate. Not legal advice.
+
+**Rationale:**
+
+- `reasoned:` one route for every channel shape (public/private channel, group, forum topic) with machinery that already exists; the web preview only reaches public channels and would be a second code path for the same content.
+- `direct:` user 2026-09-28 — "keep it simple for now; fine with the risk as it stands today; manual joining is perfect."
+- `external:` https://core.telegram.org/api/terms — nothing addresses a user reading channels they are in with their own client; section 1 carries the AI clause quoted above.
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| Public web preview (`t.me/s/`), server-side scheduled | `direct:` user ruling — not now; public channels only; a second path for the same content. Natural follow-up if operator-run cadence hurts. |
+| Bot added as channel admin | `reasoned:` needs each organizer's cooperation up front — the opposite of a population move. Parked until organizers want it. |
+| Server-side session custody so the collector can run on a schedule | `reasoned:` same breach-surface concentration D4 exists to avoid; deferred behind explicit opt-in as in D4. |
+
+**What would invalidate this:**
+
+- Telegram begins restricting accounts for read-only unofficial-client use (D3's own invalidation) — the collector would move to the web preview for public channels and drop private ones.
+- The walk shows operator-run cadence is the friction that hurts most — revisit the web preview for public channels as a server-side feed.
 
 ## canonical_refs
 

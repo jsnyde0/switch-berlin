@@ -1,6 +1,6 @@
 # ADR-012: Event visibility tiers and access-control matrix
 
-**Status:** Accepted 2026-05-21 (revised 2026-05-22 — D3 trusted-viewer set extracted to `settings.EVENT_VISIBILITY_TRUSTED_STATUSES` with FLEXIBLE firmness on the policy layer; D4 added for migration-backfill discipline after a lost-events incident — see D4; scope-boundary clarified 2026-05-26 — visibility is **read-side only** and does **NOT** gate outbound syndication, see Carried forward + [ADR-016](ADR-016-outbound-syndication-architecture-event-post-projections.md))
+**Status:** Accepted 2026-05-21 (D2 private-Telegram-channel row added 2026-09-28 — Track A collector; revised 2026-05-22 — D3 trusted-viewer set extracted to `settings.EVENT_VISIBILITY_TRUSTED_STATUSES` with FLEXIBLE firmness on the policy layer; D4 added for migration-backfill discipline after a lost-events incident — see D4; scope-boundary clarified 2026-05-26 — visibility is **read-side only** and does **NOT** gate outbound syndication, see Carried forward + [ADR-016](ADR-016-outbound-syndication-architecture-event-post-projections.md))
 **Scope:** Per-Event visibility model — `Event.visibility` enum, source-derived defaults, viewer-tier access matrix, robot indexing semantics. Companion to ADR-009 D2 (Profile identity visibility). The sibling User trust model — `User.status` tiers, vouch graph, invite economy — is the scope of [ADR-013](ADR-013-user-trust-model.md) (sb-m69 D1 + D4 + D6 + D9 substrate); this ADR references "vouched User" as a term that ADR canonicalizes. **This ADR governs read-side rendering of an Event *on switch.berlin* only** (who sees it in listings / on its own page / via robots) — it does **NOT** gate *outbound syndication* to external platforms (FetLife / Telegram / Ticket Tailor / etc.), which [ADR-016](ADR-016-outbound-syndication-architecture-event-post-projections.md) D4/D5 governs via explicit facilitator-controlled publish. A facilitator may syndicate their own event anywhere regardless of its Switch visibility tier.
 
 ## Context
@@ -56,6 +56,7 @@ When an Event is created via the ingestion pipeline or admin-curated import, its
 | Scraped from public org website | `public` |
 | Public Telegram channel (broadcast) | `public` |
 | Private Telegram group | `semi_public` |
+| Private Telegram channel (invite-only broadcast; added 2026-09-28, sb-7wzb.1) | `semi_public` by default; the source declaration may set `public` when the organizer posts the invite link openly — Telegram cannot tell us which, so the safe default plus a one-word per-source override replaces detection machinery |
 | User-submitted web form | `semi_public` |
 | Manual admin or organizer creation | as explicitly set; otherwise `semi_public` |
 
