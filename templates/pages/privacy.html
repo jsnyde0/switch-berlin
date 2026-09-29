@@ -123,12 +123,13 @@
       <li>
         <strong>{% trans "LLM processing" %}</strong> —
         {% blocktrans trimmed %}
-          OpenAI (OpenAI OpCo, LLC, USA) and / or Anthropic (Anthropic PBC, USA):
-          large language model (LLM) extraction of event data from Telegram messages and organizer web pages.
-          These providers are based in the United States. Transfers are covered by
-          Standard Contractual Clauses (SCC) pursuant to Art. 44ff GDPR.
-          Only the text of event announcements (titles, dates, venues, descriptions) is sent
-          to LLM providers; no user personal data is included.
+          Requesty Ltd (LLM router) and OpenAI (OpenAI OpCo, LLC, USA; the model behind the router):
+          large language model (LLM) extraction of event data from Telegram posts, including the images
+          attached to them, and from organizer web pages. OpenAI is based in the United States; transfers
+          are covered by Standard Contractual Clauses (SCC) pursuant to Art. 44ff GDPR.
+          Every collected post is sent to the model once, before it is known whether it announces an event,
+          so it may contain personal data its author wrote in the source channel.
+          No data about users of this platform is sent.
         {% endblocktrans %}
       </li>
       <li>
@@ -178,7 +179,7 @@
           <tr>
             <td>RawMessage ({% trans "Telegram ingestion" %})</td>
             <td>
-              {% trans "Collected posts that are not event announcements: content deleted immediately after an automated check." %}
+              {% trans "Collected posts that announce no event: text, images and sender deleted immediately after the model's check. Images of posts that announce events: deleted once the events are extracted." %}
               {% trans "90 days after the event date, then purged." %}
             </td>
           </tr>
