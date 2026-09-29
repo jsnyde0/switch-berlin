@@ -77,7 +77,9 @@ def event_announcement_score(text: str) -> float:
     return float(json.loads(response.json()["choices"][0]["message"]["content"])["is_event"]["noul"])
 
 
-def extract_event_draft(raw_message_text: str, enriched_payload: dict) -> tuple[EventDraft, str]:
+def extract_event_draft(
+    raw_message_text: str, enriched_payload: dict, model_name: str | None = None
+) -> tuple[EventDraft, str]:
     """Returns (draft, prompt_version). Runs synchronously inside a django-q2 worker."""
     from events.models import Tag
     from organizers.models import Profile
@@ -97,7 +99,7 @@ def extract_event_draft(raw_message_text: str, enriched_payload: dict) -> tuple[
 
     from django.conf import settings
 
-    model_name = settings.LLM_MODEL_NAME
+    model_name = model_name or settings.LLM_MODEL_NAME
     agent = Agent(router_model(model_name), output_type=EventDraft)
     result = agent.run_sync(prompt)
     draft = result.output
