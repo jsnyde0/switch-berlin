@@ -1,5 +1,5 @@
 [Unit]
-Description=Switch Berlin nightly backup (pg_dump | restic to BX11)
+Description=Switch Berlin nightly backup (pg_dump | restic to the off-provider RESTIC_REPOSITORY)
 After=docker.service network-online.target
 Wants=network-online.target
 Requires=docker.service

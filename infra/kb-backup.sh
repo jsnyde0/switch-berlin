@@ -2,7 +2,12 @@
 # Switch Berlin nightly backup (sb-6nq.3 + sb-336 size-regression alert + sb-omx size floor).
 #
 # Dumps pg_dump to a tempfile, checks absolute 50KiB floor (sb-omx), then
-# backs up via restic on BX11. After the run, compares the new db-snapshot
+# backs up via restic to RESTIC_REPOSITORY. The repository MUST live outside the
+# hosting provider's account (sb-4sr1: the 2026-09 Hetzner cancellation took the
+# VPS and its Storage Box backups together). After a successful db snapshot the
+# script writes ${KB_BACKUP_STATE_DIR}/last-success (epoch seconds); kb-monitor
+# alerts when that marker goes stale, so a backup that silently stops running
+# still pages. After the run, compares the new db-snapshot
 # total_size to the previous tag=db latest snapshot; if the new snapshot is
 # < prev / DROP_RATIO (default 5x drop), sends a Telegram alert.
 # Both alert variables are sourced from /etc/kb-backup/env alongside the
@@ -25,6 +30,8 @@ set -euo pipefail
 : "${TELEGRAM_OPERATOR_CHAT_ID:=}"
 
 DROP_RATIO="${DROP_RATIO:-5}"
+# State dir: dump tempfiles + the last-success marker kb-monitor reads.
+KB_BACKUP_STATE_DIR="${KB_BACKUP_STATE_DIR:-/var/tmp/kb-backup}"
 
 send_alert() {
     local body="$1"
@@ -77,6 +84,17 @@ if [ "${1:-}" = "--simulate-tiny-dump" ]; then
     exit 1
 fi
 
+# The env template (infra/kb-backup.env.example) ships RESTIC_REPOSITORY as a
+# REPLACE_ME placeholder. Refuse to run against it: restic would otherwise
+# create a local directory of that name and "succeed" with no off-host copy.
+case "$RESTIC_REPOSITORY" in
+    REPLACE_ME*)
+        send_alert "[Switch Berlin] kb-backup NOT RUN: RESTIC_REPOSITORY is still the placeholder '${RESTIC_REPOSITORY}' — set the off-provider restic target in /etc/kb-backup/env." || true
+        echo "kb-backup: ERROR RESTIC_REPOSITORY is the unfilled placeholder '${RESTIC_REPOSITORY}'" >&2
+        exit 1
+        ;;
+esac
+
 # Snapshot the size of the previous tag=db latest BEFORE running the backup,
 # so the comparison is against the actual prior state — not the one we are
 # about to create. Empty repo / no prior snapshot → 0 (regression check is
@@ -97,7 +115,7 @@ latest_db_bytes() {
 PREV_BYTES=$(latest_db_bytes)
 
 DUMP_FLOOR_BYTES=51200  # 50 KiB absolute floor (sb-omx)
-DUMP_TMPDIR=/var/tmp/kb-backup
+DUMP_TMPDIR="$KB_BACKUP_STATE_DIR"
 mkdir -p "$DUMP_TMPDIR"
 
 DB_CONTAINER=$(docker ps --filter label=com.docker.compose.service=db --format "{{.Names}}" | head -1)
@@ -116,6 +134,8 @@ if [ -n "${DB_CONTAINER}" ]; then
     restic backup --stdin --stdin-filename "db-${DUMP_TS}.dump" \
         --tag db --tag automatic < "$DUMP_FILE"
     rm -f "$DUMP_FILE"
+    # Only a db snapshot counts as success (the no-db marker below does not).
+    date +%s > "$KB_BACKUP_STATE_DIR/last-success"
 else
     echo "kb-backup: WARNING no db container running; recording no-db marker"
     echo "no-db at $(date -Iseconds)" \

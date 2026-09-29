@@ -1,0 +1,30 @@
+# Template for /etc/kb-backup/env on the production host (sb-4sr1).
+# Shared by kb-backup.service, kb-monitor.service and both OnFailure alerters
+# (systemd EnvironmentFile=). Fill every REPLACE_ME, then install as
+# root:switch 0640. Never commit the filled copy.
+#
+# Runbook: docs/runbooks/rebuild-production.md, step 7.
+
+# --- restic target: MUST live outside the hosting provider's account --------
+# The 2026-09 Hetzner cancellation took the VPS and its Storage Box together.
+# Use S3-compatible object storage at a second provider, e.g. Backblaze B2:
+#   RESTIC_REPOSITORY=s3:https://s3.eu-central-003.backblazeb2.com/<bucket>
+# kb-backup.sh refuses to run while this still starts with REPLACE_ME.
+RESTIC_REPOSITORY=REPLACE_ME_off_provider_restic_repo
+# Object-storage access key pair (restic's s3 backend reads these names).
+AWS_ACCESS_KEY_ID=REPLACE_ME
+AWS_SECRET_ACCESS_KEY=REPLACE_ME
+# Encryption password for the restic repo. Keep a copy OFF the host (the
+# operator's local .env keeps it as RESTIC_ENCRYPTION_PASSWORD).
+RESTIC_PASSWORD=REPLACE_ME
+
+# --- alert channel (Telegram via the app bot) -------------------------------
+TELEGRAM_BOT_TOKEN=REPLACE_ME
+TELEGRAM_OPERATOR_CHAT_ID=REPLACE_ME
+
+# --- kb-monitor --------------------------------------------------------------
+# healthchecks.io ping URL for the host dead-man's-switch (period 10m, grace 10m).
+HEALTHCHECKS_PING_URL=REPLACE_ME
+DISK_ALERT_THRESHOLD_PERCENT=85
+# Page when the last successful db backup is older than this.
+BACKUP_MAX_AGE_HOURS=26

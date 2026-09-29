@@ -1,13 +1,19 @@
 #!/bin/bash
 # Switch Berlin VPS disk + uptime monitor (kb-monitor).
 #
-# Runs per timer tick (every 5 min) performing three checks:
+# Runs per timer tick (every 5 min) performing four checks:
 #   1. DISK:   alert if / usage >= DISK_ALERT_THRESHOLD_PERCENT (default 85).
 #   2. HEALTHZ: GET HEALTHZ_URL; retry transport errors <=2; count consecutive
 #               failures; alert at UPTIME_FAILURE_THRESHOLD (default 3).
 #   3. DEAD-MAN'S SWITCH: ping HEALTHCHECKS_PING_URL if set (best-effort).
+#   4. BACKUP: alert if kb-backup's last-success marker is older than
+#              BACKUP_MAX_AGE_HOURS (default 26), or if no backup has succeeded
+#              within that window of the monitor first looking (sb-4sr1).
+#              Catches every way a backup stops: script failure, timer not
+#              enabled, placeholder target, OnFailure alerter itself broken.
 #
-# State files live under /var/tmp/kb-monitor/ (created on first run).
+# State files live under KB_MONITOR_STATE_DIR (default /var/tmp/kb-monitor/,
+# created on first run).
 #
 # Transport override (for local dry-run testing — never sends real Telegrams):
 #   KB_MONITOR_DRY_RUN=1   → send_alert prints payload to stdout instead of
@@ -22,6 +28,9 @@
 #                                       exit (does NOT touch failure-counter state)
 #   kb-monitor.sh --simulate-full-disk  force disk-breach path (treat use as 100%)
 #   kb-monitor.sh --simulate-down       force healthz-failure path at threshold
+#   kb-monitor.sh --check-backup        print last-success age, exit 0 if fresh,
+#                                       1 if stale or missing (no state touched)
+#   kb-monitor.sh --simulate-backup-stale  force the backup-stale alert path
 #   kb-monitor.sh --service-failed-alert  send generic "service failed" message
 #                                         (called by kb-monitor-alert.service via
 #                                         OnFailure= in kb-monitor.service)
@@ -49,9 +58,32 @@ UPTIME_FAILURE_THRESHOLD="${UPTIME_FAILURE_THRESHOLD:-3}"
 # Optional dead-man's-switch ping URL (e.g. healthchecks.io). If unset, skipped.
 HEALTHCHECKS_PING_URL="${HEALTHCHECKS_PING_URL:-}"
 
-STATE_DIR="/var/tmp/kb-monitor"
+# Backup freshness: kb-backup.sh writes epoch seconds to this marker after each
+# successful db snapshot. Nightly timer + 15 min jitter → 26h leaves 2h slack.
+BACKUP_MAX_AGE_HOURS="${BACKUP_MAX_AGE_HOURS:-26}"
+BACKUP_MARKER="${KB_BACKUP_STATE_DIR:-/var/tmp/kb-backup}/last-success"
+
+STATE_DIR="${KB_MONITOR_STATE_DIR:-/var/tmp/kb-monitor}"
 FAILURE_COUNT_FILE="${STATE_DIR}/healthz_failure_count"
 ALERTED_FILE="${STATE_DIR}/healthz_alerted"
+BACKUP_ALERTED_FILE="${STATE_DIR}/backup_alerted"
+# First tick the monitor saw no marker; measures the grace window on a fresh host.
+BACKUP_FIRST_SEEN_FILE="${STATE_DIR}/backup_first_seen"
+
+# Prints the marker's age in hours, or "missing" if there is no valid marker.
+backup_age_hours() {
+    local ts
+    if [ ! -f "$BACKUP_MARKER" ]; then
+        echo missing
+        return 0
+    fi
+    ts=$(cat "$BACKUP_MARKER")
+    if ! [[ "$ts" =~ ^[0-9]+$ ]]; then
+        echo missing
+        return 0
+    fi
+    echo $(( ($(date +%s) - ts) / 3600 ))
+}
 
 # ---------------------------------------------------------------------------
 # Transport
@@ -125,6 +157,24 @@ case "${1:-}" in
         rm -f "$ALERTED_FILE"
         send_alert "[Switch Berlin] UPTIME alert: /healthz has failed ${UPTIME_FAILURE_THRESHOLD} consecutive ticks — last code: 503 (simulated). Check app immediately."
         echo "$UPTIME_FAILURE_THRESHOLD" > "$ALERTED_FILE"
+        exit 0
+        ;;
+    --check-backup)
+        # Print backup age and exit; no alerting, no state.
+        AGE=$(backup_age_hours)
+        if [ "$AGE" = "missing" ]; then
+            echo "kb-monitor: no successful backup recorded (${BACKUP_MARKER} missing)"
+            exit 1
+        fi
+        echo "kb-monitor: last successful backup ${AGE}h ago (max ${BACKUP_MAX_AGE_HOURS}h)"
+        if [ "$AGE" -ge "$BACKUP_MAX_AGE_HOURS" ]; then
+            exit 1
+        fi
+        exit 0
+        ;;
+    --simulate-backup-stale)
+        echo "kb-monitor: --simulate-backup-stale — forcing backup-stale alert"
+        send_alert "[Switch Berlin] BACKUP alert: last successful backup is older than ${BACKUP_MAX_AGE_HOURS}h (simulated). Check journalctl -u kb-backup.service and the restic target."
         exit 0
         ;;
     --run|"")
@@ -238,6 +288,50 @@ check_healthz() {
 }
 
 # ---------------------------------------------------------------------------
+# CHECK 4: BACKUP FRESHNESS
+# One page per staleness episode; one recovery note when a backup lands again.
+# ---------------------------------------------------------------------------
+check_backup() {
+    local age
+    local reason=""
+    age=$(backup_age_hours)
+
+    if [ "$age" = "missing" ]; then
+        # Fresh host: start the grace window the first time we look.
+        if [ ! -f "$BACKUP_FIRST_SEEN_FILE" ]; then
+            date +%s > "$BACKUP_FIRST_SEEN_FILE"
+        fi
+        local first_seen
+        first_seen=$(cat "$BACKUP_FIRST_SEEN_FILE")
+        if ! [[ "$first_seen" =~ ^[0-9]+$ ]]; then
+            date +%s > "$BACKUP_FIRST_SEEN_FILE"
+            first_seen=$(date +%s)
+        fi
+        local waited=$(( ($(date +%s) - first_seen) / 3600 ))
+        echo "kb-monitor: backup: no successful backup recorded (watching ${waited}h)"
+        if [ "$waited" -ge "$BACKUP_MAX_AGE_HOURS" ]; then
+            reason="no successful backup recorded in ${waited}h of watching"
+        fi
+    else
+        rm -f "$BACKUP_FIRST_SEEN_FILE"
+        echo "kb-monitor: backup: last success ${age}h ago (max ${BACKUP_MAX_AGE_HOURS}h)"
+        if [ "$age" -ge "$BACKUP_MAX_AGE_HOURS" ]; then
+            reason="last successful backup was ${age}h ago"
+        fi
+    fi
+
+    if [ -n "$reason" ]; then
+        if [ ! -f "$BACKUP_ALERTED_FILE" ]; then
+            send_alert "[Switch Berlin] BACKUP alert: ${reason} (max ${BACKUP_MAX_AGE_HOURS}h). Check journalctl -u kb-backup.service and the restic target."
+            date +%s > "$BACKUP_ALERTED_FILE"
+        fi
+    elif [ -f "$BACKUP_ALERTED_FILE" ]; then
+        send_alert "[Switch Berlin] BACKUP RECOVERED: last successful backup ${age}h ago."
+        rm -f "$BACKUP_ALERTED_FILE"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # CHECK 3: DEAD-MAN'S SWITCH (best-effort; never fails the script)
 # ---------------------------------------------------------------------------
 ping_deadmans_switch() {
@@ -257,4 +351,5 @@ ping_deadmans_switch() {
 # ---------------------------------------------------------------------------
 check_disk || true
 check_healthz || true
+check_backup || true
 ping_deadmans_switch || true
