@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: install.sh fills __REPO__ and __HOME__ and loads it (sb-7wzb.5).
+     The run time below is THE schedule constant: once per night, local time. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>berlin.switch.collector-nightly</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>__REPO__/tools/switch-cli/nightly/collect-nightly.sh</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>4</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>StandardOutPath</key>
+	<string>__HOME__/Library/Logs/switch-collector/nightly.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/Library/Logs/switch-collector/nightly.log</string>
+</dict>
+</plist>
