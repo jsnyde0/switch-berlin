@@ -5,6 +5,13 @@ name: deploy
 # Pulls main into /opt/switch-berlin/app on the VPS, renders .env from GH
 # Secrets, builds + brings up the compose stack, applies migrations, runs
 # check --deploy, and triggers a backup to populate the timer's LAST column.
+#
+# Guard (sb-4sr1): the job runs only when the repository variable
+# DEPLOY_ENABLED is 'true'. With no production host, set it to anything else
+# (or delete it) and every push skips the job cleanly instead of failing on ssh.
+#   gh variable set DEPLOY_ENABLED --body true    # host is back
+#   gh variable set DEPLOY_ENABLED --body false   # no host
+# Runbook: docs/runbooks/rebuild-production.md
 
 on:
   workflow_dispatch:
@@ -22,9 +29,13 @@ env:
   CSRF_TRUSTED_ORIGINS: https://switch.berlin,https://www.switch.berlin
   DEBUG: "False"
   DJANGO_SETTINGS_MODULE: a_core.settings
+  # Absolute links in syndicated posts and admin notifications (settings.py
+  # defaults to http://localhost:8000 when unset).
+  SITE_URL: https://switch.berlin
 
 jobs:
   deploy:
+    if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-prod
@@ -84,6 +95,7 @@ jobs:
           DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
           DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
           DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
+          REQUESTY_API_KEY: ${{ secrets.REQUESTY_API_KEY }}
         run: |
           umask 077
           # Derive POSTGRES_PASSWORD from DATABASE_URL so one secret rotation
@@ -108,6 +120,7 @@ jobs:
             printf 'ALLOWED_HOSTS=%s\n' "$ALLOWED_HOSTS"
             printf 'CSRF_TRUSTED_ORIGINS=%s\n' "$CSRF_TRUSTED_ORIGINS"
             printf 'DJANGO_SETTINGS_MODULE=%s\n' "$DJANGO_SETTINGS_MODULE"
+            printf 'SITE_URL=%s\n' "$SITE_URL"
             printf 'SECRET_KEY=%s\n' "$SECRET_KEY"
             printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
             printf 'POSTGRES_DB=postgres\n'
@@ -127,6 +140,7 @@ jobs:
             printf 'DJANGO_SUPERUSER_USERNAME=%s\n' "$DJANGO_SUPERUSER_USERNAME"
             printf 'DJANGO_SUPERUSER_EMAIL=%s\n' "$DJANGO_SUPERUSER_EMAIL"
             printf 'DJANGO_SUPERUSER_PASSWORD=%s\n' "$DJANGO_SUPERUSER_PASSWORD"
+            printf 'REQUESTY_API_KEY=%s\n' "$REQUESTY_API_KEY"
           } > "$tmpfile"
           ssh -i ~/.ssh/deploy_key "${VPS_USER}@${VPS_HOST}" 'sudo install -m 0600 -o switch -g switch /dev/stdin /opt/switch-berlin/app/.env' < "$tmpfile"
           rm -f "$tmpfile"

@@ -9,9 +9,19 @@ This directory holds infrastructure-as-code for the production deploy target
 |---|---|
 | `Caddyfile` | Host-installed Caddy config: TLS termination + `www → apex` redirect (308). Mirrored into `cloud-init.yaml` for first-boot provisioning. |
 | `cloud-init.yaml` | First-boot config for the Hetzner VPS. Creates `switch` deploy user, installs Docker + Caddy, sets up `/opt/switch-berlin/`, configures UFW firewall. |
-| `../.github/workflows/deploy.yml` | GH Actions deploy workflow. Slot-4 records non-secret env + verifies secret-name presence; slot-5 implements actual deploy steps. |
+| `../.github/workflows/deploy.yml` | GH Actions deploy workflow. Runs only when the repo variable `DEPLOY_ENABLED` is `true`. |
+| `kb-backup-env.template` | Every key of the host's `/etc/kb-backup/env` (backup, monitor, alerters), with `REPLACE_ME` placeholders. |
+| `test-kb-backup.sh`, `test-kb-monitor.sh` | Local tests for the two scripts: `bash infra/test-kb-backup.sh && bash infra/test-kb-monitor.sh`. |
+
+**Rebuilding production from scratch:** follow
+[`docs/runbooks/rebuild-production.md`](../docs/runbooks/rebuild-production.md).
+It is the canonical end-to-end order (DNS, server, backups, secrets, deploy);
+the sections below are reference detail.
 
 ## VPS provisioning runbook (sb-6nq.1)
+
+Original Hetzner provisioning. The provider-swappable version is step 3 of
+`docs/runbooks/rebuild-production.md`.
 
 Tooling: `hcloud` CLI (`brew install hcloud`).
 
@@ -98,12 +108,15 @@ App secrets — consumed by Django via `.env` rendered on the VPS:
 | `DSA_CONTACT_EMAIL` | repo `.env` | Falls back to `IMPRESSUM_EMAIL` if empty |
 | `TELEGRAM_BOT_TOKEN` | empty placeholder | Real value tracked by `sb-6ep` (blocks `sb-6nq.6`) |
 | `FIRECRAWL_API_KEY` | empty placeholder | Not yet referenced in code |
+| `REQUESTY_API_KEY` | Requesty dashboard | LLM router key for event extraction (`ingestion/extraction.py`); required |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile | Bot check on forms |
+| `DJANGO_SUPERUSER_USERNAME`, `_EMAIL`, `_PASSWORD` | repo `.env` | `bin/init.sh` creates this superuser on a fresh db |
 
 Deploy-channel secrets — consumed by the workflow itself:
 
 | Name | Value | Notes |
 |---|---|---|
-| `VPS_HOST` | `128.140.56.30` | IPv4 of `switch-berlin-prod` (Hetzner ID 129964122) |
+| `VPS_HOST` | _none live_ | IPv4 of `switch-berlin-prod`. The Hetzner host `128.140.56.30` was lost with the account (sb-ik76); set on rebuild. |
 | `VPS_USER` | `switch` | Deploy user created by `cloud-init.yaml` |
 | `VPS_SSH_KEY` | `~/.ssh/switch-berlin-deploy` (private) | Pubkey installed on VPS as `switch`'s `authorized_keys` |
 
@@ -115,6 +128,10 @@ Deploy-channel secrets — consumed by the workflow itself:
 | `CSRF_TRUSTED_ORIGINS` | `https://switch.berlin,https://www.switch.berlin` |
 | `DEBUG` | `False` |
 | `DJANGO_SETTINGS_MODULE` | `a_core.settings` |
+| `SITE_URL` | `https://switch.berlin` |
+
+Repository variable (not a secret): `DEPLOY_ENABLED` — `true` runs the deploy
+job; anything else skips it. `gh variable set DEPLOY_ENABLED --body true|false`.
 
 ## Monitoring/alerting subsystem provisioning (kb-monitor)
 
@@ -166,6 +183,7 @@ Optional overrides (defaults shown):
 | `HEALTHZ_URL` | `https://switch.berlin/healthz` | Public healthcheck URL (through Caddy). Direct-to-app on `127.0.0.1:8000` fails `ALLOWED_HOSTS` (400) then SSL-redirects (301) before the view runs; the public URL exercises the real user path. |
 | `UPTIME_FAILURE_THRESHOLD` | `3` | Consecutive failing ticks before paging |
 | `HEALTHCHECKS_PING_URL` | _(unset)_ | Dead-man's-switch; see step below |
+| `BACKUP_MAX_AGE_HOURS` | `26` | Page when kb-backup's last successful db snapshot (`/var/tmp/kb-backup/last-success`) is older than this, or none has landed within this window of the monitor first looking |
 
 ### Human step: create a healthchecks.io dead-man's-switch
 
@@ -188,7 +206,7 @@ A successful run sends one Telegram message (`[Switch Berlin] kb-monitor canary 
 
 | Path | Owner / mode | Purpose |
 |---|---|---|
-| `/usr/local/bin/kb-monitor.sh` | `root:root 0755` | Per-tick disk + healthz + dead-man's-switch checks. State under `/var/tmp/kb-monitor/`. Flags: `--test-alert`, `--check-disk`, `--check-healthz`, `--simulate-full-disk`, `--simulate-down`, `--service-failed-alert`. |
+| `/usr/local/bin/kb-monitor.sh` | `root:root 0755` | Per-tick disk + healthz + backup-freshness + dead-man's-switch checks. State under `/var/tmp/kb-monitor/`. Flags: `--test-alert`, `--check-disk`, `--check-healthz`, `--check-backup`, `--simulate-full-disk`, `--simulate-down`, `--simulate-backup-stale`, `--service-failed-alert`. |
 | `/etc/systemd/system/kb-monitor.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch`. `OnFailure=kb-monitor-alert.service`. |
 | `/etc/systemd/system/kb-monitor.timer` | `root:root 0644` | `OnCalendar=*:0/5` (every 5 min), `RandomizedDelaySec=30`, `Persistent=true`. |
 | `/etc/systemd/system/kb-monitor-alert.service` | `root:root 0644` | Fires `kb-monitor.sh --service-failed-alert` when the monitor service itself crashes. |
@@ -235,28 +253,13 @@ ssh "$VPS" 'systemctl list-timers kb-backup.timer'
 
 ### Operator-managed secrets file (NOT repo-tracked)
 
-`/etc/kb-backup/env` must be created manually by the operator — it contains secrets and is intentionally absent from the repository:
-
-```bash
-ssh "$VPS" 'sudo mkdir -p /etc/kb-backup'
-# Then copy the file, or write it inline:
-ssh "$VPS" 'sudo tee /etc/kb-backup/env > /dev/null <<EOF
-RESTIC_REPOSITORY=sftp:bx11:restic
-RESTIC_PASSWORD=<32-byte hex from repo .env RESTIC_ENCRYPTION_PASSWORD>
-TELEGRAM_BOT_TOKEN=<mirror of app .env TELEGRAM_BOT_TOKEN>
-TELEGRAM_OPERATOR_CHAT_ID=<operator personal Telegram user ID>
-EOF'
-ssh "$VPS" 'sudo chmod 0640 /etc/kb-backup/env && sudo chown root:switch /etc/kb-backup/env'
-```
-
-Required keys:
-
-| Key | Source |
-|---|---|
-| `RESTIC_REPOSITORY` | `sftp:bx11:restic` (static) |
-| `RESTIC_PASSWORD` | Repo `.env` → `RESTIC_ENCRYPTION_PASSWORD` (DR copy) |
-| `TELEGRAM_BOT_TOKEN` | Mirror of app `.env` → `TELEGRAM_BOT_TOKEN` |
-| `TELEGRAM_OPERATOR_CHAT_ID` | Operator's personal Telegram user ID (get by sending `/start` to the bot) |
+`/etc/kb-backup/env` holds secrets and is intentionally absent from the
+repository. Build it from `infra/kb-backup-env.template` (every key, with
+sources) and install it `root:switch 0640` — exact commands in
+`docs/runbooks/rebuild-production.md` step 7. The restic repository must live
+at a different company than the host (template comment explains why);
+`kb-backup.sh` refuses to run while `RESTIC_REPOSITORY` is still the
+`REPLACE_ME` placeholder.
 
 After provisioning the env file, verify the alert channel:
 
@@ -268,25 +271,21 @@ ssh "$VPS" 'sudo bash -c "set -a; . /etc/kb-backup/env; set +a; runuser -u switc
 
 ## Backup subsystem (sb-6nq.3)
 
-Nightly `pg_dump | restic backup` to Hetzner BX11 (provisioned by `sb-eac`).
-All artifacts live on the VPS — nothing in the repo runs the backup.
+Nightly `pg_dump | restic backup` to the off-provider `RESTIC_REPOSITORY`
+(S3-compatible object storage at a second company; see the env template).
+The original target, a Hetzner BX11 Storage Box, was lost with the Hetzner
+account in 2026-09 (sb-ik76). All artifacts live on the VPS — nothing in the
+repo runs the backup.
 
 ### Files on `switch-berlin-prod`
 
 | Path | Owner / mode | Purpose |
 |---|---|---|
-| `/usr/local/bin/kb-backup.sh` | `root:root 0755` | Detects compose db container via `com.docker.compose.service=db` label; dumps with `pg_dump -Fc` to a tempfile under `/var/tmp/kb-backup/`, checks absolute 50KiB floor (**sb-omx**) before handing to restic. Falls back to a `no-db-marker.txt` snapshot when no db container is running (no size check — healthy state). **sb-336:** compares new tag=db snapshot bytes to the previous one; if `new < prev / DROP_RATIO` (default 5), POSTs a Telegram alert. Flags: `--test-alert` (canary), `--force-alert` (forced regression message), `--service-failed-alert` (generic failure alert, used by `kb-backup-alert.service` via `OnFailure=`), `--simulate-tiny-dump` (test-only: writes 100-byte fake dump and exercises the 50KiB floor path; expects non-zero exit and alert). |
-| `/etc/kb-backup/env` | `root:switch 0640` | systemd `EnvironmentFile`. Keys: `RESTIC_REPOSITORY=sftp:bx11:restic`, `RESTIC_PASSWORD=<32-byte hex>` (mirrored locally as `RESTIC_ENCRYPTION_PASSWORD` in repo `.env` — DR key), `TELEGRAM_BOT_TOKEN=<bot token mirrored from app .env>` (sb-336), `TELEGRAM_OPERATOR_CHAT_ID=<operator's personal Telegram chat ID>` (sb-336). |
+| `/usr/local/bin/kb-backup.sh` | `root:root 0755` | Detects compose db container via `com.docker.compose.service=db` label; dumps with `pg_dump -Fc` to a tempfile under `/var/tmp/kb-backup/`, checks absolute 50KiB floor (**sb-omx**) before handing to restic. On a successful db snapshot writes epoch seconds to `/var/tmp/kb-backup/last-success` (read by kb-monitor's backup-freshness check). Refuses to run while `RESTIC_REPOSITORY` starts with `REPLACE_ME`. Falls back to a `no-db-marker.txt` snapshot when no db container is running (no size check — healthy state). **sb-336:** compares new tag=db snapshot bytes to the previous one; if `new < prev / DROP_RATIO` (default 5), POSTs a Telegram alert. Flags: `--test-alert` (canary), `--force-alert` (forced regression message), `--service-failed-alert` (generic failure alert, used by `kb-backup-alert.service` via `OnFailure=`), `--simulate-tiny-dump` (test-only: writes 100-byte fake dump and exercises the 50KiB floor path; expects non-zero exit and alert). |
+| `/etc/kb-backup/env` | `root:switch 0640` | systemd `EnvironmentFile`. Keys: see `infra/kb-backup-env.template`. `RESTIC_PASSWORD` is mirrored locally as `RESTIC_ENCRYPTION_PASSWORD` in repo `.env` (DR key). |
 | `/etc/systemd/system/kb-backup.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch`, requires `docker.service`. `OnFailure=kb-backup-alert.service` (**sb-omx**). |
 | `/etc/systemd/system/kb-backup.timer` | `root:root 0644` | `OnCalendar=*-*-* 03:00:00`, `RandomizedDelaySec=900`, `Persistent=true`. Enabled at `timers.target`. |
 | `/etc/systemd/system/kb-backup-alert.service` | `root:root 0644` | `Type=oneshot`, runs as `switch:switch` (**sb-omx**). Triggered by `OnFailure=` in `kb-backup.service`. Runs `kb-backup.sh --service-failed-alert` to send a Telegram "service failed — check journalctl" message. |
-| `~switch/.ssh/restic-bx11` | `switch:switch 0600` | SSH key authorised on BX11 (port 23). |
-| `~switch/.ssh/config` | `switch:switch 0600` | Defines `Host bx11 → u590899.your-storagebox.de:23` so restic URL `sftp:bx11:restic` Just Works. |
-
-### Hetzner Storage Box quirks
-
-- Username is chrooted — repo path must be **relative** (`sftp:bx11:restic`, not `sftp:bx11:/restic`). Absolute paths return `SSH_FX_FAILURE`.
-- SSH support on the box is a panel toggle (port 23), separate from password-based SMB/WebDAV. Must be on for restic-over-SFTP — see `sb-eac`.
 
 ### Operations
 
@@ -296,6 +295,9 @@ sudo systemctl start kb-backup.service
 
 # Tail recent runs
 sudo journalctl -u kb-backup.service --since="1 hour ago"
+
+# Backup freshness as the monitor sees it (exit 0 fresh, 1 stale/missing)
+sudo runuser -u switch -- /usr/local/bin/kb-monitor.sh --check-backup
 
 # Show next scheduled trigger
 systemctl list-timers kb-backup.timer
