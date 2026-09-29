@@ -25,7 +25,9 @@ async def _resolve(client, source: dict, dialogs: list):
     chat = source["chat"]
     if chat.startswith("@"):
         return await client.get_entity(chat)
-    hits = [d.entity for d in dialogs if chat.lower() in (d.name or "").lower()]
+    chats = [d for d in dialogs if d.is_channel or d.is_group]  # never a person's DM
+    hits = [d.entity for d in chats if (d.name or "").lower() == chat.lower()]
+    hits = hits or [d.entity for d in chats if chat.lower() in (d.name or "").lower()]
     if len(hits) != 1:
         raise SourceUnreachable(f"{len(hits)} joined dialogs match title {chat!r}")
     return hits[0]

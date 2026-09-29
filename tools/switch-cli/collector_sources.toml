@@ -96,7 +96,7 @@ publish = false
 [[source]]
 name = "Fist Them Berlin"
 shape = "telegram_private_channel"
-chat = "Fist Them Berlin"
+chat = "Fist Them - Berlin"
 channel_organizer = true
 publish = true
 
@@ -117,7 +117,7 @@ publish = true
 [[source]]
 name = "Connecting Passions & Charming Theys"
 shape = "telegram_private_channel"
-chat = "Connecting Passions"
+chat = "Connecting Passions & Charming Theys"
 channel_organizer = true
 publish = true
 
