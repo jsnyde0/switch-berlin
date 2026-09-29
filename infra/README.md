@@ -8,7 +8,7 @@ This directory holds infrastructure-as-code for the production deploy target
 | File | Purpose |
 |---|---|
 | `Caddyfile` | Host-installed Caddy config: TLS termination + `www → apex` redirect (308). Mirrored into `cloud-init.yaml` for first-boot provisioning. |
-| `cloud-init.yaml` | First-boot config for the Hetzner VPS. Creates `switch` deploy user, installs Docker + Caddy, sets up `/opt/switch-berlin/`, configures UFW firewall. |
+| `cloud-init.yaml` | Provider-agnostic first-boot config for the production VPS (any cloud-init host). Creates `switch` deploy user, installs Docker + Caddy, sets up `/opt/switch-berlin/`, configures UFW firewall. |
 | `../.github/workflows/deploy.yml` | GH Actions deploy workflow. Runs only when the repo variable `DEPLOY_ENABLED` is `true`. |
 | `kb-backup-env.template` | Every key of the host's `/etc/kb-backup/env` (backup, monitor, alerters), with `REPLACE_ME` placeholders. |
 | `test-kb-backup.sh`, `test-kb-monitor.sh` | Local tests for the two scripts: `bash infra/test-kb-backup.sh && bash infra/test-kb-monitor.sh`. |
@@ -106,7 +106,7 @@ App secrets — consumed by Django via `.env` rendered on the VPS:
 | `RESPONSIBLE_PERSON_NAME` | empty | Falls back to `IMPRESSUM_NAME` (settings.py) |
 | `RESPONSIBLE_PERSON_ADDRESS` | empty | Falls back to `IMPRESSUM_ADDRESS` (settings.py) |
 | `DSA_CONTACT_EMAIL` | repo `.env` | Falls back to `IMPRESSUM_EMAIL` if empty |
-| `TELEGRAM_BOT_TOKEN` | empty placeholder | Real value tracked by `sb-6ep` (blocks `sb-6nq.6`) |
+| `TELEGRAM_BOT_TOKEN` | BotFather bot token | Real value set 2026-05-08 (`sb-6ep`, closed). Check presence with `gh secret list` (names only); never print the value. |
 | `FIRECRAWL_API_KEY` | empty placeholder | Not yet referenced in code |
 | `REQUESTY_API_KEY` | Requesty dashboard | LLM router key for event extraction (`ingestion/extraction.py`); required |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile | Bot check on forms |

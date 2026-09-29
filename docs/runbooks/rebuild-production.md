@@ -13,6 +13,11 @@ events come back through the Track A collector (`sb-7wzb`). If the human rules
 that old production data is worth an extraction attempt (sb-ik76, open ruling 3),
 that happens outside this runbook, before step 9.
 
+**Assumed on your machine** (check before step 1):
+
+- Your personal SSH keypair: `ssh-keygen -lf ~/.ssh/id_ed25519_personal.pub` prints a fingerprint.
+- An authenticated GitHub CLI: `gh auth status` shows a logged-in `jsnyde0` account.
+
 What survived and is reused as-is: the domain (INWX), DNS (Cloudflare), the
 GitHub repo with its Actions secrets, `infra/cloud-init.yaml`, the deploy workflow.
 
@@ -52,7 +57,7 @@ Already set in GitHub and reused unchanged (verify they exist in step 8):
 2. **Hosting provider console**: sign up / add payment, create an API token (step 3).
 3. **Backblaze B2**: sign up, create a private bucket, create an application key limited to that bucket (step 6).
 4. **Requesty dashboard**: copy or create an API key (step 8).
-5. **healthchecks.io**: confirm the check exists (period 10 min, grace 10 min), copy its ping URL (step 7).
+5. **healthchecks.io**: confirm the check exists (period 10 min, grace 10 min), copy its ping URL (step 7). If the check is gone, create one following `infra/README.md` § "Human step: create a healthchecks.io dead-man's-switch".
 
 Everything else is a command.
 
@@ -97,7 +102,16 @@ cat ~/.ssh/id_ed25519_personal.pub
 ```
 
 Edit `infra/cloud-init.yaml` → `ssh_authorized_keys`: add both public lines
-(keep the existing line only if you still hold its private key). Commit:
+(keep the existing line only if you still hold its private key). The existing
+line may be the same personal key: compare key material first and keep one line
+per key.
+
+```bash
+ssh-keygen -lf ~/.ssh/id_ed25519_personal.pub   # fingerprint of your key
+grep -c "$(cut -d' ' -f2 ~/.ssh/id_ed25519_personal.pub)" infra/cloud-init.yaml   # 1 = already listed, do not add again
+```
+
+Commit:
 
 ```bash
 git add infra/cloud-init.yaml
@@ -262,6 +276,12 @@ ssh "$VPS" 'sudo bash -c "set -a; . /etc/kb-backup/env; set +a; runuser -u switc
 and Telegram received the kb-backup canary and the `BACKUP alert … (simulated)`
 message.
 
+If the canary never arrives, stop and verify `TELEGRAM_BOT_TOKEN` and
+`TELEGRAM_OPERATOR_CHAT_ID` before going on: both must be in
+`/etc/kb-backup/env` on the host, and set in GitHub
+(`gh secret list -R jsnyde0/switch-berlin` shows names only; never print a
+value). The token was set for real under `sb-6ep` (closed 2026-05-08).
+
 What now pages you (all via Telegram):
 
 - **Backup failed** — `kb-backup-alert.service` fires on any non-zero exit.
@@ -289,9 +309,10 @@ gh secret set REQUESTY_API_KEY -R $R          # prompts; paste, value not echoed
 gh secret list -R $R
 ```
 
-Check the list contains every name from the Inventory's "already set" line plus
-`VPS_HOST`, `VPS_SSH_KEY`, `REQUESTY_API_KEY`. (`OPENAI_API_KEY` and
-`OPENAI_MODEL_NAME` are leftovers the app no longer reads.)
+(`OPENAI_API_KEY` and `OPENAI_MODEL_NAME` are leftovers the app no longer reads.)
+
+**Done when** `gh secret list -R $R` contains every name from the Inventory's
+"already set" line plus `VPS_HOST`, `VPS_SSH_KEY`, `REQUESTY_API_KEY`.
 
 ```bash
 gh variable set DEPLOY_ENABLED -R $R --body true
@@ -324,7 +345,8 @@ already exist.
 
 **Done when** `/` returns 200, `/healthz` returns 200, the issuer is Let's
 Encrypt, `restic snapshots --tag db` lists at least one snapshot, and
-`--check-backup` prints `last successful backup 0h ago` and exits 0.
+`--check-backup` prints `kb-monitor: last successful backup 0h ago (max 26h)`
+and exits 0.
 
 ## Step 10 — Raise the DNS TTL back
 
