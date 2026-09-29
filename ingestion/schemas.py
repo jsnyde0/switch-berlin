@@ -16,3 +16,5 @@ class EventDraft(pydantic.BaseModel):
     external_url: str | None = None
     tags: list[str] = []
     confidence: float  # self-reported 0.0-1.0
+    # False when the event happens outside Berlin and its surroundings, or only online.
+    in_berlin_area: bool = True

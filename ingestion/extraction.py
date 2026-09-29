@@ -8,9 +8,9 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from ingestion.schemas import EventDraft
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"
 
-EXTRACTION_PROMPT_V1 = """
+EXTRACTION_PROMPT = """
 Extract event details from the following text and return a JSON object
 matching the schema.
 
@@ -20,6 +20,13 @@ Known tag slugs (prefer exact match): {tag_slugs}
 
 Set confidence between 0.0 and 1.0 based on completeness and certainty.
 If key fields (title, start datetime) are missing or ambiguous, set confidence < 0.4.
+
+organizer_name is the person or collective hosting the event, as the text names
+them. A Telegram group, forum or website the post merely appears in is not the
+organizer unless the text says it hosts. If the text names no host, return "".
+
+Set in_berlin_area to false when the event takes place outside Berlin and its
+surroundings (another city or country), or only online.
 
 Text:
 {text}
@@ -80,7 +87,7 @@ def extract_event_draft(raw_message_text: str, enriched_payload: dict) -> tuple[
     venue_names = list(Venue.objects.values_list("name", flat=True))
     tag_slugs = list(Tag.objects.values_list("slug", flat=True))
 
-    prompt = EXTRACTION_PROMPT_V1.format(
+    prompt = EXTRACTION_PROMPT.format(
         organizer_names=", ".join(organizer_names) or "(none)",
         venue_names=", ".join(venue_names) or "(none)",
         tag_slugs=", ".join(tag_slugs) or "(none)",

@@ -97,7 +97,7 @@ class ExtractEventDraftTest(TestCase):
             MockAgent.return_value.run_sync.return_value = mock_result
             draft, version = extract_event_draft("Some event text", {})
         self.assertIsInstance(draft, EventDraft)
-        self.assertEqual(version, "v1")
+        self.assertEqual(version, "v2")
         self.assertEqual(draft.title, "Test Event")
 
 

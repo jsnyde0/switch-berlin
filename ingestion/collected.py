@@ -29,6 +29,9 @@ from events.backfill_visibility import derive_visibility_from_sources, rawmessag
 # bot's own door; its rows keep the draft-for-admin-review path.
 COLLECTED_SOURCE_TYPES = ("website", "telegram_telethon", "telegram_private_channel", "telegram_private_group")
 
+# Placeholder names a model returns when the text names no host.
+_NO_NAME = {"", "unknown", "n/a", "none", "not specified", "unbekannt"}
+
 # Title similarity at which two same-day events count as one (pg_trgm, case-folded).
 _DUPLICATE_TITLE_SIMILARITY = 0.4
 
@@ -107,7 +110,9 @@ def resolve_organizer(raw, draft, matched_organizer):
     if matched_organizer is not None:
         return matched_organizer
     name = (draft.organizer_name or "").strip()
-    return _create_collected_profile(name, raw) if name else None
+    if name.lower() in _NO_NAME:
+        return None
+    return _create_collected_profile(name, raw)
 
 
 def find_duplicate(title: str, start):
@@ -167,6 +172,9 @@ def land_collected_event(raw, draft, matched, attempt_kwargs) -> None:
 
     if (end or start) < timezone.now() - timedelta(hours=1):
         return _finish("skipped", "past_event")
+
+    if not draft.in_berlin_area:
+        return _finish("skipped", "not_berlin")
 
     duplicate = find_duplicate(draft.title, start)
     if duplicate is not None:

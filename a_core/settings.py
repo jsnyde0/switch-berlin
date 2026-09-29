@@ -282,7 +282,7 @@ TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
 # a model is a change of model string. REQUESTY_API_KEY is required at call time.
 LLM_BASE_URL = env.str("LLM_BASE_URL", default="https://router.requesty.ai/v1")
 LLM_API_KEY = env.str("REQUESTY_API_KEY", default="")
-LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="google/gemini-2.5-flash-lite")
+LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="openai/gpt-4.1-mini")
 # Collected posts are first scored "is this an event announcement?" by a cheap
 # classifier (Jev, via the same router); below the threshold the post is wiped.
 EVENT_CLASSIFIER_MODEL = env.str("EVENT_CLASSIFIER_MODEL", default="typesafe/jev-1.13.0")

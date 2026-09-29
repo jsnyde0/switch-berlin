@@ -188,3 +188,13 @@ class CollectedEventLandingTest(TestCase):
         self.assertEqual((raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id), ("", {}, {}, ""))
         self.assertEqual(raw.message_id, "m1")  # the bare id stays so a re-collect does not re-classify
         self.assertFalse(Event.objects.exists())
+
+    def test_unnamed_organizer_is_held_not_invented(self):
+        raw = self._process(self._raw(raw_payload={}, channel_id="-100888"), organizer_name="Unknown")
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "no_organizer"))
+        self.assertFalse(Profile.objects.filter(name__iexact="unknown").exists())
+
+    def test_event_outside_berlin_is_skipped(self):
+        raw = self._process(self._raw(), in_berlin_area=False)
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("skipped", "not_berlin"))
+        self.assertFalse(Event.objects.exists())
