@@ -61,10 +61,11 @@
               <br>
               <small>
                 {% blocktrans trimmed %}
-                  Event listings sourced from public Telegram channels.
-                  Berechtigtes Interesse: curating publicly circulated event announcements
-                  for a community-serving, searchable directory.
-                  Organizer events are already public; curation serves legitimate interest.
+                  Event listings collected automatically from organizer websites and from Telegram
+                  channels and groups: public ones, and invite-only ones the operator's account is a
+                  member of. Listings from invite-only sources are shown only to vouched members.
+                  Berechtigtes Interesse: making announcements that organizers circulate themselves
+                  discoverable in a community-serving, searchable directory.
                   Organizers may object to inclusion at any time via
                   <a href="/takedown/">/takedown/</a> (Art. 21 GDPR) — no login required.
                 {% endblocktrans %}
@@ -123,19 +124,20 @@
         <strong>{% trans "LLM processing" %}</strong> —
         {% blocktrans trimmed %}
           OpenAI (OpenAI OpCo, LLC, USA) and / or Anthropic (Anthropic PBC, USA):
-          large language model (LLM) extraction of event data from Telegram messages.
+          large language model (LLM) extraction of event data from Telegram messages and organizer web pages.
           These providers are based in the United States. Transfers are covered by
           Standard Contractual Clauses (SCC) pursuant to Art. 44ff GDPR.
-          Only public event data (titles, dates, venues) is sent to LLM providers;
-          no user personal data is included.
+          Only the text of event announcements (titles, dates, venues, descriptions) is sent
+          to LLM providers; no user personal data is included.
         {% endblocktrans %}
       </li>
       <li>
         <strong>Telegram</strong> —
         {% blocktrans trimmed %}
-          Telegram Messenger Inc.: ingestion channel for event announcements forwarded
-          by organizers. Telegram is an independent data controller for the source channels;
-          this platform acts as a recipient of forwarded public messages.
+          Telegram Messenger Inc.: source of event announcements, both forwarded by organizers
+          and read from channels and groups the operator's own account is a member of.
+          Telegram is an independent data controller for the source channels;
+          this platform only reads messages there and never posts on anyone's behalf.
         {% endblocktrans %}
       </li>
       <li>
@@ -264,10 +266,12 @@
     <h2>{% trans "Automated processing (Art. 13(2)(f) GDPR)" %}</h2>
     <p>
       {% blocktrans trimmed %}
-        Event data is extracted from Telegram messages using a large language model (LLM).
-        This process is used only for structuring publicly available event information
+        Event data is extracted from Telegram messages and organizer web pages using a large
+        language model (LLM). This process is used only for structuring event announcements
         and does not make legally significant decisions about users.
-        A human reviewer approves all published event listings before they are displayed.
+        Events of organizers who have not claimed their profile are listed without per-event
+        human review; a human handles failed or uncertain extractions. Organizers who claim
+        their profile approve their own collected events before they are listed.
       {% endblocktrans %}
     </p>
     <p>{% trans "No automated decision-making with legal effect (Art. 22 GDPR) is applied to users." %}</p>
