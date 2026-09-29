@@ -227,6 +227,15 @@ class CollectedEventLandingTest(TestCase):
         self.assertEqual(raw.raw_payload, {"organizer": "IKSK"})  # image bytes do not outlive the pipeline
         self.assertEqual(raw.text, "THURSDAY 1.10.26")
 
+    def test_past_event_is_skipped_even_when_low_confidence(self):
+        raw = self._process(self._raw(), start=timezone.now() - timedelta(days=2), confidence=0.2)
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("skipped", "past_event"))
+
+    def test_low_confidence_upcoming_event_is_held(self):
+        raw = self._process(self._raw(), confidence=0.2)
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "low_confidence"))
+        self.assertFalse(Event.objects.exists())
+
     def test_failed_extraction_keeps_images_for_a_rerun(self):
         from ingestion.tasks import process_raw_message
 

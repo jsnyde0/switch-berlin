@@ -189,9 +189,6 @@ def process_collected_row(raw, enriched: dict) -> None:
             extracted_draft=draft_json,
             confidence_score=draft.confidence,
         )
-        if draft.confidence < _LOW_CONFIDENCE:
-            outcomes.append(_record(attempt_kwargs, "needs_review", "low_confidence"))
-            continue
         outcomes.append(land_collected_event(raw, draft, match_entities(draft), attempt_kwargs))
 
     status, error = min(outcomes, key=lambda o: _OUTCOME_RANK.index(o[0]))
@@ -221,6 +218,9 @@ def land_collected_event(raw, draft, matched, attempt_kwargs) -> tuple[str, str]
 
     if not draft.in_berlin_area:
         return _record(attempt_kwargs, "skipped", "not_berlin")
+
+    if draft.confidence < _LOW_CONFIDENCE:
+        return _record(attempt_kwargs, "needs_review", "low_confidence")
 
     duplicate = find_duplicate(draft.title, start)
     if duplicate is not None:
