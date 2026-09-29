@@ -350,8 +350,24 @@ class Event(models.Model):
     def __str__(self):
         return self.title
 
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        # Remember the loaded start so save() can tell when a real time was written.
+        instance._loaded_start = instance.__dict__.get("start")
+        return instance
+
     def save(self, *args, **kwargs):
+        # A date-only event whose start is edited (studio form, admin, API) now
+        # has a real time: stop saying "time to be announced" (sb-7wzb.4 B1).
+        loaded_start = getattr(self, "_loaded_start", None)
+        if self.start_time_unknown and loaded_start is not None and self.start != loaded_start:
+            self.start_time_unknown = False
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "start_time_unknown" not in update_fields:
+                kwargs["update_fields"] = [*update_fields, "start_time_unknown"]
         super().save(*args, **kwargs)
+        self._loaded_start = self.start
         pending = getattr(self, "_pending_organizer", _UNSET)
         if pending is not _UNSET:
             del self._pending_organizer
