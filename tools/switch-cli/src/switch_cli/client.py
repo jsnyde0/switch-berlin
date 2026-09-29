@@ -13,9 +13,15 @@ command invocation if they make multiple API calls.
 Security: the raw api_key is never logged or printed.
 """
 
+import json
+
 import httpx
 
 from switch_cli.config import load_base_url, load_config
+
+# The server takes request bodies up to 10 MiB (DATA_UPLOAD_MAX_MEMORY_SIZE); rows
+# carrying photos are pushed in requests below this size.
+PUSH_BODY_LIMIT = 8 * 1024 * 1024
 
 
 class AuthError(Exception):
@@ -241,14 +247,38 @@ class SwitchClient:
     # ------------------------------------------------------------------
 
     def push_collected_rows(self, rows: list[dict]) -> dict:
-        """POST /api/ingest/raw-messages — land collected rows in the RawMessage seam (operator only)."""
-        response = httpx.post(
-            f"{self._base_url}/api/ingest/raw-messages",
-            json=rows,
-            headers=self._headers(),
-            timeout=60,
-        )
-        return self._check(response)
+        """POST /api/ingest/raw-messages — land collected rows in the RawMessage seam (operator only).
+
+        Rows go in as many requests as keep each body under PUSH_BODY_LIMIT; the counts are summed.
+        """
+        totals = {"created": 0, "already_collected": 0}
+        for batch in _batches(rows, PUSH_BODY_LIMIT):
+            response = httpx.post(
+                f"{self._base_url}/api/ingest/raw-messages",
+                json=batch,
+                headers=self._headers(),
+                timeout=120,
+            )
+            for key, n in self._check(response).items():
+                totals[key] = totals.get(key, 0) + n
+        return totals
+
+
+def _batches(rows: list[dict], limit: int) -> list[list[dict]]:
+    """Consecutive runs of rows whose JSON array stays within `limit` bytes. A row alone over it fails loud."""
+    batches, batch, size = [], [], 2
+    for row in rows:
+        row_size = len(json.dumps(row)) + 2  # the row plus its ", " separator
+        if row_size + 2 > limit:
+            raise ValueError(f"one collected row is {row_size} bytes, over the {limit}-byte push limit")
+        if batch and size + row_size > limit:
+            batches.append(batch)
+            batch, size = [], 2
+        batch.append(row)
+        size += row_size
+    if batch:
+        batches.append(batch)
+    return batches
 
 
 def redeem_pairing_token(pairing_token: str, base_url: str = None) -> str:

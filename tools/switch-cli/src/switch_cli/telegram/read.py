@@ -2,14 +2,18 @@
 Track A event collector, Telegram half (sb-7wzb.2, ADR-018 D6).
 
 Reads recent posts from the channels, groups and forum topics on the source
-list, through the user's own session, and turns each post long enough to be an
-announcement into a row for the Switch RawMessage seam.
+list, through the user's own session, and turns each post into a row for the
+Switch RawMessage seam: an album (grouped_id) is one post, and its photos ride
+along base64 in raw_payload["images"] so the extractor reads flyers too
+(sb-7wzb.4). Photos are held in memory only; the server drops them after
+extraction.
 
 READ-ONLY: this module only calls get_dialogs, get_entity, GetForumTopicsRequest
 and iter_messages. It never sends, posts, forwards, joins or drafts
 (ADR-018 D2 FIRM, D6). Joining a source is the user's manual act.
 """
 
+import base64
 from datetime import UTC, datetime, timedelta
 
 from switch_cli.collect import collected_row
@@ -47,7 +51,7 @@ async def _topic(client, entity, wanted: str):
 
 
 async def collect_telegram(
-    client, sources: list[dict], days: int, include_private: bool, min_chars: int = 120, limit: int = 80
+    client, sources: list[dict], days: int, include_private: bool, limit: int = 80
 ) -> tuple[list[dict], list[dict]]:
     """Rows from every Telegram source for posts of the last `days` days; plus a per-source report."""
     cutoff = datetime.now(UTC) - timedelta(days=days)
@@ -72,24 +76,39 @@ async def collect_telegram(
             if not organizer and source.get("channel_organizer"):
                 organizer = getattr(entity, "title", "")
             src = {**source, "organizer": organizer}
-            got = seen = 0
+            posts: dict[int, list] = {}  # album or message id -> its messages, newest first
             async for msg in client.iter_messages(entity, reply_to=topic.id if topic else None, limit=limit):
                 if msg.date < cutoff:
                     break
-                seen += 1
-                body = (msg.message or "").strip()
-                if len(body) < min_chars:
+                posts.setdefault(msg.grouped_id or msg.id, []).append(msg)
+            got = 0
+            for msgs in posts.values():
+                msgs = sorted(msgs, key=lambda m: m.id)
+                first = msgs[0]
+                body = "\n".join((m.message or "").strip() for m in msgs if (m.message or "").strip())
+                images = [
+                    base64.b64encode(await client.download_media(m, file=bytes)).decode() for m in msgs if m.photo
+                ]
+                if not body and not images:
                     continue
-                posted = msg.date.astimezone()
+                posted = first.date.astimezone()
                 header = f"Telegram post in {title}, posted {posted.date().isoformat()} ({posted.strftime('%A')})."
+                extra = {"images": images} if images else {}
                 row = collected_row(
-                    src, channel_id, str(msg.id), f"{header}\n\n{body}", chat_title=title, posted_at=str(msg.date)
+                    src,
+                    channel_id,
+                    str(first.id),
+                    f"{header}\n\n{body}",
+                    chat_title=title,
+                    posted_at=str(first.date),
+                    **extra,
                 )
                 if username:
-                    row["raw_payload"]["url"] = f"https://t.me/{username}/{msg.id}"
-                row["sender_id"] = str(msg.sender_id or "")
+                    row["raw_payload"]["url"] = f"https://t.me/{username}/{first.id}"
+                row["sender_id"] = str(first.sender_id or "")
                 rows.append(row)
                 got += 1
+            seen = sum(len(m) for m in posts.values())
         except Exception as exc:  # per-source failure is reported, the run continues
             report.append({"source": source["name"], "rows": 0, "error": f"{type(exc).__name__}: {exc}"})
             continue
