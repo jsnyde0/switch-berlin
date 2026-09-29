@@ -278,9 +278,10 @@ message.
 
 If the canary never arrives, stop and verify `TELEGRAM_BOT_TOKEN` and
 `TELEGRAM_OPERATOR_CHAT_ID` before going on: both must be in
-`/etc/kb-backup/env` on the host, and set in GitHub
-(`gh secret list -R jsnyde0/switch-berlin` shows names only; never print a
-value). The token was set for real under `sb-6ep` (closed 2026-05-08).
+`/etc/kb-backup/env` on the host. The token is also the GitHub secret
+`TELEGRAM_BOT_TOKEN` (`gh secret list -R jsnyde0/switch-berlin` shows names
+only; never print a value); set for real under `sb-6ep` (closed 2026-05-08).
+The chat id lives only in that env file, not in GitHub.
 
 What now pages you (all via Telegram):
 
