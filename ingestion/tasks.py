@@ -33,18 +33,6 @@ def process_raw_message(raw_message_id: int) -> None:
         )
         return
 
-    # Step 0 (collected rows): cheap "is this an event?" gate. A post below the
-    # threshold is wiped at once (text, payloads, sender) and never extracted;
-    # only its ids stay, so a re-collect does not classify it again (sb-7wzb.2, LIA §1).
-    from . import extraction
-    from .collected import COLLECTED_SOURCE_TYPES, wipe_non_event
-
-    if raw_message.source_type in COLLECTED_SOURCE_TYPES:
-        score = extraction.event_announcement_score(raw_message.text)
-        if score < settings.EVENT_CLASSIFIER_THRESHOLD:
-            wipe_non_event(raw_message, score)
-            return
-
     # Step 1: URL enrichment (best-effort)
     try:
         enriched = enrich_urls(raw_message.text)
@@ -65,8 +53,13 @@ def process_raw_message(raw_message_id: int) -> None:
         )
         enriched = {}
 
-    # Step 2: LLM extraction
+    # Step 2: LLM extraction. A collected post (text + images) may announce any
+    # number of events, each landing on its own (sb-7wzb.4, ADR-017 D4).
+    from .collected import COLLECTED_SOURCE_TYPES, process_collected_row
+
     try:
+        if raw_message.source_type in COLLECTED_SOURCE_TYPES:
+            return process_collected_row(raw_message, enriched)
         draft, prompt_version = extract_event_draft(raw_message.text, enriched)
     except Exception as exc:
         raw_message.extraction_status = "failed"
@@ -111,13 +104,6 @@ def process_raw_message(raw_message_id: int) -> None:
             raw_message_id=raw_message_id,
             confidence=draft.confidence,
         )
-        return
-
-    # Collected rows land by claim state at the source tier (sb-7wzb.2, ADR-017 D4).
-    from .collected import land_collected_event
-
-    if raw_message.source_type in COLLECTED_SOURCE_TYPES:
-        land_collected_event(raw_message, draft, matched, attempt_kwargs)
         return
 
     # Step 5: Create draft Event

@@ -18,3 +18,9 @@ class EventDraft(pydantic.BaseModel):
     confidence: float  # self-reported 0.0-1.0
     # False when the event happens outside Berlin and its surroundings, or only online.
     in_berlin_area: bool = True
+
+
+class CollectedEvents(pydantic.BaseModel):
+    """Every event one collected post announces, read from its text and images; empty = not an event."""
+
+    events: list[EventDraft]

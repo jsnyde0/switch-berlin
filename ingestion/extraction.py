@@ -1,12 +1,11 @@
-import json
+import base64
 
-import httpx
 import logfire
-from pydantic_ai import Agent
+from pydantic_ai import Agent, BinaryContent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from ingestion.schemas import EventDraft
+from ingestion.schemas import CollectedEvents, EventDraft
 
 PROMPT_VERSION = "v2"
 
@@ -35,6 +34,39 @@ Enriched content from URLs:
 {enriched_content}
 """
 
+COLLECTED_PROMPT_VERSION = "collected-v1"
+
+COLLECTED_PROMPT = """
+Below is one post a collector gathered from an organizer website or a Telegram
+channel or group, together with the images attached to it (flyers, posters).
+Return every upcoming or past event the post announces, reading the text AND the
+images, as a list of objects matching the schema: one object per event (one per
+date when a series lists several dates). Return an empty list when the post
+announces no specific event with its own date: chat messages, questions,
+replies, thank-yous, general discussion.
+
+Known organizers (prefer exact match): {organizer_names}
+Known venues (prefer exact match): {venue_names}
+Known tag slugs (prefer exact match): {tag_slugs}
+
+Set confidence between 0.0 and 1.0 based on completeness and certainty.
+If key fields (title, start datetime) are missing or ambiguous, set confidence < 0.4.
+When only a date is given and no time, still return the event but set confidence < 0.4.
+
+organizer_name is the person or collective hosting the event, as the post names
+them. A Telegram group, forum or website the post merely appears in is not the
+organizer unless the post says it hosts. If the post names no host, return "".
+
+Set in_berlin_area to false when the event takes place outside Berlin and its
+surroundings (another city or country), or only online.
+
+Post:
+{text}
+
+Enriched content from URLs:
+{enriched_content}
+"""
+
 
 def router_model(model_name: str) -> OpenAIChatModel:
     """A pydantic-ai model on the LLM router (settings.LLM_BASE_URL). Fails loud without a key."""
@@ -47,52 +79,46 @@ def router_model(model_name: str) -> OpenAIChatModel:
     )
 
 
-EVENT_QUESTION = (
-    "Is this post an announcement that promotes a specific upcoming event (party, workshop, class, ritual, "
-    "meetup) with its own date, written to invite people to it? Answer no for chat messages, questions, "
-    "replies, thank-yous and general discussion."
-)
+def _known_names() -> dict:
+    from events.models import Tag
+    from organizers.models import Profile
+    from venues.models import Venue
+
+    return dict(
+        organizer_names=", ".join(Profile.objects.values_list("name", flat=True)) or "(none)",
+        venue_names=", ".join(Venue.objects.values_list("name", flat=True)) or "(none)",
+        tag_slugs=", ".join(Tag.objects.values_list("slug", flat=True)) or "(none)",
+    )
 
 
-def event_announcement_score(text: str) -> float:
-    """Probability (0-1) that a post announces an event, from the classifier model (a Jev 'noul' question)."""
+def extract_collected_events(text: str, images_b64: list[str], enriched_payload: dict) -> list[EventDraft]:
+    """Every event one collected post announces, from its text and images (sb-7wzb.4). Empty = not an event."""
     from django.conf import settings
 
-    if not settings.LLM_API_KEY:
-        raise RuntimeError("REQUESTY_API_KEY is not set; the LLM router needs it (ADR-008 D3).")
-    response = httpx.post(
-        f"{settings.LLM_BASE_URL}/chat/completions",
-        headers={"Authorization": f"Bearer {settings.LLM_API_KEY}"},
-        json={
-            "model": settings.EVENT_CLASSIFIER_MODEL,
-            "messages": [{"role": "user", "content": text}],
-            "response_format": {
-                "type": "questions",
-                "questions": {"is_event": {"type": "noul", "instructions": EVENT_QUESTION}},
-            },
-        },
-        timeout=60,
+    prompt = COLLECTED_PROMPT.format(
+        **_known_names(),
+        text=text or "(no text; read the images)",
+        enriched_content=enriched_payload.get("url_content", ""),
     )
-    response.raise_for_status()
-    return float(json.loads(response.json()["choices"][0]["message"]["content"])["is_event"]["noul"])
+    parts = [prompt] + [BinaryContent(data=base64.b64decode(b), media_type="image/jpeg") for b in images_b64]
+    result = Agent(router_model(settings.LLM_MODEL_NAME), output_type=CollectedEvents).run_sync(parts)
+    events = result.output.events
+    logfire.info(
+        "extraction.collected_llm_call",
+        model_name=settings.LLM_MODEL_NAME,
+        prompt_version=COLLECTED_PROMPT_VERSION,
+        images=len(images_b64),
+        events=len(events),
+    )
+    return events
 
 
 def extract_event_draft(
     raw_message_text: str, enriched_payload: dict, model_name: str | None = None
 ) -> tuple[EventDraft, str]:
     """Returns (draft, prompt_version). Runs synchronously inside a django-q2 worker."""
-    from events.models import Tag
-    from organizers.models import Profile
-    from venues.models import Venue
-
-    organizer_names = list(Profile.objects.values_list("name", flat=True))
-    venue_names = list(Venue.objects.values_list("name", flat=True))
-    tag_slugs = list(Tag.objects.values_list("slug", flat=True))
-
     prompt = EXTRACTION_PROMPT.format(
-        organizer_names=", ".join(organizer_names) or "(none)",
-        venue_names=", ".join(venue_names) or "(none)",
-        tag_slugs=", ".join(tag_slugs) or "(none)",
+        **_known_names(),
         text=raw_message_text,
         enriched_content=enriched_payload.get("url_content", ""),
     )

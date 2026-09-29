@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from events.models import Event
 from ingestion.models import RawMessage
-from ingestion.schemas import EventDraft
+from ingestion.schemas import CollectedEvents, EventDraft
 from organizers.models import Profile, ProfileClaim
 from syndication.models import IdentityToken
 
@@ -94,21 +94,30 @@ class CollectedEventLandingTest(TestCase):
         self.start = timezone.now() + timedelta(days=3)
         self.iksk = Profile.objects.create(name="IKSK", slug="iksk", status="approved")
 
-    def _process(self, raw, **draft_kwargs):
-        from ingestion.tasks import process_raw_message
-
+    def _draft(self, **draft_kwargs):
         draft = dict(title="Bondage Jam", organizer_name="IKSK", start=self.start, confidence=0.9)
         draft.update(draft_kwargs)
+        return EventDraft(**draft)
+
+    def _run(self, raw, output):
+        """Run the pipeline on `raw` with the extractor model returning `output`; return the Agent mock."""
+        from ingestion.tasks import process_raw_message
+
         result = MagicMock()
-        result.output = EventDraft(**draft)
+        result.output = output
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),
-            patch("ingestion.extraction.event_announcement_score", return_value=0.99),
         ):
             MockAgent.return_value.run_sync.return_value = result
             process_raw_message(raw.id)
         raw.refresh_from_db()
+        return MockAgent
+
+    def _process(self, raw, **draft_kwargs):
+        draft = self._draft(**draft_kwargs)
+        output = draft if raw.source_type == "telegram_bot_forward" else CollectedEvents(events=[draft])
+        self._run(raw, output)
         return raw
 
     def _raw(self, **kwargs):
@@ -171,23 +180,66 @@ class CollectedEventLandingTest(TestCase):
         raw = self._process(self._raw(source_type="telegram_bot_forward", raw_payload={}))
         self.assertEqual(Event.objects.get(raw_message=raw).status, "draft")
 
-    def test_non_event_post_is_wiped_and_never_extracted(self):
-        from ingestion.tasks import process_raw_message
-
+    def test_post_announcing_no_event_is_wiped_at_once(self):
         raw = self._raw(
-            source_type="telegram_private_group", channel_id="-100777", sender_id="4242", text="Anyone for a taxi?"
+            source_type="telegram_private_group",
+            channel_id="-100777",
+            sender_id="4242",
+            text="Anyone for a taxi?",
+            raw_payload={"source": "SeQret", "images": ["aGVsbG8="]},
         )
-        with (
-            patch("ingestion.extraction.event_announcement_score", return_value=0.1),
-            patch("ingestion.extraction.Agent") as MockAgent,
-        ):
-            process_raw_message(raw.id)
-        raw.refresh_from_db()
-        MockAgent.assert_not_called()
+        self._run(raw, CollectedEvents(events=[]))
         self.assertEqual((raw.extraction_status, raw.extraction_error), ("skipped", "not_event"))
         self.assertEqual((raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id), ("", {}, {}, ""))
-        self.assertEqual(raw.message_id, "m1")  # the bare id stays so a re-collect does not re-classify
+        self.assertEqual(raw.message_id, "m1")  # the bare id stays so a re-collect does not re-extract
         self.assertFalse(Event.objects.exists())
+
+    def test_post_announcing_several_events_lands_each(self):
+        raw = self._raw(source_type="telegram_telethon", channel_id="@TillTailorShirka", raw_payload={})
+        drafts = [
+            self._draft(title="Tantra Evening", organizer_name="Till & Shirka"),
+            self._draft(title="Shibari Basics", organizer_name="Till & Shirka", start=self.start + timedelta(days=1)),
+            self._draft(title="Old Workshop", organizer_name="Till & Shirka", start=timezone.now() - timedelta(days=2)),
+        ]
+        self._run(raw, CollectedEvents(events=drafts))
+        titles = set(Event.objects.filter(raw_message=raw).values_list("title", flat=True))
+        self.assertEqual(titles, {"Tantra Evening", "Shibari Basics"})
+        self.assertEqual(Profile.objects.filter(name="Till & Shirka").count(), 1)  # one organizer, not one per event
+        self.assertEqual(raw.extraction_status, "extracted")  # the best per-event outcome
+        self.assertEqual(sorted(a.error for a in raw.attempts.all()), ["", "", "past_event"])
+
+    def test_images_reach_the_extractor_and_are_dropped_after(self):
+        from pydantic_ai import BinaryContent
+
+        raw = self._raw(
+            source_type="telegram_telethon",
+            channel_id="@IKSKBerlin",
+            text="THURSDAY 1.10.26",
+            raw_payload={"organizer": "IKSK", "images": ["aGVsbG8=", "d29ybGQ="]},
+        )
+        agent = self._run(raw, CollectedEvents(events=[self._draft()]))
+        (parts,), _ = agent.return_value.run_sync.call_args
+        self.assertIn("THURSDAY 1.10.26", parts[0])
+        self.assertEqual(
+            [(p.data, p.media_type) for p in parts[1:]], [(b"hello", "image/jpeg"), (b"world", "image/jpeg")]
+        )
+        self.assertTrue(all(isinstance(p, BinaryContent) for p in parts[1:]))
+        self.assertEqual(raw.raw_payload, {"organizer": "IKSK"})  # image bytes do not outlive the pipeline
+        self.assertEqual(raw.text, "THURSDAY 1.10.26")
+
+    def test_failed_extraction_keeps_images_for_a_rerun(self):
+        from ingestion.tasks import process_raw_message
+
+        raw = self._raw(raw_payload={"organizer": "IKSK", "images": ["aGVsbG8="]})
+        with (
+            patch("ingestion.extraction.Agent") as MockAgent,
+            patch("ingestion.enrichment.enrich_urls", return_value={}),
+        ):
+            MockAgent.return_value.run_sync.side_effect = RuntimeError("router down")
+            process_raw_message(raw.id)
+        raw.refresh_from_db()
+        self.assertEqual(raw.extraction_status, "failed")
+        self.assertEqual(raw.raw_payload["images"], ["aGVsbG8="])
 
     def test_unnamed_organizer_is_held_not_invented(self):
         raw = self._process(self._raw(raw_payload={}, channel_id="-100888"), organizer_name="Unknown")

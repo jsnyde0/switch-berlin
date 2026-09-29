@@ -283,10 +283,6 @@ TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
 LLM_BASE_URL = env.str("LLM_BASE_URL", default="https://router.requesty.ai/v1")
 LLM_API_KEY = env.str("REQUESTY_API_KEY", default="")
 LLM_MODEL_NAME = env.str("LLM_MODEL_NAME", default="openai/gpt-6-luna:flex")
-# Collected posts are first scored "is this an event announcement?" by a cheap
-# classifier (Jev, via the same router); below the threshold the post is wiped.
-EVENT_CLASSIFIER_MODEL = env.str("EVENT_CLASSIFIER_MODEL", default="typesafe/jev-1.13.0")
-EVENT_CLASSIFIER_THRESHOLD = env.float("EVENT_CLASSIFIER_THRESHOLD", default=0.5)
 
 # Off by default in local dev (DEBUG) so repeated login/signup during manual
 # testing doesn't trip the limiter; on by default in prod. Override explicitly

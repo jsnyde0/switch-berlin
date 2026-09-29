@@ -130,10 +130,17 @@ def find_duplicate(title: str, start):
     )
 
 
-def wipe_non_event(raw, score: float) -> None:
-    """Drop everything a non-event post said; keep only its ids and the verdict."""
+# Row status when a post's events land differently: the most-landed outcome wins.
+_OUTCOME_RANK = ("extracted", "duplicate", "needs_review", "skipped")
+
+_LOW_CONFIDENCE = 0.4
+
+
+def wipe_non_event(raw) -> None:
+    """Drop everything a non-event post said, images included; keep only its ids and the verdict."""
     from django.conf import settings
 
+    from .extraction import COLLECTED_PROMPT_VERSION
     from .models import ExtractionAttempt
 
     raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id = "", {}, {}, ""
@@ -143,46 +150,85 @@ def wipe_non_event(raw, score: float) -> None:
     )
     ExtractionAttempt.objects.create(
         raw_message=raw,
-        model_name=settings.EVENT_CLASSIFIER_MODEL,
-        prompt_version="event-gate-v1",
-        raw_response={"is_event": score},
-        confidence_score=score,
+        model_name=settings.LLM_MODEL_NAME,
+        prompt_version=COLLECTED_PROMPT_VERSION,
+        raw_response={"events": []},
         success=False,
         error="not_event",
     )
-    logfire.info("collected.not_event", raw_message_id=raw.id, score=score)
+    logfire.info("collected.not_event", raw_message_id=raw.id)
 
 
-def land_collected_event(raw, draft, matched, attempt_kwargs) -> None:
-    """Land one extracted collected row: skipped, held, duplicate, draft or published."""
+def process_collected_row(raw, enriched: dict) -> None:
+    """Extract every event a collected post announces (text + images) and land each one.
+
+    No events = not an event post = wiped at once (LIA §1). Otherwise image bytes
+    are dropped once extraction settles; the post text stays with its events.
+    A failed extraction keeps the row whole so it can be re-run.
+    """
+    from django.conf import settings
+
+    from .extraction import COLLECTED_PROMPT_VERSION, extract_collected_events, match_entities
+
+    drafts = extract_collected_events(raw.text, raw.raw_payload.get("images", []), enriched)
+    if not drafts:
+        return wipe_non_event(raw)
+
+    if "images" in raw.raw_payload:
+        raw.raw_payload = {k: v for k, v in raw.raw_payload.items() if k != "images"}
+        raw.save(update_fields=["raw_payload"])
+
+    outcomes = []
+    for draft in drafts:
+        draft_json = draft.model_dump(mode="json")
+        attempt_kwargs = dict(
+            raw_message=raw,
+            model_name=settings.LLM_MODEL_NAME,
+            prompt_version=COLLECTED_PROMPT_VERSION,
+            raw_response=draft_json,
+            extracted_draft=draft_json,
+            confidence_score=draft.confidence,
+        )
+        if draft.confidence < _LOW_CONFIDENCE:
+            outcomes.append(_record(attempt_kwargs, "needs_review", "low_confidence"))
+            continue
+        outcomes.append(land_collected_event(raw, draft, match_entities(draft), attempt_kwargs))
+
+    status, error = min(outcomes, key=lambda o: _OUTCOME_RANK.index(o[0]))
+    raw.extraction_status, raw.extraction_error = status, error
+    raw.save(update_fields=["extraction_status", "extraction_error"])
+    logfire.info("collected.row_landed", raw_message_id=raw.id, events=len(drafts), outcome=status)
+
+
+def _record(attempt_kwargs, status, error="", event=None, success=False) -> tuple[str, str]:
+    from .models import ExtractionAttempt
+
+    ExtractionAttempt.objects.create(**attempt_kwargs, success=success, error=error, event=event)
+    logfire.info("collected.landed", raw_message_id=attempt_kwargs["raw_message"].id, outcome=status, error=error)
+    return status, error
+
+
+def land_collected_event(raw, draft, matched, attempt_kwargs) -> tuple[str, str]:
+    """Land one extracted event: skipped, held, duplicate, draft or published. Returns (outcome, reason)."""
     from events.models import Event
     from syndication.authz import collector_may_publish
-
-    from .models import ExtractionAttempt
 
     start = _aware(draft.start)
     end = _aware(draft.end) if draft.end else None
 
-    def _finish(status, error="", event=None, success=False):
-        raw.extraction_status = status
-        raw.extraction_error = error
-        raw.save(update_fields=["extraction_status", "extraction_error"])
-        ExtractionAttempt.objects.create(**attempt_kwargs, success=success, error=error, event=event)
-        logfire.info("collected.landed", raw_message_id=raw.id, outcome=status, error=error)
-
     if (end or start) < timezone.now() - timedelta(hours=1):
-        return _finish("skipped", "past_event")
+        return _record(attempt_kwargs, "skipped", "past_event")
 
     if not draft.in_berlin_area:
-        return _finish("skipped", "not_berlin")
+        return _record(attempt_kwargs, "skipped", "not_berlin")
 
     duplicate = find_duplicate(draft.title, start)
     if duplicate is not None:
-        return _finish("duplicate", "duplicate", event=duplicate)
+        return _record(attempt_kwargs, "duplicate", "duplicate", event=duplicate)
 
     organizer = resolve_organizer(raw, draft, matched["organizer"])
     if organizer is None:
-        return _finish("needs_review", "no_organizer")
+        return _record(attempt_kwargs, "needs_review", "no_organizer")
 
     event = Event.objects.create(
         title=draft.title,
@@ -206,4 +252,4 @@ def land_collected_event(raw, draft, matched, attempt_kwargs) -> None:
         event.status = "published"
         event.published_at = timezone.now()
         event.save(update_fields=["status", "published_at"])
-    _finish("extracted", event=event, success=True)
+    return _record(attempt_kwargs, "extracted", event=event, success=True)
