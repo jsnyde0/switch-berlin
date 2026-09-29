@@ -1,6 +1,6 @@
 # ADR-017: Authorization policy — who may edit/publish an Event, Post, or Projection
 
-**Status:** Accepted 2026-05-26 (D1 agent→claimant resolution settled 2026-05-27)
+**Status:** Accepted 2026-05-26 (D1 agent→claimant resolution settled 2026-05-27; D4 collected-event publish rule added 2026-09-29 — Track A collector, sb-7wzb.1)
 **Parent:** [ADR-007 D2 — EventOrganizer/EventFacilitator through-tables](ADR-007-profile-centric-schema.md) (the organizer-vs-facilitator distinction this ADR gives permission semantics to); [ADR-014 D1 — ProfileClaim multi-claimant through-model](ADR-014-profile-claim-flow.md) (the membership + `role` seam this ADR's team-management foresight lands on); [ADR-016 D3 — co-equal API authentication](ADR-016-outbound-syndication-architecture-event-post-projections.md) (the authentication layer this authorization layer composes with at the handler boundary)
 **Scope:** authorization (authz) — what an authenticated principal is *permitted* to do to an Event and its Posts/Projections. Distinct from ADR-016 D3 (authentication — *who* the principal is) and from ADR-009/ADR-012 (read-side visibility/access of events to viewers). This ADR governs *write* authority (edit/publish), not read visibility.
 
@@ -90,6 +90,37 @@ At v0 none of this is built — `role` stays `admin` and the D2 predicate's role
 **What would invalidate this:**
 
 - Team management turns out to need attributes that don't fit on `ProfileClaim` (e.g. team-level settings independent of any single user's claim). Substantive observation; introduce a Profile-level team-settings model *alongside* `ProfileClaim`-as-membership, not replacing it.
+
+### D4: Collected events publish at ingest while their organizer is unclaimed; once an organizer Profile is claimed, only its claimants publish (added 2026-09-29)
+
+**Firmness: FLEXIBLE** — ratified 2026-09-29 in the sb-7wzb.1 brainstorm with the user; dogfooding-pending on the first Track A collector walk. Reversible if the first claimed organizer asks for something other than "my collected events wait for me", or if auto-published collected events draw takedown requests at a rate the walk cannot absorb.
+
+The Track A collector (epic sb-7wzb) writes events nobody on Switch authored. D1 grants publish only to an organizer-Profile claimant, so a collected event would never publish. The rule that fills the gap keys on **claim state, not on source trust**:
+
+- **No organizer Profile on the event holds an active `ProfileClaim`** (unclaimed, or no organizer matched yet) → the collector may publish at ingest, at the tier ADR-012 D2 derives from the source. Nobody on Switch is being spoken for.
+- **Any organizer Profile on the event is claimed** → the collector lands the event as a draft and the claimants publish or approve through D1. The claim (ADR-014) is the moment the organizer takes the wheel.
+
+The question the collector asks is a **sibling predicate in the D2 seam** (`syndication/authz.py`), next to `can_edit`/`can_publish`, not a check inside the ingestion task: the seam stays the one place that answers "may this be published". Its exact name and signature are the walk's to fix; the rule above is what it implements. Whether a source is collected at all, and whether its rows are ever published, is a **separate per-source switch** on the collector (collect-and-publish vs collect-only) and is not an authorization concept.
+
+**Rationale:**
+
+- `direct:` user 2026-09-29 — "if the organizer HAS claimed the profile, only they can publish (or approve publication). If the organizer isn't claimed, we can just autopublish. Leave 'trusted source' out of it, that feels like a different dimension."
+- `reasoned:` a claim is the only fact that tells us a real person now stands behind the Profile; before that, auto-publishing an already-public event exposes nothing new (ADR-006 D2 LIA) and is the population move ADR-010 D1 names.
+- `reasoned:` routing through the D2 seam keeps "who published this" answerable from one module (cheap foresight, ADR-003) instead of a second principal-less `Event.status` writer growing in `ingestion/`.
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| A per-source "trusted source" flag as the publish authorization | `direct:` user 2026-09-29 — a different dimension; source trust decides whether to collect, not who may publish. |
+| Publish collected events as the operator user | `reasoned:` D1 does not grant the operator publish over Profiles they do not claim; it would make the operator the silent claimant of every organizer in Berlin. |
+| Never auto-publish; every collected event waits for a claim | `reasoned:` defeats the population move (ADR-010 D1 collected-events paragraph); almost no Berlin organizer has claimed yet. |
+| Ingest-side `Event.status="published"` write with no seam involvement | `reasoned:` a third status writer outside the D2 chokepoint; the exact drift D2 exists to prevent. |
+
+**What would invalidate this:**
+
+- A claimed organizer wants collected events to keep auto-publishing under their name (signal: they ask to turn the draft step off). Then the claim-state rule needs a per-Profile preference, still answered inside the seam.
+- Auto-published collected events draw takedowns faster than the operator can act. Then the unclaimed branch needs a hold step, and ADR-006 D2's balancing test needs revisiting.
 
 ## Consequences
 
