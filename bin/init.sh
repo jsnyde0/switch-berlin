@@ -7,6 +7,12 @@ set -e
 echo "Applying database migrations..."
 python manage.py migrate
 
+# Register django-q schedules (idempotent). qcluster waits for init, so the
+# 90-day RawMessage purge the privacy page promises is scheduled before the
+# cluster starts (sb-7wzb.8).
+echo "Registering scheduled tasks..."
+python manage.py schedule_tasks
+
 # Create superuser if not exists
 echo "Creating superuser..."
 python manage.py shell << 'END'

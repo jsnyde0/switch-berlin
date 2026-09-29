@@ -74,6 +74,9 @@ if ! out="$(manage migrate --check 2>&1)"; then
     echo "$out" | tail -5
     die "dev DB lacks HEAD migrations or fails system checks (see above)"
 fi
+# Register django-q schedules (idempotent) so the qcluster below runs the
+# 90-day RawMessage purge the privacy page promises (sb-7wzb.8).
+manage schedule_tasks >/dev/null || die "could not register django-q schedules"
 
 if ! curl -s -o /dev/null --max-time 5 "$SERVER_URL"; then
     log "runserver down; starting it for this run"
