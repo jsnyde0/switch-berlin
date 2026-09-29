@@ -104,3 +104,46 @@ def test_push_splits_rows_into_requests_under_the_body_limit(monkeypatch):
     assert len(bodies) > 1
     assert all(len(json.dumps(b)) <= 1000 for b in bodies)
     assert [r["n"] for b in bodies for r in b] == list(range(7))
+
+
+def _rows_file(tmp_path):
+    path = tmp_path / "rows.jsonl"
+    path.write_text('{"source_type": "telegram_private_group", "raw_payload": {"images": ["AAAA"]}}\n')
+    return path
+
+
+def _push(monkeypatch, path, *extra, fail=False):
+    from click.testing import CliRunner
+    from switch_cli import cli as cli_mod
+
+    class FakeSwitch:
+        def push_collected_rows(self, rows):
+            if fail:
+                raise cli_mod.APIError(500, "boom")
+            return {"created": len(rows)}
+
+    monkeypatch.setattr(cli_mod, "SwitchClient", FakeSwitch)
+    return CliRunner().invoke(cli_mod.cli, ["collect", "push", str(path), *extra])
+
+
+def test_push_deletes_the_rows_file_after_a_successful_push(monkeypatch, tmp_path):
+    path = _rows_file(tmp_path)
+    result = _push(monkeypatch, path)
+    assert result.exit_code == 0
+    assert not path.exists()
+    assert '"rows_file_deleted": true' in result.output
+
+
+def test_push_keep_leaves_the_rows_file(monkeypatch, tmp_path):
+    path = _rows_file(tmp_path)
+    result = _push(monkeypatch, path, "--keep")
+    assert result.exit_code == 0
+    assert path.exists()
+    assert '"rows_file_deleted": false' in result.output
+
+
+def test_failed_push_leaves_the_rows_file_for_a_retry(monkeypatch, tmp_path):
+    path = _rows_file(tmp_path)
+    result = _push(monkeypatch, path, fail=True)
+    assert result.exit_code != 0
+    assert path.exists()

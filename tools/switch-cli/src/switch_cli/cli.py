@@ -30,6 +30,7 @@ Verbs:
 """
 
 import json
+import os
 import sys
 
 import click
@@ -715,8 +716,15 @@ def collect_telegram_cmd(out: str, days: int, include_private: bool, sources_pat
 
 @collect.command("push")
 @click.argument("rows_file")
-def collect_push(rows_file: str):
-    """Push a rows file to Switch (POST /api/ingest/raw-messages, operator credential)."""
+@click.option("--keep", is_flag=True, default=False, help="Keep the rows file after a successful push")
+def collect_push(rows_file: str, keep: bool):
+    """
+    Push a rows file to Switch (POST /api/ingest/raw-messages, operator credential).
+
+    The rows file carries post text and base64 photos, private groups included,
+    so a successful push deletes it (wipe rule, sb-7wzb.4 B2); --keep leaves it.
+    A failed push leaves it in place for a retry.
+    """
     with open(rows_file) as f:
         rows = [json.loads(line) for line in f if line.strip()]
     try:
@@ -726,4 +734,6 @@ def collect_push(rows_file: str):
         _error(str(exc))
     except APIError as exc:
         _error(f"API error {exc.status_code}: {exc.detail}")
-    _output({"pushed": len(rows), **result})
+    if not keep:
+        os.remove(rows_file)
+    _output({"pushed": len(rows), **result, "rows_file_deleted": not keep})

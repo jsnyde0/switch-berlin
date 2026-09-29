@@ -5,8 +5,10 @@ Reads recent posts from the channels, groups and forum topics on the source
 list, through the user's own session, and turns each post into a row for the
 Switch RawMessage seam: an album (grouped_id) is one post, and its photos ride
 along base64 in raw_payload["images"] so the extractor reads flyers too
-(sb-7wzb.4). Photos are held in memory only; the server drops them after
-extraction.
+(sb-7wzb.4). Photos are downloaded into memory, never to their own files.
+They do reach disk inside the rows file that `collect telegram --out` writes;
+`collect push` deletes that file after a successful push (unless --keep), and
+the server drops the photos after extraction.
 
 READ-ONLY: this module only calls get_dialogs, get_entity, GetForumTopicsRequest
 and iter_messages. It never sends, posts, forwards, joins or drafts
