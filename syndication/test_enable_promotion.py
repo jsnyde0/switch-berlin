@@ -188,9 +188,7 @@ class EnablePromotionServiceTest(TestCase):
         """An agent-tier connection with no active AgentCredential for the user cannot be enabled."""
         from syndication.services import enable_promotion
 
-        conn = _make_connection(
-            self.profile, kinds=[], enabled=False, postability=TelegramPostability.AGENT
-        )
+        conn = _make_connection(self.profile, kinds=[], enabled=False, postability=TelegramPostability.AGENT)
 
         with self.assertRaises(ValueError):
             enable_promotion(user=self.user, connection=conn)
@@ -251,9 +249,7 @@ class ConnectionsApiTest(TestCase):
 
     def test_list_connections_excludes_other_users_connections(self):
         """A second organizer's connection never leaks into this caller's list (no cross-tenant leak)."""
-        other_user = _make_vouched_user(
-            username="other_conn_user", email="other_conn_user@test.com", password="x"
-        )
+        other_user = _make_vouched_user(username="other_conn_user", email="other_conn_user@test.com", password="x")
         other_profile = _make_profile(name="Other Conn Profile", slug="other-conn-profile", user=other_user)
         _make_connection(other_profile, destination_id="other-tg-channel")
 
@@ -296,9 +292,7 @@ class ConnectionsApiTest(TestCase):
 
     def test_enable_promotion_endpoint_other_users_connection_404s(self):
         """POST enable-promotion on another organizer's connection 404s (no cross-tenant mutation)."""
-        other_user = _make_vouched_user(
-            username="other_enable_user", email="other_enable_user@test.com", password="x"
-        )
+        other_user = _make_vouched_user(username="other_enable_user", email="other_enable_user@test.com", password="x")
         other_profile = _make_profile(name="Other Enable Profile", slug="other-enable-profile", user=other_user)
         other_conn = _make_connection(other_profile, destination_id="other-tg-2")
 

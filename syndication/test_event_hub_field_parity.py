@@ -23,7 +23,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from events.models import Event, EventImage
+from events.models import EventImage
 from organizers.models import Profile, ProfileClaim
 from syndication.models import PlatformConnection
 
@@ -162,16 +162,23 @@ class FieldParityRenderTest(TestCase):
         # Check that it renders as a text input (EventForm.tags uses TextInput)
         import re
 
-        hidden_tags = re.findall(r'<input[^>]+type=["\']hidden["\'][^>]+name=["\']tags["\']|<input[^>]+name=["\']tags["\'][^>]+type=["\']hidden["\']', html)
+        hidden_tags = re.findall(
+            r'<input[^>]+type=["\']hidden["\'][^>]+name=["\']tags["\']|<input[^>]+name=["\']tags["\'][^>]+type=["\']hidden["\']',
+            html,
+        )  # noqa: E501
         self.assertEqual(len(hidden_tags), 0, f"tags rendered as hidden input: {hidden_tags}")
 
     def test_visibility_renders_as_select(self):
         html = self._html()
         self.assertIn('name="visibility"', html)
         # visibility is a ChoiceField — renders as <select>
-        self.assertIn('<select', html)
+        self.assertIn("<select", html)
         import re
-        hidden = re.findall(r'<input[^>]+name=["\']visibility["\'][^>]*/?>|<input[^>]+type=["\']hidden["\'][^>]+name=["\']visibility["\']', html)
+
+        hidden = re.findall(
+            r'<input[^>]+name=["\']visibility["\'][^>]*/?>|<input[^>]+type=["\']hidden["\'][^>]+name=["\']visibility["\']',
+            html,
+        )  # noqa: E501
         hidden_type = [h for h in hidden if 'type="hidden"' in h or "type='hidden'" in h]
         self.assertEqual(len(hidden_type), 0, f"visibility rendered as hidden input: {hidden_type}")
 
@@ -179,22 +186,33 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="language"', html)
         import re
-        hidden = re.findall(r'<input[^>]+type=["\']hidden["\'][^>]+name=["\']language["\']|<input[^>]+name=["\']language["\'][^>]+type=["\']hidden["\']', html)
+
+        hidden = re.findall(
+            r'<input[^>]+type=["\']hidden["\'][^>]+name=["\']language["\']|<input[^>]+name=["\']language["\'][^>]+type=["\']hidden["\']',
+            html,
+        )  # noqa: E501
         self.assertEqual(len(hidden), 0)
 
     def test_category_renders_as_select(self):
         html = self._html()
         self.assertIn('name="category"', html)
         import re
-        hidden = re.findall(r'<input[^>]+type=["\']hidden["\'][^>]+name=["\']category["\']|<input[^>]+name=["\']category["\'][^>]+type=["\']hidden["\']', html)
+
+        hidden = re.findall(
+            r'<input[^>]+type=["\']hidden["\'][^>]+name=["\']category["\']|<input[^>]+name=["\']category["\'][^>]+type=["\']hidden["\']',
+            html,
+        )  # noqa: E501
         self.assertEqual(len(hidden), 0)
 
     def test_is_free_renders_as_checkbox(self):
         html = self._html()
         self.assertIn('name="is_free"', html)
         import re
+
         # Find all is_free inputs
-        is_free_inputs = re.findall(r'<input[^>]+name=["\']is_free["\'][^>]*/?>|<input[^>]+[^>]+name=["\']is_free["\'][^>]*/?>',html)
+        is_free_inputs = re.findall(
+            r'<input[^>]+name=["\']is_free["\'][^>]*/?>|<input[^>]+[^>]+name=["\']is_free["\'][^>]*/?>', html
+        )  # noqa: E501
         # Exactly ONE hidden companion input expected (value="false", the uncheck-fix) — no more.
         hidden = [i for i in is_free_inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 1, f"Expected exactly 1 hidden companion for is_free, got: {hidden}")
@@ -206,7 +224,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="sliding_scale"', html)
         import re
-        sliding_inputs = re.findall(r'<input[^>]+name=["\']sliding_scale["\'][^>]*/?>',html)
+
+        sliding_inputs = re.findall(r'<input[^>]+name=["\']sliding_scale["\'][^>]*/?>', html)
         # Exactly ONE hidden companion expected; a real checkbox must also be present
         hidden = [i for i in sliding_inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 1, f"Expected exactly 1 hidden companion for sliding_scale, got: {hidden}")
@@ -217,18 +236,24 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="registration_required"', html)
         import re
-        rr_inputs = re.findall(r'<input[^>]+name=["\']registration_required["\'][^>]*/?>',html)
+
+        rr_inputs = re.findall(r'<input[^>]+name=["\']registration_required["\'][^>]*/?>', html)
         # Exactly ONE hidden companion expected; a real checkbox must also be present
         hidden = [i for i in rr_inputs if 'type="hidden"' in i or "type='hidden'" in i]
-        self.assertEqual(len(hidden), 1, f"Expected exactly 1 hidden companion for registration_required, got: {hidden}")
+        self.assertEqual(
+            len(hidden), 1, f"Expected exactly 1 hidden companion for registration_required, got: {hidden}"
+        )  # noqa: E501
         checkboxes = [i for i in rr_inputs if 'type="checkbox"' in i or "type='checkbox'" in i]
-        self.assertGreater(len(checkboxes), 0, "registration_required should render as checkbox alongside the hidden companion")
+        self.assertGreater(
+            len(checkboxes), 0, "registration_required should render as checkbox alongside the hidden companion"
+        )  # noqa: E501
 
     def test_capacity_renders_as_number_input(self):
         html = self._html()
         self.assertIn('name="capacity"', html)
         import re
-        cap_inputs = re.findall(r'<input[^>]+name=["\']capacity["\'][^>]*/?>',html)
+
+        cap_inputs = re.findall(r'<input[^>]+name=["\']capacity["\'][^>]*/?>', html)
         hidden = [i for i in cap_inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -236,7 +261,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="price_min_cents"', html)
         import re
-        inputs = re.findall(r'<input[^>]+name=["\']price_min_cents["\'][^>]*/?>',html)
+
+        inputs = re.findall(r'<input[^>]+name=["\']price_min_cents["\'][^>]*/?>', html)
         hidden = [i for i in inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -244,7 +270,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="price_max_cents"', html)
         import re
-        inputs = re.findall(r'<input[^>]+name=["\']price_max_cents["\'][^>]*/?>',html)
+
+        inputs = re.findall(r'<input[^>]+name=["\']price_max_cents["\'][^>]*/?>', html)
         hidden = [i for i in inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -252,7 +279,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="currency"', html)
         import re
-        inputs = re.findall(r'<input[^>]+name=["\']currency["\'][^>]*/?>',html)
+
+        inputs = re.findall(r'<input[^>]+name=["\']currency["\'][^>]*/?>', html)
         hidden = [i for i in inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -260,7 +288,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="external_url"', html)
         import re
-        inputs = re.findall(r'<input[^>]+name=["\']external_url["\'][^>]*/?>',html)
+
+        inputs = re.findall(r'<input[^>]+name=["\']external_url["\'][^>]*/?>', html)
         hidden = [i for i in inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -268,7 +297,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="registration_url"', html)
         import re
-        inputs = re.findall(r'<input[^>]+name=["\']registration_url["\'][^>]*/?>',html)
+
+        inputs = re.findall(r'<input[^>]+name=["\']registration_url["\'][^>]*/?>', html)
         hidden = [i for i in inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -276,7 +306,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="registration_email"', html)
         import re
-        inputs = re.findall(r'<input[^>]+name=["\']registration_email["\'][^>]*/?>',html)
+
+        inputs = re.findall(r'<input[^>]+name=["\']registration_email["\'][^>]*/?>', html)
         hidden = [i for i in inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -284,7 +315,8 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="content_warnings"', html)
         import re
-        inputs = re.findall(r'<input[^>]+name=["\']content_warnings["\'][^>]*/?>',html)
+
+        inputs = re.findall(r'<input[^>]+name=["\']content_warnings["\'][^>]*/?>', html)
         hidden = [i for i in inputs if 'type="hidden"' in i or "type='hidden'" in i]
         self.assertEqual(len(hidden), 0)
 
@@ -292,7 +324,7 @@ class FieldParityRenderTest(TestCase):
         html = self._html()
         self.assertIn('name="price_description"', html)
         # price_description uses Textarea widget
-        self.assertIn('<textarea', html)
+        self.assertIn("<textarea", html)
 
     def test_all_16_fields_present_in_fragment(self):
         """All 16 newly-exposed fields must appear in rendered HTML."""
@@ -605,7 +637,8 @@ class CoverUploadAffordanceTest(TestCase):
         html = _get_fragment_html(self.client, self.event.pk)
         self.assertIn('name="cover_image"', html)
         import re
-        file_inputs = re.findall(r'<input[^>]+name=["\']cover_image["\'][^>]*/?>',html)
+
+        file_inputs = re.findall(r'<input[^>]+name=["\']cover_image["\'][^>]*/?>', html)
         self.assertGreater(len(file_inputs), 0, "No file input for cover_image in fragment HTML")
         # Must be type="file"
         file_type = [i for i in file_inputs if 'type="file"' in i or "type='file'" in i]
@@ -694,6 +727,7 @@ class ExplicitUncheckTest(TestCase):
 
     def _set_booleans(self, **kwargs):
         from syndication.services import update_event
+
         update_event(user=self.user, event=self.event, **kwargs)
         self.event.refresh_from_db()
 
@@ -759,7 +793,9 @@ class ExplicitUncheckTest(TestCase):
         Assert: event.registration_required is now False in DB.
         """
         self._set_booleans(registration_required=True)
-        self.assertTrue(self.event.registration_required, "Pre-condition: registration_required must be True before test")
+        self.assertTrue(
+            self.event.registration_required, "Pre-condition: registration_required must be True before test"
+        )  # noqa: E501
 
         resp = self.client.post(
             reverse("syndication:event-edit", kwargs={"pk": self.event.pk}),
@@ -788,7 +824,6 @@ class ExplicitUncheckTest(TestCase):
         self.assertFalse(self.event.is_free, "Pre-condition: is_free must be False before test")
 
         # Django test Client encodes list values as repeated keys → MultiValueDict with [false, on]
-        from django.test import RequestFactory
         # Use the test client's POST with a list for the key
         resp = self.client.post(
             reverse("syndication:event-edit", kwargs={"pk": self.event.pk}),
@@ -915,7 +950,8 @@ class FragmentHtmlPersistenceVerificationTest(TestCase):
         )
         html = _get_fragment_html(self.client, self.event.pk)
         self.assertIn(
-            "signup@venue.example.com", html,
+            "signup@venue.example.com",
+            html,
             "Saved registration_email not found in re-rendered fragment HTML",
         )
 
@@ -926,6 +962,7 @@ class FragmentHtmlPersistenceVerificationTest(TestCase):
         silently skip them (ADR-008 D3 allows unknown slugs to be dropped).
         """
         from events.models import Tag
+
         Tag.objects.get_or_create(slug="kink", defaults={"label": "Kink", "kind": "theme"})
         self.client.post(
             reverse("syndication:event-edit", kwargs={"pk": self.event.pk}),
@@ -958,9 +995,15 @@ class FragmentHtmlPersistenceVerificationTest(TestCase):
         html = _get_fragment_html(self.client, self.event.pk)
         # Django CheckboxInput renders checked="checked" or just "checked" when value is True
         import re
-        is_free_inputs = re.findall(r'<input[^>]+name=["\']is_free["\'][^>]*/?>|<input[^>]+[^>]+name=["\']is_free["\'][^>]*/?>', html)
-        checked_inputs = [i for i in is_free_inputs if "checked" in i and 'type="hidden"' not in i and "type='hidden'" not in i]
+
+        is_free_inputs = re.findall(
+            r'<input[^>]+name=["\']is_free["\'][^>]*/?>|<input[^>]+[^>]+name=["\']is_free["\'][^>]*/?>', html
+        )  # noqa: E501
+        checked_inputs = [
+            i for i in is_free_inputs if "checked" in i and 'type="hidden"' not in i and "type='hidden'" not in i
+        ]  # noqa: E501
         self.assertGreater(
-            len(checked_inputs), 0,
+            len(checked_inputs),
+            0,
             f"is_free=True not reflected as checked checkbox in fragment HTML. Found inputs: {is_free_inputs}",
         )

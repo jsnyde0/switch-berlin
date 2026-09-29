@@ -30,7 +30,11 @@
     <div>
       <dt class="kb-mono text-[10px] uppercase tracking-widest text-base-content/40">{% trans "Start" %}</dt>
       <dd class="text-base-content/90 mt-1">
-        {% if event.start_time_unknown %}{{ event.start|date:"D, d F Y" }} · {% trans "time to be announced" %}{% else %}{{ event.start|date:"D, d F Y · H:i" }}{% endif %}
+        {% if event.start_time_unknown %}
+          {{ event.start|date:"D, d F Y" }} · {% trans "time to be announced" %}
+        {% else %}
+          {{ event.start|date:"D, d F Y · H:i" }}
+        {% endif %}
       </dd>
     </div>
     {% if event.end %}

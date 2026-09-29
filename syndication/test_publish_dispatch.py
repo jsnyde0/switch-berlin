@@ -452,13 +452,11 @@ class PublishProjectionTelegramDispatchTest(TestCase):
 
         self.assertTrue(
             proj_1.frozen_content["body"].startswith("CUSTOM-FOR-1"),
-            "Precondition: proj_1 must have custom body frozen. "
-            f"Got body={proj_1.frozen_content['body']!r}",
+            f"Precondition: proj_1 must have custom body frozen. Got body={proj_1.frozen_content['body']!r}",
         )
         self.assertTrue(
             proj_2.frozen_content["body"].startswith("CONTENT-FOR-2"),
-            "Precondition: proj_2 must have distinct body frozen. "
-            f"Got body={proj_2.frozen_content['body']!r}",
+            f"Precondition: proj_2 must have distinct body frozen. Got body={proj_2.frozen_content['body']!r}",
         )
 
         # Publish proj_1: adapter must receive proj_1 with "CUSTOM-FOR-1"

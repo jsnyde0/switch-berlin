@@ -595,8 +595,7 @@ class StateTwoLiveLabelTest(TestCase):
         self.assertNotIn(
             "Copied from",
             rendered,
-            "sb-s41r: _sync_bar.html state (ii) must NOT render 'Copied from' "
-            f"(old snapshot label). Got: {rendered!r}",
+            f"sb-s41r: _sync_bar.html state (ii) must NOT render 'Copied from' (old snapshot label). Got: {rendered!r}",
         )
 
     def test_sync_bar_state_ii_shows_live_follow_sub_label(self):

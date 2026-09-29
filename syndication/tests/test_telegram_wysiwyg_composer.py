@@ -154,9 +154,7 @@ class TelegramOneSurfaceTest(TestCase):
         (A1) A draft Telegram CHANNEL must have a textarea with name='body' —
         the WYSIWYG editing surface.
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL
-        )
+        conn = _make_telegram_connection(self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -167,8 +165,7 @@ class TelegramOneSurfaceTest(TestCase):
         self.assertIn(
             'name="body"',
             content,
-            "Draft Telegram CHANNEL must have a textarea with name='body' — "
-            "the WYSIWYG editing surface (ADR-016 D7).",
+            "Draft Telegram CHANNEL must have a textarea with name='body' — the WYSIWYG editing surface (ADR-016 D7).",
         )
 
     def test_draft_telegram_group_has_editable_textarea(self):
@@ -176,9 +173,7 @@ class TelegramOneSurfaceTest(TestCase):
         (A2) A draft Telegram GROUP must have a textarea with name='body' —
         the WYSIWYG editing surface.
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-group", dialog_type=TelegramDialogType.GROUP
-        )
+        conn = _make_telegram_connection(self.profile, "my-group", dialog_type=TelegramDialogType.GROUP)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -189,8 +184,7 @@ class TelegramOneSurfaceTest(TestCase):
         self.assertIn(
             'name="body"',
             content,
-            "Draft Telegram GROUP must have a textarea with name='body' — "
-            "the WYSIWYG editing surface (ADR-016 D7).",
+            "Draft Telegram GROUP must have a textarea with name='body' — the WYSIWYG editing surface (ADR-016 D7).",
         )
 
     def test_draft_telegram_channel_has_no_separate_readonly_preview(self):
@@ -199,9 +193,7 @@ class TelegramOneSurfaceTest(TestCase):
         element (<div data-testid="channel-preview">) alongside the textarea.
         ONE surface only (ADR-016 D7 FIRM).
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL
-        )
+        conn = _make_telegram_connection(self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -221,9 +213,7 @@ class TelegramOneSurfaceTest(TestCase):
         (A4) A draft Telegram GROUP must NOT have a separate read-only preview
         element alongside the textarea. ONE surface only (ADR-016 D7 FIRM).
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-group", dialog_type=TelegramDialogType.GROUP
-        )
+        conn = _make_telegram_connection(self.profile, "my-group", dialog_type=TelegramDialogType.GROUP)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -278,17 +268,14 @@ class TelegramPerTypeRenderTest(TestCase):
         self.assertIn(
             'data-testid="tg-channel-post"',
             content,
-            "Telegram CHANNEL must render with channel-post framing "
-            "(data-testid='tg-channel-post') — bead sb-6yyp D2.",
+            "Telegram CHANNEL must render with channel-post framing (data-testid='tg-channel-post') — bead sb-6yyp D2.",
         )
 
     def test_channel_type_does_not_render_group_message(self):
         """
         (B2) A Telegram CHANNEL must NOT render the group-message (chat-bubble) style.
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL
-        )
+        conn = _make_telegram_connection(self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -299,8 +286,7 @@ class TelegramPerTypeRenderTest(TestCase):
         self.assertNotIn(
             'data-testid="tg-group-message"',
             content,
-            "Telegram CHANNEL must NOT render group-message style — "
-            "channel-post framing only (sb-6yyp D2).",
+            "Telegram CHANNEL must NOT render group-message style — channel-post framing only (sb-6yyp D2).",
         )
 
     def test_group_type_renders_group_message_framing(self):
@@ -308,9 +294,7 @@ class TelegramPerTypeRenderTest(TestCase):
         (B3) A Telegram GROUP must render with group-message (chat bubble) framing
         (data-testid="tg-group-message").
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-group", dialog_type=TelegramDialogType.GROUP
-        )
+        conn = _make_telegram_connection(self.profile, "my-group", dialog_type=TelegramDialogType.GROUP)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -321,17 +305,14 @@ class TelegramPerTypeRenderTest(TestCase):
         self.assertIn(
             'data-testid="tg-group-message"',
             content,
-            "Telegram GROUP must render with group-message framing "
-            "(data-testid='tg-group-message') — bead sb-6yyp D2.",
+            "Telegram GROUP must render with group-message framing (data-testid='tg-group-message') — bead sb-6yyp D2.",
         )
 
     def test_supergroup_type_renders_group_message_framing(self):
         """
         (B4) A Telegram SUPERGROUP must render with group-message (chat bubble) framing.
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-supergroup", dialog_type=TelegramDialogType.SUPERGROUP
-        )
+        conn = _make_telegram_connection(self.profile, "my-supergroup", dialog_type=TelegramDialogType.SUPERGROUP)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -349,9 +330,7 @@ class TelegramPerTypeRenderTest(TestCase):
         """
         (B5) A Telegram FORUM_TOPIC must render with group-message (chat bubble) framing.
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-forum", dialog_type=TelegramDialogType.FORUM_TOPIC
-        )
+        conn = _make_telegram_connection(self.profile, "my-forum", dialog_type=TelegramDialogType.FORUM_TOPIC)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -370,9 +349,7 @@ class TelegramPerTypeRenderTest(TestCase):
         (B6) A Telegram CHANNEL must NOT render the link-preview card.
         Channel posts don't have link-preview cards in the styled surface.
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL
-        )
+        conn = _make_telegram_connection(self.profile, "my-channel", dialog_type=TelegramDialogType.CHANNEL)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -383,8 +360,7 @@ class TelegramPerTypeRenderTest(TestCase):
         self.assertNotIn(
             'data-testid="tg-wysiwyg-card"',
             content,
-            "Telegram CHANNEL must NOT render the link-preview card — "
-            "channel-post framing only (sb-6yyp D2).",
+            "Telegram CHANNEL must NOT render the link-preview card — channel-post framing only (sb-6yyp D2).",
         )
 
     def test_group_type_renders_wysiwyg_card(self):
@@ -392,9 +368,7 @@ class TelegramPerTypeRenderTest(TestCase):
         (B7) A Telegram GROUP must render the WYSIWYG link-preview card
         (data-testid="tg-wysiwyg-card") as part of the editable surface.
         """
-        conn = _make_telegram_connection(
-            self.profile, "my-group", dialog_type=TelegramDialogType.GROUP
-        )
+        conn = _make_telegram_connection(self.profile, "my-group", dialog_type=TelegramDialogType.GROUP)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -416,9 +390,7 @@ class TelegramPerTypeRenderTest(TestCase):
         ADR-008 D3: NULL/absent-type path must not break (fail-loud or render gracefully).
         The original chat-bubble style is the safe fallback.
         """
-        conn = _make_telegram_connection(
-            self.profile, "legacy-channel", dialog_type=None
-        )
+        conn = _make_telegram_connection(self.profile, "legacy-channel", dialog_type=None)
         _make_draft_projection(self.event, conn)
 
         url = f"/syndication/events/{self.event.pk}/fragments/event_syndication/"
@@ -474,9 +446,7 @@ class TelegramWysiwygCardImageEqualityTest(TestCase):
             "card-image-eq-event",
             description="Card image equality test.",
         )
-        conn = _make_telegram_connection(
-            self.profile, "my-group-card", dialog_type=TelegramDialogType.GROUP
-        )
+        conn = _make_telegram_connection(self.profile, "my-group-card", dialog_type=TelegramDialogType.GROUP)
         _make_draft_projection(event, conn)
 
         expected_url = self._resolver_url_for(event)
@@ -504,9 +474,7 @@ class TelegramWysiwygCardImageEqualityTest(TestCase):
             "forum-card-image-event",
             description="Forum topic card image equality test.",
         )
-        conn = _make_telegram_connection(
-            self.profile, "my-forum-card", dialog_type=TelegramDialogType.FORUM_TOPIC
-        )
+        conn = _make_telegram_connection(self.profile, "my-forum-card", dialog_type=TelegramDialogType.FORUM_TOPIC)
         _make_draft_projection(event, conn)
 
         expected_url = self._resolver_url_for(event)
@@ -533,9 +501,7 @@ class TelegramWysiwygCardImageEqualityTest(TestCase):
             "No Cover Group Event",
             "no-cover-group-event",
         )
-        conn = _make_telegram_connection(
-            self.profile, "no-cover-group", dialog_type=TelegramDialogType.GROUP
-        )
+        conn = _make_telegram_connection(self.profile, "no-cover-group", dialog_type=TelegramDialogType.GROUP)
         _make_draft_projection(event, conn)
 
         url = f"/syndication/events/{event.pk}/fragments/event_syndication/"
@@ -546,8 +512,7 @@ class TelegramWysiwygCardImageEqualityTest(TestCase):
         self.assertIn(
             "og-default.png",
             content,
-            "WYSIWYG GROUP card must show og-default.png when event has no cover — "
-            "same as the live og:image.",
+            "WYSIWYG GROUP card must show og-default.png when event has no cover — same as the live og:image.",
         )
 
 
@@ -572,9 +537,7 @@ class TelegramPreviewPerTypeTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user = _make_user(
-            username="tg_preview_user", email="tg_preview@test.com", password="pw"
-        )
+        self.user = _make_user(username="tg_preview_user", email="tg_preview@test.com", password="pw")
         self.profile = _make_profile("TG Preview Org", "tg-preview-org", user=self.user)
         self.event = _make_event(self.profile, "TG Preview Event", "tg-preview-event")
         self.client.force_login(self.user)
@@ -675,9 +638,7 @@ class NonTelegramChannelsUnaffectedTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user = _make_user(
-            username="non_tg_user", email="non_tg@test.com", password="pw"
-        )
+        self.user = _make_user(username="non_tg_user", email="non_tg@test.com", password="pw")
         self.profile = _make_profile("Non-TG Org", "non-tg-org", user=self.user)
         self.event = _make_event(self.profile, "Non-TG Event", "non-tg-event")
         self.client.force_login(self.user)
@@ -807,9 +768,7 @@ class BodySegmentAgnosticTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user = _make_user(
-            username="seg_user", email="seg@test.com", password="pw"
-        )
+        self.user = _make_user(username="seg_user", email="seg@test.com", password="pw")
         self.profile = _make_profile("Seg Org", "seg-org", user=self.user)
         self.client.force_login(self.user)
 
@@ -821,9 +780,7 @@ class BodySegmentAgnosticTest(TestCase):
         future flat→segments change is a squashable migration (ADR-016 D7 + ADR-008 D2).
         """
         event = _make_event(self.profile, "Seg Event", "seg-event")
-        conn = _make_telegram_connection(
-            self.profile, "seg-group", dialog_type=TelegramDialogType.GROUP
-        )
+        conn = _make_telegram_connection(self.profile, "seg-group", dialog_type=TelegramDialogType.GROUP)
         # ContentVersion with empty body — None resolves to "" at render time.
         cv = ContentVersion.objects.create(
             event=event,
@@ -855,6 +812,5 @@ class BodySegmentAgnosticTest(TestCase):
         self.assertIn(
             'data-testid="tg-group-message"',
             content,
-            "An empty body must still render the group-message framing — "
-            "framing does not depend on body content.",
+            "An empty body must still render the group-message framing — framing does not depend on body content.",
         )

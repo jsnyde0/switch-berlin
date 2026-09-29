@@ -37,7 +37,6 @@ from syndication.models import (
     Post,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -165,8 +164,7 @@ class TelegramPlacementEnumTest(TestCase):
         self.assertEqual(
             values,
             {"placed", "failed", "skipped-pre-existing-draft"},
-            "TelegramPlacementStatus must have exactly three values: "
-            "placed, failed, skipped-pre-existing-draft",
+            "TelegramPlacementStatus must have exactly three values: placed, failed, skipped-pre-existing-draft",
         )
 
     def test_sent_is_not_in_enum(self):
@@ -333,9 +331,7 @@ class TelegramPlacementReportVerbTest(TestCase):
         self.event = _make_event(slug="report-verb-event")
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.post = _make_post(self.event)
-        self.conn = _make_connection(
-            self.profile, destination_id="-1009999999999", postability="agent"
-        )
+        self.conn = _make_connection(self.profile, destination_id="-1009999999999", postability="agent")
         self.proj = _make_ready_promotion_projection(self.conn, self.post)
 
     def _post_placements(self, payload, token=None):
@@ -421,9 +417,7 @@ class TelegramPlacementReportVerbTest(TestCase):
             [{"destination_id": self.conn.destination_id, "status": "failed", "error_detail": "first try"}]
         )
         # Second POST: placed (retry succeeded)
-        self._post_placements(
-            [{"destination_id": self.conn.destination_id, "status": "placed"}]
-        )
+        self._post_placements([{"destination_id": self.conn.destination_id, "status": "placed"}])
 
         count = TelegramPlacement.objects.filter(
             projection=self.proj,
@@ -791,8 +785,8 @@ class ReconciliationServiceTest(TestCase):
         from syndication.services import reconcile_telegram_coverage
 
         conn_bot = self._make_conn("-1001991111111", postability="bot")
-        conn_agent = self._make_conn("-1001992222222", postability="agent")
-        conn_public = self._make_conn("-1001993333333", postability="public")
+        self._make_conn("-1001992222222", postability="agent")
+        self._make_conn("-1001993333333", postability="public")
         proj = _make_ready_promotion_projection(conn_bot, self.post)
 
         results = reconcile_telegram_coverage(projection=proj)
@@ -862,9 +856,7 @@ class MultiTopicForumPlacementReportTest(TestCase):
     """
 
     def setUp(self):
-        self.user = _make_vouched_user(
-            username="multi-topic-agent", email="multitopic@example.com"
-        )
+        self.user = _make_vouched_user(username="multi-topic-agent", email="multitopic@example.com")
         self.profile = _make_profile(slug="multi-topic-org")
         from organizers.models import ProfileClaim
 
@@ -1006,7 +998,7 @@ class MultiTopicForumPlacementReportTest(TestCase):
             postability="bot",
             # topic_id defaults to None
         )
-        proj_channel = _make_ready_promotion_projection(conn_channel, self.post)
+        _make_ready_promotion_projection(conn_channel, self.post)
 
         payload = [
             {

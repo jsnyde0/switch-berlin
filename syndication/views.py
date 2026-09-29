@@ -2645,11 +2645,7 @@ def coverage(request, pk):
     # reconcile_telegram_coverage reads projection.connection.organizer + projection.source_post.
     # Any projection of the post yields the same organizer-scoped result.
     # A post with no Telegram projections → empty list (correct; same as the event case).
-    projection = (
-        PlatformProjection.objects.filter(source_post=post)
-        .select_related("connection__organizer")
-        .first()
-    )
+    projection = PlatformProjection.objects.filter(source_post=post).select_related("connection__organizer").first()
     coverage_items = reconcile_telegram_coverage(projection) if projection is not None else []
 
     # Build the send-checklist: agent-tier placed + public-tier destinations

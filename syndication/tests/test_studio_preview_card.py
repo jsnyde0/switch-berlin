@@ -30,7 +30,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from events.models import Event, EventOrganizer, EventImage
+from events.models import Event, EventOrganizer
 from events.og import card_image_url
 from organizers.models import Profile, ProfileClaim
 from syndication.engine import generate_projection, transition_status
@@ -143,8 +143,7 @@ class TelegramPreviewCardTest(TestCase):
         self.assertIn(
             "og-default.png",
             content,
-            "Telegram preview must contain the default card image URL (og-default.png) "
-            "when the event has no cover.",
+            "Telegram preview must contain the default card image URL (og-default.png) when the event has no cover.",
         )
 
     def test_telegram_preview_contains_event_title(self):
@@ -270,12 +269,8 @@ class NonTelegramBranchesUnchangedTest(TestCase):
         self.client = Client()
         self.user = _make_user(username="nontg_user", email="nontg@test.com", password="pw")
         self.profile = _make_profile("NonTG Org", "nontg-org", user=self.user)
-        self.fetlife_conn = _make_connection(
-            self.profile, "fetlife", "fl-nontg-user", kinds=["listing"]
-        )
-        self.switch_conn = _make_connection(
-            self.profile, "switch", "own-page", kinds=["listing"]
-        )
+        self.fetlife_conn = _make_connection(self.profile, "fetlife", "fl-nontg-user", kinds=["listing"])
+        self.switch_conn = _make_connection(self.profile, "switch", "own-page", kinds=["listing"])
         self.client.force_login(self.user)
 
     def test_fetlife_preview_does_not_render_telegram_card(self):
@@ -298,8 +293,7 @@ class NonTelegramBranchesUnchangedTest(TestCase):
         self.assertNotIn(
             'data-testid="tg-link-preview-card"',
             content,
-            "FetLife preview must NOT contain the Telegram card marker — "
-            "non-Telegram branches must remain unchanged.",
+            "FetLife preview must NOT contain the Telegram card marker — non-Telegram branches must remain unchanged.",
         )
 
     def test_switch_preview_does_not_render_telegram_card(self):
@@ -325,6 +319,5 @@ class NonTelegramBranchesUnchangedTest(TestCase):
         self.assertNotIn(
             'data-testid="tg-link-preview-card"',
             content,
-            "Switch preview must NOT contain the Telegram card marker — "
-            "non-Telegram branches must remain unchanged.",
+            "Switch preview must NOT contain the Telegram card marker — non-Telegram branches must remain unchanged.",
         )

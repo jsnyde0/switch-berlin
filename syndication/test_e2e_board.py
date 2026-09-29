@@ -649,8 +649,7 @@ class E2EBoardFlowTest(TestCase):
         self.assertEqual(proj_1.status, PlatformProjection.Status.READY)
         self.assertTrue(
             proj_1.frozen_content["body"].startswith("COMBINED-CUSTOM-PROJ1"),
-            "proj_1's frozen body must start with the CUSTOMIZED value. "
-            f"Got body={proj_1.frozen_content['body']!r}",
+            f"proj_1's frozen body must start with the CUSTOMIZED value. Got body={proj_1.frozen_content['body']!r}",
         )
 
         # proj_2 still draft

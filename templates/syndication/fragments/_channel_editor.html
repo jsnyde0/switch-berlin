@@ -154,13 +154,7 @@ Cover image uses a separate multipart form (cannot ride text autosave).
 Progressive disclosure sections (Alpine) surface secondary field groups.
 x-data root on the card wrapper survives HTMX swaps because Alpine re-initialises
 on the incoming fragment automatically (HTMX htmx:afterSwap + Alpine MutationObserver).{% endcomment %}
-<div x-data="{
-  showPricing: false,
-  showRegistration: false,
-  showDetails: false,
-  showLinks: false,
-  showTags: false
-}">
+<div x-data="{ showPricing: false, showRegistration: false, showDetails: false, showLinks: false, showTags: false }">
 <form method="post" action="{% url 'syndication:event-edit' pk=event.pk %}" hx-post="{% url 'syndication:event-edit' pk=event.pk %}" hx-swap="none" hx-trigger="input changed delay:600ms" hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
 {% csrf_token %}
 {% comment %}Styled Switch listing card — primary (always-visible) fields.{% endcomment %}
@@ -242,35 +236,20 @@ on the incoming fragment automatically (HTMX htmx:afterSwap + Alpine MutationObs
 </div>
 {% comment %}--- Disclosure toggle strip --- sb-y209.1 progressive disclosure{% endcomment %}
 <div class="flex flex-wrap gap-x-0 pt-0" style="border-top: 1px solid rgba(255,255,255,0.06)">
-<button type="button"
-  @click="showPricing = !showPricing"
-  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
-  :class="showPricing ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
-  <span x-text="showPricing ? '— {% trans "Pricing" %}' : '+ {% trans "Pricing" %}'">+ {% trans "Pricing" %}</span>
+<button type="button" @click="showPricing = !showPricing" class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors" :class="showPricing ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+<span x-text="showPricing ? '— {% trans "Pricing" %}' : '+ {% trans "Pricing" %}'">+ {% trans "Pricing" %}</span>
 </button>
-<button type="button"
-  @click="showRegistration = !showRegistration"
-  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
-  :class="showRegistration ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
-  <span x-text="showRegistration ? '— {% trans "Registration" %}' : '+ {% trans "Registration" %}'">+ {% trans "Registration" %}</span>
+<button type="button" @click="showRegistration = !showRegistration" class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors" :class="showRegistration ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+<span x-text="showRegistration ? '— {% trans "Registration" %}' : '+ {% trans "Registration" %}'">+ {% trans "Registration" %}</span>
 </button>
-<button type="button"
-  @click="showDetails = !showDetails"
-  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
-  :class="showDetails ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
-  <span x-text="showDetails ? '— {% trans "Details" %}' : '+ {% trans "Details" %}'">+ {% trans "Details" %}</span>
+<button type="button" @click="showDetails = !showDetails" class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors" :class="showDetails ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+<span x-text="showDetails ? '— {% trans "Details" %}' : '+ {% trans "Details" %}'">+ {% trans "Details" %}</span>
 </button>
-<button type="button"
-  @click="showLinks = !showLinks"
-  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
-  :class="showLinks ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
-  <span x-text="showLinks ? '— {% trans "Links" %}' : '+ {% trans "Links" %}'">+ {% trans "Links" %}</span>
+<button type="button" @click="showLinks = !showLinks" class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors" :class="showLinks ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+<span x-text="showLinks ? '— {% trans "Links" %}' : '+ {% trans "Links" %}'">+ {% trans "Links" %}</span>
 </button>
-<button type="button"
-  @click="showTags = !showTags"
-  class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors"
-  :class="showTags ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
-  <span x-text="showTags ? '— {% trans "Tags" %}' : '+ {% trans "Tags" %}'">+ {% trans "Tags" %}</span>
+<button type="button" @click="showTags = !showTags" class="kb-mono text-[8px] uppercase tracking-[0.16em] px-3 py-2.5 transition-colors" :class="showTags ? 'text-base-content/60' : 'text-base-content/28 hover:text-base-content/50'">
+<span x-text="showTags ? '— {% trans "Tags" %}' : '+ {% trans "Tags" %}'">+ {% trans "Tags" %}</span>
 </button>
 </div>
 {% comment %}--- Pricing disclosure section ---{% endcomment %}
@@ -418,13 +397,7 @@ A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomm
 </div>
 </form>
 {% comment %}--- Cover image: separate multipart form (cannot ride text autosave) --- sb-y209.1{% endcomment %}
-<form method="post"
-  action="{% url 'syndication:event-edit' pk=event.pk %}"
-  hx-post="{% url 'syndication:event-edit' pk=event.pk %}"
-  hx-encoding="multipart/form-data"
-  hx-swap="none"
-  hx-trigger="change"
-  hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
+<form method="post" action="{% url 'syndication:event-edit' pk=event.pk %}" hx-post="{% url 'syndication:event-edit' pk=event.pk %}" hx-encoding="multipart/form-data" hx-swap="none" hx-trigger="change" hx-on::after-request="document.dispatchEvent(new Event('kb:autosaved'))">
 {% csrf_token %}
 <div style="background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-top: none" class="px-4 pb-3">
 <div class="flex flex-col gap-2 pt-3">
@@ -438,7 +411,9 @@ A subtle indicator shows "Saved" after each autosave without DOM swap.{% endcomm
 {% endif %}
 {% endfor %}
 {{ event_form.cover_image }}
-<p class="kb-mono text-[8px] text-base-content/25">{% trans "JPG, PNG, or WebP. Max 5 MiB. Upload replaces existing cover." %}</p>
+<p class="kb-mono text-[8px] text-base-content/25">
+{% trans "JPG, PNG, or WebP. Max 5 MiB. Upload replaces existing cover." %}
+</p>
 </div>
 </div>
 {% comment %}Also carry required fields so the POST is valid (title/slug/start required by EventForm).
@@ -488,33 +463,33 @@ NOT a blue box; Telegram blue (#3390ec) is the accent only (channel name + check
 Channel posts are flush (no tail). Avatar + channel name shown at top of post.
 sb-h0lc: added avatar + "Switch Berlin" sender name consistent with group-message treatment.{% endcomment %}
 <div data-testid="tg-channel-post" class="mb-5">
-  {% comment %}Small destination header (which Telegram destination) above the post surface.{% endcomment %}
-  {% if proj.connection.title or proj.connection.destination_id %}
-    <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
-       style="color: rgb(51 144 236 / 0.85)">
-      <span class="inline-block w-1 h-1 rounded-full" style="background: rgb(51 144 236 / 0.7)"></span>
-      {% if proj.connection.title %}{{ proj.connection.title }}{% else %}{{ proj.connection.destination_id }}{% endif %}
-    </p>
-  {% endif %}
-  {% comment %}Channel post surface: no tail, flush rounded corners.
+{% comment %}Small destination header (which Telegram destination) above the post surface.{% endcomment %}
+{% if proj.connection.title or proj.connection.destination_id %}
+<p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5" style="color: rgb(51 144 236 / 0.85)">
+<span class="inline-block w-1 h-1 rounded-full" style="background: rgb(51 144 236 / 0.7)"></span>
+{% if proj.connection.title %}
+{{ proj.connection.title }}
+{% else %}
+{{ proj.connection.destination_id }}
+{% endif %}
+</p>
+{% endif %}
+{% comment %}Channel post surface: no tail, flush rounded corners.
   Avatar + "Switch Berlin" name shown inside the post header (channel posts in Telegram
-  show the channel avatar and name at the top of each post).{% endcomment %}
-  <div class="px-3.5 pt-3 pb-2.5"
-       style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px 12px 12px 4px">
-    <div class="flex items-center gap-2 mb-2">
-      <div class="shrink-0 flex items-center justify-center rounded-full text-[10px] font-bold"
-           style="width: 28px; height: 28px; background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90)); color: rgb(255 255 255)">
-        SB
-      </div>
-      <p class="text-[13px] font-semibold" style="color: rgb(80 180 120)">Switch Berlin</p>
-    </div>
-    <textarea name="body"
-              class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
-              style="color: rgb(244 246 248); padding: 0; resize: vertical; field-sizing: content"
-              placeholder="{% trans "Write your Telegram channel post…" %}">{{ body }}</textarea>
-    <p class="text-[10px] text-right mt-1 flex items-center justify-end gap-1"
-       style="color: rgb(170 170 170 / 0.65)">{% now "H:i" %}<span style="color: rgb(51 144 236 / 0.9); letter-spacing: -0.18em">✓✓</span></p>
-  </div>
+show the channel avatar and name at the top of each post).{% endcomment %}
+<div class="px-3.5 pt-3 pb-2.5" style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px 12px 12px 4px">
+<div class="flex items-center gap-2 mb-2">
+<div class="shrink-0 flex items-center justify-center rounded-full text-[10px] font-bold" style="width: 28px; height: 28px; background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90)); color: rgb(255 255 255)">
+SB
+</div>
+<p class="text-[13px] font-semibold" style="color: rgb(80 180 120)">Switch Berlin</p>
+</div>
+<textarea name="body" class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(244 246 248); padding: 0; resize: vertical; field-sizing: content" placeholder="{% trans "Write your Telegram channel post…" %}">{{ body }}</textarea>
+<p class="text-[10px] text-right mt-1 flex items-center justify-end gap-1"
+   style="color: rgb(170 170 170 / 0.65)">
+  {% now "H:i" %}<span style="color: rgb(51 144 236 / 0.9); letter-spacing: -0.18em">✓✓</span>
+</p>
+</div>
 </div>
 {% else %}
 {% comment %}sb-6yyp D2: Group-message framing — GROUP / SUPERGROUP / FORUM_TOPIC / NULL.
@@ -527,7 +502,8 @@ Incoming message: left-aligned dark-grey bubble, tail at bottom-LEFT, avatar bot
   {% if proj.connection.destination_id %}
     <p class="kb-mono text-[9px] uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5"
        style="color: rgb(51 144 236 / 0.75)">
-      <span class="inline-block w-1 h-1 rounded-full" style="background: rgb(51 144 236 / 0.6)"></span>
+      <span class="inline-block w-1 h-1 rounded-full"
+            style="background: rgb(51 144 236 / 0.6)"></span>
       {{ proj.connection.destination_id }}
     </p>
   {% endif %}
@@ -538,18 +514,24 @@ Incoming message: left-aligned dark-grey bubble, tail at bottom-LEFT, avatar bot
     (top-lighter to bottom-darker green), white bold initials "SB".
     Use inline style for gradient and text — Tailwind v4 arbitrary bg may not emit.{% endcomment %}
     <div class="shrink-0 flex items-center justify-center rounded-full text-[11px] font-bold"
-         style="width: 36px; height: 36px; background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90)); color: rgb(255 255 255)">
-      SB
-    </div>
+         style="width: 36px;
+                height: 36px;
+                background: linear-gradient(160deg, rgb(80 180 120), rgb(40 140 90));
+                color: rgb(255 255 255)">SB</div>
     {% comment %}rounded-2xl rounded-tl-sm: stable chat-bubble framing marker (mirrors preview);
     the faithful incoming tail (bottom-left) comes from the inline border-radius.{% endcomment %}
     <div class="rounded-2xl rounded-tl-sm px-3.5 pt-2.5 pb-2 max-w-sm"
-         style="background: rgb(36 37 38); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px 14px 14px 4px">
+         style="background: rgb(36 37 38);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 14px 14px 14px 4px">
       {% comment %}Sender name "Switch Berlin" in green at the top of the bubble (Telegram group incoming).{% endcomment %}
       <p class="text-[13px] font-semibold mb-1" style="color: rgb(80 180 120)">Switch Berlin</p>
       <textarea name="body"
                 class="w-full min-h-[120px] resize-y bg-transparent border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
-                style="color: rgb(236 242 246); padding: 0; resize: vertical; field-sizing: content"
+                style="color: rgb(236 242 246);
+                       padding: 0;
+                       resize: vertical;
+                       field-sizing: content"
                 placeholder="{% trans "Write your Telegram message…" %}">{{ body }}</textarea>
       {% comment %}sb-6yyp D2/D3: WYSIWYG link-preview card nests INSIDE the bubble
       (faithful: Telegram renders the webpage preview within the sender's bubble).
@@ -565,7 +547,8 @@ Incoming message: left-aligned dark-grey bubble, tail at bottom-LEFT, avatar bot
           <img src="{{ row.card_image_url }}"
                alt="{% if event.title %}{{ event.title }}{% endif %}"
                class="w-full object-cover"
-               style="max-height: 120px; display: block"
+               style="max-height: 120px;
+                      display: block"
                loading="lazy">
           <div class="px-2.5 py-1.5">
             {% if event.title %}
@@ -597,62 +580,76 @@ ADR-016 D7: the styled <textarea name="body"> IS the editing surface — one sur
 Left: category chip + "Going"/"Interested In" status buttons. Right: nothing (body is the description).
 The body textarea sits where the event description sits on a real FetLife event page.{% endcomment %}
 <div class="mb-5" style="background: rgb(27,27,27); border: 1px solid rgba(255,255,255,0.08)">
-  {% comment %}Top header strip — community/destination label{% endcomment %}
-  {% if proj.connection.destination_id %}
-  <div class="px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
-    <p class="kb-mono text-[8px] uppercase tracking-[0.18em]" style="color: rgb(119,119,119)">
-      {% trans "Community" %} · {{ proj.connection.destination_id }}
-    </p>
-  </div>
-  {% endif %}
-  {% comment %}Status row: category chip + RSVP buttons{% endcomment %}
-  <div class="flex items-center gap-2 px-4 pt-3 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.05)">
-    <span class="kb-mono text-[8px] uppercase tracking-[0.14em] px-2 py-1"
-          style="background: rgba(204,0,0,0.12); color: rgb(204,0,0); border: 1px solid rgba(204,0,0,0.25)">{% trans "Event" %}</span>
-    <span class="flex-1"></span>
-    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2.5 py-1"
-          style="border: 1px solid rgba(255,255,255,0.18); color: rgb(204,204,204)">{% trans "Going" %}</span>
-    <span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2.5 py-1"
-          style="border: 1px solid rgba(255,255,255,0.10); color: rgb(170,170,170)">{% trans "Interested In" %}</span>
-  </div>
-  {% comment %}Description body — the textarea IS the description field{% endcomment %}
-  <div class="px-4 pt-3 pb-3">
-    <p class="kb-mono text-[8px] uppercase tracking-[0.14em] mb-2" style="color: rgb(119,119,119)">{% trans "Description" %}</p>
-    <textarea name="body"
-              class="w-full min-h-[120px] resize-y border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words"
-              style="color: rgb(204,204,204); background: transparent; padding: 0; resize: vertical; field-sizing: content"
-              placeholder="{% trans "Write your FetLife event description…" %}">{{ body }}</textarea>
-  </div>
+{% comment %}Top header strip — community/destination label{% endcomment %}
+{% if proj.connection.destination_id %}
+<div class="px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+<p class="kb-mono text-[8px] uppercase tracking-[0.18em]" style="color: rgb(119,119,119)">
+{% trans "Community" %} · {{ proj.connection.destination_id }}
+</p>
+</div>
+{% endif %}
+{% comment %}Status row: category chip + RSVP buttons{% endcomment %}
+<div class="flex items-center gap-2 px-4 pt-3 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.05)">
+<span class="kb-mono text-[8px] uppercase tracking-[0.14em] px-2 py-1" style="background: rgba(204,0,0,0.12); color: rgb(204,0,0); border: 1px solid rgba(204,0,0,0.25)">{% trans "Event" %}</span>
+<span class="flex-1"></span>
+<span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2.5 py-1" style="border: 1px solid rgba(255,255,255,0.18); color: rgb(204,204,204)">{% trans "Going" %}</span>
+<span class="kb-mono text-[8px] uppercase tracking-[0.12em] px-2.5 py-1" style="border: 1px solid rgba(255,255,255,0.10); color: rgb(170,170,170)">{% trans "Interested In" %}</span>
+</div>
+{% comment %}Description body — the textarea IS the description field{% endcomment %}
+<div class="px-4 pt-3 pb-3">
+<p class="kb-mono text-[8px] uppercase tracking-[0.14em] mb-2" style="color: rgb(119,119,119)">
+{% trans "Description" %}
+</p>
+<textarea name="body" class="w-full min-h-[120px] resize-y border-0 outline-0 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(204,204,204); background: transparent; padding: 0; resize: vertical; field-sizing: content" placeholder="{% trans "Write your FetLife event description…" %}">{{ body }}</textarea>
+</div>
 </div>
 {% else %}
 {% comment %}Post (promotion): FetLife writing/journal skin.
 Author strip at top, "WRITING" type label, body textarea in FetLife body grey.{% endcomment %}
-<div class="mb-5" style="background: rgb(27,27,27); border: 1px solid rgba(255,255,255,0.08)">
+<div class="mb-5"
+     style="background: rgb(27,27,27);
+            border: 1px solid rgba(255,255,255,0.08)">
   {% comment %}Author strip{% endcomment %}
-  <div class="flex items-center gap-2.5 px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.07)">
+  <div class="flex items-center gap-2.5 px-4 pt-3 pb-2.5"
+       style="border-bottom: 1px solid rgba(255,255,255,0.07)">
     {% comment %}Avatar initial{% endcomment %}
     <span class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 kb-mono text-[10px]"
-          style="background: rgba(204,0,0,0.18); color: rgb(204,0,0); border: 1px solid rgba(204,0,0,0.25)">
-      {% if proj.connection.destination_id %}{{ proj.connection.destination_id|slice:":1"|upper }}{% else %}F{% endif %}
+          style="background: rgba(204,0,0,0.18);
+                 color: rgb(204,0,0);
+                 border: 1px solid rgba(204,0,0,0.25)">
+      {% if proj.connection.destination_id %}
+        {{ proj.connection.destination_id|slice:":1"|upper }}
+      {% else %}
+        F
+      {% endif %}
     </span>
     <div>
       {% if proj.connection.destination_id %}
-      <p class="kb-mono text-[9px] uppercase tracking-[0.14em]" style="color: rgb(204,204,204)">{{ proj.connection.destination_id }}</p>
+        <p class="kb-mono text-[9px] uppercase tracking-[0.14em]"
+           style="color: rgb(204,204,204)">{{ proj.connection.destination_id }}</p>
       {% endif %}
-      <p class="kb-mono text-[8px] uppercase tracking-[0.12em]" style="color: rgb(119,119,119)">{% trans "Writing" %}</p>
+      <p class="kb-mono text-[8px] uppercase tracking-[0.12em]"
+         style="color: rgb(119,119,119)">{% trans "Writing" %}</p>
     </div>
   </div>
   {% comment %}Body textarea — the writing body{% endcomment %}
   <div class="px-4 pt-3 pb-3">
     <textarea name="body"
               class="w-full min-h-[120px] resize-y border-0 outline-0 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
-              style="color: rgb(204,204,204); background: transparent; padding: 0; resize: vertical; field-sizing: content"
+              style="color: rgb(204,204,204);
+                     background: transparent;
+                     padding: 0;
+                     resize: vertical;
+                     field-sizing: content"
               placeholder="{% trans "Write your FetLife post…" %}">{{ body }}</textarea>
   </div>
   {% comment %}Footer: Love / Comment affordance{% endcomment %}
-  <div class="flex items-center gap-6 px-4 pb-3 pt-1" style="border-top: 1px solid rgba(255,255,255,0.05)">
-    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]" style="color: rgb(119,119,119)">{% trans "Love" %}</span>
-    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]" style="color: rgb(119,119,119)">{% trans "Comment" %}</span>
+  <div class="flex items-center gap-6 px-4 pb-3 pt-1"
+       style="border-top: 1px solid rgba(255,255,255,0.05)">
+    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]"
+          style="color: rgb(119,119,119)">{% trans "Love" %}</span>
+    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]"
+          style="color: rgb(119,119,119)">{% trans "Comment" %}</span>
   </div>
 </div>
 {% endif %}
@@ -664,32 +661,20 @@ Note: this case is reached only for Switch promotion projections (post composer)
 Switch LISTING projections use the EventForm card above (event composer only).
 ADR-016 D7: the styled <textarea name="body"> IS the editing surface — one surface only.{% endcomment %}
 <div class="mb-5" style="background: rgb(29,35,42); border: 1px solid rgba(255,255,255,0.07)">
-  {% comment %}Platform header strip — native Switch post framing{% endcomment %}
-  <div class="flex items-center gap-3 px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.06)">
-    <span class="kb-mono text-[8px] uppercase tracking-[0.18em]"
-          style="color: rgb(224,194,211); letter-spacing: 0.2em">switch.berlin</span>
-    <span class="w-px h-3" style="background: rgba(255,255,255,0.15)"></span>
-    <span class="kb-mono text-[8px] uppercase tracking-[0.16em]"
-          style="color: rgba(255,255,255,0.35)">{% trans "Post" %}</span>
-    {% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
-    <span class="w-px h-3" style="background: rgba(255,255,255,0.1)"></span>
-    <span class="kb-mono text-[8px] uppercase tracking-[0.14em]"
-          style="color: rgba(255,255,255,0.3)">{{ proj.connection.destination_id }}</span>
-    {% endif %}
-  </div>
-  {% comment %}Body — the textarea IS the post body. Uses kb-display serif for native Switch feel.{% endcomment %}
-  <div class="px-4 pt-3 pb-3">
-    <textarea name="body"
-              class="w-full min-h-[120px] resize-y border-0 outline-0 kb-display leading-relaxed whitespace-pre-wrap break-words"
-              style="color: rgb(236,249,255);
-                     background: transparent;
-                     font-size: 14px;
-                     font-variation-settings: 'opsz' 48, 'SOFT' 50;
-                     padding: 0;
-                     resize: vertical;
-                     field-sizing: content"
-              placeholder="{% trans "Write your Switch post…" %}">{{ body }}</textarea>
-  </div>
+{% comment %}Platform header strip — native Switch post framing{% endcomment %}
+<div class="flex items-center gap-3 px-4 pt-3 pb-2.5" style="border-bottom: 1px solid rgba(255,255,255,0.06)">
+<span class="kb-mono text-[8px] uppercase tracking-[0.18em]" style="color: rgb(224,194,211); letter-spacing: 0.2em">switch.berlin</span>
+<span class="w-px h-3" style="background: rgba(255,255,255,0.15)"></span>
+<span class="kb-mono text-[8px] uppercase tracking-[0.16em]" style="color: rgba(255,255,255,0.35)">{% trans "Post" %}</span>
+{% if proj.connection.destination_id and proj.connection.destination_id != "own-page" %}
+<span class="w-px h-3" style="background: rgba(255,255,255,0.1)"></span>
+<span class="kb-mono text-[8px] uppercase tracking-[0.14em]" style="color: rgba(255,255,255,0.3)">{{ proj.connection.destination_id }}</span>
+{% endif %}
+</div>
+{% comment %}Body — the textarea IS the post body. Uses kb-display serif for native Switch feel.{% endcomment %}
+<div class="px-4 pt-3 pb-3">
+<textarea name="body" class="w-full min-h-[120px] resize-y border-0 outline-0 kb-display leading-relaxed whitespace-pre-wrap break-words" style="color: rgb(236,249,255); background: transparent; font-size: 14px; font-variation-settings: 'opsz' 48, 'SOFT' 50; padding: 0; resize: vertical; field-sizing: content" placeholder="{% trans "Write your Switch post…" %}">{{ body }}</textarea>
+</div>
 </div>
 {% else %}
 {% comment %}Generic: plain mono treatment for unknown platforms.{% endcomment %}

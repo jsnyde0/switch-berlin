@@ -1681,8 +1681,7 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
         self.assertEqual(proj_a.status, PlatformProjection.Status.READY)
         self.assertTrue(
             proj_a.frozen_content["body"].startswith("PUBLISH-BODY-CHAN-A"),
-            "Precondition: proj_a must have its custom body frozen. "
-            f"Got body={proj_a.frozen_content['body']!r}",
+            f"Precondition: proj_a must have its custom body frozen. Got body={proj_a.frozen_content['body']!r}",
         )
 
         # proj_b stays draft (unaffected)
@@ -1795,13 +1794,11 @@ class PostOwnedProjectionPublishProbeTest(TestCase):
         captured_texts = [p["text"] for p in captured_payloads]
         self.assertTrue(
             any(t.startswith("BODY-CHAN-A") for t in captured_texts),
-            "publish-all-ready must deliver proj_a's OWN body to the adapter. "
-            f"Got captured_texts={captured_texts!r}",
+            f"publish-all-ready must deliver proj_a's OWN body to the adapter. Got captured_texts={captured_texts!r}",
         )
         self.assertTrue(
             any(t.startswith("BODY-CHAN-B") for t in captured_texts),
-            "publish-all-ready must deliver proj_b's OWN body to the adapter. "
-            f"Got captured_texts={captured_texts!r}",
+            f"publish-all-ready must deliver proj_b's OWN body to the adapter. Got captured_texts={captured_texts!r}",
         )
 
         # Both projections must be PUBLISHED

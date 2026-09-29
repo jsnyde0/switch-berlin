@@ -448,9 +448,7 @@ def test_agegate_human_browser_ua_still_gated():
     with patch("accounts.middleware.get_flag", side_effect=make_get_flag(True)):
         response = mw(request)
 
-    assert response.status_code == 302, (
-        f"Human browser UA should be gated to /age-check/, got {response.status_code}"
-    )
+    assert response.status_code == 302, f"Human browser UA should be gated to /age-check/, got {response.status_code}"
     assert "/age-check/" in response["Location"]
 
 

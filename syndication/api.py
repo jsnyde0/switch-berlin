@@ -43,7 +43,13 @@ from ninja.files import UploadedFile
 from ninja.security import HttpBearer
 from ninja.security import SessionAuth as NinjaSessionAuth
 
-from syndication.models import AgentCredential, IdentityToken, TelegramDialogType, TelegramPlacementStatus, TelegramPostability
+from syndication.models import (
+    AgentCredential,
+    IdentityToken,
+    TelegramDialogType,
+    TelegramPlacementStatus,
+    TelegramPostability,
+)
 from syndication.services import (
     ACTOR_BEARER,
     ACTOR_SESSION,
@@ -1026,9 +1032,7 @@ def connections_list(request):
     profile_ids = ProfileClaim.objects.filter(user=request.auth, rejected_at__isnull=True).values_list(
         "profile_id", flat=True
     )
-    connections = PlatformConnection.objects.filter(organizer_id__in=profile_ids).order_by(
-        "platform", "destination_id"
-    )
+    connections = PlatformConnection.objects.filter(organizer_id__in=profile_ids).order_by("platform", "destination_id")
     data = [_connection_to_dict(c) for c in connections]
     return _actor_marker_response(request, data)
 

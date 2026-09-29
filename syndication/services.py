@@ -206,11 +206,7 @@ def ingest_telegram_inventory(user, inventory: list[dict]) -> dict:
 
     # --- Step 2: resolve the organizer profile for this user ---
     # Use the first active ProfileClaim (same pattern as events_list / event posts).
-    profile = (
-        ProfileClaim.objects.filter(user=user, rejected_at__isnull=True)
-        .select_related("profile")
-        .first()
-    )
+    profile = ProfileClaim.objects.filter(user=user, rejected_at__isnull=True).select_related("profile").first()
     if profile is None:
         raise ValueError(
             f"User {user!r} has no active ProfileClaim — cannot associate "
@@ -325,15 +321,10 @@ def report_telegram_placements(user, placements: list[dict]) -> dict:
             )
 
     # --- Step 2: resolve the organizer profile for this user ---
-    profile_claim = (
-        ProfileClaim.objects.filter(user=user, rejected_at__isnull=True)
-        .select_related("profile")
-        .first()
-    )
+    profile_claim = ProfileClaim.objects.filter(user=user, rejected_at__isnull=True).select_related("profile").first()
     if profile_claim is None:
         raise ValueError(
-            f"User {user!r} has no active ProfileClaim — cannot associate "
-            "placement report with an organizer."
+            f"User {user!r} has no active ProfileClaim — cannot associate placement report with an organizer."
         )
     organizer = profile_claim.profile
 
@@ -464,7 +455,6 @@ def reconcile_telegram_coverage(projection) -> list[dict]:
     from syndication.models import (  # noqa: PLC0415
         PlatformConnection,
         TelegramPlacement,
-        TelegramPlacementStatus,
     )
 
     organizer = projection.connection.organizer
@@ -1510,9 +1500,7 @@ def sync_projection_from(user, target, source):
     # Auth gate (mirrors copy_from's gate — ADR-017 D2).
     event = _resolve_projection_event(target)
     if not can_edit(user, event):
-        raise PermissionError(
-            f"User {user} cannot sync projection {target.pk!r} (event '{event}'). (ADR-017 D2)"
-        )
+        raise PermissionError(f"User {user} cannot sync projection {target.pk!r} (event '{event}'). (ADR-017 D2)")
 
     # Live-share: point target at the SAME content_version row as source (no copy).
     # A master edit on the source CV now reaches all sharers automatically.
@@ -1789,9 +1777,8 @@ def detach_and_edit(user, projection, **fields):
         if _live_followers:
             new_cv = projection.content_version
             from syndication.models import PlatformProjection as _PP
-            _PP.objects.filter(pk__in=[f.pk for f in _live_followers]).update(
-                content_version=new_cv
-            )
+
+            _PP.objects.filter(pk__in=[f.pk for f in _live_followers]).update(content_version=new_cv)
     else:
         # Already on an independent CV — edit in place, no new row.
         cv = current_cv
@@ -2364,9 +2351,7 @@ def list_projections_for_user(user, event_id=None, post_id=None):
     from organizers.models import ProfileClaim
     from syndication.models import PlatformProjection, Post
 
-    profile_ids = ProfileClaim.objects.filter(user=user, rejected_at__isnull=True).values_list(
-        "profile_id", flat=True
-    )
+    profile_ids = ProfileClaim.objects.filter(user=user, rejected_at__isnull=True).values_list("profile_id", flat=True)
     owned_event_ids = EventOrganizer.objects.filter(profile_id__in=profile_ids).values_list("event_id", flat=True)
 
     qs = PlatformProjection.objects.filter(

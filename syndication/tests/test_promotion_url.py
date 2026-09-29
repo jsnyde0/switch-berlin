@@ -160,8 +160,7 @@ class FirstPublishSentPayloadContainsVersionedUrlTest(TestCase):
         self.assertIn(
             expected_url_fragment,
             sent_text,
-            f"Sent payload text must contain versioned URL {expected_url_fragment!r}. "
-            f"Got sent_text={sent_text!r}",
+            f"Sent payload text must contain versioned URL {expected_url_fragment!r}. Got sent_text={sent_text!r}",
         )
 
     @override_settings(SITE_URL="https://switch.berlin")
@@ -333,8 +332,7 @@ class DraftEditLeavesPublishRevUnchangedTest(TestCase):
         self.assertEqual(
             self.proj.publish_rev,
             0,
-            "Draft ContentVersion edit must NOT increment publish_rev. "
-            f"Got publish_rev={self.proj.publish_rev}.",
+            f"Draft ContentVersion edit must NOT increment publish_rev. Got publish_rev={self.proj.publish_rev}.",
         )
 
 
@@ -454,6 +452,5 @@ class TelegramPromotionOrganizerlesEventRaisesTest(TestCase):
         self.assertIn(
             "organizer",
             error_msg.lower(),
-            "The error message must mention 'organizer' to identify the missing data. "
-            f"Got: {error_msg!r}",
+            f"The error message must mention 'organizer' to identify the missing data. Got: {error_msg!r}",
         )

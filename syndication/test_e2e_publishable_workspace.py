@@ -904,13 +904,11 @@ class PostScopedPublishAllReadyTest(TestCase):
         called_texts = [call.kwargs["json"]["text"] for call in mock_post.call_args_list]
         self.assertTrue(
             any(t.startswith(body_1) for t in called_texts),
-            "(a) Channel 1's adapter must be called with channel 1's OWN body. "
-            f"Got called_texts={called_texts!r}",
+            f"(a) Channel 1's adapter must be called with channel 1's OWN body. Got called_texts={called_texts!r}",
         )
         self.assertTrue(
             any(t.startswith(body_2) for t in called_texts),
-            "(a) Channel 2's adapter must be called with channel 2's OWN body. "
-            f"Got called_texts={called_texts!r}",
+            f"(a) Channel 2's adapter must be called with channel 2's OWN body. Got called_texts={called_texts!r}",
         )
 
         # (b) Other post's projection and listing projection must remain DRAFT / READY
