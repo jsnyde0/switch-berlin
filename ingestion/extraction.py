@@ -1,5 +1,10 @@
+import json
+
+import httpx
 import logfire
 from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from ingestion.schemas import EventDraft
 
@@ -24,6 +29,47 @@ Enriched content from URLs:
 """
 
 
+def router_model(model_name: str) -> OpenAIChatModel:
+    """A pydantic-ai model on the LLM router (settings.LLM_BASE_URL). Fails loud without a key."""
+    from django.conf import settings
+
+    if not settings.LLM_API_KEY:
+        raise RuntimeError("REQUESTY_API_KEY is not set; the LLM router needs it (ADR-008 D3).")
+    return OpenAIChatModel(
+        model_name, provider=OpenAIProvider(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY)
+    )
+
+
+EVENT_QUESTION = (
+    "Is this post an announcement that promotes a specific upcoming event (party, workshop, class, ritual, "
+    "meetup) with its own date, written to invite people to it? Answer no for chat messages, questions, "
+    "replies, thank-yous and general discussion."
+)
+
+
+def event_announcement_score(text: str) -> float:
+    """Probability (0-1) that a post announces an event, from the classifier model (a Jev 'noul' question)."""
+    from django.conf import settings
+
+    if not settings.LLM_API_KEY:
+        raise RuntimeError("REQUESTY_API_KEY is not set; the LLM router needs it (ADR-008 D3).")
+    response = httpx.post(
+        f"{settings.LLM_BASE_URL}/chat/completions",
+        headers={"Authorization": f"Bearer {settings.LLM_API_KEY}"},
+        json={
+            "model": settings.EVENT_CLASSIFIER_MODEL,
+            "messages": [{"role": "user", "content": text}],
+            "response_format": {
+                "type": "questions",
+                "questions": {"is_event": {"type": "noul", "instructions": EVENT_QUESTION}},
+            },
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    return float(json.loads(response.json()["choices"][0]["message"]["content"])["is_event"]["noul"])
+
+
 def extract_event_draft(raw_message_text: str, enriched_payload: dict) -> tuple[EventDraft, str]:
     """Returns (draft, prompt_version). Runs synchronously inside a django-q2 worker."""
     from events.models import Tag
@@ -44,8 +90,8 @@ def extract_event_draft(raw_message_text: str, enriched_payload: dict) -> tuple[
 
     from django.conf import settings
 
-    model_name = getattr(settings, "LLM_MODEL_NAME", "claude-opus-4-7")
-    agent = Agent(model_name, output_type=EventDraft)
+    model_name = settings.LLM_MODEL_NAME
+    agent = Agent(router_model(model_name), output_type=EventDraft)
     result = agent.run_sync(prompt)
     draft = result.output
 

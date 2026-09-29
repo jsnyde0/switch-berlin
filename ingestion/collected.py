@@ -125,6 +125,29 @@ def find_duplicate(title: str, start):
     )
 
 
+def wipe_non_event(raw, score: float) -> None:
+    """Drop everything a non-event post said; keep only its ids and the verdict."""
+    from django.conf import settings
+
+    from .models import ExtractionAttempt
+
+    raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id = "", {}, {}, ""
+    raw.extraction_status, raw.extraction_error = "skipped", "not_event"
+    raw.save(
+        update_fields=["text", "raw_payload", "enriched_payload", "sender_id", "extraction_status", "extraction_error"]
+    )
+    ExtractionAttempt.objects.create(
+        raw_message=raw,
+        model_name=settings.EVENT_CLASSIFIER_MODEL,
+        prompt_version="event-gate-v1",
+        raw_response={"is_event": score},
+        confidence_score=score,
+        success=False,
+        error="not_event",
+    )
+    logfire.info("collected.not_event", raw_message_id=raw.id, score=score)
+
+
 def land_collected_event(raw, draft, matched, attempt_kwargs) -> None:
     """Land one extracted collected row: skipped, held, duplicate, draft or published."""
     from events.models import Event

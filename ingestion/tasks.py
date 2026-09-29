@@ -33,6 +33,18 @@ def process_raw_message(raw_message_id: int) -> None:
         )
         return
 
+    # Step 0 (collected rows): cheap "is this an event?" gate. A post below the
+    # threshold is wiped at once (text, payloads, sender) and never extracted;
+    # only its ids stay, so a re-collect does not classify it again (sb-7wzb.2, LIA §1).
+    from . import extraction
+    from .collected import COLLECTED_SOURCE_TYPES, wipe_non_event
+
+    if raw_message.source_type in COLLECTED_SOURCE_TYPES:
+        score = extraction.event_announcement_score(raw_message.text)
+        if score < settings.EVENT_CLASSIFIER_THRESHOLD:
+            wipe_non_event(raw_message, score)
+            return
+
     # Step 1: URL enrichment (best-effort)
     try:
         enriched = enrich_urls(raw_message.text)
@@ -79,7 +91,7 @@ def process_raw_message(raw_message_id: int) -> None:
 
     # Step 4: Confidence threshold check
     LOW_CONFIDENCE_THRESHOLD = 0.4
-    model_name = getattr(settings, "LLM_MODEL_NAME", "claude-opus-4-7")
+    model_name = settings.LLM_MODEL_NAME
     draft_json = draft.model_dump(mode="json")
     attempt_kwargs = dict(
         raw_message=raw_message,
@@ -102,7 +114,7 @@ def process_raw_message(raw_message_id: int) -> None:
         return
 
     # Collected rows land by claim state at the source tier (sb-7wzb.2, ADR-017 D4).
-    from .collected import COLLECTED_SOURCE_TYPES, land_collected_event
+    from .collected import land_collected_event
 
     if raw_message.source_type in COLLECTED_SOURCE_TYPES:
         land_collected_event(raw_message, draft, matched, attempt_kwargs)

@@ -104,6 +104,7 @@ class CollectedEventLandingTest(TestCase):
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),
+            patch("ingestion.extraction.event_announcement_score", return_value=0.99),
         ):
             MockAgent.return_value.run_sync.return_value = result
             process_raw_message(raw.id)
@@ -169,3 +170,21 @@ class CollectedEventLandingTest(TestCase):
     def test_bot_forward_rows_still_land_as_drafts(self):
         raw = self._process(self._raw(source_type="telegram_bot_forward", raw_payload={}))
         self.assertEqual(Event.objects.get(raw_message=raw).status, "draft")
+
+    def test_non_event_post_is_wiped_and_never_extracted(self):
+        from ingestion.tasks import process_raw_message
+
+        raw = self._raw(
+            source_type="telegram_private_group", channel_id="-100777", sender_id="4242", text="Anyone for a taxi?"
+        )
+        with (
+            patch("ingestion.extraction.event_announcement_score", return_value=0.1),
+            patch("ingestion.extraction.Agent") as MockAgent,
+        ):
+            process_raw_message(raw.id)
+        raw.refresh_from_db()
+        MockAgent.assert_not_called()
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("skipped", "not_event"))
+        self.assertEqual((raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id), ("", {}, {}, ""))
+        self.assertEqual(raw.message_id, "m1")  # the bare id stays so a re-collect does not re-classify
+        self.assertFalse(Event.objects.exists())
