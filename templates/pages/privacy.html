@@ -180,7 +180,7 @@
             <td>RawMessage ({% trans "Telegram ingestion" %})</td>
             <td>
               {% trans "Collected posts that announce no event: text, images and sender deleted immediately after the model's check. Images of posts that announce events: deleted once the events are extracted." %}
-              {% trans "90 days after the event date, then purged." %}
+              {% trans "A post whose extraction failed keeps its images until the purge. 90 days after Switch received a post, its text, images and other collected content are purged; the Telegram sender ID stays with the record." %}
             </td>
           </tr>
           <tr>

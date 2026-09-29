@@ -2413,8 +2413,15 @@ msgstr ""
 "sobald die Veranstaltungen extrahiert sind."
 
 #: templates/pages/privacy.html:183
-msgid "90 days after the event date, then purged."
-msgstr "90 Tage nach dem Veranstaltungsdatum, dann gelöscht."
+msgid ""
+"A post whose extraction failed keeps its images until the purge. 90 days "
+"after Switch received a post, its text, images and other collected content "
+"are purged; the Telegram sender ID stays with the record."
+msgstr ""
+"Ein Beitrag, dessen Auswertung fehlgeschlagen ist, behält seine Bilder bis "
+"zur Löschung. 90 Tage nachdem Switch einen Beitrag erhalten hat, werden "
+"Text, Bilder und übrige erfasste Inhalte gelöscht; die Telegram-Absender-ID "
+"bleibt beim Datensatz."
 
 #: templates/pages/privacy.html:188
 msgid "30 days, then purged."
