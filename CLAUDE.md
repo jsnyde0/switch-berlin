@@ -8,7 +8,7 @@ This file provides instructions and context for AI coding agents working on this
 
 **Two parallel tracks, both challenge/walk-driven** (walk one honest journey, file children only as the walk reveals friction, never pre-decompose):
 
-- **Track A, event collector** (`sb-7wzb`): consolidate Berlin events from public sites (IKSK first) and Telegram channels into Switch. First act = brainstorm sitting with the user (`sb-7wzb.1`): outcome, sources, positioning ruling vs ADR-010 canonical-home.
+- **Track A, event collector** (`sb-7wzb`): consolidate Berlin events from public sites (IKSK first) and Telegram channels into Switch. The brainstorm sitting (`sb-7wzb.1`) converged 2026-09-29; next = the walk `sb-7wzb.2` (journey, source list, acceptance and verification target in its design); judge spike `sb-7wzb.3` is blocked by it.
 - **Track B, agentic harness for facilitators** (`sb-k2ds`): capability in `switch-cli`, skills as thin wrappers, all data through Switch. Next = the Challenge 0 walk (`sb-k2ds.1`, needs the user at their phone), then co-design Challenge 1 (`sb-z50e`: website skill / marketing-channel skills / FetLife).
 - **Cross-cutting:** `sb-n41z` turns walks into agentic e2e drives via `/verify scaffold`, after the first hand-walk.
 

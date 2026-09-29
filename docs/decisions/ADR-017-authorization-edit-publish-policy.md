@@ -102,6 +102,8 @@ The Track A collector (epic sb-7wzb) writes events nobody on Switch authored. D1
 
 The question the collector asks is a **sibling predicate in the D2 seam** (`syndication/authz.py`), next to `can_edit`/`can_publish`, not a check inside the ingestion task: the seam stays the one place that answers "may this be published". Its exact name and signature are the walk's to fix; the rule above is what it implements. Whether a source is collected at all, and whether its rows are ever published, is a **separate per-source switch** on the collector (collect-and-publish vs collect-only) and is not an authorization concept.
 
+**Relation to ADR-016 D5** (publish is an explicit step; no automatic `ready → published`): no conflict. D5 governs the outbound `PlatformProjection` lifecycle (a post to FetLife, Telegram, …); this D4 governs only whether a collected `Event` is listed on switch.berlin. Auto-publishing a collected event at ingest mints no outbound publish; any syndication of it still goes through D5's explicit step.
+
 **Rationale:**
 
 - `direct:` user 2026-09-29 — "if the organizer HAS claimed the profile, only they can publish (or approve publication). If the organizer isn't claimed, we can just autopublish. Leave 'trusted source' out of it, that feels like a different dimension."

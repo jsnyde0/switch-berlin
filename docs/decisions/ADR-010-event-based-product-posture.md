@@ -92,4 +92,5 @@ Switch Berlin's purpose is to facilitate real-world action — people meeting in
 | Question | Resolution path |
 |---|---|
 | Real-world-outcome success metrics — which observable signals constitute "real-world action advancement"? | Defer until first feature requires the discrimination. Likely candidates: event attendance growth, organizer-reported attendee-quality signals, retention measured by real-world-events-attended rather than platform-visits. |
+| Organizer-side success metrics for canonical home — e.g. the share of published events born on Switch vs collected (D1 collected-events paragraph)? | Deliberately unpinned (user ruling 2026-09-28, sb-7wzb.1). Pin when a facilitator-side decision needs the discrimination; birthplace is already readable from `Event.raw_message`. |
 | Sister-platform brand posture inheritance — does ADR-010 D1 bind sister-platform's UX/feature decisions, or only Switch Berlin's? | Defer; sister-platform shape is FLEXIBLE per sb-2ve Phase A D1. Cross-reference at sister-platform design time. |
