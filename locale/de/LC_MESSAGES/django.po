@@ -1001,6 +1001,14 @@ msgid "Telegram ingestion"
 msgstr "Telegram-Aufnahme"
 
 #: templates/pages/privacy.html:181
+msgid ""
+"Collected posts that are not event announcements: content deleted "
+"immediately after an automated check."
+msgstr ""
+"Gesammelte Beiträge, die keine Veranstaltungsankündigungen sind: Inhalt wird "
+"unmittelbar nach einer automatisierten Prüfung gelöscht."
+
+#: templates/pages/privacy.html:180
 msgid "90 days after the event date, then purged."
 msgstr "90 Tage nach dem Veranstaltungsdatum, dann gelöscht."
 

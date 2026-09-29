@@ -177,7 +177,10 @@
           </tr>
           <tr>
             <td>RawMessage ({% trans "Telegram ingestion" %})</td>
-            <td>{% trans "90 days after the event date, then purged." %}</td>
+            <td>
+              {% trans "Collected posts that are not event announcements: content deleted immediately after an automated check." %}
+              {% trans "90 days after the event date, then purged." %}
+            </td>
           </tr>
           <tr>
             <td>EmailFailure</td>
