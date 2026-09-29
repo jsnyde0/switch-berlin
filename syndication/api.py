@@ -34,10 +34,11 @@ syndication.services functions as the HTMX web views — no parallel implementat
 import json as _json
 import logging
 from datetime import datetime
+from typing import Literal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
-from ninja import File, NinjaAPI, Schema, Status
+from ninja import Field, File, NinjaAPI, Schema, Status
 from ninja.files import UploadedFile
 from ninja.security import HttpBearer
 from ninja.security import SessionAuth as NinjaSessionAuth
@@ -1442,3 +1443,52 @@ def telegram_placement_report(request, body: list[TelegramPlacementItemIn]):
         )
 
     return _actor_marker_response(request, result)
+
+
+# ---------------------------------------------------------------------------
+# Collected RawMessage rows (sb-7wzb.2 — Track A collector feed)
+# ---------------------------------------------------------------------------
+
+
+class CollectedRowIn(Schema):
+    """
+    One row a collector gathered (switch-cli `collect web` / `collect telegram`).
+
+    source_type names the source shape and derives the tier (ADR-012 D2); the
+    bot forward is not a collected feed and is rejected (422).
+    raw_payload.organizer, when set, is the source's declared organizer identity.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    source_type: Literal["website", "telegram_telethon", "telegram_private_channel", "telegram_private_group"]
+    channel_id: str = Field(max_length=100)
+    message_id: str = Field(min_length=1, max_length=100)
+    sender_id: str = Field(default="", max_length=100)
+    text: str
+    raw_payload: dict = {}
+    collect_only: bool = False
+
+
+class CollectedRowsOut(Schema):
+    created: int
+    already_collected: int
+
+
+@api.post(
+    "/ingest/raw-messages",
+    auth=_RESOURCE_AUTH,
+    response={200: CollectedRowsOut},
+    summary="Ingest collected RawMessage rows (operator-only, sb-7wzb.2)",
+    description=(
+        "Writes one RawMessage per collected row and enqueues extraction. "
+        "Operator (staff) principals only: collected events are authored by nobody on Switch. "
+        "Re-posting an already collected row is counted in already_collected, not duplicated."
+    ),
+)
+def ingest_collected_raw_messages(request, body: list[CollectedRowIn]):
+    from ingestion.collected import ingest_collected_rows  # noqa: PLC0415
+
+    if not request.auth.is_staff:
+        raise PermissionError(f"{request.auth} is not an operator; collected-row ingest is staff-only")
+    return ingest_collected_rows([row.dict() for row in body])

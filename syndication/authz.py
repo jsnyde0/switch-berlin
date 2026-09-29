@@ -51,3 +51,20 @@ def can_publish(user, event) -> bool:
     without touching call sites.
     """
     return can_edit(user, event)
+
+
+def collector_may_publish(event) -> bool:
+    """
+    Return True iff a collector may publish this collected Event at ingest
+    (ADR-017 D4): no organizer Profile on the event holds an active ProfileClaim.
+
+    Once any organizer Profile is claimed, the claimants publish through
+    can_publish, so the collector lands the event as a draft for them. The
+    per-source collect-only switch is not an authorization concept and is
+    checked by the collector, not here.
+    """
+    organizer_profile_ids = EventOrganizer.objects.filter(event=event).values_list("profile_id", flat=True)
+    return not ProfileClaim.objects.filter(
+        profile_id__in=organizer_profile_ids,
+        rejected_at__isnull=True,
+    ).exists()

@@ -101,6 +101,13 @@ def process_raw_message(raw_message_id: int) -> None:
         )
         return
 
+    # Collected rows land by claim state at the source tier (sb-7wzb.2, ADR-017 D4).
+    from .collected import COLLECTED_SOURCE_TYPES, land_collected_event
+
+    if raw_message.source_type in COLLECTED_SOURCE_TYPES:
+        land_collected_event(raw_message, draft, matched, attempt_kwargs)
+        return
+
     # Step 5: Create draft Event
     # UUID suffix ensures slug uniqueness even when organizer is NULL.
     slug = slugify(draft.title)[:190] + "-" + str(uuid.uuid4())[:8]

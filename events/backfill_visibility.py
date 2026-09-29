@@ -19,6 +19,7 @@ ADR-012 D2 source → default tier mapping (conceptual names):
   scraped_public_website  → public
   telegram_public_channel → public
   telegram_private_group  → semi_public
+  telegram_private_channel → semi_public
   user_submitted_web_form → semi_public
   (empty / manual)        → semi_public
 
@@ -36,6 +37,8 @@ _SOURCE_TIER: dict[str, str] = {
     "scraped_public_website": "public",
     "telegram_public_channel": "public",
     "telegram_private_group": "semi_public",
+    # Invite-only broadcast (ADR-012 D2 row added 2026-09-28): semi_public by default.
+    "telegram_private_channel": "semi_public",
     "user_submitted_web_form": "semi_public",
 }
 
@@ -44,6 +47,9 @@ _SOURCE_TIER: dict[str, str] = {
 _RAWMESSAGE_TO_CONCEPTUAL: dict[str, str] = {
     "telegram_bot_forward": "telegram_private_group",
     "telegram_telethon": "telegram_public_channel",
+    "telegram_private_channel": "telegram_private_channel",
+    "telegram_private_group": "telegram_private_group",
+    "website": "scraped_public_website",
     "email_submission": "user_submitted_web_form",
     "web_form": "user_submitted_web_form",
 }

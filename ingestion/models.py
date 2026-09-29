@@ -6,7 +6,12 @@ class RawMessage(models.Model):
     source_type = models.CharField(
         choices=[
             ("telegram_bot_forward", "Telegram bot forward"),
-            ("telegram_telethon", "Telegram Telethon"),  # future
+            # Collected feeds (sb-7wzb.2): the value names the source shape, which
+            # derives the tier (events/backfill_visibility.py, ADR-012 D2).
+            ("telegram_telethon", "Telegram public channel, group or forum topic (user session)"),
+            ("telegram_private_channel", "Telegram private channel (user session)"),
+            ("telegram_private_group", "Telegram private group or forum topic (user session)"),
+            ("website", "Organizer website"),
             ("email_submission", "Email submission"),  # future
             ("web_form", "Web form"),  # future
         ],
@@ -25,11 +30,15 @@ class RawMessage(models.Model):
             ("failed", "Failed"),
             ("skipped", "Skipped"),
             ("needs_review", "Needs review"),  # NEW in 0.2
+            ("duplicate", "Duplicate of an existing event"),
         ],
         default="pending",
     )
     extraction_error = models.TextField(blank=True)
     content_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    # Per-source collector switch (sb-7wzb.2 D4): rows from a collect-only source
+    # land as drafts and never publish, whatever the organizer's claim state.
+    collect_only = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-received_at"]
