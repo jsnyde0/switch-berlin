@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-23 10:40+0200\n"
+"POT-Creation-Date: 2026-09-29 14:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,156 +18,331 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: accounts/admin.py:11
-msgid "Approval"
+#: a_core/validators.py:20
+#, python-format
+msgid "Image file too large. Maximum allowed size is %(limit)s MiB."
 msgstr ""
 
-#: accounts/models.py:30
+#: accounts/admin.py:12
+msgid "Trust"
+msgstr ""
+
+#: accounts/forms.py:31 organizers/forms.py:56
+msgid "Turnstile token"
+msgstr ""
+
+#: accounts/forms.py:36
+msgid "Invite code"
+msgstr ""
+
+#: accounts/forms.py:37
+msgid ""
+"Optional. If you have an invite code, enter it here to join as a vouched "
+"member."
+msgstr ""
+
+#: accounts/forms.py:62
+msgid ""
+"Signup is temporarily unavailable (server misconfiguration). Please try "
+"again later."
+msgstr ""
+
+#: accounts/forms.py:67 organizers/forms.py:86
+msgid "Human verification failed. Please complete the CAPTCHA."
+msgstr ""
+
+#: accounts/forms.py:87
+msgid "This invite code is not valid. Please check and try again."
+msgstr ""
+
+#: accounts/forms.py:90
+msgid "This invite code has already been used or has expired."
+msgstr ""
+
+#: accounts/models.py:10 templates/accounts/me.html:15
+msgid "Open"
+msgstr ""
+
+#: accounts/models.py:11 templates/accounts/me.html:13
+msgid "Vouched"
+msgstr ""
+
+#: accounts/models.py:14 templates/accounts/me.html:17
+msgid "Suspended — Pending Investigation"
+msgstr ""
+
+#: accounts/models.py:16 templates/accounts/me.html:19
+msgid "Banned"
+msgstr ""
+
+#: accounts/models.py:62
 msgid "user"
 msgstr ""
 
-#: accounts/models.py:31
+#: accounts/models.py:63
 msgid "users"
 msgstr ""
 
-#: accounts/views.py:28
+#: accounts/models.py:139
+msgid "vouch"
+msgstr ""
+
+#: accounts/models.py:140
+msgid "vouches"
+msgstr ""
+
+#: accounts/models.py:176
+msgid "invite grant"
+msgstr ""
+
+#: accounts/models.py:177
+msgid "invite grants"
+msgstr ""
+
+#: accounts/views.py:30
 msgid "Too many signup attempts. Try again later."
 msgstr ""
 
-#: accounts/views.py:105
+#: accounts/views.py:58
+msgid "Too many login attempts. Try again later."
+msgstr ""
+
+#: accounts/views.py:77
+msgid "Too many password-reset attempts. Try again later."
+msgstr ""
+
+#: accounts/views.py:158
 msgid "Attendance consent withdrawn. All attendance records deleted."
 msgstr ""
 
-#: events/admin.py:57
+#: events/admin.py:59 templates/events/detail.html:142
+#: templates/events/list.html:196
+msgid "Price"
+msgstr ""
+
+#: events/admin.py:72
+msgid "Registration & Links"
+msgstr ""
+
+#: events/admin.py:86
+msgid "Visibility & Stats"
+msgstr ""
+
+#: events/admin.py:100
+msgid "Provenance"
+msgstr ""
+
+#: events/admin.py:136
 msgid "(not yet enriched)"
 msgstr ""
 
-#: events/admin.py:64
+#: events/admin.py:142
 msgid "Raw text:"
 msgstr ""
 
-#: events/admin.py:66
+#: events/admin.py:144
 msgid "Enriched payload:"
 msgstr ""
 
-#: events/admin.py:70
+#: events/admin.py:148
 msgid "Raw message"
 msgstr ""
 
-#: events/admin.py:75
+#: events/admin.py:153
 msgid "Suggested tags (unmatched)"
 msgstr ""
 
-#: events/admin.py:116
+#: events/admin.py:183
+msgid "Organizer"
+msgstr ""
+
+#: events/admin.py:193
 msgid "Publish selected events"
 msgstr ""
 
-#: events/admin.py:140
+#: events/admin.py:215
+msgid "Publish selected (draft only)"
+msgstr ""
+
+#: events/admin.py:218
+#, python-format
+msgid "%(count)d event(s) published."
+msgstr ""
+
+#: events/admin.py:220
 msgid "Reject selected events"
 msgstr ""
 
-#: events/admin.py:144
+#: events/admin.py:224
 msgid "Archive selected events"
 msgstr ""
 
-#: events/models.py:22
+#: events/models.py:30
 msgid "tag"
 msgstr ""
 
-#: events/models.py:23
+#: events/models.py:31
 msgid "tags"
 msgstr ""
 
-#: events/models.py:107
+#: events/models.py:61
+msgid "event organizer"
+msgstr ""
+
+#: events/models.py:62
+msgid "event organizers"
+msgstr ""
+
+#: events/models.py:102
+msgid "event facilitator"
+msgstr ""
+
+#: events/models.py:103
+msgid "event facilitators"
+msgstr ""
+
+#: events/models.py:336
 msgid "event"
 msgstr ""
 
-#: events/models.py:108
+#: events/models.py:337
 msgid "events"
 msgstr ""
 
-#: events/models.py:167
+#: events/models.py:469
 msgid "event image"
 msgstr ""
 
-#: events/models.py:168
+#: events/models.py:470
 msgid "event images"
 msgstr ""
 
-#: ingestion/admin.py:25
+#: ingestion/admin.py:26
 msgid "Text preview"
 msgstr ""
 
-#: ingestion/models.py:36
+#: ingestion/models.py:45
 msgid "raw message"
 msgstr ""
 
-#: ingestion/models.py:37
+#: ingestion/models.py:46
 msgid "raw messages"
 msgstr ""
 
-#: ingestion/models.py:66
+#: ingestion/models.py:75
 msgid "source failure"
 msgstr ""
 
-#: ingestion/models.py:67
+#: ingestion/models.py:76
 msgid "source failures"
 msgstr ""
 
-#: ingestion/models.py:79
+#: ingestion/models.py:88
 msgid "heartbeat log"
 msgstr ""
 
-#: ingestion/models.py:80
+#: ingestion/models.py:89
 msgid "heartbeat logs"
 msgstr ""
 
-#: ingestion/models.py:109
+#: ingestion/models.py:116
 msgid "extraction attempt"
 msgstr ""
 
-#: ingestion/models.py:110
+#: ingestion/models.py:117
 msgid "extraction attempts"
 msgstr ""
 
-#: ingestion/models.py:129
+#: ingestion/models.py:132
+msgid "rejected message attempt"
+msgstr ""
+
+#: ingestion/models.py:133
+msgid "rejected message attempts"
+msgstr ""
+
+#: ingestion/models.py:156
 msgid "approved sender"
 msgstr ""
 
-#: ingestion/models.py:130
+#: ingestion/models.py:157
 msgid "approved senders"
 msgstr ""
 
-#: organizers/admin.py:26 templates/events/list.html:4
-#: templates/events/list.html:16
+#: organizers/admin.py:54 templates/events/list.html:4
 msgid "Events"
 msgstr ""
 
-#: organizers/admin.py:29
+#: organizers/admin.py:57
 msgid "Mark approved — explicit opt-in consent"
 msgstr ""
 
-#: organizers/admin.py:41
+#: organizers/admin.py:67
 msgid "Mark approved — Telegram forward (implied consent)"
 msgstr ""
 
-#: organizers/admin.py:53
+#: organizers/admin.py:77
 msgid "Mark approved — verified public source"
 msgstr ""
 
-#: organizers/models.py:67
-msgid "organizer"
+#: organizers/admin.py:131 templates/syndication/coverage.html:60
+#: templates/syndication/coverage.html:124
+msgid "Pending"
 msgstr ""
 
-#: organizers/models.py:68
-msgid "organizers"
+#: organizers/admin.py:138
+#, fuzzy
+#| msgid "Email (transactional)"
+msgid "Email (contact)"
+msgstr "E-Mail (transaktional)"
+
+#: organizers/admin.py:146
+msgid "Message"
+msgstr ""
+
+#: organizers/admin.py:148
+msgid "Approve claim — create ProfileClaim (admin_review)"
+msgstr ""
+
+#: organizers/admin.py:203
+msgid "Reject claim — soft-delete, no ProfileClaim"
+msgstr ""
+
+#: organizers/admin.py:252
+msgid "Revoked"
+msgstr ""
+
+#: organizers/admin.py:255
+msgid "Revoke claim — soft-delete (sets rejected_at)"
+msgstr ""
+
+#: organizers/forms.py:81
+msgid ""
+"Claim submission is temporarily unavailable (server misconfiguration). "
+"Please try again later."
+msgstr ""
+
+#: organizers/models.py:120
+msgid "profile"
+msgstr ""
+
+#: organizers/models.py:121
+msgid "profiles"
 msgstr ""
 
 #: reviews/admin.py:46
 msgid "Target"
 msgstr ""
 
-#: reviews/forms.py:21 templates/reviews/takedown.html:128
+#: reviews/admin.py:107
+msgid "Mark selected flags resolved — approved"
+msgstr ""
+
+#: reviews/admin.py:111
+msgid "Mark selected flags resolved — rejected"
+msgstr ""
+
+#: reviews/forms.py:20 templates/reviews/takedown.html:81
 msgid ""
 "I confirm the information above is accurate to the best of my knowledge (DSA "
 "Art. 16(2))."
@@ -175,125 +350,931 @@ msgstr ""
 "Ich bestätige, dass die oben genannten Angaben nach bestem Wissen korrekt "
 "sind (DSA Art. 16(2))."
 
-#: reviews/forms.py:39
+#: reviews/forms.py:40
 msgid "Required for illegal-content reports (DSA Art. 16)."
 msgstr ""
 
-#: reviews/forms.py:44
+#: reviews/forms.py:45
 msgid "Specify the law or legal provision violated (DSA Art. 16)."
 msgstr ""
 
-#: reviews/models.py:37
+#: reviews/models.py:35
 msgid "review"
 msgstr ""
 
-#: reviews/models.py:38 templates/organizers/profile.html:87
-#: templates/reviews/_organizer_rating_display.html:7 tmp/bead5_desc.txt:181
-#: tmp/bead5_desc.txt:256
+#: reviews/models.py:36 templates/events/detail.html:162
+#: templates/organizers/profile.html:132
+#: templates/reviews/_organizer_rating_display.html:8
 msgid "reviews"
 msgstr ""
 
-#: reviews/views.py:66 reviews/views.py:195
+#: reviews/views.py:67 reviews/views.py:187
 msgid "Rate limit reached, try again later."
 msgstr ""
 
-#: reviews/views.py:97 reviews/views.py:144
+#: reviews/views.py:99 reviews/views.py:139
 msgid "This review was hidden by a moderator. Contact support to appeal."
 msgstr ""
 
-#: reviews/views.py:134
+#: reviews/views.py:131
 msgid "You can review this event after attending."
+msgstr ""
+
+#: syndication/forms.py:45 templates/syndication/fragments/event_facts.html:17
+msgid "Title"
+msgstr ""
+
+#: syndication/forms.py:50
+msgid "URL slug"
+msgstr ""
+
+#: syndication/forms.py:51
+msgid "Short, URL-friendly identifier. e.g. 'my-party-2026'"
+msgstr ""
+
+#: syndication/forms.py:54 templates/syndication/fragments/event_facts.html:31
+msgid "Start"
+msgstr ""
+
+#: syndication/forms.py:60 templates/syndication/fragments/event_facts.html:38
+msgid "End"
+msgstr ""
+
+#: syndication/forms.py:66 templates/reviews/takedown.html:66
+#: templates/syndication/fragments/_channel_editor.html:665
+#: templates/syndication/fragments/_channel_preview.html:151
+#: templates/syndication/fragments/event_facts.html:55
+msgid "Description"
+msgstr "Beschreibung"
+
+#: syndication/forms.py:71
+msgid "Venue / Location"
+msgstr ""
+
+#: syndication/forms.py:72
+msgid "Venue ID. Leave blank if venue is not yet known."
+msgstr ""
+
+#: syndication/forms.py:77
+#: templates/syndication/fragments/_channel_editor.html:287
+msgid "Tags"
+msgstr ""
+
+#: syndication/forms.py:78
+msgid "Comma-separated tag slugs, e.g. 'fetish,bdsm,nudist'"
+msgstr ""
+
+#: syndication/forms.py:97
+#, python-format
+msgid "Venue with ID %(id)s does not exist."
+msgstr ""
+
+#: syndication/forms.py:117 templates/syndication/fragments/event_facts.html:63
+msgid "Dress code"
+msgstr ""
+
+#: syndication/forms.py:118
+msgid "e.g. 'Fetish attire required', 'Nude / minimal clothing'"
+msgstr ""
+
+#: syndication/forms.py:122 templates/syndication/fragments/event_facts.html:95
+#, fuzzy
+#| msgid "Content policy"
+msgid "Content warnings"
+msgstr "Inhaltsrichtlinien"
+
+#: syndication/forms.py:123
+msgid "JSON array of strings. e.g. [\"nudity\", \"bdsm\"]"
+msgstr ""
+
+#: syndication/forms.py:130
+#, fuzzy
+#| msgid "Age restriction (JuSchG)"
+msgid "Age restriction"
+msgstr "Altersbeschränkung (JuSchG)"
+
+#: syndication/forms.py:131
+msgid "Minimum age for attendees. Leave blank for no restriction."
+msgstr ""
+
+#: syndication/forms.py:136 templates/syndication/fragments/event_facts.html:79
+msgid "Capacity"
+msgstr ""
+
+#: syndication/forms.py:137
+msgid "Maximum number of attendees. Leave blank for no cap."
+msgstr ""
+
+#: syndication/forms.py:141
+msgid "Public — anyone, indexed"
+msgstr ""
+
+#: syndication/forms.py:142
+msgid "Semi-public — vouched users only, noindex"
+msgstr ""
+
+#: syndication/forms.py:143
+msgid "Unlisted — URL-only, noindex"
+msgstr ""
+
+#: syndication/forms.py:147 templates/syndication/fragments/event_facts.html:87
+msgid "Visibility"
+msgstr ""
+
+#: syndication/forms.py:151 syndication/forms.py:217
+msgid "— not specified —"
+msgstr ""
+
+#: syndication/forms.py:157
+#, fuzzy
+#| msgid "Languages"
+msgid "Language"
+msgstr "Sprachen"
+
+#: syndication/forms.py:161
+msgid "Free event"
+msgstr ""
+
+#: syndication/forms.py:166
+msgid "Min price (cents)"
+msgstr ""
+
+#: syndication/forms.py:167
+msgid "e.g. 2000 = 20.00€"
+msgstr ""
+
+#: syndication/forms.py:172
+msgid "Max price (cents)"
+msgstr ""
+
+#: syndication/forms.py:178
+msgid "Currency"
+msgstr ""
+
+#: syndication/forms.py:182
+msgid "Sliding scale pricing"
+msgstr ""
+
+#: syndication/forms.py:186
+#, fuzzy
+#| msgid "Description"
+msgid "Price description"
+msgstr "Beschreibung"
+
+#: syndication/forms.py:188
+msgid "Free-form, e.g. \"Supporter 25€ / Normal 20€ / Social 15€\""
+msgstr ""
+
+#: syndication/forms.py:192
+msgid "External URL"
+msgstr ""
+
+#: syndication/forms.py:193
+msgid "Organizer page or event page on another platform."
+msgstr ""
+
+#: syndication/forms.py:197
+msgid "Tickets URL"
+msgstr ""
+
+#: syndication/forms.py:198
+msgid "Direct link to buy tickets."
+msgstr ""
+
+#: syndication/forms.py:202
+msgid "Registration required"
+msgstr ""
+
+#: syndication/forms.py:206
+#, fuzzy
+#| msgid "Restriction"
+msgid "Registration URL"
+msgstr "Einschränkung"
+
+#: syndication/forms.py:210
+#, fuzzy
+#| msgid "Restriction"
+msgid "Registration email"
+msgstr "Einschränkung"
+
+#: syndication/forms.py:211
+msgid "Email address for registrations instead of a ticket link."
+msgstr ""
+
+#: syndication/forms.py:218
+msgid "Play Party"
+msgstr ""
+
+#: syndication/forms.py:219
+msgid "Workshop"
+msgstr ""
+
+#: syndication/forms.py:220
+msgid "Munch"
+msgstr ""
+
+#: syndication/forms.py:221
+msgid "Performance"
+msgstr ""
+
+#: syndication/forms.py:222
+msgid "Social"
+msgstr ""
+
+#: syndication/forms.py:223
+msgid "Festival"
+msgstr ""
+
+#: syndication/forms.py:224 templates/reviews/_flag_button.html:22
+#: templates/reviews/takedown.html:61
+msgid "Other"
+msgstr "Sonstiges"
+
+#: syndication/forms.py:229
+#, fuzzy
+#| msgid "Data category"
+msgid "Category"
+msgstr "Datenkategorie"
+
+#: syndication/forms.py:233
+#: templates/syndication/fragments/_channel_editor.html:455
+msgid "Cover image"
+msgstr ""
+
+#: syndication/forms.py:234
+msgid "JPG, PNG, or WebP. Max 5 MiB."
+msgstr ""
+
+#: syndication/forms.py:250
+msgid ""
+"Content warnings must be a valid JSON array, e.g. [\"nudity\", \"bdsm\"]."
+msgstr ""
+
+#: syndication/forms.py:253
+msgid "Content warnings must be a JSON array."
+msgstr ""
+
+#: syndication/forms.py:268
+msgid "Headline / hook"
+msgstr ""
+
+#: syndication/forms.py:272
+msgid "Post body"
+msgstr ""
+
+#: syndication/forms.py:274
+msgid "The announcement text. Not derived from event description."
+msgstr ""
+
+#: syndication/forms.py:279 syndication/forms.py:322
+msgid "Call to action"
+msgstr ""
+
+#: syndication/forms.py:280
+msgid "URL or text to link readers to tickets/listing."
+msgstr ""
+
+#: syndication/forms.py:285 syndication/forms.py:327
+msgid "Voice / tone"
+msgstr ""
+
+#: syndication/forms.py:286
+msgid "e.g. 'playful', 'formal', 'urgent'"
+msgstr ""
+
+#: syndication/forms.py:300
+msgid "Version name"
+msgstr ""
+
+#: syndication/forms.py:301
+msgid "e.g. 'canonical', 'hipsy-censored', 'campaign-v1'"
+msgstr ""
+
+#: syndication/forms.py:306 templates/syndication/fragments/event_posts.html:32
+msgid "Headline"
+msgstr ""
+
+#: syndication/forms.py:310 templates/syndication/fragments/event_posts.html:37
+#: templates/syndication/fragments/post_syndication.html:285
+msgid "Body"
+msgstr ""
+
+#: syndication/forms.py:315
+msgid "Imagery"
+msgstr ""
+
+#: syndication/forms.py:316
+msgid "JSON array of image references/URLs, e.g. [\"img1.jpg\"]"
+msgstr ""
+
+#: syndication/forms.py:328
+msgid "e.g. 'playful', 'formal'"
+msgstr ""
+
+#: syndication/forms.py:346 syndication/models.py:588
+#: templates/syndication/connections_list.html:52
+#: templates/syndication/fragments/_channel_preview.html:195
+#, fuzzy
+#| msgid "Hosting"
+msgid "Listing"
+msgstr "Hosting"
+
+#: syndication/forms.py:347 syndication/models.py:589
+#: templates/syndication/connections_list.html:56
+msgid "Promotion"
+msgstr ""
+
+#: syndication/forms.py:352
+msgid "Switch (own event page)"
+msgstr ""
+
+#: syndication/forms.py:353 templates/syndication/connections_list.html:33
+msgid "FetLife"
+msgstr ""
+
+#: syndication/forms.py:354 templates/syndication/connections_list.html:35
+msgid "Ticket Tailor"
+msgstr ""
+
+#: syndication/forms.py:355
+#, fuzzy
+#| msgid "Telegram ingestion"
+msgid "Telegram channel"
+msgstr "Telegram-Aufnahme"
+
+#: syndication/forms.py:357 templates/syndication/connection_create.html:32
+#, fuzzy
+#| msgid "contact form"
+msgid "Platform"
+msgstr "Kontaktformular"
+
+#: syndication/forms.py:362 templates/syndication/connection_create.html:51
+#, fuzzy
+#| msgid "Restriction"
+msgid "Destination"
+msgstr "Einschränkung"
+
+#: syndication/forms.py:363
+msgid "Platform-specific identifier: channel username, account ID, etc."
+msgstr ""
+
+#: syndication/forms.py:368 templates/syndication/connection_create.html:83
+msgid "Kinds"
+msgstr ""
+
+#: syndication/forms.py:370
+msgid "Select at least one kind this connection supports."
+msgstr ""
+
+#: syndication/forms.py:375 templates/syndication/connection_create.html:116
+msgid "Enabled"
+msgstr ""
+
+#: syndication/forms.py:376
+msgid "Enable this connection for eager projection creation."
+msgstr ""
+
+#: syndication/forms.py:396
+msgid "This field is required for the selected platform."
+msgstr ""
+
+#: syndication/models.py:68
+msgid "Channel"
+msgstr ""
+
+#: syndication/models.py:69
+msgid "Group"
+msgstr ""
+
+#: syndication/models.py:70
+msgid "Supergroup"
+msgstr ""
+
+#: syndication/models.py:71
+msgid "Forum topic"
+msgstr ""
+
+#: syndication/models.py:94
+#: templates/syndication/fragments/_picker_row.html:102
+msgid "Bot"
+msgstr ""
+
+#: syndication/models.py:95
+#: templates/syndication/fragments/_picker_row.html:106
+msgid "Agent"
+msgstr ""
+
+#: syndication/models.py:96
+msgid "Public"
+msgstr ""
+
+#: syndication/models.py:285
+msgid "platform connection"
+msgstr ""
+
+#: syndication/models.py:286
+msgid "platform connections"
+msgstr ""
+
+#: syndication/models.py:391
+msgid "post"
+msgstr ""
+
+#: syndication/models.py:392
+msgid "posts"
+msgstr ""
+
+#: syndication/models.py:428
+msgid "Rule template"
+msgstr ""
+
+#: syndication/models.py:429
+msgid "Agent supplied"
+msgstr ""
+
+#: syndication/models.py:430
+msgid "Manual"
+msgstr ""
+
+#: syndication/models.py:531
+msgid "content version"
+msgstr ""
+
+#: syndication/models.py:532
+msgid "content versions"
+msgstr ""
+
+#: syndication/models.py:592
+msgid "Draft"
+msgstr ""
+
+#: syndication/models.py:593
+msgid "Ready"
+msgstr ""
+
+#: syndication/models.py:594
+msgid "Published"
+msgstr ""
+
+#: syndication/models.py:595 syndication/models.py:820
+#: templates/syndication/coverage.html:55
+#: templates/syndication/coverage.html:105
+msgid "Failed"
+msgstr ""
+
+#: syndication/models.py:747
+msgid "platform projection"
+msgstr ""
+
+#: syndication/models.py:748
+msgid "platform projections"
+msgstr ""
+
+#: syndication/models.py:819 templates/syndication/coverage.html:53
+#: templates/syndication/coverage.html:88
+msgid "Placed"
+msgstr ""
+
+#: syndication/models.py:821 templates/syndication/coverage.html:58
+#: templates/syndication/coverage.html:115
+msgid "Skipped (pre-existing draft)"
+msgstr ""
+
+#: syndication/models.py:893
+msgid "telegram placement"
+msgstr ""
+
+#: syndication/models.py:894
+msgid "telegram placements"
+msgstr ""
+
+#: syndication/models.py:986
+msgid "agent credential"
+msgstr ""
+
+#: syndication/models.py:987
+msgid "agent credentials"
+msgstr ""
+
+#: syndication/models.py:1115
+msgid "agent pairing token"
+msgstr ""
+
+#: syndication/models.py:1116
+msgid "agent pairing tokens"
+msgstr ""
+
+#: syndication/models.py:1216
+msgid "identity token"
+msgstr ""
+
+#: syndication/models.py:1217
+msgid "identity tokens"
 msgstr ""
 
 #: templates/account/email_confirm.html:6
 msgid "Confirm Email Address"
 msgstr ""
 
-#: templates/account/login.html:5 templates/account/login.html:56
+#: templates/account/email_confirm.html:12
+#: templates/account/email_confirm.html:28
+#: templates/account/email_confirm.html:37
+#, fuzzy
+#| msgid "Rectification"
+msgid "Account · Verification"
+msgstr "Berichtigung"
+
+#: templates/account/email_confirm.html:12
+msgid "Confirm your"
+msgstr ""
+
+#: templates/account/email_confirm.html:12
+msgid "email."
+msgstr ""
+
+#: templates/account/email_confirm.html:14
+msgid "Address"
+msgstr ""
+
+#: templates/account/email_confirm.html:23
+msgid "Confirm email"
+msgstr ""
+
+#: templates/account/email_confirm.html:28
+msgid "Already"
+msgstr ""
+
+#: templates/account/email_confirm.html:28
+msgid "confirmed."
+msgstr ""
+
+#: templates/account/email_confirm.html:30
+#, python-format
+msgid ""
+"\n"
+"            We can't confirm %(email)s — it is already confirmed by a "
+"different account.\n"
+"          "
+msgstr ""
+
+#: templates/account/email_confirm.html:37
+msgid "Link"
+msgstr ""
+
+#: templates/account/email_confirm.html:37
+msgid "expired."
+msgstr ""
+
+#: templates/account/email_confirm.html:39
+msgid "This confirmation link expired or is invalid."
+msgstr ""
+
+#: templates/account/email_confirm.html:40
+#: templates/account/password_reset_from_key.html:13
+msgid "Request a new link"
+msgstr ""
+
+#: templates/account/login.html:5
 msgid "Sign In"
 msgstr ""
 
-#: templates/account/login.html:21
-msgid "E-mail"
+#: templates/account/login.html:9
+msgid "Account · Entrance"
 msgstr ""
 
-#: templates/account/login.html:32 templates/account/signup.html:42
+#: templates/account/login.html:9
+msgid "Welcome"
+msgstr ""
+
+#: templates/account/login.html:9
+msgid "back."
+msgstr ""
+
+#: templates/account/login.html:15
+msgid "Cannot sign in"
+msgstr ""
+
+#: templates/account/login.html:19 templates/account/password_reset.html:23
+#: templates/account/signup.html:38
+#: templates/organizers/claim_check_email.html:14
+msgid "Email"
+msgstr ""
+
+#: templates/account/login.html:20
+#: templates/account/password_reset_from_key_done.html:8
+#: templates/account/signup.html:39
 msgid "Password"
 msgstr ""
 
-#: templates/account/login.html:34
-msgid "Forgot Password?"
+#: templates/account/login.html:25
+msgid "Remember me"
 msgstr ""
 
-#: templates/account/login.html:47
-msgid "Remember Me"
+#: templates/account/login.html:32
+msgid "Forgot password"
+msgstr ""
+
+#: templates/account/login.html:41
+#: templates/account/password_reset_from_key_done.html:13
+#: templates/account/signup.html:60
+msgid "Sign in"
+msgstr ""
+
+#: templates/account/login.html:45
+#, fuzzy
+#| msgid "User accounts"
+msgid "No account?"
+msgstr "Nutzerkonten"
+
+#: templates/account/login.html:46 templates/cotton/navbar.html:51
+msgid "Request invite"
 msgstr ""
 
 #: templates/account/logout.html:4
 msgid "Sign Out"
 msgstr ""
 
+#: templates/account/logout.html:8
+msgid "Account · Session"
+msgstr ""
+
+#: templates/account/logout.html:8
+msgid "Sign"
+msgstr ""
+
+#: templates/account/logout.html:8
+msgid "out?"
+msgstr ""
+
+#: templates/account/logout.html:10
+msgid "Your session will end on this device. You can sign back in any time."
+msgstr ""
+
+#: templates/account/logout.html:17
+msgid "Confirm sign out"
+msgstr ""
+
+#: templates/account/logout.html:18
+msgid "Stay signed in"
+msgstr ""
+
+#: templates/account/password_reset.html:4
+msgid "Password Reset"
+msgstr ""
+
+#: templates/account/password_reset.html:8
+#: templates/account/password_reset_done.html:8
+#: templates/account/password_reset_from_key.html:8
+#: templates/account/password_reset_from_key_done.html:8
+msgid "Account · Recovery"
+msgstr ""
+
+#: templates/account/password_reset.html:8
+msgid "Reset your"
+msgstr ""
+
+#: templates/account/password_reset.html:8
+#: templates/account/password_reset_from_key.html:8
+msgid "password."
+msgstr ""
+
+#: templates/account/password_reset.html:13
+msgid "Enter your email and we'll send you a link to set a new password."
+msgstr ""
+
+#: templates/account/password_reset.html:19
+msgid "Could not send"
+msgstr ""
+
+#: templates/account/password_reset.html:26
+msgid "Send reset link"
+msgstr ""
+
+#: templates/account/password_reset.html:30
+#: templates/account/password_reset_done.html:22
+msgid "Back to sign in"
+msgstr ""
+
+#: templates/account/password_reset_done.html:4
+msgid "Password reset sent"
+msgstr ""
+
+#: templates/account/password_reset_done.html:8
+#: templates/organizers/claim_check_email.html:28
+msgid "Check your"
+msgstr ""
+
+#: templates/account/password_reset_done.html:8
+#: templates/organizers/claim_check_email.html:28
+msgid "inbox."
+msgstr ""
+
+#: templates/account/password_reset_done.html:10
+msgid ""
+"We've sent a password reset link to the email address you provided. Open it "
+"from the same browser to continue."
+msgstr ""
+
+#: templates/account/password_reset_done.html:13
+#: templates/organizers/claim_check_email.html:36
+msgid "Link expires"
+msgstr ""
+
+#: templates/account/password_reset_done.html:15
+msgid "Within the hour"
+msgstr ""
+
+#: templates/account/password_reset_done.html:17
+#: templates/organizers/claim_check_email.html:40
+msgid "Missing it?"
+msgstr ""
+
+#: templates/account/password_reset_done.html:19
+#: templates/organizers/claim_check_email.html:42
+msgid "Check spam folder"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:4
+msgid "Set a new password"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:8
+msgid "Set a new"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:10
+msgid "Link invalid"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:12
+msgid ""
+"The password reset link was invalid, possibly because it has already been "
+"used."
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:20
+msgid "Cannot set"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:24
+msgid "New password"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:25
+msgid "Confirm new password"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html:27
+msgid "Save password"
+msgstr ""
+
+#: templates/account/password_reset_from_key_done.html:4
+msgid "Password set"
+msgstr ""
+
+#: templates/account/password_reset_from_key_done.html:8
+#, fuzzy
+#| msgid "Last updated"
+msgid "updated."
+msgstr "Zuletzt aktualisiert"
+
+#: templates/account/password_reset_from_key_done.html:10
+msgid "Your password is now set. You can sign in with the new password."
+msgstr ""
+
 #: templates/account/signup.html:4
 msgid "Signup"
 msgstr ""
 
-#: templates/account/signup.html:35
-msgid "Email"
+#: templates/account/signup.html:16
+msgid "Account · Request"
 msgstr ""
 
-#: templates/account/signup.html:52
-msgid "Confirm Password"
+#: templates/account/signup.html:16
+msgid "Join the"
 msgstr ""
 
-#: templates/account/signup.html:65
-msgid "Create Account"
+#: templates/account/signup.html:16 templates/accounts/me.html:8
+msgid "index."
 msgstr ""
 
-#: templates/accounts/me.html:4 templates/accounts/me.html:8
+#: templates/account/signup.html:16
+msgid "Verified organizers only. Hand-curated. Privacy-forward."
+msgstr ""
+
+#: templates/account/signup.html:23
+msgid "Cannot register"
+msgstr ""
+
+#: templates/account/signup.html:28 templates/reviews/takedown.html:21
+msgid "Check the fields"
+msgstr ""
+
+#: templates/account/signup.html:40
+msgid "Confirm password"
+msgstr ""
+
+#: templates/account/signup.html:41
+msgid "Invite code · optional"
+msgstr ""
+
+#: templates/account/signup.html:41
+msgid "If you have one"
+msgstr ""
+
+#: templates/account/signup.html:41
+msgid "Without a code, your account joins the review queue."
+msgstr ""
+
+#: templates/account/signup.html:55
+#, fuzzy
+#| msgid "User accounts"
+msgid "Request account"
+msgstr "Nutzerkonten"
+
+#: templates/account/signup.html:59
+msgid "Already in?"
+msgstr ""
+
+#: templates/accounts/me.html:4
 msgid "My Profile"
 msgstr ""
 
-#: templates/accounts/me.html:13
-msgid "Attendance Consent"
+#: templates/accounts/me.html:8
+msgid "Account · You"
 msgstr ""
 
-#: templates/accounts/me.html:15
+#: templates/accounts/me.html:8 templates/accounts/me.html:64
+msgid "Your"
+msgstr ""
+
+#: templates/accounts/me.html:8
+msgid "Followed organizers, attendance, and consent state."
+msgstr ""
+
+#: templates/accounts/me.html:21
+#, python-format
+msgid "Unknown status: %(s)s"
+msgstr ""
+
+#: templates/accounts/me.html:27
+msgid "Consent — Art. 9"
+msgstr ""
+
+#: templates/accounts/me.html:29
 #, python-format
 msgid ""
 "You gave consent to store your event attendance (GDPR Art. 9) on %(date)s. "
 "Withdrawing consent permanently deletes all attendance records."
 msgstr ""
 
-#: templates/accounts/me.html:23
-msgid "Withdraw attendance consent (deletes all attendance records)"
+#: templates/accounts/me.html:36
+#, fuzzy
+#| msgid "Withdraw consent"
+msgid "Withdraw consent · delete records"
+msgstr "Widerruf der Einwilligung"
+
+#: templates/accounts/me.html:41 templates/events/list.html:147
+#: templates/events/list.html:166 templates/organizers/_follow_button.html:10
+msgid "Following"
 msgstr ""
 
-#: templates/accounts/me.html:31
-msgid "Followed Organizers"
+#: templates/accounts/me.html:41
+msgid "Organizers"
 msgstr ""
 
-#: templates/accounts/me.html:43
+#: templates/accounts/me.html:53
 msgid "Unfollow"
 msgstr ""
 
-#: templates/accounts/me.html:50 templates/events/list.html:63
-msgid "You're not following anyone yet."
+#: templates/accounts/me.html:60
+msgid "Not following anyone yet"
 msgstr ""
 
-#: templates/accounts/me.html:56
-msgid "Upcoming Events"
+#: templates/accounts/me.html:64 templates/organizers/profile.html:99
+msgid "Upcoming"
 msgstr ""
 
-#: templates/accounts/me.html:64 templates/organizers/profile.html:69
-msgid "No upcoming events."
+#: templates/accounts/me.html:64 templates/accounts/me.html:75
+#, fuzzy
+#| msgid "Attendance records"
+msgid "attendance"
+msgstr "Teilnahmeeinträge"
+
+#: templates/accounts/me.html:71
+msgid "Nothing on the calendar"
 msgstr ""
 
-#: templates/accounts/me.html:70
-msgid "Past Events"
+#: templates/accounts/me.html:75 templates/organizers/profile.html:125
+msgid "Archive"
 msgstr ""
 
-#: templates/accounts/me.html:78
-msgid "No past events."
+#: templates/accounts/me.html:75 templates/organizers/profile.html:125
+msgid "Past"
+msgstr ""
+
+#: templates/accounts/me.html:82
+msgid "No past events recorded"
 msgstr ""
 
 #: templates/admin/events/event/change_form.html:7
@@ -316,326 +1297,731 @@ msgstr ""
 msgid "No raw message linked."
 msgstr ""
 
-#: templates/admin/reviews/flag/change_form.html:7
+#: templates/admin/reviews/flag/change_form.html:10
 msgid "Moderation actions"
 msgstr ""
 
-#: templates/admin/reviews/flag/change_form.html:17
+#: templates/admin/reviews/flag/change_form.html:19
 msgid "No action"
 msgstr ""
 
-#: templates/admin/reviews/flag/change_form.html:28
+#: templates/admin/reviews/flag/change_form.html:30
 msgid "Hide target"
 msgstr ""
 
-#: templates/admin/reviews/flag/change_form.html:39
+#: templates/admin/reviews/flag/change_form.html:41
 msgid "Suspend organizer"
 msgstr ""
 
-#: templates/admin/reviews/flag/change_form.html:50
+#: templates/admin/reviews/flag/change_form.html:52
 msgid "Delete review (soft)"
 msgstr ""
 
-#: templates/admin/reviews/flag/change_form.html:61
+#: templates/admin/reviews/flag/change_form.html:63
 msgid "Mark resolved"
 msgstr ""
 
-#: templates/age_check.html:3 tmp/bead2_desc.txt:230
+#: templates/age_check.html:4
 msgid "Age Verification"
 msgstr ""
 
-#: templates/age_check.html:10 tmp/bead2_desc.txt:237
-msgid "Age Verification / Altersverifizierung"
+#: templates/age_check.html:12
+msgid "Vorabkontrolle · Notice"
 msgstr ""
 
-#: templates/age_check.html:13 tmp/bead2_desc.txt:240
-msgid "This site contains adult content. You must be 18 or older to enter."
+#: templates/age_check.html:16
+msgid "Eighteen"
 msgstr ""
 
-#: templates/age_check.html:16 tmp/bead2_desc.txt:243
+#: templates/age_check.html:17
+msgid "& over."
+msgstr ""
+
+#: templates/age_check.html:21
+msgid ""
+"This platform lists adult-oriented events. By entering, you confirm you are "
+"at least eighteen."
+msgstr ""
+
+#: templates/age_check.html:23
 msgid ""
 "Diese Seite enthält Inhalte für Erwachsene. Du musst 18 Jahre oder älter "
 "sein, um einzutreten."
 msgstr ""
 
-#: templates/age_check.html:23 tmp/bead2_desc.txt:250
-msgid "Remember for 1 year / 1 Jahr merken"
+#: templates/age_check.html:34
+msgid "Remember for one year"
 msgstr ""
 
-#: templates/age_check.html:27 tmp/bead2_desc.txt:254
-msgid "Yes, I am 18+ / Ja, ich bin 18+"
+#: templates/age_check.html:42
+msgid "Yes — I am 18 or over"
 msgstr ""
 
-#: templates/age_check.html:31 tmp/bead2_desc.txt:258
-msgid "Leave / Verlassen"
+#: templates/age_check.html:45
+msgid "Leave"
 msgstr ""
 
-#: templates/cotton/event_card.html:20 templates/events/_event_drawer.html:16
-#: templates/events/detail.html:45
-msgid "Private venue"
-msgstr ""
-
-#: templates/cotton/event_card.html:28 templates/cotton/filter_chips.html:29
-#: templates/cotton/filter_chips.html:33 templates/events/detail.html:55
+#: templates/cotton/event_card.html:47 templates/events/detail.html:145
 msgid "Free"
 msgstr ""
 
-#: templates/cotton/event_card.html:35
-msgid "Average rating"
-msgstr ""
-
-#: templates/cotton/filter_chips.html:39
-msgid "From"
-msgstr ""
-
-#: templates/cotton/filter_chips.html:43
-msgid "To"
-msgstr ""
-
-#: templates/cotton/footer.html:4 tmp/bead4_desc.txt:82 tmp/bead4_desc.txt:134
-msgid "Impressum"
-msgstr ""
-
-#: templates/cotton/footer.html:5 tmp/bead4_desc.txt:135
-msgid "Privacy"
-msgstr ""
-
-#: templates/cotton/footer.html:6 tmp/bead4_desc.txt:136
-msgid "Terms"
-msgstr ""
-
-#: templates/cotton/footer.html:7 templates/reviews/takedown.html:5
-#: tmp/bead4_desc.txt:137
-msgid "Report content"
-msgstr "Inhalt melden"
-
-#: templates/cotton/footer.html:10 tmp/bead4_desc.txt:140
-msgid "Switch Berlin — queer, kinky, and conscious events"
-msgstr ""
-
-#: templates/cotton/organizer_mini_card.html:8
-#: templates/organizers/profile.html:37
-msgid "Verified"
-msgstr ""
-
-#: templates/cotton/pagination.html:21
-#, python-format
-msgid ""
-"\n"
-"      Page %(num)s of %(total)s\n"
-"    "
-msgstr ""
-
-#: templates/errors/403_pending_approval.html:4
-#: templates/errors/403_pending_approval.html:10
-msgid "Account Pending Approval"
-msgstr ""
-
-#: templates/errors/403_pending_approval.html:12
-msgid ""
-"Your account is pending approval. You will receive an email when approved."
-msgstr ""
-
-#: templates/errors/403_pending_approval.html:16
-msgid "Log out"
-msgstr ""
-
-#: templates/events/_attend_button.html:9
-msgid "Interested"
-msgstr ""
-
-#: templates/events/_attend_button.html:13
-msgid "Going"
-msgstr ""
-
-#: templates/events/_attend_button.html:18
-msgid "Went"
-msgstr ""
-
-#: templates/events/_consent_required.html:8
-msgid "Attendance Consent Required"
-msgstr ""
-
-#: templates/events/_consent_required.html:13
-msgid ""
-"Recording your attendance on kink/queer events may reveal your <strong>sexual"
-" orientation</strong> (GDPR Art.&nbsp;9 special-category data). By clicking "
-"<em>I consent</em> you allow this platform to store your attendance. You can "
-"withdraw at any time from your profile; withdrawal deletes all records."
-msgstr ""
-
-#: templates/events/_consent_required.html:21
-msgid ""
-"Die Speicherung deiner Teilnahme an Kink-/Queer-Veranstaltungen kann "
-"Rückschlüsse auf deine <strong>sexuelle Orientierung</strong> ermöglichen "
-"(Art.&nbsp;9 DSGVO besondere Kategorien). Mit <em>Ich stimme zu</em> erlaubst"
-" du die Speicherung. Widerruf jederzeit unter Mein Profil; Widerruf löscht "
-"alle Einträge."
-msgstr ""
-
-#: templates/events/_consent_required.html:37
-msgid "I consent / Ich stimme zu"
-msgstr ""
-
-#: templates/events/_consent_required.html:44
-msgid "Not now"
-msgstr ""
-
-#: templates/events/_event_drawer.html:7
-msgid "Close"
-msgstr ""
-
-#: templates/events/_event_drawer.html:27 templates/events/detail.html:95
-msgid "More info"
-msgstr ""
-
-#: templates/events/_event_list.html:12
-msgid "No events found."
-msgstr ""
-
-#: templates/events/detail.html:34
-msgid "Date"
-msgstr ""
-
-#: templates/events/detail.html:37
+#: templates/cotton/event_card.html:73 templates/events/detail.html:125
 msgid "Time"
 msgstr ""
 
-#: templates/events/detail.html:43
+#: templates/cotton/event_card.html:75 templates/events/detail.html:114
+#: templates/events/detail.html:127
+#: templates/syndication/fragments/event_facts.html:33
+msgid "time to be announced"
+msgstr "Uhrzeit folgt"
+
+#: templates/cotton/event_card.html:81 templates/events/detail.html:131
+#: templates/syndication/fragments/event_facts.html:46
 msgid "Venue"
 msgstr ""
 
-#: templates/events/detail.html:53
-msgid "Price"
+#: templates/cotton/event_card.html:84 templates/events/detail.html:134
+msgid "Private venue"
 msgstr ""
 
-#: templates/events/detail.html:60
-msgid "sliding scale"
+#: templates/cotton/event_card.html:106
+#: templates/syndication/_event_form_fields.html:84
+#: templates/syndication/fragments/_channel_editor.html:275
+msgid "Details"
 msgstr ""
 
-#: templates/events/detail.html:63
-msgid "See event page"
+#: templates/cotton/footer.html:18
+msgid ""
+"Built by and for the scene. Hand-curated. Privacy-forward. Organizers "
+"verified before listing."
 msgstr ""
 
-#: templates/events/detail.html:89
+#: templates/cotton/footer.html:22
+msgid "Colophon"
+msgstr ""
+
+#: templates/cotton/footer.html:25
+msgid "Impressum"
+msgstr ""
+
+#: templates/cotton/footer.html:27 templates/pages/privacy.html:7
+#: templates/reviews/takedown.html:86
+msgid "Privacy"
+msgstr ""
+
+#: templates/cotton/footer.html:29 templates/pages/terms.html:7
+msgid "Terms"
+msgstr ""
+
+#: templates/cotton/footer.html:31 templates/reviews/_flag_button.html:24
+msgid "Report"
+msgstr "Melden"
+
+#: templates/cotton/navbar.html:23 templates/organizers/profile.html:99
+#, fuzzy
+#| msgid "Hosting"
+msgid "Listings"
+msgstr "Hosting"
+
+#: templates/cotton/navbar.html:29
+#: templates/syndication/connections_list.html:11
+#: templates/syndication/coverage.html:21
+#: templates/syndication/destination_picker.html:18
+#: templates/syndication/fragments/_breadcrumb.html:37
+#: templates/syndication/fragments/_breadcrumb.html:40
+#: templates/syndication/studio.html:4
+msgid "Studio"
+msgstr ""
+
+#: templates/cotton/navbar.html:33 templates/syndication/_studio_rail.html:37
+#: templates/syndication/destination_picker.html:53
+#: templates/syndication/fragments/event_syndication.html:84
+#: templates/syndication/fragments/event_syndication.html:161
+#: templates/syndication/fragments/post_syndication.html:58
+#: templates/syndication/fragments/post_syndication.html:155
+msgid "Channels"
+msgstr ""
+
+#: templates/cotton/navbar.html:38
+msgid "My profile"
+msgstr ""
+
+#: templates/cotton/navbar.html:42
+#: templates/errors/403_pending_approval.html:31
+msgid "Log out"
+msgstr ""
+
+#: templates/cotton/navbar.html:47
+msgid "Log in"
+msgstr ""
+
+#: templates/cotton/organizer_mini_card.html:12
+#: templates/organizers/profile.html:49
+msgid "Verified"
+msgstr ""
+
+#: templates/cotton/pagination.html:21 templates/cotton/pagination.html:26
+msgid "Previous"
+msgstr ""
+
+#: templates/cotton/pagination.html:31
+msgid "Folio"
+msgstr ""
+
+#: templates/cotton/pagination.html:45 templates/cotton/pagination.html:50
+msgid "Next"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:4
+msgid "Account Pending Approval"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:10
+msgid "Account · Review queue"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:13
+msgid "Under"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:14
+msgid "review."
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:18
+msgid ""
+"Your account is pending approval. We review new requests by hand. You will "
+"receive an email when the account is opened."
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:21
+msgid "Curation"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:23
+msgid "By hand"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:25
+msgid "Typical wait"
+msgstr ""
+
+#: templates/errors/403_pending_approval.html:27
+#, fuzzy
+#| msgid "response within 72 hours"
+msgid "Within 72 hours"
+msgstr "Antwort innerhalb von 72 Stunden"
+
+#: templates/errors/403_pending_approval.html:32
+#: templates/events/detail.html:28
+msgid "Back to listings"
+msgstr ""
+
+#: templates/events/_attend_button.html:13
+msgid "Interested"
+msgstr ""
+
+#: templates/events/_attend_button.html:19
+#: templates/syndication/fragments/_channel_editor.html:658
+#: templates/syndication/fragments/_channel_preview.html:146
+msgid "Going"
+msgstr ""
+
+#: templates/events/_attend_button.html:26
+msgid "Went"
+msgstr ""
+
+#: templates/events/_consent_required.html:16
+msgid "GDPR Art. 9 · Special category"
+msgstr ""
+
+#: templates/events/_consent_required.html:20
+#, fuzzy
+#| msgid "Attendance records"
+msgid "Attendance"
+msgstr "Teilnahmeeinträge"
+
+#: templates/events/_consent_required.html:21
+msgid "consent."
+msgstr ""
+
+#: templates/events/_consent_required.html:26
+msgid ""
+"Recording your attendance on kink/queer events may reveal your <strong "
+"class=\"text-base-content\">sexual orientation</strong> (GDPR Art. 9 special-"
+"category data). By clicking <em class=\"text-base-content\">I consent</em> "
+"you allow this platform to store your attendance. You can withdraw at any "
+"time from your profile; withdrawal deletes all records."
+msgstr ""
+
+#: templates/events/_consent_required.html:34
+msgid ""
+"Die Speicherung deiner Teilnahme an Kink-/Queer-Veranstaltungen kann "
+"Rückschlüsse auf deine <strong class=\"text-base-content/80\">sexuelle "
+"Orientierung</strong> ermöglichen (Art. 9 DSGVO besondere Kategorien). Mit "
+"<em class=\"text-base-content/80\">Ich stimme zu</em> erlaubst du die "
+"Speicherung. Widerruf jederzeit unter Mein Profil; Widerruf löscht alle "
+"Einträge."
+msgstr ""
+
+#: templates/events/_consent_required.html:50
+msgid "I consent · Ich stimme zu"
+msgstr ""
+
+#: templates/events/_consent_required.html:56
+msgid "Not now"
+msgstr ""
+
+#: templates/events/_event_list.html:16
+#, python-format
+msgid "Collapse %(title)s"
+msgstr ""
+
+#: templates/events/_event_list.html:16
+#, python-format
+msgid "Expand %(title)s"
+msgstr ""
+
+#: templates/events/_event_list.html:63
+msgid "View full event"
+msgstr ""
+
+#: templates/events/_event_list.html:70
+msgid "Open organizer site in new tab"
+msgstr ""
+
+#: templates/events/_event_list.html:84
+#, fuzzy
+#| msgid "Organizer event publishing"
+msgid "Organizer site"
+msgstr "Veröffentlichung von Veranstalterveranstaltungen"
+
+#: templates/events/_event_list.html:100
+msgid "Nothing tonight"
+msgstr ""
+
+#: templates/events/_event_list.html:101
+msgid "No listings match the filter."
+msgstr ""
+
+#: templates/events/_event_list.html:103
+msgid "Clear filters"
+msgstr ""
+
+#: templates/events/detail.html:32
+#: templates/syndication/fragments/_channel_editor.html:655
+#: templates/syndication/fragments/_channel_preview.html:143
+#: templates/syndication/post_create_standalone_fragment.html:29
+msgid "Event"
+msgstr ""
+
+#: templates/events/detail.html:79
 msgid "Get tickets"
 msgstr ""
 
-#: templates/events/detail.html:103 templates/events/detail.html:104
-#: templates/organizers/profile.html:84
+#: templates/events/detail.html:88
+#, fuzzy
+#| msgid "Organizer event publishing"
+msgid "Organizer page"
+msgstr "Veröffentlichung von Veranstalterveranstaltungen"
+
+#: templates/events/detail.html:96
+msgid "Your status"
+msgstr ""
+
+#: templates/events/detail.html:121
+msgid "Date"
+msgstr ""
+
+#: templates/events/detail.html:135
+msgid "RSVP to reveal"
+msgstr ""
+
+#: templates/events/detail.html:152
+msgid "sliding scale"
+msgstr ""
+
+#: templates/events/detail.html:155
+msgid "See organizer page"
+msgstr ""
+
+#: templates/events/detail.html:162 templates/organizers/profile.html:132
 msgid "Reviews"
 msgstr ""
 
-#: templates/events/detail.html:119 templates/organizers/profile.html:129
-msgid "No reviews yet."
+#: templates/events/detail.html:179 templates/organizers/profile.html:165
+msgid "No reviews yet"
 msgstr ""
 
-#: templates/events/detail.html:124
-msgid "Safety first. Consent is mandatory. Look out for each other."
+#: templates/events/detail.html:187
+#, fuzzy
+#| msgid "Safety concern"
+msgid "Safety first"
+msgstr "Sicherheitsbedenken"
+
+#: templates/events/detail.html:188
+msgid "Consent is mandatory"
 msgstr ""
 
-#: templates/events/list.html:24
+#: templates/events/detail.html:189
+msgid "Look out for each other"
+msgstr ""
+
+#: templates/events/list.html:32
+msgid "Page header"
+msgstr ""
+
+#: templates/events/list.html:39
+#, python-format
+msgid "%(counter)s listing"
+msgid_plural "%(counter)s listings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/events/list.html:63 templates/events/list.html:74
+msgid "Filters"
+msgstr ""
+
+#: templates/events/list.html:99
+msgid "Sort"
+msgstr ""
+
+#: templates/events/list.html:104 templates/organizers/profile.html:105
 msgid "Latest"
 msgstr ""
 
-#: templates/events/list.html:30
+#: templates/events/list.html:106
 msgid "Trending"
 msgstr ""
 
-#: templates/events/list.html:54
-msgid "From organizers you follow"
+#: templates/events/list.html:109 templates/organizers/profile.html:108
+#, fuzzy
+#| msgid "Last updated"
+msgid "Lowest rated"
+msgstr "Zuletzt aktualisiert"
+
+#: templates/events/list.html:110 templates/organizers/profile.html:111
+msgid "Most reviewed"
 msgstr ""
 
-#: templates/events/list.html:61
-msgid "View all"
+#: templates/events/list.html:130
+msgid "Scope"
 msgstr ""
 
-#: templates/organizers/_follow_button.html:8
-msgid "Following"
+#: templates/events/list.html:175
+msgid "Type"
 msgstr ""
 
-#: templates/organizers/_follow_button.html:10
+#: templates/events/list.html:202 templates/events/list.html:210
+msgid "Free only"
+msgstr ""
+
+#: templates/events/list.html:216
+msgid "Period"
+msgstr ""
+
+#: templates/events/list.html:219
+msgid "From"
+msgstr ""
+
+#: templates/events/list.html:227
+msgid "To"
+msgstr ""
+
+#: templates/events/list.html:253
+msgid "Area"
+msgstr ""
+
+#: templates/events/list.html:272 templates/events/list.html:316
+msgid "Clear area"
+msgstr ""
+
+#: templates/events/list.html:280
+msgid "Expand map"
+msgstr ""
+
+#: templates/events/list.html:281
+msgid "Open map fullscreen"
+msgstr ""
+
+#: templates/events/list.html:311
+msgid "Area · Fullscreen"
+msgstr ""
+
+#: templates/events/list.html:322
+msgid "Close fullscreen map"
+msgstr ""
+
+#: templates/events/list.html:333
+msgid "Close"
+msgstr ""
+
+#: templates/events/list.html:344
+msgid "Legend"
+msgstr ""
+
+#: templates/events/list.html:361
+msgid "Public venue"
+msgstr ""
+
+#: templates/events/list.html:369
+msgid "Private (approx.)"
+msgstr ""
+
+#: templates/events/list.html:375
+msgid "Multiple events"
+msgstr ""
+
+#: templates/events/list.html:382
+msgid "Berlin · DE"
+msgstr ""
+
+#: templates/events/list.html:393
+msgid "The listings"
+msgstr ""
+
+#: templates/events/list.html:395
+#, python-format
+msgid "%(counter)s entry"
+msgid_plural "%(counter)s entries"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/organizers/_follow_button.html:14
 msgid "Follow"
 msgstr ""
 
-#: templates/organizers/profile.html:63
-msgid "Upcoming events"
+#: templates/organizers/claim_check_email.html:5
+#, fuzzy
+#| msgid "Ratings and reviews"
+msgid "Claim pending review"
+msgstr "Bewertungen und Rezensionen"
+
+#: templates/organizers/claim_check_email.html:7
+msgid "Check your email"
 msgstr ""
 
-#: templates/organizers/profile.html:74
-msgid "Past events"
+#: templates/organizers/claim_check_email.html:14
+msgid "Organizer · Claim submitted"
 msgstr ""
 
-#: templates/organizers/profile.html:96
-msgid "Recent"
+#: templates/organizers/claim_check_email.html:14
+msgid "verified."
+msgstr ""
+
+#: templates/organizers/claim_check_email.html:16
+#, python-format
+msgid ""
+"\n"
+"        Your email is verified and your claim on\n"
+"        <strong class=\"text-base-content\">%(name)s</strong> is now pending "
+"review by our team. We'll email you once it's approved.\n"
+"      "
+msgstr ""
+
+#: templates/organizers/claim_check_email.html:22
+#: templates/syndication/fragments/event_facts.html:23
+msgid "Status"
+msgstr ""
+
+#: templates/organizers/claim_check_email.html:24
+#, fuzzy
+#| msgid "Ratings and reviews"
+msgid "Pending admin review"
+msgstr "Bewertungen und Rezensionen"
+
+#: templates/organizers/claim_check_email.html:28
+#, fuzzy
+#| msgid "Organizer event publishing"
+msgid "Organizer · Claim sent"
+msgstr "Veröffentlichung von Veranstalterveranstaltungen"
+
+#: templates/organizers/claim_check_email.html:30
+#, python-format
+msgid ""
+"\n"
+"        We've sent a verification link for your claim on\n"
+"        <strong class=\"text-base-content\">%(name)s</strong>. Open it from "
+"the same browser to continue.\n"
+"      "
+msgstr ""
+
+#: templates/organizers/claim_check_email.html:38
+msgid "24 hours"
+msgstr ""
+
+#: templates/organizers/claim_check_email.html:47
+#: templates/organizers/claim_start.html:25
+msgid "Back to profile"
+msgstr ""
+
+#: templates/organizers/claim_start.html:5
+msgid "You already manage this profile"
+msgstr ""
+
+#: templates/organizers/claim_start.html:7 templates/organizers/profile.html:81
+msgid "Claim this profile"
+msgstr ""
+
+#: templates/organizers/claim_start.html:19
+msgid "Organizer · Claim"
+msgstr ""
+
+#: templates/organizers/claim_start.html:21
+msgid "Already yours"
+msgstr ""
+
+#: templates/organizers/claim_start.html:22
+msgid "You are already listed as a claimant for this profile."
+msgstr ""
+
+#: templates/organizers/claim_start.html:28
+#, python-format
+msgid ""
+"\n"
+"          Enter the email address you'd like to use to verify your claim "
+"for\n"
+"          <strong class=\"text-base-content\">%(name)s</strong>. We'll send "
+"you a verification link.\n"
+"        "
+msgstr ""
+
+#: templates/organizers/claim_start.html:34
+msgid "Two ways in"
+msgstr ""
+
+#: templates/organizers/claim_start.html:36
+msgid ""
+"\n"
+"              <strong>(1)</strong> If your email's domain matches this "
+"profile's verified domain,\n"
+"              you'll be auto-approved after clicking the link in your "
+"inbox.\n"
+"              <strong>(2)</strong> Otherwise, your request joins the admin "
+"review queue — tell us\n"
+"              who you are below so we can verify it.\n"
+"            "
+msgstr ""
+
+#: templates/organizers/claim_start.html:48
+msgid "Could not submit"
+msgstr ""
+
+#: templates/organizers/claim_start.html:67
+msgid "Send verification link"
+msgstr ""
+
+#: templates/organizers/claim_start.html:71
+#: templates/syndication/connection_create.html:130
+#: templates/syndication/event_edit.html:33
+#: templates/syndication/fragments/_sync_picker.html:119
+#: templates/syndication/fragments/event_posts.html:13
+msgid "Cancel"
+msgstr ""
+
+#: templates/organizers/profile.html:29
+msgid "Organizer · Profile"
+msgstr ""
+
+#: templates/organizers/profile.html:73
+msgid "Sign in to claim"
+msgstr ""
+
+#: templates/organizers/profile.html:75
+msgid "You manage this profile"
+msgstr ""
+
+#: templates/organizers/profile.html:77
+msgid "Claim Pending"
+msgstr ""
+
+#: templates/organizers/profile.html:99
+msgid "& open"
 msgstr ""
 
 #: templates/organizers/profile.html:102
+msgid "Sort —"
+msgstr ""
+
+#: templates/organizers/profile.html:120
+msgid "No upcoming events"
+msgstr ""
+
+#: templates/organizers/profile.html:125
+#, fuzzy
+#| msgid "Hosting"
+msgid "listings"
+msgstr "Hosting"
+
+#: templates/organizers/profile.html:136
+msgid "Recent"
+msgstr ""
+
+#: templates/organizers/profile.html:139
 msgid "Highest"
 msgstr ""
 
-#: templates/organizers/profile.html:108
+#: templates/organizers/profile.html:142
 msgid "Lowest"
 msgstr ""
 
-#: templates/organizers/profile.html:117
-#, python-format
-msgid "%(rating)s stars"
-msgstr ""
-
-#: templates/pages/impressum.html:3 templates/pages/impressum.html:11
+#: templates/pages/impressum.html:4 templates/pages/impressum.html:7
 msgid "Imprint"
 msgstr "Impressum"
 
-#: templates/pages/impressum.html:16
+#: templates/pages/impressum.html:7
+msgid "Legal · § 5 DDG"
+msgstr ""
+
+#: templates/pages/impressum.html:12
 msgid "Operator"
 msgstr "Anbieter"
 
-#: templates/pages/impressum.html:22
+#: templates/pages/impressum.html:21
 msgid "Phone"
 msgstr "Telefon"
 
-#: templates/pages/impressum.html:24 tmp/bead4_desc.txt:88
+#: templates/pages/impressum.html:23
 msgid "Contact"
 msgstr ""
 
-#: templates/pages/impressum.html:24
+#: templates/pages/impressum.html:23
 msgid "contact form"
 msgstr "Kontaktformular"
 
-#: templates/pages/impressum.html:25
+#: templates/pages/impressum.html:24
 msgid "response within 72 hours"
 msgstr "Antwort innerhalb von 72 Stunden"
 
-#: templates/pages/impressum.html:32
+#: templates/pages/impressum.html:30
 msgid "Responsible for content pursuant to § 18 Abs. 2 MStV"
 msgstr "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV"
 
-#: templates/pages/impressum.html:41
+#: templates/pages/impressum.html:39
 msgid "DSA contact point (Art. 11/12 DSA)"
 msgstr "DSA-Kontaktstelle (Art. 11/12 DSA)"
 
-#: templates/pages/impressum.html:43
+#: templates/pages/impressum.html:41
 msgid ""
-"Contact point for authorities and users pursuant to Art. 11/12 of the Digital"
-" Services Act (DSA):"
+"Contact point for authorities and users pursuant to Art. 11/12 of the "
+"Digital Services Act (DSA):"
 msgstr ""
 "Kontaktstelle für Behörden und Nutzer:innen nach Art. 11/12 des Digital "
 "Services Act (DSA):"
 
-#: templates/pages/impressum.html:49
+#: templates/pages/impressum.html:48
 msgid "Languages"
 msgstr "Sprachen"
 
-#: templates/pages/impressum.html:49
+#: templates/pages/impressum.html:48
 msgid "German (DE), English (EN)"
 msgstr "Deutsch (DE), Englisch (EN)"
 
-#: templates/pages/impressum.html:55
+#: templates/pages/impressum.html:53
 msgid "Consumer dispute resolution / Universal arbitration body"
 msgstr "Streitschlichtung / Verbraucherschlichtungsstelle"
 
-#: templates/pages/impressum.html:57
+#: templates/pages/impressum.html:55
 msgid ""
 "We are not willing or obliged to participate in dispute resolution "
 "proceedings before a consumer arbitration board."
@@ -643,23 +2029,23 @@ msgstr ""
 "Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren "
 "vor einer Verbraucherschlichtungsstelle teilzunehmen."
 
-#: templates/pages/impressum.html:70
+#: templates/pages/impressum.html:67
 msgid "Disclaimer"
 msgstr "Haftungsausschluss"
 
-#: templates/pages/impressum.html:72
+#: templates/pages/impressum.html:68
 msgid "Liability for content"
 msgstr "Haftung für Inhalte"
 
-#: templates/pages/impressum.html:74
+#: templates/pages/impressum.html:70
 msgid ""
 "As a service provider we are responsible for our own content on these pages "
 "in accordance with § 7 Abs. 1 DDG (formerly TMG) and general laws. According "
 "to §§ 8–10 DDG, however, we are not obliged as a service provider to monitor "
 "transmitted or stored third-party information, or to investigate "
 "circumstances that indicate illegal activity. Obligations to remove or block "
-"the use of information under general laws remain unaffected. Any liability in"
-" this regard, however, is only possible from the moment of knowledge of a "
+"the use of information under general laws remain unaffected. Any liability "
+"in this regard, however, is only possible from the moment of knowledge of a "
 "specific infringement. Upon becoming aware of such violations we will remove "
 "this content immediately."
 msgstr ""
@@ -667,18 +2053,18 @@ msgstr ""
 "diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8–10 DDG "
 "sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder "
 "gespeicherte fremde Informationen zu überwachen oder nach Umständen zu "
-"forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur"
-" Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen "
-"Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch "
-"erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. "
-"Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese "
-"Inhalte umgehend entfernen."
+"forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen "
+"zur Entfernung oder Sperrung der Nutzung von Informationen nach den "
+"allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung "
+"ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten "
+"Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden "
+"Rechtsverletzungen werden wir diese Inhalte umgehend entfernen."
 
-#: templates/pages/impressum.html:87
+#: templates/pages/impressum.html:82
 msgid "Liability for links"
 msgstr "Haftung für Links"
 
-#: templates/pages/impressum.html:89
+#: templates/pages/impressum.html:84
 msgid ""
 "Our offering contains links to external websites of third parties over whose "
 "content we have no influence. Therefore we cannot assume any liability for "
@@ -687,8 +2073,8 @@ msgid ""
 "were checked for possible legal violations at the time of linking. Illegal "
 "content was not recognisable at the time of linking. A permanent control of "
 "the contents of linked pages is not reasonable without concrete evidence of "
-"an infringement. Upon becoming aware of legal violations, we will remove such"
-" links immediately."
+"an infringement. Upon becoming aware of legal violations, we will remove "
+"such links immediately."
 msgstr ""
 "Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte "
 "wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch "
@@ -697,15 +2083,15 @@ msgstr ""
 "Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße "
 "überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht "
 "erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist "
-"jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei"
-" Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend "
+"jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. "
+"Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend "
 "entfernen."
 
-#: templates/pages/impressum.html:102
+#: templates/pages/impressum.html:96
 msgid "Copyright"
 msgstr "Urheberrecht"
 
-#: templates/pages/impressum.html:104
+#: templates/pages/impressum.html:98
 msgid ""
 "The content and works created by the site operators on these pages are "
 "subject to German copyright law. Duplication, processing, distribution, and "
@@ -721,31 +2107,43 @@ msgstr ""
 "unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, "
 "Verbreitung und jede Art der Verwertung außerhalb der Grenzen des "
 "Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors "
-"bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten,"
-" nicht kommerziellen Gebrauch gestattet. Von Nutzer:innen und "
+"bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den "
+"privaten, nicht kommerziellen Gebrauch gestattet. Von Nutzer:innen und "
 "Veranstalter:innen eingestellte Inhalte (Veranstaltungsbeschreibungen, "
 "Bilder, Bewertungen) verbleiben im geistigen Eigentum der jeweiligen "
 "Nutzer:innen bzw. Veranstalter:innen. Mit dem Einstellen von Inhalten räumen "
 "Nutzer:innen der Plattform eine nicht-ausschließliche, unentgeltliche Lizenz "
 "zur Darstellung dieser Inhalte im Rahmen des Dienstes ein."
 
-#: templates/pages/privacy.html:3 templates/pages/privacy.html:6
+#: templates/pages/privacy.html:4
 msgid "Privacy Policy"
 msgstr "Datenschutzerklärung"
 
-#: templates/pages/privacy.html:11
+#: templates/pages/privacy.html:7
+msgid "Legal · GDPR / DSGVO"
+msgstr ""
+
+#: templates/pages/privacy.html:7
+msgid "policy."
+msgstr ""
+
+#: templates/pages/privacy.html:7
+msgid "Per-purpose lawful basis, retention schedule, and data-subject rights."
+msgstr ""
+
+#: templates/pages/privacy.html:12
 msgid "Controller"
 msgstr "Verantwortlicher"
 
-#: templates/pages/privacy.html:13
+#: templates/pages/privacy.html:14
 msgid "Verantwortlicher im Sinne der DSGVO / Controller under GDPR Art. 4(7):"
 msgstr "Verantwortlicher im Sinne der DSGVO (Art. 4 Abs. 7 DSGVO):"
 
-#: templates/pages/privacy.html:26
+#: templates/pages/privacy.html:28
 msgid "Lawful basis for processing"
 msgstr "Rechtsgrundlage der Verarbeitung"
 
-#: templates/pages/privacy.html:27
+#: templates/pages/privacy.html:29
 msgid ""
 "We process personal data only where a lawful basis under GDPR Art. 6 or Art. "
 "9 applies:"
@@ -753,27 +2151,27 @@ msgstr ""
 "Wir verarbeiten personenbezogene Daten nur, soweit eine Rechtsgrundlage nach "
 "Art. 6 oder Art. 9 DSGVO vorliegt:"
 
-#: templates/pages/privacy.html:33
+#: templates/pages/privacy.html:34
 msgid "Purpose"
 msgstr "Zweck"
 
-#: templates/pages/privacy.html:34
+#: templates/pages/privacy.html:35
 msgid "Legal basis"
 msgstr "Rechtsgrundlage"
 
-#: templates/pages/privacy.html:39
+#: templates/pages/privacy.html:40
 msgid "Account creation and login"
 msgstr "Kontoerstellung und Anmeldung"
 
-#: templates/pages/privacy.html:40
+#: templates/pages/privacy.html:41
 msgid "performance of contract"
 msgstr "Vertragserfüllung"
 
-#: templates/pages/privacy.html:44
+#: templates/pages/privacy.html:45
 msgid "Attendance recording"
 msgstr "Teilnahmeaufzeichnung"
 
-#: templates/pages/privacy.html:47
+#: templates/pages/privacy.html:48
 msgid ""
 "Attendance on kink/queer events may reveal sexual orientation. Explicit "
 "consent is requested before the first attendance record is created. You may "
@@ -783,18 +2181,18 @@ msgstr ""
 "Die Teilnahme an Kink-/Queer-Veranstaltungen kann Rückschlüsse auf die "
 "sexuelle Orientierung ermöglichen. Vor dem ersten Teilnahmeeintrag wird eine "
 "ausdrückliche Einwilligung eingeholt. Der Widerruf der Einwilligung ist "
-"jederzeit im Profil (<a href=\"/me/\">/me/</a>) möglich; beim Widerruf werden"
-" alle Teilnahmeeinträge dauerhaft gelöscht."
+"jederzeit im Profil (<a href=\"/me/\">/me/</a>) möglich; beim Widerruf "
+"werden alle Teilnahmeeinträge dauerhaft gelöscht."
 
-#: templates/pages/privacy.html:55
+#: templates/pages/privacy.html:56
 msgid "explicit consent"
 msgstr "ausdrückliche Einwilligung"
 
-#: templates/pages/privacy.html:59
+#: templates/pages/privacy.html:60
 msgid "Organizer event publishing"
 msgstr "Veröffentlichung von Veranstalterveranstaltungen"
 
-#: templates/pages/privacy.html:62
+#: templates/pages/privacy.html:63
 msgid ""
 "Event listings collected automatically from organizer websites and from "
 "Telegram channels and groups: public ones, and invite-only ones the "
@@ -811,40 +2209,39 @@ msgstr ""
 "ausschließlich für verbürgte Mitglieder sichtbar. Berechtigtes Interesse: "
 "Ankündigungen, die Veranstalter:innen selbst verbreiten, in einem "
 "gemeinschaftsorientierten, durchsuchbaren Verzeichnis auffindbar machen. "
-"Organisator:innen können der Aufnahme jederzeit über <a "
-"href=\"/takedown/\">/takedown/</a> (Art. 21 DSGVO) widersprechen – keine "
-"Anmeldung erforderlich."
+"Organisator:innen können der Aufnahme jederzeit über <a href=\"/takedown/\">/"
+"takedown/</a> (Art. 21 DSGVO) widersprechen – keine Anmeldung erforderlich."
 
-#: templates/pages/privacy.html:72
+#: templates/pages/privacy.html:74
 msgid "legitimate interest"
 msgstr "berechtigtes Interesse"
 
-#: templates/pages/privacy.html:72
+#: templates/pages/privacy.html:74
 msgid "Berechtigtes Interesse"
 msgstr "Berechtigtes Interesse"
 
-#: templates/pages/privacy.html:75
+#: templates/pages/privacy.html:77
 msgid "Flag and takedown reports"
 msgstr "Meldungen und Takedown-Berichte"
 
-#: templates/pages/privacy.html:76
+#: templates/pages/privacy.html:78
 msgid "legal obligation (DSA compliance)"
 msgstr "rechtliche Verpflichtung (DSA-Konformität)"
 
-#: templates/pages/privacy.html:79
+#: templates/pages/privacy.html:81
 msgid "Email delivery (transactional)"
 msgstr "E-Mail-Versand (transaktional)"
 
-#: templates/pages/privacy.html:80
+#: templates/pages/privacy.html:82
 msgid "necessary for the requested service"
 msgstr "zur Erbringung des beantragten Dienstes erforderlich"
 
-#: templates/pages/privacy.html:89
+#: templates/pages/privacy.html:90
 msgid "Special-category data — attendance (Art. 9 GDPR)"
 msgstr ""
 "Besondere Kategorien personenbezogener Daten — Teilnahme (Art. 9 DSGVO)"
 
-#: templates/pages/privacy.html:91
+#: templates/pages/privacy.html:92
 msgid ""
 "Attendance on kink and queer events constitutes special-category data under "
 "Art. 9 GDPR because it may reveal your sexual orientation. We process this "
@@ -857,18 +2254,18 @@ msgstr ""
 "Ihrer ausdrücklichen Einwilligung (Art. 9 Abs. 2 lit. a DSGVO). Die "
 "Einwilligung wird einmalig vor dem ersten Teilnahmeeintrag eingeholt."
 
-#: templates/pages/privacy.html:99
+#: templates/pages/privacy.html:100
 msgid ""
-"You may withdraw consent at any time from your profile page (<a "
-"href=\"/me/\">/me/</a>). Withdrawal is immediate and irreversible: all "
-"attendance records are permanently deleted (Art. 17 erasure). Withdrawal does"
-" not affect your account or other data."
+"You may withdraw consent at any time from your profile page (<a href=\"/me/"
+"\">/me/</a>). Withdrawal is immediate and irreversible: all attendance "
+"records are permanently deleted (Art. 17 erasure). Withdrawal does not "
+"affect your account or other data."
 msgstr ""
-"Der Widerruf der Einwilligung ist jederzeit auf der Profilseite (<a "
-"href=\"/me/\">/me/</a>) möglich. Der Widerruf ist sofort wirksam und "
-"unwiderruflich: alle Teilnahmeeinträge werden dauerhaft gelöscht (Art. 17 "
-"DSGVO). Der Widerruf berührt nicht die Rechtmäßigkeit der bis dahin erfolgten"
-" Verarbeitung."
+"Der Widerruf der Einwilligung ist jederzeit auf der Profilseite (<a href=\"/"
+"me/\">/me/</a>) möglich. Der Widerruf ist sofort wirksam und unwiderruflich: "
+"alle Teilnahmeeinträge werden dauerhaft gelöscht (Art. 17 DSGVO). Der "
+"Widerruf berührt nicht die Rechtmäßigkeit der bis dahin erfolgten "
+"Verarbeitung."
 
 #: templates/pages/privacy.html:109
 msgid "Recipients and processors (Art. 13(1)(e) GDPR)"
@@ -876,8 +2273,8 @@ msgstr "Empfänger und Auftragsverarbeiter (Art. 13 Abs. 1 lit. e DSGVO)"
 
 #: templates/pages/privacy.html:110
 msgid ""
-"We share data with the following processors under appropriate data processing"
-" agreements (DPAs):"
+"We share data with the following processors under appropriate data "
+"processing agreements (DPAs):"
 msgstr ""
 "Wir geben Daten an folgende Auftragsverarbeiter weiter, mit denen "
 "entsprechende Auftragsverarbeitungsverträge (AVV) abgeschlossen wurden:"
@@ -888,8 +2285,8 @@ msgstr "Hosting"
 
 #: templates/pages/privacy.html:114
 msgid ""
-"Hetzner Online GmbH, Gunzenhausen, Germany — server infrastructure. EU-based;"
-" DPA in place. Your data is processed exclusively within the EU/EEA."
+"Hetzner Online GmbH, Gunzenhausen, Germany — server infrastructure. EU-"
+"based; DPA in place. Your data is processed exclusively within the EU/EEA."
 msgstr ""
 "Hetzner Online GmbH, Gunzenhausen, Deutschland — Server-Infrastruktur. EU-"
 "ansässig; AVV abgeschlossen. Ihre Daten werden ausschließlich innerhalb der "
@@ -913,10 +2310,10 @@ msgstr "KI-Sprachmodell-Verarbeitung"
 
 #: templates/pages/privacy.html:125
 msgid ""
-"Requesty Ltd (LLM router) and OpenAI (OpenAI OpCo, LLC, USA; the model behind"
-" the router): large language model (LLM) extraction of event data from "
-"Telegram posts, including the images attached to them, and from organizer web"
-" pages. OpenAI is based in the United States; transfers are covered by "
+"Requesty Ltd (LLM router) and OpenAI (OpenAI OpCo, LLC, USA; the model "
+"behind the router): large language model (LLM) extraction of event data from "
+"Telegram posts, including the images attached to them, and from organizer "
+"web pages. OpenAI is based in the United States; transfers are covered by "
 "Standard Contractual Clauses (SCC) pursuant to Art. 44ff GDPR. Every "
 "collected post is sent to the model once, before it is known whether it "
 "announces an event, so it may contain personal data its author wrote in the "
@@ -926,20 +2323,20 @@ msgstr ""
 "hinter dem Router): Extraktion von Veranstaltungsdaten mittels KI-"
 "Sprachmodell (LLM) aus Telegram-Beiträgen, einschließlich der angehängten "
 "Bilder, und aus Websites der Veranstalter:innen. OpenAI hat seinen Sitz in "
-"den USA; Übermittlungen erfolgen auf Basis von Standardvertragsklauseln (SCC)"
-" gemäß Art. 44 ff. DSGVO. Jeder gesammelte Beitrag wird einmal an das Modell "
-"übermittelt, bevor feststeht, ob er eine Veranstaltung ankündigt; er kann "
-"daher personenbezogene Daten enthalten, die seine Verfasser:in im Quellkanal "
-"geschrieben hat. Es werden keine Daten über Nutzer:innen dieser Plattform "
-"übermittelt."
+"den USA; Übermittlungen erfolgen auf Basis von Standardvertragsklauseln "
+"(SCC) gemäß Art. 44 ff. DSGVO. Jeder gesammelte Beitrag wird einmal an das "
+"Modell übermittelt, bevor feststeht, ob er eine Veranstaltung ankündigt; er "
+"kann daher personenbezogene Daten enthalten, die seine Verfasser:in im "
+"Quellkanal geschrieben hat. Es werden keine Daten über Nutzer:innen dieser "
+"Plattform übermittelt."
 
-#: templates/pages/privacy.html:136
+#: templates/pages/privacy.html:137
 msgid ""
 "Telegram Messenger Inc.: source of event announcements, both forwarded by "
 "organizers and read from channels and groups the operator's own account is a "
 "member of. Telegram is an independent data controller for the source "
-"channels; this platform only reads messages there and never posts on anyone's"
-" behalf."
+"channels; this platform only reads messages there and never posts on "
+"anyone's behalf."
 msgstr ""
 "Telegram Messenger Inc.: Quelle von Veranstaltungsankündigungen, die von "
 "Veranstalter:innen weitergeleitet oder aus Kanälen und Gruppen gelesen "
@@ -947,21 +2344,21 @@ msgstr ""
 "für die Quellkanäle ein eigenständiger Verantwortlicher; diese Plattform "
 "liest dort nur Nachrichten und postet nie im Namen anderer."
 
-#: templates/pages/privacy.html:144
+#: templates/pages/privacy.html:146
 msgid ""
 "OpenStreetMap Foundation (OSMF): map tile delivery for event location maps. "
-"Your IP address is transmitted per map load under the <a "
-"href=\"https://operations.osmfoundation.org/policies/tiles/\">OSM Tile Usage "
-"Policy</a>. MapLibre is an open-source rendering library; no data is shared "
-"with MapLibre itself."
+"Your IP address is transmitted per map load under the <a href=\"https://"
+"operations.osmfoundation.org/policies/tiles/\">OSM Tile Usage Policy</a>. "
+"MapLibre is an open-source rendering library; no data is shared with "
+"MapLibre itself."
 msgstr ""
 "OpenStreetMap Foundation (OSMF): Kartenkachellieferung für "
-"Veranstaltungsortkarten. Ihre IP-Adresse wird bei jedem Kartenladen gemäß der"
-" <a href=\"https://operations.osmfoundation.org/policies/tiles/\">OSM-"
+"Veranstaltungsortkarten. Ihre IP-Adresse wird bei jedem Kartenladen gemäß "
+"der <a href=\"https://operations.osmfoundation.org/policies/tiles/\">OSM-"
 "Kachelnutzungsrichtlinie</a> übermittelt. MapLibre ist eine Open-Source-"
 "Rendering-Bibliothek; es werden keine Daten an MapLibre selbst übermittelt."
 
-#: templates/pages/privacy.html:156
+#: templates/pages/privacy.html:157
 msgid "Retention schedule (Aufbewahrungsdauer)"
 msgstr "Aufbewahrungsfristen (Aufbewahrungsdauer)"
 
@@ -1004,7 +2401,7 @@ msgstr "3 Jahre (Aufzeichnungspflicht des DSA)."
 msgid "Telegram ingestion"
 msgstr "Telegram-Aufnahme"
 
-#: templates/pages/privacy.html:181
+#: templates/pages/privacy.html:182
 msgid ""
 "Collected posts that announce no event: text, images and sender deleted "
 "immediately after the model's check. Images of posts that announce events: "
@@ -1012,123 +2409,124 @@ msgid ""
 msgstr ""
 "Gesammelte Beiträge, die keine Veranstaltung ankündigen: Text, Bilder und "
 "Absender werden unmittelbar nach der Prüfung durch das Modell gelöscht. "
-"Bilder von Beiträgen, die Veranstaltungen ankündigen: werden gelöscht, sobald"
-" die Veranstaltungen extrahiert sind."
+"Bilder von Beiträgen, die Veranstaltungen ankündigen: werden gelöscht, "
+"sobald die Veranstaltungen extrahiert sind."
 
-#: templates/pages/privacy.html:180
+#: templates/pages/privacy.html:183
 msgid "90 days after the event date, then purged."
 msgstr "90 Tage nach dem Veranstaltungsdatum, dann gelöscht."
 
-#: templates/pages/privacy.html:185
+#: templates/pages/privacy.html:188
 msgid "30 days, then purged."
 msgstr "30 Tage, dann gelöscht."
 
-#: templates/pages/privacy.html:188
+#: templates/pages/privacy.html:191
 msgid "User accounts"
 msgstr "Nutzerkonten"
 
-#: templates/pages/privacy.html:189
+#: templates/pages/privacy.html:192
 msgid "Until account deletion is requested by the user or by an administrator."
 msgstr ""
 "Bis zur Löschung des Kontos auf Anfrage des Nutzers oder eines "
 "Administrators."
 
-#: templates/pages/privacy.html:192
+#: templates/pages/privacy.html:195
 msgid "Session cookies"
 msgstr "Sitzungs-Cookies"
 
-#: templates/pages/privacy.html:193
+#: templates/pages/privacy.html:196
 msgid "Session duration (browser close) or login expiry."
 msgstr "Sitzungsdauer (Browser schließen) oder Ablauf der Anmeldung."
 
-#: templates/pages/privacy.html:202
+#: templates/pages/privacy.html:204
 msgid "Your rights (Betroffenenrechte)"
 msgstr "Ihre Rechte (Betroffenenrechte)"
 
-#: templates/pages/privacy.html:203
+#: templates/pages/privacy.html:205
 msgid "Under GDPR, you have the following rights:"
 msgstr "Unter der DSGVO haben Sie folgende Rechte:"
 
-#: templates/pages/privacy.html:206
+#: templates/pages/privacy.html:208
 msgid "Access"
 msgstr "Auskunft"
 
-#: templates/pages/privacy.html:207
+#: templates/pages/privacy.html:209
 msgid "Request a copy of the personal data we hold about you."
 msgstr ""
-"Verlangen Sie eine Kopie der von uns über Sie gespeicherten personenbezogenen"
-" Daten."
+"Verlangen Sie eine Kopie der von uns über Sie gespeicherten "
+"personenbezogenen Daten."
 
-#: templates/pages/privacy.html:210
+#: templates/pages/privacy.html:212
 msgid "Rectification"
 msgstr "Berichtigung"
 
-#: templates/pages/privacy.html:211
+#: templates/pages/privacy.html:213
 msgid "Request correction of inaccurate or incomplete data."
 msgstr "Verlangen Sie die Berichtigung unrichtiger oder unvollständiger Daten."
 
-#: templates/pages/privacy.html:214
+#: templates/pages/privacy.html:216
 msgid "Erasure"
 msgstr "Löschung"
 
-#: templates/pages/privacy.html:215
+#: templates/pages/privacy.html:217
 msgid "Request deletion of your data ('right to be forgotten')."
-msgstr "Verlangen Sie die Löschung Ihrer Daten (\"Recht auf Vergessenwerden\")."
+msgstr ""
+"Verlangen Sie die Löschung Ihrer Daten (\"Recht auf Vergessenwerden\")."
 
-#: templates/pages/privacy.html:218
+#: templates/pages/privacy.html:220
 msgid "Restriction"
 msgstr "Einschränkung"
 
-#: templates/pages/privacy.html:219
+#: templates/pages/privacy.html:221
 msgid "Request we restrict processing of your data in certain circumstances."
 msgstr ""
 "Verlangen Sie in bestimmten Fällen die Einschränkung der Verarbeitung Ihrer "
 "Daten."
 
-#: templates/pages/privacy.html:222
+#: templates/pages/privacy.html:224
 msgid "Portability"
 msgstr "Datenübertragbarkeit"
 
-#: templates/pages/privacy.html:223
+#: templates/pages/privacy.html:225
 msgid "Request your data in a structured, machine-readable format."
 msgstr ""
 "Verlangen Sie Ihre Daten in einem strukturierten, maschinenlesbaren Format."
 
-#: templates/pages/privacy.html:226
+#: templates/pages/privacy.html:228
 msgid "Objection"
 msgstr "Widerspruch"
 
-#: templates/pages/privacy.html:227
+#: templates/pages/privacy.html:229
 msgid ""
-"Object to processing based on legitimate interest (Art. 6(1)(f)). <strong>For"
-" organizers:</strong> you have the right to object at any time to the "
-"inclusion of your event listings on this platform. Submit a takedown request "
-"at <a href=\"/takedown/\">/takedown/</a> — no login required. Objections are "
-"processed within 72 hours."
+"Object to processing based on legitimate interest (Art. 6(1)(f)). "
+"<strong>For organizers:</strong> you have the right to object at any time to "
+"the inclusion of your event listings on this platform. Submit a takedown "
+"request at <a href=\"/takedown/\">/takedown/</a> — no login required. "
+"Objections are processed within 72 hours."
 msgstr ""
 "Widerspruch gegen die Verarbeitung auf Basis berechtigter Interessen (Art. 6 "
 "Abs. 1 lit. f DSGVO). <strong>Für Veranstalter:innen:</strong> Sie haben das "
 "Recht, der Aufnahme Ihrer Veranstaltungen in diese Plattform jederzeit zu "
-"widersprechen. Stellen Sie einen Takedown-Antrag unter <a "
-"href=\"/takedown/\">/takedown/</a> — keine Anmeldung erforderlich. "
-"Widersprüche werden innerhalb von 72 Stunden bearbeitet."
+"widersprechen. Stellen Sie einen Takedown-Antrag unter <a href=\"/takedown/"
+"\">/takedown/</a> — keine Anmeldung erforderlich. Widersprüche werden "
+"innerhalb von 72 Stunden bearbeitet."
 
-#: templates/pages/privacy.html:236
+#: templates/pages/privacy.html:238
 msgid "Withdraw consent"
 msgstr "Widerruf der Einwilligung"
 
-#: templates/pages/privacy.html:237
+#: templates/pages/privacy.html:239
 msgid ""
 "You may withdraw your Art. 9 attendance consent at any time via your profile "
 "page (<a href=\"/me/\">/me/</a>). Withdrawal does not affect the lawfulness "
 "of processing carried out before withdrawal."
 msgstr ""
 "Der Widerruf der Einwilligung nach Art. 9 DSGVO bezüglich der "
-"Teilnahmeaufzeichnung ist jederzeit auf der Profilseite (<a "
-"href=\"/me/\">/me/</a>) möglich. Der Widerruf berührt nicht die "
-"Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung."
+"Teilnahmeaufzeichnung ist jederzeit auf der Profilseite (<a href=\"/me/\">/"
+"me/</a>) möglich. Der Widerruf berührt nicht die Rechtmäßigkeit der bis zum "
+"Widerruf erfolgten Verarbeitung."
 
-#: templates/pages/privacy.html:245
+#: templates/pages/privacy.html:247
 msgid ""
 "To exercise rights other than consent withdrawal and organizer objection, "
 "contact us at"
@@ -1136,11 +2534,11 @@ msgstr ""
 "Zur Ausübung anderer Rechte als des Widerrufs der Einwilligung und des "
 "Widerspruchs von Veranstalter:innen wenden Sie sich an"
 
-#: templates/pages/privacy.html:249
+#: templates/pages/privacy.html:250
 msgid "Right to lodge a complaint"
 msgstr "Beschwerderecht"
 
-#: templates/pages/privacy.html:251
+#: templates/pages/privacy.html:252
 msgid ""
 "You have the right to lodge a complaint with the competent supervisory "
 "authority (BlnBDI):"
@@ -1148,19 +2546,19 @@ msgstr ""
 "Sie haben das Recht, eine Beschwerde bei der zuständigen Aufsichtsbehörde "
 "(BlnBDI) einzulegen:"
 
-#: templates/pages/privacy.html:266
+#: templates/pages/privacy.html:270
 msgid "Automated processing (Art. 13(2)(f) GDPR)"
 msgstr "Automatisierte Verarbeitung (Art. 13 Abs. 2 lit. f DSGVO)"
 
-#: templates/pages/privacy.html:268
+#: templates/pages/privacy.html:272
 msgid ""
 "Event data is extracted from Telegram messages and organizer web pages using "
-"a large language model (LLM). This process is used only for structuring event"
-" announcements and does not make legally significant decisions about users. "
-"Events of organizers who have not claimed their profile are listed without "
-"per-event human review; a human handles failed or uncertain extractions. "
-"Organizers who claim their profile approve their own collected events before "
-"they are listed."
+"a large language model (LLM). This process is used only for structuring "
+"event announcements and does not make legally significant decisions about "
+"users. Events of organizers who have not claimed their profile are listed "
+"without per-event human review; a human handles failed or uncertain "
+"extractions. Organizers who claim their profile approve their own collected "
+"events before they are listed."
 msgstr ""
 "Veranstaltungsdaten werden aus Telegram-Nachrichten und Websites der "
 "Veranstalter:innen mittels eines KI-Sprachmodells (LLM) extrahiert. Dieses "
@@ -1172,7 +2570,7 @@ msgstr ""
 "Extraktionen. Organisator:innen, die ihr Profil übernommen haben, geben ihre "
 "gesammelten Veranstaltungen selbst frei, bevor sie erscheinen."
 
-#: templates/pages/privacy.html:275
+#: templates/pages/privacy.html:281
 msgid ""
 "No automated decision-making with legal effect (Art. 22 GDPR) is applied to "
 "users."
@@ -1180,11 +2578,11 @@ msgstr ""
 "Eine automatisierte Entscheidungsfindung mit rechtlicher Wirkung (Art. 22 "
 "DSGVO) wird gegenüber Nutzer:innen nicht eingesetzt."
 
-#: templates/pages/privacy.html:280
+#: templates/pages/privacy.html:285
 msgid "Cookies (TTDSG §25)"
 msgstr "Cookies (TTDSG § 25)"
 
-#: templates/pages/privacy.html:282
+#: templates/pages/privacy.html:287
 msgid ""
 "This platform uses a single session cookie for the age gate. The age-gate "
 "cookie is strictly necessary to provide the service you have explicitly "
@@ -1194,16 +2592,16 @@ msgid ""
 msgstr ""
 "Diese Plattform verwendet ein einziges Sitzungs-Cookie für das Altersgate. "
 "Das Altersgate-Cookie ist zur Erbringung des von Ihnen ausdrücklich "
-"beantragten Dienstes — Zugang zu 18+-Inhalten — unbedingt erforderlich (TTDSG"
-" § 25 Abs. 2 Nr. 2). Für dieses Cookie ist keine Einwilligungsbanner "
+"beantragten Dienstes — Zugang zu 18+-Inhalten — unbedingt erforderlich "
+"(TTDSG § 25 Abs. 2 Nr. 2). Für dieses Cookie ist keine Einwilligungsbanner "
 "erforderlich. Es werden keine Tracking-, Analyse- oder Werbe-Cookies "
 "verwendet."
 
-#: templates/pages/privacy.html:294
+#: templates/pages/privacy.html:298
 msgid "Minimum age (JuSchG)"
 msgstr "Mindestalter (JuSchG)"
 
-#: templates/pages/privacy.html:296
+#: templates/pages/privacy.html:300
 msgid ""
 "This platform is restricted to users aged 18 and over (JuSchG §§ 4, 5). By "
 "passing the age gate, you confirm you are at least 18 years old. We do not "
@@ -1216,68 +2614,91 @@ msgstr ""
 "unter 18 Jahren. Sollten wir Kenntnis erlangen, dass sich eine minderjährige "
 "Person registriert hat, wird das Konto unverzüglich gesperrt."
 
-#: templates/pages/privacy.html:308 templates/pages/terms.html:16
+#: templates/pages/privacy.html:311 templates/pages/terms.html:15
 msgid "Last updated"
 msgstr "Zuletzt aktualisiert"
 
-#: templates/pages/terms.html:3 templates/pages/terms.html:6
+#: templates/pages/terms.html:4
 msgid "Terms of Use"
 msgstr "Nutzungsbedingungen"
 
-#: templates/pages/terms.html:10
-#, python-format
-msgid ""
-"\n"
-"    Contact / Kontaktstelle (DSA Art. 12): %(email)s, Berlin.\n"
-"    "
+#: templates/pages/terms.html:7
+msgid "Legal · House rules"
+msgstr ""
+
+#: templates/pages/terms.html:7
+msgid "of use."
+msgstr ""
+
+#: templates/pages/terms.html:7
+msgid "Age restriction, content policy, moderation, and appeal path."
+msgstr ""
+
+#: templates/pages/terms.html:11
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Contact / Kontaktstelle (DSA Art. 12): %(email)s, Berlin.\n"
+#| "    "
+msgid "DSA contact (Art. 12) — %(email)s, Berlin."
 msgstr ""
 "\n"
 "    Kontakt / Kontaktstelle (DSA Art. 12): %(email)s, Berlin.\n"
 "    "
 
-#: templates/pages/terms.html:13
-msgid "Full operator identity (Impressum)"
-msgstr "Vollständige Anbieteridentität (Impressum)"
+#: templates/pages/terms.html:12
+#, fuzzy
+#| msgid "Operator"
+msgid "Operator identity"
+msgstr "Anbieter"
 
-#: templates/pages/terms.html:19
+#: templates/pages/terms.html:18
 msgid "Age restriction (JuSchG)"
 msgstr "Altersbeschränkung (JuSchG)"
 
-#: templates/pages/terms.html:21
+#: templates/pages/terms.html:20
 msgid ""
 "\n"
-"    This platform contains adult-oriented content (kink and queer-adjacent events).\n"
-"    Access requires self-declaration of age 18+ via the age gate. Use by minors is\n"
-"    prohibited (JuSchG §§ 4, 5 / JMStV). No age-verification mechanism replaces this\n"
-"    self-declaration; the platform relies on the age-gate cookie to prevent accidental\n"
+"    This platform contains adult-oriented content (kink and queer-adjacent "
+"events).\n"
+"    Access requires self-declaration of age 18+ via the age gate. Use by "
+"minors is\n"
+"    prohibited (JuSchG §§ 4, 5 / JMStV). No age-verification mechanism "
+"replaces this\n"
+"    self-declaration; the platform relies on the age-gate cookie to prevent "
+"accidental\n"
 "    access by persons under 18.\n"
 "    "
 msgstr ""
 "\n"
-"    Diese Plattform enthält Inhalte für Erwachsene (Kink- und queere Veranstaltungen).\n"
-"    Der Zugang setzt eine Selbstauskunft über ein Mindestalter von 18 Jahren voraus (Altersgate). Die Nutzung durch Minderjährige ist\n"
-"    untersagt (JuSchG §§ 4, 5 / JMStV). Kein technisches Verfahren ersetzt diese\n"
-"    Selbstauskunft; die Plattform verlässt sich auf das Altersgate-Cookie, um den unbeabsichtigten\n"
+"    Diese Plattform enthält Inhalte für Erwachsene (Kink- und queere "
+"Veranstaltungen).\n"
+"    Der Zugang setzt eine Selbstauskunft über ein Mindestalter von 18 Jahren "
+"voraus (Altersgate). Die Nutzung durch Minderjährige ist\n"
+"    untersagt (JuSchG §§ 4, 5 / JMStV). Kein technisches Verfahren ersetzt "
+"diese\n"
+"    Selbstauskunft; die Plattform verlässt sich auf das Altersgate-Cookie, "
+"um den unbeabsichtigten\n"
 "    Zugang von Personen unter 18 Jahren zu verhindern.\n"
 "    "
 
-#: templates/pages/terms.html:31
+#: templates/pages/terms.html:29
 msgid "User obligations"
 msgstr "Nutzerpflichten"
 
-#: templates/pages/terms.html:34
+#: templates/pages/terms.html:31
 msgid "You must be 18 years of age or older to use this platform."
 msgstr "Sie müssen mindestens 18 Jahre alt sein, um diese Plattform zu nutzen."
 
-#: templates/pages/terms.html:37
+#: templates/pages/terms.html:33
 msgid ""
-"You agree to submit only lawful content. Content that is illegal under German"
-" or EU law is prohibited."
+"You agree to submit only lawful content. Content that is illegal under "
+"German or EU law is prohibited."
 msgstr ""
 "Sie verpflichten sich, ausschließlich rechtmäßige Inhalte einzustellen. "
 "Inhalte, die nach deutschem oder EU-Recht rechtswidrig sind, sind untersagt."
 
-#: templates/pages/terms.html:40
+#: templates/pages/terms.html:35
 msgid ""
 "Harassment, hate speech, and content targeting individuals for harm are "
 "prohibited."
@@ -1285,42 +2706,42 @@ msgstr ""
 "Belästigung, Hassrede und Inhalte, die auf die Schädigung von Personen "
 "abzielen, sind verboten."
 
-#: templates/pages/terms.html:43
+#: templates/pages/terms.html:36
 msgid ""
 "You are responsible for the accuracy of any event information you submit."
 msgstr ""
 "Sie sind für die Richtigkeit der von Ihnen eingestellten "
 "Veranstaltungsinformationen verantwortlich."
 
-#: templates/pages/terms.html:48
+#: templates/pages/terms.html:39
 msgid "Content policy"
 msgstr "Inhaltsrichtlinien"
 
-#: templates/pages/terms.html:50
+#: templates/pages/terms.html:41
 msgid ""
-"Switch Berlin is a platform for queer, kinky, and conscious events, primarily"
-" focused on Berlin. We welcome:"
+"Switch Berlin is a platform for queer, kinky, and conscious events, "
+"primarily focused on Berlin. We welcome:"
 msgstr ""
 "Switch Berlin ist eine Plattform für queere, kinky und bewusste "
 "Veranstaltungen, mit Schwerpunkt Berlin. Willkommen sind:"
 
-#: templates/pages/terms.html:53
+#: templates/pages/terms.html:44
 msgid "LGBTQ+ community events"
 msgstr "LGBTQ+-Community-Veranstaltungen"
 
-#: templates/pages/terms.html:54
+#: templates/pages/terms.html:45
 msgid "Kink and fetish events for adults (18+)"
 msgstr "Kink- und Fetisch-Veranstaltungen für Erwachsene (ab 18 Jahren)"
 
-#: templates/pages/terms.html:55
+#: templates/pages/terms.html:46
 msgid "Conscious sexuality and intimacy workshops"
 msgstr "Workshops zu bewusster Sexualität und Intimität"
 
-#: templates/pages/terms.html:56
+#: templates/pages/terms.html:47
 msgid "Queer arts, culture, and social events"
 msgstr "Queere Kunst-, Kultur- und Sozialveranstaltungen"
 
-#: templates/pages/terms.html:59
+#: templates/pages/terms.html:49
 msgid ""
 "We do not list events that promote exploitation, lack informed consent, or "
 "violate applicable law."
@@ -1328,135 +2749,168 @@ msgstr ""
 "Wir listen keine Veranstaltungen, die Ausbeutung fördern, bei denen "
 "informiertes Einverständnis fehlt oder die gegen geltendes Recht verstoßen."
 
-#: templates/pages/terms.html:63
+#: templates/pages/terms.html:51
 msgid "Content moderation (DSA Art. 14)"
 msgstr "Inhaltsmoderation (DSA Art. 14)"
 
-#: templates/pages/terms.html:65
+#: templates/pages/terms.html:53
 msgid ""
 "\n"
-"    Where content is found to violate these Terms or applicable law, the platform\n"
-"    maintainer may take the following actions: hide the content from public view,\n"
-"    remove it permanently, suspend the responsible account, or de-list the associated\n"
+"    Where content is found to violate these Terms or applicable law, the "
+"platform\n"
+"    maintainer may take the following actions: hide the content from public "
+"view,\n"
+"    remove it permanently, suspend the responsible account, or de-list the "
+"associated\n"
 "    event or organizer.\n"
 "    "
 msgstr ""
 "\n"
-"    Stellt der Plattformbetreiber fest, dass Inhalte gegen diese Nutzungsbedingungen oder geltendes Recht verstoßen, können folgende Maßnahmen ergriffen werden: Ausblenden des Inhalts aus der öffentlichen Ansicht,\n"
-"    dauerhafte Entfernung, Sperrung des verantwortlichen Kontos oder Auslisten der betreffenden\n"
+"    Stellt der Plattformbetreiber fest, dass Inhalte gegen diese "
+"Nutzungsbedingungen oder geltendes Recht verstoßen, können folgende "
+"Maßnahmen ergriffen werden: Ausblenden des Inhalts aus der öffentlichen "
+"Ansicht,\n"
+"    dauerhafte Entfernung, Sperrung des verantwortlichen Kontos oder "
+"Auslisten der betreffenden\n"
 "    Veranstaltung oder des Veranstalters.\n"
 "    "
 
-#: templates/pages/terms.html:73
+#: templates/pages/terms.html:61
 msgid ""
 "\n"
-"    Moderation decisions are made by the platform maintainer. We aim to review\n"
+"    Moderation decisions are made by the platform maintainer. We aim to "
+"review\n"
 "    substantiated notices best-effort within 72 hours of receipt.\n"
 "    "
 msgstr ""
 "\n"
-"    Moderationsentscheidungen werden vom Plattformbetreiber getroffen. Wir bemühen uns,\n"
-"    begründete Meldungen innerhalb von 72 Stunden nach Eingang nach bestem Vermögen zu prüfen.\n"
+"    Moderationsentscheidungen werden vom Plattformbetreiber getroffen. Wir "
+"bemühen uns,\n"
+"    begründete Meldungen innerhalb von 72 Stunden nach Eingang nach bestem "
+"Vermögen zu prüfen.\n"
 "    "
 
-#: templates/pages/terms.html:80
+#: templates/pages/terms.html:67
 msgid "Appeal of moderation decisions (DSA Art. 20)"
 msgstr "Widerspruch gegen Moderationsentscheidungen (DSA Art. 20)"
 
-#: templates/pages/terms.html:82
+#: templates/pages/terms.html:69
 msgid ""
 "\n"
-"    To appeal a moderation decision, reply to the moderation notification email within\n"
-"    14 days of receiving it. Include your reasons for appeal. The maintainer will review\n"
+"    To appeal a moderation decision, reply to the moderation notification "
+"email within\n"
+"    14 days of receiving it. Include your reasons for appeal. The maintainer "
+"will review\n"
 "    the appeal and respond within a reasonable time.\n"
 "    "
 msgstr ""
 "\n"
-"    Um Widerspruch gegen eine Moderationsentscheidung einzulegen, antworten Sie innerhalb von\n"
-"    14 Tagen nach Erhalt auf die Moderationsbenachrichtigung per E-Mail. Legen Sie Ihre Widerspruchsgründe dar. Der Betreiber wird\n"
+"    Um Widerspruch gegen eine Moderationsentscheidung einzulegen, antworten "
+"Sie innerhalb von\n"
+"    14 Tagen nach Erhalt auf die Moderationsbenachrichtigung per E-Mail. "
+"Legen Sie Ihre Widerspruchsgründe dar. Der Betreiber wird\n"
 "    den Widerspruch prüfen und innerhalb angemessener Frist antworten.\n"
 "    "
 
-#: templates/pages/terms.html:90
+#: templates/pages/terms.html:76
 msgid "User-generated content"
 msgstr "Nutzergenerierte Inhalte"
 
-#: templates/pages/terms.html:92
+#: templates/pages/terms.html:78
 msgid ""
 "\n"
-"    Ratings and flags are user-generated content. By submitting a rating or flag,\n"
-"    you warrant that your submission is made in good faith and is accurate to the\n"
-"    best of your knowledge. The platform does not endorse user-generated content\n"
+"    Ratings and flags are user-generated content. By submitting a rating or "
+"flag,\n"
+"    you warrant that your submission is made in good faith and is accurate "
+"to the\n"
+"    best of your knowledge. The platform does not endorse user-generated "
+"content\n"
 "    and will remove content upon substantiated notice.\n"
 "    "
 msgstr ""
 "\n"
-"    Bewertungen und Meldungen sind nutzergenerierte Inhalte. Mit dem Absenden einer Bewertung oder Meldung\n"
-"    versichern Sie, dass Ihre Eingabe nach bestem Wissen und Gewissen und wahrheitsgemäß erfolgt.\n"
+"    Bewertungen und Meldungen sind nutzergenerierte Inhalte. Mit dem "
+"Absenden einer Bewertung oder Meldung\n"
+"    versichern Sie, dass Ihre Eingabe nach bestem Wissen und Gewissen und "
+"wahrheitsgemäß erfolgt.\n"
 "    Die Plattform macht sich nutzergenerierte Inhalte nicht zu eigen\n"
 "    und entfernt Inhalte bei begründetem Hinweis.\n"
 "    "
 
-#: templates/pages/terms.html:101
+#: templates/pages/terms.html:86
 msgid "Governing law and jurisdiction"
 msgstr "Anwendbares Recht und Gerichtsstand"
 
-#: templates/pages/terms.html:103
+#: templates/pages/terms.html:88
 msgid ""
 "\n"
-"    German law applies to these Terms and any disputes arising from use of this\n"
-"    platform. For disputes with non-consumers, the exclusive place of jurisdiction\n"
+"    German law applies to these Terms and any disputes arising from use of "
+"this\n"
+"    platform. For disputes with non-consumers, the exclusive place of "
+"jurisdiction\n"
 "    is Berlin.\n"
 "    "
 msgstr ""
 "\n"
-"    Für diese Nutzungsbedingungen und alle Streitigkeiten aus der Nutzung dieser\n"
-"    Plattform gilt deutsches Recht. Für Streitigkeiten mit Nicht-Verbrauchern ist\n"
+"    Für diese Nutzungsbedingungen und alle Streitigkeiten aus der Nutzung "
+"dieser\n"
+"    Plattform gilt deutsches Recht. Für Streitigkeiten mit Nicht-"
+"Verbrauchern ist\n"
 "    der ausschließliche Gerichtsstand Berlin.\n"
 "    "
 
-#: templates/pages/terms.html:111
+#: templates/pages/terms.html:95
 msgid "Right of withdrawal"
 msgstr "Widerrufsrecht"
 
-#: templates/pages/terms.html:113
+#: templates/pages/terms.html:97
 msgid ""
 "\n"
-"    This platform provides a free service. No contract for a paid product is\n"
-"    concluded. Accordingly, no right of withdrawal (Widerrufsrecht) arises under\n"
+"    This platform provides a free service. No contract for a paid product "
+"is\n"
+"    concluded. Accordingly, no right of withdrawal (Widerrufsrecht) arises "
+"under\n"
 "    § 312g BGB.\n"
 "    "
 msgstr ""
 "\n"
-"    Diese Plattform erbringt ihre Leistungen unentgeltlich. Es wird kein Vertrag über ein entgeltliches Produkt geschlossen.\n"
-"    Ein Widerrufsrecht gemäß § 312g BGB besteht nicht, da das Angebot unentgeltlich ist.\n"
+"    Diese Plattform erbringt ihre Leistungen unentgeltlich. Es wird kein "
+"Vertrag über ein entgeltliches Produkt geschlossen.\n"
+"    Ein Widerrufsrecht gemäß § 312g BGB besteht nicht, da das Angebot "
+"unentgeltlich ist.\n"
 "    "
 
-#: templates/pages/terms.html:121
+#: templates/pages/terms.html:104
 msgid "Severability and termination"
 msgstr "Salvatorische Klausel und Kündigung"
 
-#: templates/pages/terms.html:123
+#: templates/pages/terms.html:106
 msgid ""
 "\n"
-"    If any provision of these Terms is found to be invalid or unenforceable, the\n"
-"    remaining provisions shall continue in full force and effect. Either party may\n"
-"    terminate use of this platform at any time. Upon termination, existing data will\n"
+"    If any provision of these Terms is found to be invalid or unenforceable, "
+"the\n"
+"    remaining provisions shall continue in full force and effect. Either "
+"party may\n"
+"    terminate use of this platform at any time. Upon termination, existing "
+"data will\n"
 "    be handled in accordance with our Privacy Policy.\n"
 "    "
 msgstr ""
 "\n"
-"    Sollte eine Bestimmung dieser Nutzungsbedingungen unwirksam oder nicht durchsetzbar sein,\n"
-"    bleiben die übrigen Bestimmungen unberührt (Salvatorische Klausel). Jede Partei kann\n"
-"    die Nutzung dieser Plattform jederzeit beenden (Kündigung). Nach der Kündigung werden vorhandene Daten\n"
+"    Sollte eine Bestimmung dieser Nutzungsbedingungen unwirksam oder nicht "
+"durchsetzbar sein,\n"
+"    bleiben die übrigen Bestimmungen unberührt (Salvatorische Klausel). Jede "
+"Partei kann\n"
+"    die Nutzung dieser Plattform jederzeit beenden (Kündigung). Nach der "
+"Kündigung werden vorhandene Daten\n"
 "    gemäß unserer Datenschutzerklärung behandelt.\n"
 "    "
 
-#: templates/pages/terms.html:132
+#: templates/pages/terms.html:114
 msgid "Changes to these terms"
 msgstr "Änderungen dieser Nutzungsbedingungen"
 
-#: templates/pages/terms.html:134
+#: templates/pages/terms.html:116
 msgid ""
 "We may update these terms from time to time. Continued use of the platform "
 "constitutes acceptance of any updated terms."
@@ -1465,117 +2919,143 @@ msgstr ""
 "fortgesetzte Nutzung der Plattform gilt als Zustimmung zu den jeweils "
 "aktuellen Nutzungsbedingungen."
 
-#: templates/reviews/_flag_button.html:3 tmp/bead6_desc.txt:384
-msgid "Reported. Thank you."
+#: templates/reviews/_flag_button.html:3
+msgid "Reported. Thank you"
 msgstr ""
 
-#: templates/reviews/_flag_button.html:13 templates/reviews/takedown.html:65
-#: tmp/bead6_desc.txt:372
+#: templates/reviews/_flag_button.html:17 templates/reviews/takedown.html:45
 msgid "Reason"
 msgstr "Grund"
 
-#: templates/reviews/_flag_button.html:14 templates/reviews/takedown.html:69
-#: tmp/bead6_desc.txt:373
+#: templates/reviews/_flag_button.html:18 templates/reviews/takedown.html:51
 msgid "Spam"
 msgstr "Spam"
 
-#: templates/reviews/_flag_button.html:15 tmp/bead6_desc.txt:374
+#: templates/reviews/_flag_button.html:19
 msgid "Inaccurate"
 msgstr "Unzutreffend"
 
-#: templates/reviews/_flag_button.html:16 tmp/bead6_desc.txt:375
+#: templates/reviews/_flag_button.html:20
 msgid "Harmful"
 msgstr "Schädlicher Inhalt"
 
-#: templates/reviews/_flag_button.html:17 templates/reviews/takedown.html:72
-#: tmp/bead6_desc.txt:376
+#: templates/reviews/_flag_button.html:21 templates/reviews/takedown.html:58
 msgid "Safety concern"
 msgstr "Sicherheitsbedenken"
 
-#: templates/reviews/_flag_button.html:18 templates/reviews/takedown.html:73
-#: tmp/bead6_desc.txt:377
-msgid "Other"
-msgstr "Sonstiges"
-
-#: templates/reviews/_flag_button.html:20 tmp/bead6_desc.txt:379
-msgid "Report"
-msgstr "Melden"
-
-#: templates/reviews/_organizer_rating_display.html:11 tmp/bead5_desc.txt:260
-msgid "Your review has been saved."
+#: templates/reviews/_organizer_rating_display.html:13
+msgid "Your review has been saved"
 msgstr ""
 
-#: templates/reviews/_rating_form.html:3 tmp/bead5_desc.txt:212
-msgid "Review submitted. Thank you!"
+#: templates/reviews/_rating_form.html:4
+msgid "Review submitted. Thank you"
 msgstr ""
 
-#: templates/reviews/_rating_form.html:15 tmp/bead5_desc.txt:224
+#: templates/reviews/_rating_form.html:17
 msgid "Rate this"
 msgstr ""
 
-#: templates/reviews/_rating_form.html:16 tmp/bead5_desc.txt:225
+#: templates/reviews/_rating_form.html:20
 msgid "Rating"
 msgstr ""
 
-#: templates/reviews/_rating_form.html:21 tmp/bead5_desc.txt:230
+#: templates/reviews/_rating_form.html:28
 msgid "stars"
 msgstr ""
 
-#: templates/reviews/_rating_form.html:25 tmp/bead5_desc.txt:234
-msgid "Optional comment..."
+#: templates/reviews/_rating_form.html:37
+msgid "Optional comment…"
 msgstr ""
 
-#: templates/reviews/_rating_form.html:26 tmp/bead5_desc.txt:235
+#: templates/reviews/_rating_form.html:39
 msgid "Submit review"
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:6
-msgid "Organizer Data Removal (GDPR Opt-Out)"
+#: templates/reviews/organizer_opt_out.html:5
+msgid "Organizer · GDPR Opt-out"
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:10
+#: templates/reviews/organizer_opt_out.html:5
+msgid "Remove your"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:5
+#, fuzzy
+#| msgid "Hosting"
+msgid "listings."
+msgstr "Hosting"
+
+#: templates/reviews/organizer_opt_out.html:5
+msgid "Identity verified via Telegram user ID. No login required."
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:7
+msgid "Processed"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:8
 msgid ""
 "Your opt-out request has been processed. Your organizer account has been "
 "suspended."
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:17
+#: templates/reviews/organizer_opt_out.html:12
+msgid "Could not verify"
+msgstr ""
+
+#: templates/reviews/organizer_opt_out.html:15
 msgid "If you cannot verify via Telegram, please use the"
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:18
-#: templates/reviews/takedown.html:18 tmp/bead4_desc.txt:92
+#: templates/reviews/organizer_opt_out.html:16
+#: templates/reviews/takedown.html:16
 msgid "takedown form"
 msgstr "Meldeformular"
 
-#: templates/reviews/organizer_opt_out.html:19
+#: templates/reviews/organizer_opt_out.html:17
 msgid "to request manual processing."
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:25
+#: templates/reviews/organizer_opt_out.html:22
 msgid ""
 "As an organizer, you may request removal of your data from our platform. "
 "Identity is verified via your Telegram user ID to prevent unauthorized "
 "removals."
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:33
-msgid "Your Telegram User ID"
+#: templates/reviews/organizer_opt_out.html:26
+msgid "Your Telegram user ID"
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:43
+#: templates/reviews/organizer_opt_out.html:26
 msgid "Find your user ID by messaging @userinfobot on Telegram."
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:49
-msgid "Your organizer slug (from your profile URL)"
+#: templates/reviews/organizer_opt_out.html:27
+msgid "Organizer slug from your profile URL"
 msgstr ""
 
-#: templates/reviews/organizer_opt_out.html:60
-msgid "Request Data Removal"
+#: templates/reviews/organizer_opt_out.html:28
+msgid "Request data removal"
 msgstr ""
 
-#: templates/reviews/takedown.html:10
+#: templates/reviews/takedown.html:5
+msgid "Report · DSA Art. 16"
+msgstr ""
+
+#: templates/reviews/takedown.html:5
+msgid "Report content"
+msgstr "Inhalt melden"
+
+#: templates/reviews/takedown.html:5
+msgid "Substantiated notices are reviewed within 72 hours."
+msgstr ""
+
+#: templates/reviews/takedown.html:7
+msgid "Received"
+msgstr ""
+
+#: templates/reviews/takedown.html:8
 msgid ""
 "Your report has been submitted. We aim to review takedown requests within 72 "
 "hours."
@@ -1583,19 +3063,31 @@ msgstr ""
 "Ihre Meldung wurde eingereicht. Wir bemühen uns, Takedown-Anfragen innerhalb "
 "von 72 Stunden zu bearbeiten."
 
-#: templates/reviews/takedown.html:17
+#: templates/reviews/takedown.html:12
+msgid "Submission failed"
+msgstr ""
+
+#: templates/reviews/takedown.html:15
 msgid "You can also contact us directly:"
 msgstr "Sie können uns auch direkt kontaktieren:"
 
-#: templates/reviews/takedown.html:39
-msgid ""
-"Use this form to report content that violates our <a href='/terms/' "
-"class='link'>Terms of Service</a> or applicable law. Your report will be "
-"reviewed within 72 hours."
+#: templates/reviews/takedown.html:35
+msgid "Use this form to report content that violates our"
 msgstr ""
-"Verwenden Sie dieses Formular, um Inhalte zu melden, die gegen unsere <a "
-"href='/terms/' class='link'>Nutzungsbedingungen</a> oder geltendes Recht "
-"verstoßen. Ihre Meldung wird innerhalb von 72 Stunden geprüft."
+
+#: templates/reviews/takedown.html:36
+#, fuzzy
+#| msgid "Terms of Use"
+msgid "Terms of Service"
+msgstr "Nutzungsbedingungen"
+
+#: templates/reviews/takedown.html:37
+msgid "or applicable law. Your report will be reviewed within 72 hours."
+msgstr ""
+
+#: templates/reviews/takedown.html:39
+msgid "Warning"
+msgstr ""
 
 #: templates/reviews/takedown.html:40
 msgid ""
@@ -1604,93 +3096,920 @@ msgstr ""
 "Wissentlich falsche Meldungen können abgelehnt und gemäß DSA Art. 16(6) "
 "eskaliert werden."
 
-#: templates/reviews/takedown.html:51
-msgid "URL of the content you are reporting"
-msgstr "URL des gemeldeten Inhalts"
+#: templates/reviews/takedown.html:44
+#, fuzzy
+#| msgid "Report content"
+msgid "URL of the content"
+msgstr "Inhalt melden"
 
-#: templates/reviews/takedown.html:68
+#: templates/reviews/takedown.html:49
 msgid "Illegal content — specify law (DSA Art. 16)"
 msgstr "Rechtswidriger Inhalt – Gesetz angeben (DSA Art. 16)"
 
-#: templates/reviews/takedown.html:70
+#: templates/reviews/takedown.html:54
 msgid "Inaccurate information"
 msgstr "Unzutreffende Informationen"
 
-#: templates/reviews/takedown.html:71
+#: templates/reviews/takedown.html:57
 msgid "Harmful content"
 msgstr "Schädlicher Inhalt"
 
-#: templates/reviews/takedown.html:79
-msgid ""
-"Which law or legal provision is violated? (required for illegal-content "
-"reports)"
+#: templates/reviews/takedown.html:65
+msgid "Law or legal provision violated"
 msgstr ""
-"Welches Gesetz oder welche Rechtsvorschrift wird verletzt? (Pflichtfeld bei "
-"Meldungen wegen rechtswidriger Inhalte)"
 
-#: templates/reviews/takedown.html:86
+#: templates/reviews/takedown.html:65
 msgid "e.g. NetzDG §1, GDPR Art. 17, StGB §86"
 msgstr "z. B. NetzDG §1, DSGVO Art. 17, StGB §86"
 
-#: templates/reviews/takedown.html:93
-msgid "Description"
-msgstr "Beschreibung"
-
-#: templates/reviews/takedown.html:100
-msgid "Please describe the issue..."
-msgstr "Bitte beschreiben Sie das Problem ..."
-
-#: templates/reviews/takedown.html:106
-msgid "Your email address (required for illegal-content reports)"
+#: templates/reviews/takedown.html:65 templates/reviews/takedown.html:73
+#, fuzzy
+#| msgid "Your email address (required for illegal-content reports)"
+msgid "Required for illegal-content reports."
 msgstr ""
 "Ihre E-Mail-Adresse (Pflichtfeld bei Meldungen wegen rechtswidriger Inhalte)"
 
-#: templates/reviews/takedown.html:134
+#: templates/reviews/takedown.html:71
+#, fuzzy
+#| msgid "Please describe the issue..."
+msgid "Please describe the issue."
+msgstr "Bitte beschreiben Sie das Problem ..."
+
+#: templates/reviews/takedown.html:73
+msgid "Your email"
+msgstr ""
+
+#: templates/reviews/takedown.html:85
+#, fuzzy
+#| msgid ""
+#| "Your contact details are processed to handle this report under Art. 6(1)"
+#| "(c) GDPR. See our <a href='/privacy/' class='link'>Privacy Policy</a>."
 msgid ""
 "Your contact details are processed to handle this report under Art. 6(1)(c) "
-"GDPR. See our <a href='/privacy/' class='link'>Privacy Policy</a>."
+"GDPR."
 msgstr ""
 "Ihre Kontaktdaten werden zur Bearbeitung dieser Meldung gemäß Art. 6(1)(c) "
-"DSGVO verarbeitet. Weitere Informationen finden Sie in unserer <a "
-"href='/privacy/' class='link'>Datenschutzerklärung</a>."
+"DSGVO verarbeitet. Weitere Informationen finden Sie in unserer <a href='/"
+"privacy/' class='link'>Datenschutzerklärung</a>."
 
 #: templates/reviews/takedown.html:89
 msgid "Submit report"
 msgstr "Meldung absenden"
 
-#: templates/reviews/takedown.html:141
-msgid "You can also contact us directly by email:"
-msgstr "Sie können uns auch direkt per E-Mail kontaktieren:"
-
-#: tmp/bead4_desc.txt:85
-msgid "Impressum / Legal Notice"
+#: templates/reviews/takedown.html:94
+msgid "Or by email"
 msgstr ""
 
-#: tmp/bead4_desc.txt:86
-msgid "Responsible party / Verantwortliche Person"
+#: templates/syndication/403.html:4
+#, fuzzy
+#| msgid "Access"
+msgid "Access denied"
+msgstr "Auskunft"
+
+#: templates/syndication/403.html:13
+msgid "You don't have permission to edit this."
 msgstr ""
 
-#: tmp/bead4_desc.txt:89
-msgid "Report content / DSA-Kontakt"
+#: templates/syndication/403.html:16
+msgid "Go back"
 msgstr ""
 
-#: tmp/bead4_desc.txt:91
-msgid "To report content, use our"
+#: templates/syndication/_event_form_fields.html:10
+msgid "Core"
 msgstr ""
 
-#: tmp/bead4_desc.txt:94
-msgid "We aim to review takedown requests within 72 hours."
+#: templates/syndication/_event_form_fields.html:45
+msgid "Category & Cover"
 msgstr ""
 
-#: tmp/bead4_desc.txt:96
+#: templates/syndication/_event_form_fields.html:66
+msgid "Location & Tags"
+msgstr ""
+
+#: templates/syndication/_event_form_fields.html:128
+#: templates/syndication/fragments/_channel_editor.html:263
+msgid "Pricing"
+msgstr ""
+
+#: templates/syndication/_event_form_fields.html:167
+msgid "External links"
+msgstr ""
+
+#: templates/syndication/_event_form_fields.html:183
+#: templates/syndication/fragments/_channel_editor.html:269
+#, fuzzy
+#| msgid "Restriction"
+msgid "Registration"
+msgstr "Einschränkung"
+
+#: templates/syndication/_event_hub_body.html:26
+msgid "Loading syndication board…"
+msgstr ""
+
+#: templates/syndication/_event_hub_body.html:34
+msgid "Loading posts…"
+msgstr ""
+
+#: templates/syndication/_post_hub_body.html:25
+msgid "Loading post workspace…"
+msgstr ""
+
+#: templates/syndication/_studio_rail.html:18
+#: templates/syndication/_studio_rail.html:47
+msgid "Publishables"
+msgstr ""
+
+#: templates/syndication/_studio_rail.html:56
+msgid "New"
+msgstr ""
+
+#: templates/syndication/_studio_rail.html:69
+msgid "New event"
+msgstr ""
+
+#: templates/syndication/_studio_rail.html:76
+#: templates/syndication/post_create.html:16
+#: templates/syndication/post_create_standalone_fragment.html:13
+msgid "New promo post"
+msgstr ""
+
+#: templates/syndication/_studio_rail.html:84
+msgid "Your publishables"
+msgstr ""
+
+#: templates/syndication/_studio_rail.html:112
+msgid "Nothing here yet."
+msgstr ""
+
+#: templates/syndication/_studio_rail.html:119
+msgid "Create event"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:4
+#: templates/syndication/agent_pairing.html:14
+msgid "Pair your agent"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:12
+#: templates/syndication/event_create.html:12
+#: templates/syndication/event_create_fragment.html:12
+#: templates/syndication/post_create_standalone_fragment.html:11
+msgid "Back"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:16
 msgid ""
-"Wir bemühen uns, Takedown-Anfragen innerhalb von 72 Stunden zu bearbeiten."
+"Generate a one-time pairing token to connect your personal agent to your "
+"Switch account. Your agent redeems this token to receive its API key — the "
+"API key never appears here."
 msgstr ""
 
-#: venues/models.py:36
+#: templates/syndication/agent_pairing.html:23
+msgid "Pairing token — show to your agent once"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:31
+#: templates/syndication/fragments/_channel_editor.html:926
+msgid "Copied!"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:31
+#: templates/syndication/fragments/_channel_editor.html:926
+#, fuzzy
+#| msgid "Copyright"
+msgid "Copy"
+msgstr "Urheberrecht"
+
+#: templates/syndication/agent_pairing.html:34
+msgid ""
+"This token expires in 15 minutes and can only be redeemed once. Give it to "
+"your agent — the agent redeems it at"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:34
+msgid "to receive its long-lived API key."
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:38
+msgid "Agent configuration"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:42
+msgid "Step 1: redeem the pairing token to receive your API key"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:47
+msgid "Step 2: exchange your API key for a session token"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:54
+msgid "Generate new pairing token"
+msgstr ""
+
+#: templates/syndication/agent_pairing.html:60
+msgid "Generate pairing token"
+msgstr ""
+
+#: templates/syndication/connection_create.html:4
+msgid "Add Connection"
+msgstr ""
+
+#: templates/syndication/connection_create.html:13
+msgid "Back to connections"
+msgstr ""
+
+#: templates/syndication/connection_create.html:16
+msgid "Syndication"
+msgstr ""
+
+#: templates/syndication/connection_create.html:17
+#: templates/syndication/connection_create.html:127
+#: templates/syndication/connection_create.html:128
+#: templates/syndication/connections_list.html:18
+msgid "Add connection"
+msgstr ""
+
+#: templates/syndication/connection_create.html:23
+msgid "Error"
+msgstr ""
+
+#: templates/syndication/connection_create.html:70
+msgid "Note"
+msgstr ""
+
+#: templates/syndication/connection_create.html:95
+msgid "The event/listing itself"
+msgstr ""
+
+#: templates/syndication/connection_create.html:97
+msgid "Promotional posts about the event"
+msgstr ""
+
+#: templates/syndication/connection_create.html:117
+msgid "Creates draft projections whenever you author an Event or Post."
+msgstr ""
+
+#: templates/syndication/connection_create.html:127
+msgid "Saving…"
+msgstr ""
+
+#: templates/syndication/connections_list.html:4
+msgid "Platform Connections"
+msgstr ""
+
+#: templates/syndication/connections_list.html:12
+msgid "Platform connections"
+msgstr ""
+
+#: templates/syndication/connections_list.html:14
+msgid ""
+"Syndication destinations for your events and posts. Each enabled connection "
+"creates draft projections when you publish."
+msgstr ""
+
+#: templates/syndication/connections_list.html:31
+msgid "Switch"
+msgstr ""
+
+#: templates/syndication/connections_list.html:37
+#, fuzzy
+#| msgid "Telegram ingestion"
+msgid "Telegram"
+msgstr "Telegram-Aufnahme"
+
+#: templates/syndication/connections_list.html:46
+msgid "Own event page"
+msgstr ""
+
+#: templates/syndication/connections_list.html:64
+msgid "On"
+msgstr ""
+
+#: templates/syndication/connections_list.html:68
+msgid "Off"
+msgstr ""
+
+#: templates/syndication/connections_list.html:78
+#: templates/syndication/connections_list.html:80
+msgid "Disable"
+msgstr ""
+
+#: templates/syndication/connections_list.html:78
+#: templates/syndication/connections_list.html:82
+msgid "Enable"
+msgstr ""
+
+#: templates/syndication/connections_list.html:94
+msgid "No connections yet"
+msgstr ""
+
+#: templates/syndication/connections_list.html:96
+msgid ""
+"Add a connection to start syndicating your events and posts to external "
+"platforms."
+msgstr ""
+
+#: templates/syndication/connections_list.html:98
+msgid "Add your first connection"
+msgstr ""
+
+#: templates/syndication/coverage.html:4 templates/syndication/coverage.html:22
+#: templates/syndication/fragments/post_syndication.html:126
+msgid "Coverage"
+msgstr ""
+
+#: templates/syndication/coverage.html:24
+msgid ""
+"Per-destination status for this distribution run. Bot and agent-tier show "
+"machine-confirmed states. Public-tier destinations need a manual post."
+msgstr ""
+
+#: templates/syndication/coverage.html:32
+#, fuzzy
+#| msgid "Restriction"
+msgid "Destinations"
+msgstr "Einschränkung"
+
+#: templates/syndication/coverage.html:47
+#: templates/syndication/fragments/_picker_row.html:40
+msgid "Destination vanished — no longer visible in last sync"
+msgstr ""
+
+#: templates/syndication/coverage.html:51
+#: templates/syndication/coverage.html:70
+#: templates/syndication/coverage.html:161
+msgid "Open & post manually"
+msgstr ""
+
+#: templates/syndication/coverage.html:71
+msgid "Public channel — use the deep-link to open Telegram and post manually."
+msgstr ""
+
+#: templates/syndication/coverage.html:77
+#: templates/syndication/coverage.html:166
+msgid "Open in Telegram"
+msgstr ""
+
+#: templates/syndication/coverage.html:91
+msgid "Draft placed by agent — open Telegram and publish natively."
+msgstr ""
+
+#: templates/syndication/coverage.html:93
+msgid "Published via bot."
+msgstr ""
+
+#: templates/syndication/coverage.html:116
+msgid "A draft already existed — placement skipped to avoid overwrite."
+msgstr ""
+
+#: templates/syndication/coverage.html:125
+msgid "Distribution not yet confirmed for this destination."
+msgstr ""
+
+#: templates/syndication/coverage.html:135
+msgid "No destinations selected for this run"
+msgstr ""
+
+#: templates/syndication/coverage.html:143
+msgid "Send checklist"
+msgstr ""
+
+#: templates/syndication/coverage.html:145
+msgid ""
+"These destinations need a human action. Tick each after publishing natively."
+msgstr ""
+
+#: templates/syndication/coverage.html:157
+msgid "Mark as actioned:"
+msgstr ""
+
+#: templates/syndication/coverage.html:169
+msgid "Draft placed — open Telegram and publish natively."
+msgstr ""
+
+#: templates/syndication/destination_picker.html:4
+msgid "Destination Picker"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:19
+msgid "Pick destinations"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:21
+msgid ""
+"Select Telegram destinations for this publication. Agent-required "
+"destinations need a connected Telegram agent session."
+msgstr ""
+
+#: templates/syndication/destination_picker.html:28
+msgid "Filter"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:44
+msgid "Search destinations…"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:47
+msgid "Search destinations"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:69
+msgid "Groups"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:88
+msgid "Forums"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:96
+msgid "Forum group"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:122
+msgid "No Telegram destinations synced yet"
+msgstr ""
+
+#: templates/syndication/destination_picker.html:124
+msgid ""
+"Connect your Telegram agent to sync your channels, groups, and forum topics."
+msgstr ""
+
+#: templates/syndication/event_create.html:4
+msgid "Create Event"
+msgstr ""
+
+#: templates/syndication/event_create.html:14
+#: templates/syndication/event_create_fragment.html:14
+msgid "New Event"
+msgstr ""
+
+#: templates/syndication/event_create.html:30
+#: templates/syndication/event_create_fragment.html:33
+#: templates/syndication/event_edit.html:29
+#: templates/syndication/post_create.html:55
+#: templates/syndication/post_create_standalone_fragment.html:67
+msgid "Saving..."
+msgstr ""
+
+#: templates/syndication/event_create.html:30
+#: templates/syndication/event_create.html:31
+#: templates/syndication/event_create_fragment.html:33
+#: templates/syndication/event_create_fragment.html:34
+msgid "Save draft"
+msgstr ""
+
+#: templates/syndication/event_edit.html:4
+#: templates/syndication/event_edit.html:13
+#: templates/syndication/fragments/event_facts.html:11
+msgid "Edit"
+msgstr ""
+
+#: templates/syndication/event_edit.html:11
+#: templates/syndication/post_create.html:11
+msgid "Back to event"
+msgstr ""
+
+#: templates/syndication/event_edit.html:29
+#: templates/syndication/event_edit.html:30
+msgid "Save changes"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_body_oob.html:51
+#: templates/syndication/fragments/_channel_editor.html:592
+msgid "Write your Telegram message…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_body_oob.html:72
+#: templates/syndication/fragments/_channel_editor.html:699
+msgid "Write your FetLife post…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_body_oob.html:72
+msgid "Write your FetLife listing…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_body_oob.html:93
+#: templates/syndication/fragments/_channel_editor.html:744
+msgid "Write your Switch post…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_body_oob.html:111
+#: templates/syndication/fragments/_channel_editor.html:763
+msgid "Write your post…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_body_oob.html:111
+#: templates/syndication/fragments/_channel_editor.html:763
+msgid "Write your listing…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_body_oob.html:118
+#: templates/syndication/fragments/_channel_editor.html:438
+#: templates/syndication/fragments/_channel_editor.html:774
+#: templates/syndication/fragments/post_syndication.html:277
+msgid "Saved"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_dirty_oob.html:67
+#: templates/syndication/fragments/_channel_editor.html:887
+msgid "Re-publish"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:62
+msgid "Live on"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:67
+msgid "editing here updates all these channels"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:102
+#: templates/syndication/fragments/_sync_bar.html:50
+msgid "Click to customize this channel independently"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:104
+#: templates/syndication/fragments/_sync_bar.html:52
+msgid "Shared"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:109
+#: templates/syndication/fragments/_sync_bar.html:60
+#, python-format
+msgid "· Shared across %(n)s channels"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:114
+#: templates/syndication/fragments/_sync_bar.html:64
+msgid "Customize"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:126
+#: templates/syndication/fragments/_sync_bar.html:76
+msgid "Synced from"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:128
+#: templates/syndication/fragments/_sync_bar.html:78
+msgid "· follows source edits live"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:135
+#: templates/syndication/fragments/_sync_bar.html:91
+msgid "Reset to canonical content"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:136
+#: templates/syndication/fragments/_sync_bar.html:91
+msgid "Reset"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:146
+#: templates/syndication/fragments/_sync_bar.html:101
+msgid "Custom"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:153
+#: templates/syndication/fragments/_sync_bar.html:114
+msgid "Reset to synced canonical content"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:154
+#: templates/syndication/fragments/_sync_bar.html:114
+msgid "Reset to synced"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:281
+msgid "Links"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:461
+msgid "Current cover"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:465
+msgid "JPG, PNG, or WebP. Max 5 MiB. Upload replaces existing cover."
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:548
+msgid "Write your Telegram channel post…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:647
+#: templates/syndication/fragments/_channel_preview.html:137
+msgid "Community"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:660
+#: templates/syndication/fragments/_channel_preview.html:148
+msgid "Interested In"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:669
+msgid "Write your FetLife event description…"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:690
+#: templates/syndication/fragments/_channel_preview.html:168
+msgid "Writing"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:704
+#: templates/syndication/fragments/_channel_preview.html:176
+msgid "Love"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:705
+#: templates/syndication/fragments/_channel_preview.html:177
+msgid "Comment"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:725
+#: templates/syndication/fragments/_channel_preview.html:195
+msgid "Post"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:847
+msgid "FetLife has no publishing API — post content manually on FetLife"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:857
+msgid "Published to your Switch page"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:902
+#: templates/syndication/fragments/_channel_editor.html:917
+msgid "Publish"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:938
+msgid "Mark published"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_editor.html:957
+msgid "Retry"
+msgstr ""
+
+#: templates/syndication/fragments/_channel_preview.html:28
+msgid "render error"
+msgstr ""
+
+#: templates/syndication/fragments/_dirty_label.html:23
+msgid "Edited — re-publish to update your FetLife post manually"
+msgstr ""
+
+#: templates/syndication/fragments/_dirty_label.html:25
+msgid "Edited — re-publish to update the live post"
+msgstr ""
+
+#: templates/syndication/fragments/_picker_row.html:58
+msgid "Agent required — connect a Telegram agent session to unlock"
+msgstr ""
+
+#: templates/syndication/fragments/_picker_row.html:104
+msgid "Public link only"
+msgstr ""
+
+#: templates/syndication/fragments/_picker_row.html:119
+msgid "Friendly name for"
+msgstr ""
+
+#: templates/syndication/fragments/_picker_row.html:123
+msgid "Tags (comma-separated)"
+msgstr ""
+
+#: templates/syndication/fragments/_picker_row.html:128
+msgid "Theme tags for"
+msgstr ""
+
+#: templates/syndication/fragments/_sync_picker.html:48
+#: templates/syndication/fragments/_sync_picker.html:137
+msgid "Sync from"
+msgstr ""
+
+#: templates/syndication/fragments/_sync_picker.html:62
+#: templates/syndication/fragments/_sync_picker.html:172
+#: templates/syndication/fragments/post_syndication.html:70
+#: templates/syndication/fragments/post_syndication.html:247
+msgid "Master copy"
+msgstr ""
+
+#: templates/syndication/fragments/_sync_picker.html:69
+msgid "— choose —"
+msgstr ""
+
+#: templates/syndication/fragments/_sync_picker.html:96
+msgid "Discard your edits?"
+msgstr ""
+
+#: templates/syndication/fragments/_sync_picker.html:99
+msgid ""
+"Re-syncing will discard this channel's custom content and follow the chosen "
+"source again. Your current edits will be lost."
+msgstr ""
+
+#: templates/syndication/fragments/_sync_picker.html:113
+msgid "Discard and re-sync"
+msgstr ""
+
+#: templates/syndication/fragments/_sync_picker.html:159
+msgid "Apply"
+msgstr ""
+
+#: templates/syndication/fragments/event_facts.html:7
+msgid "Event facts"
+msgstr ""
+
+#: templates/syndication/fragments/event_facts.html:71
+msgid "Age"
+msgstr ""
+
+#: templates/syndication/fragments/event_posts.html:6
+msgid "Promotional posts"
+msgstr ""
+
+#: templates/syndication/fragments/event_posts.html:12
+#: templates/syndication/fragments/event_posts.html:41
+#: templates/syndication/fragments/event_syndication.html:60
+#: templates/syndication/fragments/event_syndication.html:249
+msgid "Add promo post"
+msgstr ""
+
+#: templates/syndication/fragments/event_posts.html:70
+#: templates/syndication/fragments/event_syndication.html:53
+msgid "No promo posts yet"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:32
+#: templates/syndication/fragments/post_syndication.html:34
+msgid "Action failed"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:40
+msgid "No platforms connected yet"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:43
+msgid ""
+"Connect Telegram, FetLife, or Switch to start syndicating this event across "
+"channels."
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:47
+#, fuzzy
+#| msgid "contact form"
+msgid "Connect platforms"
+msgstr "Kontaktformular"
+
+#: templates/syndication/fragments/event_syndication.html:56
+msgid "Add a promotional post to fan out across your connected channels."
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:117
+#: templates/syndication/fragments/post_syndication.html:105
+#, fuzzy
+#| msgid "Harmful content"
+msgid "Shared content"
+msgstr "Schädlicher Inhalt"
+
+#: templates/syndication/fragments/event_syndication.html:143
+#: templates/syndication/fragments/post_syndication.html:137
+msgid "Publish all ready"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:154
+#: templates/syndication/fragments/post_syndication.html:148
+msgid "Add or remove channels"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:170
+#: templates/syndication/fragments/post_syndication.html:164
+msgid "Published channels cannot be removed from Switch"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:184
+#: templates/syndication/fragments/post_syndication.html:178
+msgid "Uncheck to remove this channel"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:194
+#: templates/syndication/fragments/post_syndication.html:188
+msgid "live"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:213
+#: templates/syndication/fragments/post_syndication.html:207
+msgid "Check to add this channel"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:225
+#: templates/syndication/fragments/post_syndication.html:219
+msgid "No connections available."
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:227
+#: templates/syndication/fragments/post_syndication.html:221
+msgid "Add one"
+msgstr ""
+
+#: templates/syndication/fragments/event_syndication.html:245
+msgid "No projections yet"
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:71
+msgid "edits here feed every channel"
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:126
+msgid "View Telegram coverage for this post"
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:248
+msgid "· edits here feed every channel"
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:271
+msgid "Write the canonical post body…"
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:295
+msgid "Master copy not found"
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:298
+msgid "No canonical content version found for this post."
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:305
+msgid "No channels yet"
+msgstr ""
+
+#: templates/syndication/fragments/post_syndication.html:307
+msgid "Connect Telegram, FetLife, or other platforms to publish this post."
+msgstr ""
+
+#: templates/syndication/post_create.html:4
+msgid "Add Post"
+msgstr ""
+
+#: templates/syndication/post_create.html:14
+#, fuzzy
+#| msgid "contact form"
+msgid "Post for"
+msgstr "Kontaktformular"
+
+#: templates/syndication/post_create.html:55
+#: templates/syndication/post_create.html:56
+#: templates/syndication/post_create_standalone_fragment.html:67
+#: templates/syndication/post_create_standalone_fragment.html:68
+msgid "Create post"
+msgstr ""
+
+#: templates/syndication/post_create_standalone.html:4
+msgid "New Promo Post"
+msgstr ""
+
+#: templates/syndication/post_create_standalone_fragment.html:33
+msgid "— Select event —"
+msgstr ""
+
+#: templates/syndication/studio.html:44
+msgid "workspace"
+msgstr ""
+
+#: templates/syndication/studio.html:46
+msgid "Select a publishable from the rail to open its workspace."
+msgstr ""
+
+#: venues/models.py:32
 msgid "venue"
 msgstr ""
 
-#: venues/models.py:37
+#: venues/models.py:33
 msgid "venues"
 msgstr ""
+
+#~ msgid "Full operator identity (Impressum)"
+#~ msgstr "Vollständige Anbieteridentität (Impressum)"
+
+#~ msgid ""
+#~ "Use this form to report content that violates our <a href='/terms/' "
+#~ "class='link'>Terms of Service</a> or applicable law. Your report will be "
+#~ "reviewed within 72 hours."
+#~ msgstr ""
+#~ "Verwenden Sie dieses Formular, um Inhalte zu melden, die gegen unsere <a "
+#~ "href='/terms/' class='link'>Nutzungsbedingungen</a> oder geltendes Recht "
+#~ "verstoßen. Ihre Meldung wird innerhalb von 72 Stunden geprüft."
+
+#~ msgid "URL of the content you are reporting"
+#~ msgstr "URL des gemeldeten Inhalts"
+
+#~ msgid ""
+#~ "Which law or legal provision is violated? (required for illegal-content "
+#~ "reports)"
+#~ msgstr ""
+#~ "Welches Gesetz oder welche Rechtsvorschrift wird verletzt? (Pflichtfeld "
+#~ "bei Meldungen wegen rechtswidriger Inhalte)"
+
+#~ msgid "You can also contact us directly by email:"
+#~ msgstr "Sie können uns auch direkt per E-Mail kontaktieren:"

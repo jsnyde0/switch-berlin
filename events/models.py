@@ -141,6 +141,9 @@ class Event(models.Model):
     # Time — no per-event timezone in 0.1 (TIME_ZONE=Europe/Berlin covers single-city).
     start = models.DateTimeField()
     end = models.DateTimeField(null=True, blank=True)
+    # The source gave a date but no time: start holds that day at 00:00 and every
+    # render says "time to be announced" instead (sb-7wzb.4; ADR-008 D3).
+    start_time_unknown = models.BooleanField(default=False)
 
     # Price
     price_min_cents = models.IntegerField(null=True, blank=True)

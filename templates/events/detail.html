@@ -110,8 +110,8 @@
             <div class="flex flex-col gap-1 pb-2">
               <span class="kb-mono text-[10px] uppercase tracking-[0.22em] text-base-content/50">{{ event.start|date:"M Y" }}</span>
               <span class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/85">
-                {{ event.start|date:"H:i" }}
-                {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
+                {% if event.start_time_unknown %}{% trans "time to be announced" %}{% else %}{{ event.start|date:"H:i" }}
+                {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}{% endif %}
               </span>
             </div>
           </div>
@@ -123,8 +123,8 @@
           </dd>
           <dt class="text-base-content/40">{% trans "Time" %}</dt>
           <dd class="text-base-content/85">
-            {{ event.start|date:"H:i" }}
-            {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
+            {% if event.start_time_unknown %}{% trans "time to be announced" %}{% else %}{{ event.start|date:"H:i" }}
+            {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}{% endif %}
           </dd>
           {% if event.venue %}
             <dt class="text-base-content/40">{% trans "Venue" %}</dt>

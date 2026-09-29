@@ -34,7 +34,7 @@ Enriched content from URLs:
 {enriched_content}
 """
 
-COLLECTED_PROMPT_VERSION = "collected-v1"
+COLLECTED_PROMPT_VERSION = "collected-v2"
 
 COLLECTED_PROMPT = """
 Below is one post a collector gathered from an organizer website or a Telegram
@@ -51,7 +51,8 @@ Known tag slugs (prefer exact match): {tag_slugs}
 
 Set confidence between 0.0 and 1.0 based on completeness and certainty.
 If key fields (title, start datetime) are missing or ambiguous, set confidence < 0.4.
-When only a date is given and no time, still return the event but set confidence < 0.4.
+When a date is given but no start time, set start to that date at 00:00 and
+start_time_unknown to true; a missing time alone does not lower confidence.
 
 organizer_name is the person or collective hosting the event, as the post names
 them. A Telegram group, forum or website the post merely appears in is not the

@@ -70,8 +70,8 @@
         <span class="inline-flex items-center gap-1.5">
           <span class="text-base-content/35">{% trans "Time" %}</span>
           <span class="text-base-content/80">
-            {{ event.start|date:"H:i" }}
-            {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
+            {% if event.start_time_unknown %}{% trans "time to be announced" %}{% else %}{{ event.start|date:"H:i" }}
+            {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}{% endif %}
           </span>
         </span>
         {% if event.venue %}

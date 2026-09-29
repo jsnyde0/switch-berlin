@@ -236,6 +236,12 @@ class CollectedEventLandingTest(TestCase):
         self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "low_confidence"))
         self.assertFalse(Event.objects.exists())
 
+    def test_date_only_event_publishes_with_time_unknown(self):
+        raw = self._process(self._raw(), start_time_unknown=True)
+        event = Event.objects.get(raw_message=raw)
+        self.assertEqual(event.status, "published")
+        self.assertTrue(event.start_time_unknown)
+
     def test_failed_extraction_keeps_images_for_a_rerun(self):
         from ingestion.tasks import process_raw_message
 

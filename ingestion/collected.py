@@ -238,6 +238,7 @@ def land_collected_event(raw, draft, matched, attempt_kwargs) -> tuple[str, str]
         venue=matched["venue"],
         start=start,
         end=end,
+        start_time_unknown=draft.start_time_unknown,
         price_min_cents=draft.price_min_cents,
         price_max_cents=draft.price_max_cents,
         is_free=draft.is_free,

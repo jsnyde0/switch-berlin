@@ -16,6 +16,8 @@ class EventDraft(pydantic.BaseModel):
     external_url: str | None = None
     tags: list[str] = []
     confidence: float  # self-reported 0.0-1.0
+    # True when the source gives the date but no start time; start is then that day at 00:00.
+    start_time_unknown: bool = False
     # False when the event happens outside Berlin and its surroundings, or only online.
     in_berlin_area: bool = True
 

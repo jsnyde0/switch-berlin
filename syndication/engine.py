@@ -49,6 +49,7 @@ ADR-008 D4: retry policy seam — transport errors get ≤2 retries,
 
 from django.conf import settings
 from django.urls import reverse
+from django.utils import timezone
 
 from syndication.cleaning import clean_for_platform
 from syndication.models import ContentVersion, PlatformConnection, PlatformProjection
@@ -181,7 +182,9 @@ def _compose_listing_body(event, platform: str) -> str:
     parts = [event.title]
 
     # Date/time block (carried-forward gap fix — benefits all listing adapters)
-    if event.start:
+    if event.start and event.start_time_unknown:
+        parts.append(f"Date: {timezone.localtime(event.start):%Y-%m-%d} (time to be announced)")
+    elif event.start:
         if event.end:
             parts.append(f"Date: {event.start.strftime('%Y-%m-%d %H:%M')} – {event.end.strftime('%Y-%m-%d %H:%M')}")
         else:
