@@ -236,6 +236,20 @@ class SwitchClient:
         )
         return self._check(response)
 
+    # ------------------------------------------------------------------
+    # Collected-row ingest verb (sb-7wzb.2 — Track A collector)
+    # ------------------------------------------------------------------
+
+    def push_collected_rows(self, rows: list[dict]) -> dict:
+        """POST /api/ingest/raw-messages — land collected rows in the RawMessage seam (operator only)."""
+        response = httpx.post(
+            f"{self._base_url}/api/ingest/raw-messages",
+            json=rows,
+            headers=self._headers(),
+            timeout=60,
+        )
+        return self._check(response)
+
 
 def redeem_pairing_token(pairing_token: str, base_url: str = None) -> str:
     """

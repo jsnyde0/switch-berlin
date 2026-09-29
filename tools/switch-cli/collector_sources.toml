@@ -1,0 +1,147 @@
+# Track A collector source list (sb-7wzb.2, ratified by the user 2026-09-28/29).
+#
+# shape       = RawMessage.source_type the rows land with; it derives the tier
+#               (ADR-012 D2): website / telegram_telethon (public channel, group
+#               or forum topic) land public; telegram_private_channel and
+#               telegram_private_group land semi_public.
+# publish     = the per-source collector switch: false = collect-only (rows and
+#               drafts, never published).
+# organizer   = the source's own organizer identity, when the source IS an
+#               organizer. Unset: the organizer comes from the post text.
+# chat        = @username for public Telegram sources, else the dialog title
+#               (case-insensitive substring; must match exactly one dialog).
+# topic       = forum topic title (substring) for forum sources.
+# channel_organizer = true: a broadcast channel's own title is its organizer.
+
+[[source]]
+name = "IKSK program page"
+shape = "website"
+parser = "iksk"
+url = "https://iksk-berlin.de/Program"
+organizer = "IKSK Berlin"
+publish = true
+
+[[source]]
+name = "Karada House events page"
+shape = "website"
+parser = "karada"
+url = "https://karada-house.de/event/"
+organizer = "Karada House"
+publish = true
+
+[[source]]
+name = "@IKSKBerlin"
+shape = "telegram_telethon"
+chat = "@IKSKBerlin"
+organizer = "IKSK Berlin"
+publish = true
+
+[[source]]
+name = "@Kinkysoulevents"
+shape = "telegram_telethon"
+chat = "@Kinkysoulevents"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "@dirtytalkmagic"
+shape = "telegram_telethon"
+chat = "@dirtytalkmagic"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "@portalsofpermission"
+shape = "telegram_telethon"
+chat = "@portalsofpermission"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "@luhmendarc"
+shape = "telegram_telethon"
+chat = "@luhmendarc"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "@TillTailorShirka"
+shape = "telegram_telethon"
+chat = "@TillTailorShirka"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "Conscious Events Berlin / Love"
+shape = "telegram_telethon"
+chat = "@ConsciousEventsBerlin"
+topic = "Love"
+publish = true
+
+[[source]]
+name = "@fuckyourgenderparty"
+shape = "telegram_telethon"
+chat = "@fuckyourgenderparty"
+publish = false
+
+[[source]]
+name = "@pinkypromiseworld"
+shape = "telegram_telethon"
+chat = "@pinkypromiseworld"
+publish = false
+
+# Private sources: collected only after the D6 LIA revision is committed
+# (sb-7wzb.2 journey step 1). `collect telegram --private` includes them.
+
+[[source]]
+name = "Fist Them Berlin"
+shape = "telegram_private_channel"
+chat = "Fist Them Berlin"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "Kinky Perreo Party"
+shape = "telegram_private_channel"
+chat = "Kinky Perreo Party"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "Garden of Earthly Delights"
+shape = "telegram_private_channel"
+chat = "Garden of Earthly Delights"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "Connecting Passions & Charming Theys"
+shape = "telegram_private_channel"
+chat = "Connecting Passions"
+channel_organizer = true
+publish = true
+
+[[source]]
+name = "SeQret"
+shape = "telegram_private_group"
+chat = "SeQret"
+publish = true
+
+[[source]]
+name = "Velvet Julieverse"
+shape = "telegram_private_group"
+chat = "Velvet Julieverse"
+publish = true
+
+[[source]]
+name = "Liquid Love"
+shape = "telegram_private_group"
+chat = "Liquid Love"
+publish = true
+
+[[source]]
+name = "Sober Events in Berlin / Sex-positive offerings"
+shape = "telegram_private_group"
+chat = "Sober Events in Berlin"
+topic = "Sex-positive"
+publish = true

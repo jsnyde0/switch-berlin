@@ -25,6 +25,8 @@ Verbs:
 - list-connections    List the authenticated user's own PlatformConnections
 - enable-promotion    Enable a synced connection for promotion (adds 'promotion' to kinds)
 - studio-link         Print a working URL to the review/greenlight workspace (post or event hub)
+- collect web|telegram  Collect event candidates from the source list into a rows file (read-only)
+- collect push        Push a rows file into the Switch RawMessage seam (operator credential)
 """
 
 import json
@@ -573,10 +575,7 @@ def telegram_sync():
     "dests",
     required=True,
     multiple=True,
-    help=(
-        "Destination: <chat_id> for a group/channel, "
-        "<chat_id>:<topic_id> for a forum topic. Repeatable."
-    ),
+    help=("Destination: <chat_id> for a group/channel, <chat_id>:<topic_id> for a forum topic. Repeatable."),
 )
 def telegram_distribute(message: str, dests: tuple):
     """
@@ -639,3 +638,92 @@ def telegram_distribute(message: str, dests: tuple):
         _error(str(exc))
 
     _output({"distributed": True, "results": results})
+
+
+# ---------------------------------------------------------------------------
+# collect group (sb-7wzb.2 — Track A event collector)
+# ---------------------------------------------------------------------------
+
+
+def _write_rows(out: str, rows: list[dict]) -> None:
+    with open(out, "a") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+@cli.group("collect")
+def collect():
+    """Collect event candidates from the source list into a rows file, then push them to Switch."""
+
+
+@collect.command("web")
+@click.option("--out", required=True, help="Rows file (JSON lines); appended to")
+@click.option("--days", default=7, type=int, help="Collect events starting within this many days (default 7)")
+@click.option("--sources", "sources_path", default=None, help="Source list TOML (default: collector_sources.toml)")
+def collect_web_cmd(out: str, days: int, sources_path: str):
+    """Collect this window's events from the website sources."""
+    from switch_cli.collect import DEFAULT_SOURCES, collect_web, load_sources
+
+    rows, report = collect_web(load_sources(sources_path or DEFAULT_SOURCES), days)
+    _write_rows(out, rows)
+    _output({"rows": len(rows), "out": out, "sources": report})
+
+
+@collect.command("telegram")
+@click.option("--out", required=True, help="Rows file (JSON lines); appended to")
+@click.option("--days", default=14, type=int, help="Read posts from the last N days (default 14)")
+@click.option("--private", "include_private", is_flag=True, default=False, help="Include private sources")
+@click.option("--sources", "sources_path", default=None, help="Source list TOML (default: collector_sources.toml)")
+def collect_telegram_cmd(out: str, days: int, include_private: bool, sources_path: str):
+    """
+    Read recent posts from the Telegram sources through the user session.
+
+    READ-ONLY (ADR-018 D2 FIRM, D6): never sends, posts, forwards or joins.
+    Private sources are skipped unless --private is given.
+    """
+    import asyncio
+
+    from switch_cli.collect import DEFAULT_SOURCES, load_sources
+    from switch_cli.telegram.enumerate import build_authenticated_client
+    from switch_cli.telegram.read import collect_telegram
+    from switch_cli.telegram.session import load_telegram_session
+
+    try:
+        cfg = load_config()
+    except (FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    tg_cfg = cfg.get("telegram")
+    if not tg_cfg or "api_id" not in tg_cfg or "api_hash" not in tg_cfg:
+        _error("Telegram api_id and api_hash are not configured in the switch-cli config.")
+    config_dir = _get_config_dir()
+    try:
+        session_string = load_telegram_session(config_dir=config_dir)
+    except SessionCorruptError as exc:
+        _error(str(exc))
+    if session_string is None:
+        _error("No Telegram session found. Run `switch-cli telegram connect` first.")
+
+    async def _run():
+        client = build_authenticated_client(int(tg_cfg["api_id"]), str(tg_cfg["api_hash"]), session_string)
+        async with client:
+            return await collect_telegram(client, load_sources(sources_path or DEFAULT_SOURCES), days, include_private)
+
+    rows, report = asyncio.run(_run())
+    _write_rows(out, rows)
+    _output({"rows": len(rows), "out": out, "sources": report})
+
+
+@collect.command("push")
+@click.argument("rows_file")
+def collect_push(rows_file: str):
+    """Push a rows file to Switch (POST /api/ingest/raw-messages, operator credential)."""
+    with open(rows_file) as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+    try:
+        client = SwitchClient()
+        result = client.push_collected_rows(rows)
+    except (AuthError, FileNotFoundError, ConfigError) as exc:
+        _error(str(exc))
+    except APIError as exc:
+        _error(f"API error {exc.status_code}: {exc.detail}")
+    _output({"pushed": len(rows), **result})
