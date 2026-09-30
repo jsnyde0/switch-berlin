@@ -8,7 +8,7 @@ Acceptance criteria covered:
   (d) event.organizer property returns primary Profile (AC-4)
   (e) event.organizer returns None when no organizers (AC-4)
   (f) event.primary_organizer alias (AC-4)
-  (g) profile.events.all() returns events (AC-5)
+  (g) profile.events_organized.all() returns events (AC-5)
   (h) Partial unique constraint on is_primary (AC-6)
   (i) TDD evidence: multiple organizers, compat property, data shape (AC-12)
 """
@@ -174,8 +174,8 @@ class EventOrganizerCompatPropertyTest(TestCase):
         self.assertIsNone(event2.organizer)
 
 
-class ProfileEventsCompatTest(TestCase):
-    """AC-5: profile.events.all() returns events where profile is organizer."""
+class ProfileEventsOrganizedTest(TestCase):
+    """AC-5: profile.events_organized.all() returns events where profile is organizer."""
 
     def setUp(self):
         from events.models import Event, EventOrganizer
@@ -209,15 +209,15 @@ class ProfileEventsCompatTest(TestCase):
             order=1,
         )
 
-    def test_profile_events_all_returns_queryset(self):
-        result = self.profile.events.all()
+    def test_profile_events_organized_all_returns_queryset(self):
+        result = self.profile.events_organized.all()
         # Should be queryset-like (iterable), and contain both events
         event_pks = {e.pk for e in result}
         self.assertIn(self.event1.pk, event_pks)
         self.assertIn(self.event2.pk, event_pks)
 
-    def test_profile_events_count_correct(self):
-        self.assertEqual(self.profile.events.all().count(), 2)
+    def test_profile_events_organized_count_correct(self):
+        self.assertEqual(self.profile.events_organized.all().count(), 2)
 
 
 class EventOrganizerPartialUniqueTest(TestCase):

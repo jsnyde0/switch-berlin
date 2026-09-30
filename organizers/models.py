@@ -140,17 +140,6 @@ class Profile(models.Model):
         """
         return self.profileclaim_set.filter(rejected_at__isnull=True).exists()
 
-    @property
-    def events(self):
-        """
-        Compat accessor: returns the queryset of Events where this Profile
-        is an organizer (any is_primary value). Replaces the old FK reverse
-        manager so existing call sites (`profile.events.all()`) keep working.
-
-        New code should prefer `profile.events_organized.all()`.
-        """
-        return self.events_organized.all()
-
 
 class ProfileClaim(models.Model):
     """

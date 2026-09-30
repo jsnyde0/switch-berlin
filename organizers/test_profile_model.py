@@ -252,7 +252,7 @@ def test_event_organizer_fk_targets_profile():
 
 @pytest.mark.django_db
 def test_profile_reverse_events_queryset():
-    """profile.events.all() returns events related to this profile."""
+    """profile.events_organized.all() returns events related to this profile."""
     from django.utils import timezone
 
     from events.models import Event
@@ -265,7 +265,7 @@ def test_profile_reverse_events_queryset():
         organizer=p,
         start=timezone.now(),
     )
-    assert event in p.events.all()
+    assert event in p.events_organized.all()
 
 
 @pytest.mark.django_db

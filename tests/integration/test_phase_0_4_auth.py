@@ -3,7 +3,7 @@ Integration tests for Phase 0.4 — auth layer bugfixes, middleware restructure,
 kill-switches, and approval UX.
 
 Test plan items (from bead sb-2eu.1, updated by sb-m69.1):
-1. organizer.events (not event_set) — GET /o/<slug>/ no longer crashes
+1. organizer.events_organized (not event_set) — GET /o/<slug>/ no longer crashes
 2. pagination hx-target is #event-list (not #event-list-container)
 3. vouched user (status='vouched', is_staff=False) gets 200 on /events/
 4. open-status authenticated user sees 403_pending_approval.html at status 403
@@ -52,13 +52,13 @@ def unapproved_user(db):
 
 
 # ---------------------------------------------------------------------------
-# Bugfix 1: organizer.events (related_name) — not event_set
+# Bugfix 1: organizer.events_organized (related_name) — not event_set
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
 def test_organizer_profile_uses_events_related_name(client, staff_user, approved_organizer, published_event):
-    """GET /p/<slug>/ returns 200 (not 500) — organizer.events FK works."""
+    """GET /p/<slug>/ returns 200 (not 500) — organizer.events_organized reverse works."""
     client.force_login(staff_user)
     response = client.get(f"/p/{approved_organizer.slug}/")
     assert response.status_code == 200
