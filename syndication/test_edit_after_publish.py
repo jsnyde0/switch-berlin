@@ -230,22 +230,21 @@ class EditAfterPublishPolicyTest(TestCase):
         grep -r 'edit_after_publish' must find exactly ONE resolution site in the
         syndication code. Policy must be concentrated, not duplicated.
         """
-        import os
-        import subprocess
+        from pathlib import Path
 
-        syndication_dir = os.path.dirname(os.path.abspath(__file__))
-        result = subprocess.run(
-            ["grep", "-r", "edit_after_publish", syndication_dir],
-            capture_output=True,
-            text=True,
-        )
+        # Scan in Python, not by shelling out to grep: GNU grep trusts the
+        # filesystem's sparse-file report, and on the rip-cage workspace mount
+        # it wrongly flags services.py as binary and drops its lines (sb-b8l8).
+        syndication_dir = Path(__file__).resolve().parent
         lines = [
-            line
-            for line in result.stdout.strip().split("\n")
-            if line  # non-empty
-            and ".pyc" not in line  # ignore compiled
-            and "__pycache__" not in line  # ignore cache
-            and "test_edit_after_publish.py" not in line  # ignore this test file
+            f"{path}:{line}"
+            for path in sorted(syndication_dir.rglob("*"))
+            if path.is_file()
+            and "__pycache__" not in path.parts  # ignore cache
+            and path.suffix != ".pyc"  # ignore compiled
+            and path.name != "test_edit_after_publish.py"  # ignore this test file
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
+            if "edit_after_publish" in line
         ]
         # The function definition + the import in models = still ONE logical resolution site
         # We want to verify the policy logic is NOT scattered across multiple callers.
