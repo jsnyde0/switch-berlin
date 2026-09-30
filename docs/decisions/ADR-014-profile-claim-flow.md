@@ -1,6 +1,6 @@
 # ADR-014: Profile claim flow — multi-claimant through-model, two-track verification, magic-link security envelope
 
-**Status:** Accepted 2026-05-21
+**Status:** Accepted 2026-05-21 (revised 2026-09-30 — D4 visible "Verified" mark derives from a verified claim)
 **Parent:** [ADR-007 D5 Profile claimable via User FK](ADR-007-profile-centric-schema.md) (evolved in place per ADR-011 D1)
 **Scope:** how Profiles are claimed by Users — schema cardinality, verification routing, security envelope. Operationalizes the upstream curated-trust gate (ADR-001 D1) at the Profile-ownership boundary.
 
@@ -138,6 +138,28 @@ Both tracks pass through the magic-link confirmation step (proves the submitter 
 - Click-through rate within 24h drops below 70% (significant fraction of legitimate users miss the window) → extend to 48–72h with corresponding security review.
 - Token-substitution or replay-class abuse appears in audit logs → tighten scope (e.g., add IP-pinning, or require re-authentication immediately before claim activation).
 - Turnstile false-positive rate proves to be a UX disaster (legitimate users blocked) → switch to a more permissive challenge or remove from the claim form (other forms' Turnstile usage governed by ADR-013).
+
+### D4 — The visible "Verified" mark derives from a verified claim; no hand-set badge (added 2026-09-30)
+
+**Decision:** Wherever the site shows an organizer Profile as "Verified" — the mark next to the name on an event card, the tag on the Profile page — that mark is **computed**: it is on iff the Profile has at least one active `ProfileClaim` (not rejected, not revoked), whichever D2 track verified it. The legacy `Profile.verified_badge` boolean, which only an admin could tick by hand and which no code path ever set, is **deleted** (ADR-008 D1: no shims). There is one word for one fact — *a real person stands behind this page* — and one visual mark for it; an unverified Profile shows no mark at all, never a negative badge.
+
+Admin approval of a Profile (`Profile.status`, ADR-001 D1's admin-gated organizer approval) is a **different axis** — whether the Profile is listed at all — and is untouched by this decision.
+
+**Firmness:** EXPLORATORY (ratified 2026-09-30 in the sb-7wzb.11 events-list sitting with the user; the mark's exact rendering is the build's, the meaning is fixed here).
+
+**Rationale:**
+- `direct:` user 2026-09-30 — "Verified here meaning claimed"; one mark next to the name, like a checkmark, is all the visual distinction the list needs.
+- `reasoned:` collected events (ADR-017 D4) fill the list with Profiles nobody on Switch stands behind yet; a visitor's one question is whether someone does. A verified claim is the only fact that answers it; an admin-ticked box answers a question nobody asked.
+- `reasoned:` `verified_badge` had no writer outside the admin form and one reader (the Profile template) — a dead path, deleted on sight per ADR-008 D1.
+
+**Alternatives:**
+| Alternative | Why rejected |
+|---|---|
+| Two marks: "Verified" (admin) and "Claimed" (claim) | `reasoned:` visitors must learn two marks for one question; the admin mark had no use. |
+| Rename the mark to "Claimed", keep the admin badge | `reasoned:` "claimed" reads as inside jargon on a public card; the admin badge still has no writer. |
+| Negative badge ("Unclaimed") on every unverified card | `direct:` user 2026-09-30 — nearly every collected event is unclaimed today; a negative badge on each makes the whole list read as unowned. |
+
+**Invalidation:** the scene turns out to need a curation mark that is *not* a claim (e.g. an admin vouching for a collective that will never claim) → reintroduce a distinct, explicitly named admin mark; do not overload "Verified" again.
 
 ## Consequences
 
