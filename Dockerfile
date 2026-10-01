@@ -55,11 +55,14 @@ ENV PATH="/app/.venv/bin:$PATH"
 # sb-cm5 (2026-05-22): sb-bsp moved this to runtime via init.sh, but init and
 # app are separate containers — init's writes never reached app's filesystem,
 # so all /static/* URLs 404'd on prod.
+# sb-b7h (2026-10-01): compilemessages here too, for the same build-time-not-
+# init-time reason — *.mo is gitignored, so without it the German catalog never
+# reached the image and every {% trans %} rendered the English msgid.
 RUN SECRET_KEY=build-time-dummy-not-used-at-runtime \
     DATABASE_URL=postgres://x:x@x/x \
     DEBUG=False \
     ALLOWED_HOSTS=localhost \
-    python manage.py collectstatic --noinput
+    sh -c 'python manage.py collectstatic --noinput && python manage.py compilemessages --ignore=.venv'
 
 EXPOSE 8000
 
