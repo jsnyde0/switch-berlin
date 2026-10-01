@@ -14,7 +14,7 @@ import re
 import tomllib
 from datetime import date, timedelta
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -78,11 +78,35 @@ def _parse_day(label: str, today: date) -> date | None:
     return candidate if candidate >= today - timedelta(days=60) else date(today.year + 1, month, day)
 
 
-def iksk_rows(source: dict, html_text: str, start: date, end: date) -> list[dict]:
+_IKSK_HOSTS = {"iksk-berlin.de", "www.iksk-berlin.de"}
+
+
+def _iksk_detail(client: httpx.Client, href: str) -> str:
+    """Visible prose of an IKSK detail page: its role=main region, scripts dropped."""
+    resp = client.get(href)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+    main = soup.select_one("[role=main]")
+    if main is None:
+        raise ValueError("no role=main region")
+    for tag in main(["script", "style", "noscript"]):
+        tag.decompose()
+    return " ".join(main.get_text(" ").split())[:3000]
+
+
+def iksk_rows(
+    source: dict, html_text: str, start: date, end: date, client: httpx.Client
+) -> tuple[list[dict], list[str]]:
     """IKSK /Program is a grid: per week a table whose first row carries the dates
-    and whose later rows carry one entry per day column."""
+    and whose later rows carry one entry per day column.
+
+    A cell linking to an IKSK page gets that page's prose inlined (fetched once
+    per href); URL enrichment cannot read it, the site 301s to www. A cell linking
+    off-site is a third-party host using IKSK as the venue: not fetched, and the
+    source's declared organizer is dropped so the host comes from the text.
+    Returns the rows and one line per failed detail fetch."""
     soup = BeautifulSoup(html_text, "html.parser")
-    rows = []
+    rows, errors, details = [], [], {}
     for table in soup.find_all("table"):
         trs = table.find_all("tr")
         if not trs:
@@ -98,15 +122,35 @@ def iksk_rows(source: dict, html_text: str, start: date, end: date) -> list[dict
                     continue
                 link = td.find("a")
                 href = urljoin(source["url"], link["href"]) if link and link.get("href") else ""
-                text = (
+                host = urlparse(href).netloc.lower()
+                off_site = bool(href) and host not in _IKSK_HOSTS
+                if href and not off_site and href not in details:
+                    try:
+                        details[href] = _iksk_detail(client, href)
+                    except (httpx.HTTPError, ValueError) as exc:
+                        details[href] = ""
+                        why = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else exc
+                        errors.append(f"{href}: {type(exc).__name__} {why}")
+                header = (
                     f"Event listed on the IKSK Berlin program ({source['url']}).\n"
                     f"Date: {day.isoformat()} ({day.strftime('%A')})\n"
                     f"Entry (time range as 'HH MM - HH MM', then title): {entry}\n"
-                    f"Organizer/host venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
-                    + (f"Details: {href}\n" if href else "")
                 )
-                rows.append(collected_row(source, "iksk-berlin.de", f"{day.isoformat()}|{entry[:60]}", text, url=href))
-    return rows
+                if off_site:
+                    header += (
+                        f"Host: {host.removeprefix('www.')} (the program links this event to the host's own site)\n"
+                        f"Venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
+                    )
+                else:
+                    header += "Organizer/host venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
+                text = header + (f"Details: {href}\n" if href else "")
+                if details.get(href):
+                    text += f"\n{details[href]}"
+                row = collected_row(source, "iksk-berlin.de", f"{day.isoformat()}|{entry[:60]}", text, url=href)
+                if off_site:
+                    row["raw_payload"].pop("organizer", None)
+                rows.append(row)
+    return rows, errors
 
 
 def _strip_html(s: str) -> str:
@@ -148,11 +192,13 @@ def collect_web(sources: list[dict], days: int, today: date | None = None) -> tu
     end = start + timedelta(days=days)
     rows, report = [], []
     for source in (s for s in sources if s["shape"] == "website"):
+        detail_errors = []
         try:
             if source["parser"] == "iksk":
-                resp = httpx.get(source["url"], headers=_UA, timeout=30, follow_redirects=True)
-                resp.raise_for_status()
-                got = iksk_rows(source, resp.text, start, end)
+                with httpx.Client(headers=_UA, timeout=30, follow_redirects=True) as client:
+                    resp = client.get(source["url"])
+                    resp.raise_for_status()
+                    got, detail_errors = iksk_rows(source, resp.text, start, end, client)
             elif source["parser"] == "karada":
                 got = karada_rows(source, start, end)
             else:
@@ -162,4 +208,6 @@ def collect_web(sources: list[dict], days: int, today: date | None = None) -> tu
             continue
         rows.extend(got)
         report.append({"source": source["name"], "rows": len(got)})
+        if detail_errors:
+            report[-1]["detail_errors"] = detail_errors
     return rows, report
