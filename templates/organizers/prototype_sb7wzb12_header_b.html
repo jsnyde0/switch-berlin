@@ -1,0 +1,32 @@
+{% load i18n prototype_sb7wzb12 %}
+{% comment %}PROTOTYPE sb-7wzb.12 — profile B "Verified eyebrow + sources column".
+The eyebrow above the name carries the mark ("Organizer · ✓ Verified"); the
+name stays clean. Sources move to the right column as an "Events from" list
+above the follow/claim actions.{% endcomment %}
+{% with verified=organizer|proto_verified sources=organizer|proto_sources %}
+<header class="pt-10 pb-8 lg:pt-14 lg:pb-10">
+  <p class="kb-mono inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">
+    {% trans "Organizer" %}
+    {% if verified %}<span class="text-base-content/25">·</span><span class="inline-flex items-center gap-1.5 text-fuchsia-300">{% include "events/prototype_sb7wzb12/_check.html" with sz="h-4 w-4" %}{% trans "Verified" %}</span>{% endif %}
+  </p>
+  <div class="grid grid-cols-12 gap-6 items-end">
+    <div class="col-span-12 lg:col-span-8 flex items-end gap-6">
+      {% if organizer.avatar %}<img src="{{ organizer.avatar.url }}" alt="{{ organizer.name }}" class="w-20 h-20 lg:w-24 lg:h-24 object-cover ring-1 ring-white/15 flex-shrink-0">{% else %}<div class="kb-display text-[44px] lg:text-[56px] leading-none w-20 h-20 lg:w-24 lg:h-24 flex items-center justify-center text-fuchsia-200/95 flex-shrink-0" style="background: var(--kb-accent-wash)">{{ organizer.name|first|upper }}</div>{% endif %}
+      <h1 class="kb-display text-[36px] sm:text-[48px] lg:text-[64px] leading-[0.95] font-light tracking-tight min-w-0">{{ organizer.name }}</h1>
+    </div>
+    <div class="col-span-12 lg:col-span-4 lg:pl-8 lg:border-l lg:border-white/15 flex flex-col gap-4">
+      {% if sources %}
+        <div>
+          <p class="kb-mono text-[9px] uppercase tracking-[0.22em] text-base-content/35 mb-2">{% trans "Events from" %}</p>
+          <ul class="space-y-1">
+            {% for href, kind, label in sources %}
+              <li><a href="{{ href }}" target="_blank" rel="noopener noreferrer" class="text-[13px] text-base-content/75 hover:text-base-content border-b border-white/10 hover:border-fuchsia-300/60">{{ label }}</a> <span class="kb-mono text-[9px] uppercase tracking-[0.18em] text-base-content/35">{{ kind }}</span></li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      {% include "events/prototype_sb7wzb12/_profile_actions.html" %}
+    </div>
+  </div>
+</header>
+{% endwith %}

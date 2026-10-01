@@ -1,0 +1,20 @@
+{% load i18n %}{# PROTOTYPE sb-7wzb.12 — verbatim copy of the live profile actions column #}
+        <div class="col-span-12 lg:col-span-4 lg:pl-8 lg:border-l lg:border-white/15 flex flex-col gap-3 items-start lg:items-stretch">
+          {% if user.is_authenticated %}
+            {% include 'organizers/_follow_button.html' with organizer=organizer following=following %}
+          {% endif %}
+          {% if not user.is_authenticated %}
+            <a href="{% url 'account_login' %}?next={{ request.path }}"
+               class="kb-btn-secondary">{% trans "Sign in to claim" %}</a>
+          {% elif viewer_is_claimant %}
+            <span class="kb-tag kb-tag-success self-start">{% trans "You manage this profile" %}</span>
+          {% elif viewer_claim_is_pending %}
+            <span class="kb-tag self-start">{% trans "Claim Pending" %}</span>
+          {% else %}
+            <a href="{% url 'organizer-claim-entry' slug=organizer.slug %}"
+               class="kb-btn-secondary">
+              {% trans "Claim this profile" %}
+              <span aria-hidden="true">↗</span>
+            </a>
+          {% endif %}
+        </div>

@@ -1,0 +1,1 @@
+{% load i18n event_tags %}{# PROTOTYPE sb-7wzb.12 #}{% if event.venue %}{% if event.venue.privacy_mode == 'private' and not event.venue.pk|in_set:going_venue_id_list %}{% trans 'Private venue' %}{% else %}{{ event.venue.name }}{% endif %}{% endif %}

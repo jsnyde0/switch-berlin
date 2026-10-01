@@ -1,0 +1,37 @@
+{% load prototype_sb7wzb12 %}
+{% comment %}PROTOTYPE sb-7wzb.12 — floating variant switcher. DEBUG only.
+Args: keys (comma string), names (pipe string), current.{% endcomment %}
+{% proto_enabled as on %}
+{% if on %}
+  <div id="proto-switcher"
+       data-keys="{{ keys }}"
+       data-names="{{ names }}"
+       data-current="{{ current }}"
+       class="fixed bottom-5 left-1/2 z-[9999] -translate-x-1/2 flex items-center gap-3 rounded-full bg-yellow-300 px-3 py-2 text-black shadow-2xl shadow-black/60 ring-2 ring-black font-mono text-[12px]">
+    <button type="button" data-step="-1" class="rounded-full px-2 py-0.5 hover:bg-black/10" aria-label="Previous variant">←</button>
+    <span id="proto-label" class="min-w-[220px] text-center font-semibold"></span>
+    <button type="button" data-step="1" class="rounded-full px-2 py-0.5 hover:bg-black/10" aria-label="Next variant">→</button>
+    <span class="text-[10px] opacity-60">PROTOTYPE</span>
+  </div>
+  <script>
+    (function () {
+      const el = document.getElementById("proto-switcher");
+      const keys = el.dataset.keys.split(","), names = el.dataset.names.split("|");
+      const cur = keys.indexOf(el.dataset.current);
+      document.getElementById("proto-label").textContent = keys[cur] + " — " + names[cur] + "  (" + (cur + 1) + "/" + keys.length + ")";
+      function go(step) {
+        const k = keys[(cur + step + keys.length) % keys.length];
+        document.cookie = "proto_variant=" + k + "; path=/; SameSite=Lax";
+        const u = new URL(location.href); u.searchParams.set("variant", k);
+        location.replace(u.toString());
+      }
+      el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => go(+b.dataset.step)));
+      document.addEventListener("keydown", e => {
+        const t = e.target;
+        if (t.closest && t.closest("input,textarea,select,[contenteditable]")) return;
+        if (e.key === "ArrowLeft") go(-1);
+        if (e.key === "ArrowRight") go(1);
+      });
+    })();
+  </script>
+{% endif %}

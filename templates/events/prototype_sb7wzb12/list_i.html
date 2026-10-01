@@ -1,0 +1,40 @@
+{% load i18n event_tags prototype_sb7wzb12 %}
+{% comment %}PROTOTYPE sb-7wzb.12 — I "Day rail + flyer column + timeline" (H, reworked
+from the human's round-2 note). Per day: sticky date rail | a fixed flyer column
+left of the timeline (empty when no flyer, so text always aligns) | the
+timeline line | entry. Whole entry opens the event page.{% endcomment %}
+<div>
+  {% for event in page_obj %}
+    {% ifchanged event.start.date %}
+      {% if not forloop.first %}</ol></section>{% endif %}
+      <section class="grid grid-cols-[76px_1fr] sm:grid-cols-[104px_1fr] gap-x-4 border-t border-white/15 pt-6 pb-2">
+        <div class="sticky top-4 self-start">
+          <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"D" }}</div>
+          <div class="kb-display text-[44px] leading-[0.9] font-light">{{ event.start|date:"j" }}</div>
+          <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"M" }}</div>
+        </div>
+        <ol>
+    {% endifchanged %}
+    {% with org=event.organizer cover=event|proto_cover price=event|proto_price %}
+      <li class="group relative grid grid-cols-[72px_1fr] sm:grid-cols-[96px_1fr]">
+        <div class="pr-4 pb-6">
+          {% if cover %}<img src="{{ cover.image.url }}" alt="" loading="lazy" class="w-full aspect-[4/5] object-cover ring-1 ring-white/10 transition-transform duration-300 group-hover:scale-[1.03]">{% endif %}
+        </div>
+        <div class="relative border-l border-white/12 pl-6 pb-6 min-w-0">
+          <span class="absolute -left-[5px] top-2 h-2.5 w-2.5 rounded-full bg-fuchsia-300/70 ring-4 ring-base-100"></span>
+          <div class="flex items-center gap-3 kb-mono text-[11px] text-base-content/60">
+            <span class="text-base-content/85">{% include "events/prototype_sb7wzb12/_time.html" %}</span>
+            {% if price %}<span class="{% if price == 'Free' %}text-emerald-300{% else %}text-base-content/70{% endif %}">{{ price }}</span>{% endif %}
+            <span class="uppercase tracking-[0.12em] text-[10px] text-base-content/40 truncate">{% include "events/prototype_sb7wzb12/_venue.html" %}</span>
+          </div>
+          <h2 class="mt-1 kb-display text-[22px] leading-[1.12] tracking-tight">
+            <a href="{% url 'event-detail' org_slug=org.slug event_slug=event.slug %}" class="after:absolute after:inset-0 group-hover:text-fuchsia-200">{{ event.title }}</a>
+          </h2>
+          <div class="mt-0.5">{% include "events/prototype_sb7wzb12/_org.html" %}</div>
+          {% with s=event|proto_summary %}{% if s %}<p class="mt-1 text-[13px] text-base-content/55 line-clamp-2">{{ s }}</p>{% endif %}{% endwith %}
+        </div>
+      </li>
+    {% endwith %}
+    {% if forloop.last %}</ol></section>{% endif %}
+  {% endfor %}
+</div>

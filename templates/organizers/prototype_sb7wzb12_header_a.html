@@ -1,0 +1,26 @@
+{% load i18n prototype_sb7wzb12 %}
+{% comment %}PROTOTYPE sb-7wzb.12 — profile A "Check after the name".
+Display-size check disc closes the h1; sources as a mono link line below.{% endcomment %}
+{% with verified=organizer|proto_verified sources=organizer|proto_sources %}
+<header class="pt-10 pb-8 lg:pt-14 lg:pb-10">
+  <p class="kb-mono text-[11px] uppercase tracking-[0.22em] text-base-content/45 mb-5">{% trans "Organizer · Profile" %}</p>
+  <div class="grid grid-cols-12 gap-6 items-end">
+    <div class="col-span-12 lg:col-span-8 flex items-end gap-6">
+      {% if organizer.avatar %}<img src="{{ organizer.avatar.url }}" alt="{{ organizer.name }}" class="w-20 h-20 lg:w-24 lg:h-24 object-cover ring-1 ring-white/15 flex-shrink-0">{% else %}<div class="kb-display text-[44px] lg:text-[56px] leading-none w-20 h-20 lg:w-24 lg:h-24 flex items-center justify-center text-fuchsia-200/95 flex-shrink-0" style="background: var(--kb-accent-wash)">{{ organizer.name|first|upper }}</div>{% endif %}
+      <div class="min-w-0">
+        <h1 class="kb-display text-[36px] sm:text-[48px] lg:text-[64px] leading-[0.95] font-light tracking-tight">
+          {{ organizer.name }}{% if verified %}<span class="inline-block align-[0.08em] ml-3">{% include "events/prototype_sb7wzb12/_check.html" with sz="h-7 w-7 lg:h-9 lg:w-9" %}</span>{% endif %}
+        </h1>
+        {% if sources %}
+          <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {% for href, kind, label in sources %}
+              <a href="{{ href }}" target="_blank" rel="noopener noreferrer" class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content border-b border-white/15 hover:border-fuchsia-300/60 pb-0.5"><span class="text-base-content/35">{{ kind }} ·</span> {{ label }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    {% include "events/prototype_sb7wzb12/_profile_actions.html" %}
+  </div>
+</header>
+{% endwith %}

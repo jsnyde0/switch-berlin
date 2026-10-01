@@ -28,6 +28,7 @@ ALWAYS_PUBLIC_PREFIXES = (
     # LoginWallMiddleware must not intercept /api/ paths — doing so would redirect
     # unauthenticated API requests to the HTML login page instead of returning 401.
     "/api/",
+    "/media/",  # PROTOTYPE sb-7wzb.12 — revert; anonymous visitors cannot load flyers otherwise (finding for the build)
 )
 
 # Prefix-based matching — "/" is a special case: match only the exact root path

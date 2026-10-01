@@ -1,5 +1,7 @@
-{% load i18n event_tags %}
+{% load i18n event_tags prototype_sb7wzb12 %}
+{% proto_variant request as pv %}{# PROTOTYPE sb-7wzb.12 #}
 {{ markers_geojson|json_script:"markers-data" }}
+{% if pv in "IJKL" %}{% include "events/prototype_sb7wzb12/list_"|add:pv|lower|add:".html" %}{% else %}{# PROTOTYPE sb-7wzb.12 round 2 #}
 <div class="grid grid-cols-1 gap-y-0">
   {% for event in page_obj %}
     {% with hue_a=event.slug|slug_hue %}
@@ -18,6 +20,7 @@
              @click="if($event.target.closest('a'))return; open=!open"
              @keydown.enter.prevent="if(!$event.target.closest('a')) open=!open"
              @keydown.space.prevent="if(!$event.target.closest('a')) open=!open">
+          {# PROTOTYPE sb-7wzb.12 — variant card #}
           <c-event-card :event="event" :going_venue_id_list="going_venue_id_list" />
         </div>
         {# ── Inline expand panel — grid-rows animation, no plugin needed ─ #}
@@ -62,28 +65,7 @@
                      @click.stop>
                     {% trans "View full event" %} <span aria-hidden="true">→</span>
                   </a>
-                  {% if event.external_url %}
-                    <a href="{{ event.external_url }}"
-                       target="_blank"
-                       rel="noopener"
-                       class="kb-btn-secondary inline-flex items-center gap-1.5"
-                       aria-label="{% trans 'Open organizer site in new tab' %}"
-                       @click.stop>
-                      <svg class="h-3.5 w-3.5"
-                           viewBox="0 0 24 24"
-                           fill="none"
-                           stroke="currentColor"
-                           stroke-width="2"
-                           stroke-linecap="round"
-                           stroke-linejoin="round"
-                           aria-hidden="true">
-                        <path d="M15 3h6v6" />
-                        <path d="M10 14 21 3" />
-                        <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
-                      </svg>
-                      {% trans "Organizer site" %}
-                    </a>
-                  {% endif %}
+                  {# PROTOTYPE sb-7wzb.12 — outbound organizer-site button removed (D2) #}
                 </div>
               </div>
               {# /additive body #}
@@ -104,4 +86,5 @@
     </div>
   {% endfor %}
 </div>
+{% endif %}
 <c-pagination :page_obj="page_obj" />

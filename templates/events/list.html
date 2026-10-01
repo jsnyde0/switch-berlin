@@ -392,6 +392,7 @@
         </div>
         <div class="kb-rule mb-0"></div>
         <div id="event-list">{% include "events/_event_list.html" %}</div>
+        {# PROTOTYPE sb-7wzb.12 #}{% load prototype_sb7wzb12 %}{% proto_variant request as pv %}{% include "events/prototype_sb7wzb12/_switcher.html" with keys="I,J,K,L" names="I baseline (flyer column, no expand)|J text-only rows, expand shows flyer; title + Full event link|K small thumb, expand grows flyer; title link only|L text-only rows, expand; button only (title not a link)" current=pv %}
       </main>
     </div>
     {# /lg:grid #}

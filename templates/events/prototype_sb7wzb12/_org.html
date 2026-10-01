@@ -1,0 +1,2 @@
+{% load prototype_sb7wzb12 %}{# PROTOTYPE sb-7wzb.12 — organizer name → Switch profile, icon-only Verified mark #}
+{% if org %}<a href="{% url 'organizer-profile' slug=org.slug %}" class="relative z-10 inline-flex items-center gap-1 {{ cls|default:'text-[13px] text-base-content/70 hover:text-base-content' }}"><span class="truncate max-w-[240px]">{{ org.name }}</span>{% if org|proto_verified %}{% include "events/prototype_sb7wzb12/_check.html" with sz=csz|default:"h-3.5 w-3.5" %}{% endif %}</a>{% endif %}

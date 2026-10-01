@@ -1,0 +1,1 @@
+{% load i18n %}{# PROTOTYPE sb-7wzb.12 #}{% if event.start_time_unknown %}{% trans "TBA" %}{% else %}{{ event.start|date:"H:i" }}{% if event.end %}–{{ event.end|date:"H:i" }}{% endif %}{% endif %}

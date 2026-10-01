@@ -1,0 +1,52 @@
+{% load i18n event_tags prototype_sb7wzb12 %}
+{% comment %}PROTOTYPE sb-7wzb.12 — J (branch of I). Collapsed rows are text-only on the
+timeline; a small "flyer" cue in the meta line says there is one. Clicking the row
+expands: the flyer shown WHOLE (never cropped) beside the full description, price
+detail, tags, and a "Full event →" link. Navigation: title link + that link.{% endcomment %}
+<div>
+  {% for event in page_obj %}
+    {% ifchanged event.start.date %}
+      {% if not forloop.first %}</ol></section>{% endif %}
+      <section class="grid grid-cols-[76px_1fr] sm:grid-cols-[104px_1fr] gap-x-4 border-t border-white/15 pt-6 pb-2">
+        <div class="sticky top-4 self-start">
+          <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"D" }}</div>
+          <div class="kb-display text-[44px] leading-[0.9] font-light">{{ event.start|date:"j" }}</div>
+          <div class="kb-mono text-[10px] uppercase tracking-[0.18em] text-base-content/50">{{ event.start|date:"M" }}</div>
+        </div>
+        <ol class="border-l border-white/12">
+    {% endifchanged %}
+    {% with org=event.organizer cover=event|proto_cover price=event|proto_price %}
+      <li x-data="{ open: false }" class="relative">
+        <span class="absolute -left-[5px] top-6 h-2.5 w-2.5 rounded-full ring-4 ring-base-100 transition-colors" :class="open ? 'bg-fuchsia-300' : 'bg-fuchsia-300/60'"></span>
+        <div class="group pl-6 pr-3 py-4 cursor-pointer hover:bg-base-200/40 transition-colors flex gap-3" @click="if($event.target.closest('a'))return; open=!open">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 kb-mono text-[11px] text-base-content/60">
+              <span class="text-base-content/85">{% include "events/prototype_sb7wzb12/_time.html" %}</span>
+              {% if price %}<span class="{% if price == 'Free' %}text-emerald-300{% else %}text-base-content/70{% endif %}">{{ price }}</span>{% endif %}
+              <span class="uppercase tracking-[0.12em] text-[10px] text-base-content/40 truncate">{% include "events/prototype_sb7wzb12/_venue.html" %}</span>
+              {% if cover %}<span class="uppercase tracking-[0.12em] text-[9px] text-fuchsia-300/70 border border-fuchsia-300/30 px-1">flyer</span>{% endif %}
+            </div>
+            <h2 class="mt-1 kb-display text-[22px] leading-[1.12] tracking-tight">
+              <a href="{% url 'event-detail' org_slug=org.slug event_slug=event.slug %}" class="hover:text-fuchsia-200 hover:underline decoration-fuchsia-300/50 underline-offset-4">{{ event.title }}</a>
+            </h2>
+            <div class="mt-0.5">{% include "events/prototype_sb7wzb12/_org.html" %}</div>
+            {% with s=event|proto_summary %}{% if s %}<p class="mt-1 text-[13px] text-base-content/55 line-clamp-1" x-show="!open">{{ s }}</p>{% endif %}{% endwith %}
+          </div>
+          <span class="self-start pt-6 text-base-content/35 group-hover:text-fuchsia-300 transition-transform duration-200" :class="open && 'rotate-180'">⌄</span>
+        </div>
+        <div x-show="open" x-cloak x-transition.opacity class="pl-6 pr-3 pb-6">
+          <div class="flex flex-col sm:flex-row gap-5">
+            {% if cover %}<img src="{{ cover.image.url }}" alt="{{ event.title }}" loading="lazy" class="self-start max-h-[360px] max-w-full sm:max-w-[280px] w-auto object-contain ring-1 ring-white/10">{% endif %}
+            <div class="flex-1 min-w-0">
+              {% if event.description %}<p class="text-[14px] leading-[1.65] text-base-content/75 line-clamp-[12]">{{ event.description }}</p>{% else %}<p class="text-[13px] italic text-base-content/40">No description from the organizer.</p>{% endif %}
+              {% if event.price_description %}<p class="mt-3 kb-mono text-[11px] text-base-content/60">{{ event.price_description }}</p>{% endif %}
+              {% with tags=event.tags.all %}{% if tags %}<div class="mt-3 flex flex-wrap gap-1.5">{% for t in tags %}<span class="kb-tag">{{ t.name }}</span>{% endfor %}</div>{% endif %}{% endwith %}
+              <a href="{% url 'event-detail' org_slug=org.slug event_slug=event.slug %}" class="mt-4 inline-flex kb-mono text-[11px] uppercase tracking-[0.18em] text-fuchsia-300 hover:text-fuchsia-200 border-b border-fuchsia-300/50 pb-0.5">Full event →</a>
+            </div>
+          </div>
+        </div>
+      </li>
+    {% endwith %}
+    {% if forloop.last %}</ol></section>{% endif %}
+  {% endfor %}
+</div>
