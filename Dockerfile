@@ -1,7 +1,7 @@
 # ---- Frontend builder stage ----
 # Builds Vite assets (incl. .vite/manifest.json) consumed by django_vite tags.
 # Base: node:22-slim (sha256 pin per sb-mhi; Dependabot bumps the digest weekly).
-FROM node:22-slim@sha256:689c11043dad91472750cd824c97dd5e2318e9dd6f954e492fe7af0135d33ceb AS frontend
+FROM node:25-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci
