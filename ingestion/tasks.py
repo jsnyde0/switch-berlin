@@ -33,9 +33,13 @@ def process_raw_message(raw_message_id: int) -> None:
         )
         return
 
-    # Step 1: URL enrichment (best-effort)
+    # Step 1: URL enrichment (best-effort), added after any link content the
+    # collector fetched itself (sb-7wzb.15).
     try:
         enriched = enrich_urls(raw_message.text)
+        collected = raw_message.enriched_payload.get("url_content", "")
+        if collected:
+            enriched["url_content"] = "\n\n".join(c for c in (collected, enriched.get("url_content", "")) if c)
         raw_message.enriched_payload = enriched
         raw_message.save(update_fields=["enriched_payload"])
     except Exception as exc:
@@ -51,7 +55,7 @@ def process_raw_message(raw_message_id: int) -> None:
             error_class=type(exc).__name__,
             error_message=str(exc),
         )
-        enriched = {}
+        enriched = raw_message.enriched_payload  # the collector's own link content survives
 
     # Step 2: LLM extraction. A collected post (text + images) may announce any
     # number of events, each landing on its own (sb-7wzb.4, ADR-017 D4).

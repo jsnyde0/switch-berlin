@@ -1461,6 +1461,7 @@ class CollectedRowIn(Schema):
     source_type names the source shape and derives the tier (ADR-012 D2); the
     bot forward is not a collected feed and is rejected (422).
     raw_payload.organizer, when set, is the source's declared organizer identity.
+    enriched_payload.url_content carries link content the collector fetched itself.
     """
 
     model_config = {"extra": "forbid"}
@@ -1471,6 +1472,7 @@ class CollectedRowIn(Schema):
     sender_id: str = Field(default="", max_length=100)
     text: str
     raw_payload: dict = {}
+    enriched_payload: dict = {}
     collect_only: bool = False
 
 

@@ -75,6 +75,13 @@ class CollectedRowsEndpointTest(TestCase):
         self.assertEqual(RawMessage.objects.count(), 1)
         self.assertEqual(mock_task.call_count, 1)
 
+    def test_collector_fetched_page_text_lands_in_the_link_content_column(self):
+        with patch("ingestion.collected.async_task"):
+            resp = self._post([_row(enriched_payload={"url_content": "Open practice, everybody welcome."})])
+        self.assertEqual(resp.status_code, 200, resp.content)
+        raw = RawMessage.objects.get()
+        self.assertEqual(raw.enriched_payload, {"url_content": "Open practice, everybody welcome."})
+
     def test_bot_forward_source_type_is_rejected(self):
         resp = self._post([_row(source_type="telegram_bot_forward")])
         self.assertEqual(resp.status_code, 422)
@@ -113,6 +120,22 @@ class CollectedEventLandingTest(TestCase):
             process_raw_message(raw.id)
         raw.refresh_from_db()
         return MockAgent
+
+    def test_collector_page_text_and_url_enrichment_both_reach_the_extractor(self):
+        from ingestion.tasks import process_raw_message
+
+        raw = self._raw(enriched_payload={"url_content": "COLLECTOR PAGE TEXT"})
+        result = MagicMock()
+        result.output = CollectedEvents(events=[self._draft()])
+        with (
+            patch("ingestion.extraction.Agent") as MockAgent,
+            patch("ingestion.enrichment.enrich_urls", return_value={"url_content": "ENRICHED LINK TEXT"}),
+        ):
+            MockAgent.return_value.run_sync.return_value = result
+            process_raw_message(raw.id)
+        prompt = str(MockAgent.return_value.run_sync.call_args)
+        self.assertIn("COLLECTOR PAGE TEXT", prompt)
+        self.assertIn("ENRICHED LINK TEXT", prompt)
 
     def _process(self, raw, **draft_kwargs):
         draft = self._draft(**draft_kwargs)

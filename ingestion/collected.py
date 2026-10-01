@@ -57,6 +57,7 @@ def ingest_collected_rows(rows: list[dict]) -> dict:
                     sender_id=row.get("sender_id", ""),
                     text=row["text"],
                     raw_payload=row.get("raw_payload", {}),
+                    enriched_payload=row.get("enriched_payload", {}),
                     collect_only=row.get("collect_only", False),
                 )
         except IntegrityError:

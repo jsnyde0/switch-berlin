@@ -1,6 +1,6 @@
 """
 IKSK website collector (sb-7wzb.15): each grid cell's same-host detail page is
-fetched once and its visible prose inlined into the row; a cell linking off-site
+fetched once and its visible prose carried as the row's link content; a cell linking off-site
 names IKSK as the venue and the linked site as the host.
 """
 
@@ -64,12 +64,14 @@ def _rows():
     return {r["message_id"].split("|")[1]: r for r in rows}, errors, calls
 
 
-def test_row_text_carries_the_detail_page_prose():
+def test_row_link_content_carries_the_detail_page_prose():
     rows, _, _ = _rows()
-    text = rows["19 00 - 23 00 Bondage Jam"]["text"]
-    assert PROSE.strip()[:200] in text
-    assert len(text) >= 500
-    assert "tracking" not in text and "IMPRESSUM" not in text and "PROGRAM PEOPLE" not in text
+    row = rows["19 00 - 23 00 Bondage Jam"]
+    content = row["enriched_payload"]["url_content"]
+    assert PROSE.strip()[:200] in content
+    assert len(content) >= 500
+    assert "tracking" not in content and "IMPRESSUM" not in content and "PROGRAM PEOPLE" not in content
+    assert PROSE.strip()[:200] not in row["text"]
 
 
 def test_each_distinct_detail_page_is_fetched_once_and_off_site_never():
@@ -96,4 +98,5 @@ def test_same_host_cell_keeps_iksk_as_declared_organizer():
 def test_a_failed_detail_fetch_is_reported_and_the_row_still_lands():
     rows, errors, _ = _rows()
     assert "Gone Workshop" in rows["20 00 - 22 00 Gone Workshop"]["text"]
+    assert "enriched_payload" not in rows["20 00 - 22 00 Gone Workshop"]
     assert errors == ["https://iksk-berlin.de/gone: HTTPStatusError 404"]

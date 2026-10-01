@@ -100,8 +100,9 @@ def iksk_rows(
     """IKSK /Program is a grid: per week a table whose first row carries the dates
     and whose later rows carry one entry per day column.
 
-    A cell linking to an IKSK page gets that page's prose inlined (fetched once
-    per href); URL enrichment cannot read it, the site 301s to www. A cell linking
+    A cell linking to an IKSK page carries that page's prose as the row's link
+    content (fetched once per href); server-side URL enrichment cannot read it,
+    the site 301s to www. A cell linking
     off-site is a third-party host using IKSK as the venue: not fetched, and the
     source's declared organizer is dropped so the host comes from the text.
     Returns the rows and one line per failed detail fetch."""
@@ -144,9 +145,9 @@ def iksk_rows(
                 else:
                     header += "Organizer/host venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
                 text = header + (f"Details: {href}\n" if href else "")
-                if details.get(href):
-                    text += f"\n{details[href]}"
                 row = collected_row(source, "iksk-berlin.de", f"{day.isoformat()}|{entry[:60]}", text, url=href)
+                if details.get(href):
+                    row["enriched_payload"] = {"url_content": details[href]}
                 if off_site:
                     row["raw_payload"].pop("organizer", None)
                 rows.append(row)
