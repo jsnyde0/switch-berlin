@@ -4,7 +4,8 @@ from django.db.models import Count
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .models import ClaimIntent, Profile, ProfileClaim
+from .merge import merge_action, merge_profiles
+from .models import ClaimIntent, MergeRecord, Profile, ProfileClaim
 
 
 class ProfileClaimInline(admin.TabularInline):
@@ -42,6 +43,7 @@ class ProfileAdmin(admin.ModelAdmin):
         "mark_approved_explicit_opt_in",
         "mark_approved_telegram_forward_implied",
         "mark_approved_verified_public_source",
+        "merge_into",
     ]
 
     def get_queryset(self, request):
@@ -53,6 +55,10 @@ class ProfileAdmin(admin.ModelAdmin):
 
     event_count.short_description = _("Events")
     event_count.admin_order_field = "event_count"
+
+    @admin.action(description=_("Merge into…"), permissions=["delete"])
+    def merge_into(self, request, queryset):
+        return merge_action(self, request, queryset, merge_profiles)
 
     @admin.action(description=_("Mark approved — explicit opt-in consent"))
     def mark_approved_explicit_opt_in(self, request, queryset):
@@ -285,3 +291,18 @@ class ProfileClaimAdmin(admin.ModelAdmin):
                 request,
                 _(f"Revoked {revoked_count} claim(s)."),
             )
+
+
+@admin.register(MergeRecord)
+class MergeRecordAdmin(admin.ModelAdmin):
+    list_display = ["kind", "loser_name", "winner_name", "merged_by", "merged_at"]
+    list_filter = ["kind"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # the tuning set for later thresholds; keep every row

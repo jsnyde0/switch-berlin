@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+  <h1>{% blocktranslate %}Merge two {{ kind }}{% endblocktranslate %}</h1>
+  <p>
+    {% translate "Pick the one to keep. Everything linked to the other moves to it, its empty fields are filled from the other, and the other is deleted. This cannot be undone." %}
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    {% for obj in objects %}
+      <p>
+        <label>
+          <input type="radio" name="winner" value="{{ obj.pk }}" required>
+          <strong>{{ obj.name }}</strong> <span class="quiet">({{ obj.slug }})</span>
+        </label>
+      </p>
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="merge_into">
+    <input type="hidden" name="apply" value="1">
+    <input type="submit" value="{% translate "Merge" %}">
+    <a href="" class="button cancel-link">{% translate "Cancel" %}</a>
+  </form>
+{% endblock content %}

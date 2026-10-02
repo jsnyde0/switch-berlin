@@ -110,3 +110,12 @@ def test_spike_review_band_pairs_are_candidates(a, b, spike_score):
 
 def test_unrelated_names_are_not_candidates():
     assert candidate_pairs([(1, "Tina"), (2, "Martina Lutz, Ricardo Roehmer & Mal Weeraratne")]) == []
+
+
+def test_winkler_boost_applies_only_above_jaro_0_7():
+    # Jaro = (4/8 + 4/8 + 4/4) / 3 = 0.667; the shared 4-char prefix must not lift it.
+    assert jaro_winkler("abcdwxyz", "abcdpqrs") == pytest.approx(2 / 3)
+
+
+def test_names_that_normalize_to_empty_are_never_paired():
+    assert candidate_pairs([(1, "..."), (2, "'-'"), (3, "Soma House")]) == []

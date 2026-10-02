@@ -41,6 +41,8 @@ def jaro_winkler(a, b):
     b_seq = [ch for ch, hit in zip(b, b_hit, strict=True) if hit]
     transpositions = sum(x != y for x, y in zip(a_seq, b_seq, strict=True)) / 2
     jaro = (matches / len(a) + matches / len(b) + (matches - transpositions) / matches) / 3
+    if jaro <= 0.7:  # Winkler's boost threshold: weak matches get no prefix lift
+        return jaro
     prefix = 0
     for x, y in zip(a[:4], b[:4], strict=False):
         if x != y:
@@ -64,6 +66,8 @@ def candidate_pairs(rows):
     # debt: all-pairs O(n^2) in Python; fine for hundreds of names. Upgrade
     # (blocking on a name prefix, or SQL similarity) when the report gets slow.
     for (pk_a, name_a, norm_a), (pk_b, name_b, norm_b) in combinations(normed, 2):
+        if not norm_a or not norm_b:
+            continue
         score = jaro_winkler(norm_a, norm_b)
         if score < REVIEW_FLOOR:
             continue

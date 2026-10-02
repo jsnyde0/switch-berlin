@@ -397,3 +397,34 @@ class ClaimIntent(models.Model):
 
     def __str__(self):
         return f"{self.user} → {self.profile} (intent)"
+
+
+class MergeRecord(models.Model):
+    """One staff merge of two duplicate Profiles or Venues (sb-7wzb.22).
+
+    Rows are the tuning set for later fuzzy-match thresholds (sb-x5xh.2 ruling (d)),
+    so names are stored as they were at merge time; winner_id is a plain id
+    because the winner may itself be merged away later.
+    """
+
+    KIND_CHOICES = [("profile", "Profile"), ("venue", "Venue")]
+
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    winner_id = models.PositiveIntegerField()
+    winner_name = models.CharField(max_length=200)
+    loser_name = models.CharField(max_length=200)
+    winner_normalized = models.CharField(max_length=200)
+    loser_normalized = models.CharField(max_length=200)
+    merged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="merges",
+    )
+    merged_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-merged_at"]
+
+    def __str__(self):
+        return f"{self.kind}: {self.loser_name} → {self.winner_name}"
