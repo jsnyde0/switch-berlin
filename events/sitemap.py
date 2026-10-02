@@ -2,7 +2,7 @@
 Event sitemap — excludes non-public events per ADR-012 D3.
 
 semi_public and unlisted events are excluded from the sitemap.
-Only public-tier published events appear.
+Only public-tier, published, non-hidden events appear.
 """
 
 from django.contrib.sitemaps import Sitemap
@@ -18,11 +18,12 @@ class EventSitemap(Sitemap):
     priority = 0.8
 
     def items(self):
-        """Return only public-tier published events (ADR-012 D3)."""
+        """Return only public-tier, published, non-hidden events (ADR-012 D3)."""
         return (
             Event.objects.filter(
                 visibility="public",
                 status="published",
+                hidden=False,
             )
             .select_related("venue")
             .prefetch_related("event_organizer_set__profile")
