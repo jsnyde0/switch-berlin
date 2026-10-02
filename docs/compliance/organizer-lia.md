@@ -1,11 +1,11 @@
 # Legitimate Interests Assessment — Organizer Event Data
 
-> **Sync note:** If this balancing changes, sync `templates/pages/privacy.html`: the "Organizer event publishing" row of the lawful-basis table, the LLM and Telegram processor entries, and the automated-processing section (§7).
+> **Sync note:** If this balancing changes, sync `templates/pages/privacy.html`: the "Organizer event publishing" row of the lawful-basis table (both paragraphs: organizer listings and artist credits, §3a), the LLM and Telegram processor entries, and the automated-processing section (§7).
 
 **Legal basis:** Art. 6(1)(f) GDPR — Legitimate interest of the controller  
-**Data category:** Organizer identity and public event listings  
+**Data category:** Organizer identity, public event listings, and the names of artists those listings credit (§3a)  
 **Controller:** Switch Berlin (operator details in Impressum)  
-**Date:** 2026-04-22; revised 2026-09-29 for automated collection (sb-7wzb.2: organizer websites, automated collection, the Telegram API terms note, invite-only communities); revised 2026-10-02 for event flyers (sb-7wzb.21, §3)  
+**Date:** 2026-04-22; revised 2026-09-29 for automated collection (sb-7wzb.2: organizer websites, automated collection, the Telegram API terms note, invite-only communities); revised 2026-10-02 for event flyers (sb-7wzb.21, §3) and artist credits (sb-7wzb.17, §3a)  
 **Review trigger:** Re-assess if 3 or more organizer objections per calendar quarter, or if processing purposes change materially.
 
 ---
@@ -16,7 +16,7 @@ Switch Berlin lists queer and kink events sourced from announcements that organi
 
 **Collection is automated.** An operator-run collector reads the organizer websites' public event pages and, through the operator's own Telegram account, recent posts in the listed channels and groups (read only; it never posts, joins or reads member lists). A large language model structures each announcement into event fields. Events of organizers who have not claimed their Switch profile are listed without per-event human review; once an organizer claims their profile, their collected events wait as drafts for the organizer to approve. A human handles only exceptions (failed or uncertain extractions). Every collected post is sent once, with the images attached to it (flyers, posters), to the language model, which returns the events the post announces. A post that announces none is deleted immediately (its text, its images, the message data and the sender's Telegram id), keeping only the message id so the same post is not checked twice. Of a post that does announce events, one reduced copy of its flyer is kept as each event's cover image (see Event flyers, §3); the original images are dropped once its events are extracted, and the text stays with them. This keeps ordinary chat by members of invite-only groups — people who are not organizers and whom this assessment does not cover — out of storage; it passes through the model once and is gone.
 
-No additional personal data is collected about organizers beyond what they have already made public in their source channels. Processed data consists of: organizer name/pseudonym, event title, date, venue, and any promotional text or images included in the public announcement.
+No additional personal data is collected about organizers beyond what they have already made public in their source channels. Processed data consists of: organizer name/pseudonym, event title, date, venue, the names of artists the announcement bills (see §3a), and any promotional text or images included in the public announcement.
 
 ---
 
@@ -60,6 +60,33 @@ The balancing test is satisfied. The controller's legitimate interest and the co
 
 ---
 
+## 3a. Artist credits
+
+Events may credit **artists** (people who teach, perform or play at an event) by name. An artist credit is the name as the organizer's announcement bills it, stored as text on the event. Switch never creates a profile from it; only the event's organizer managers or staff may link it to an existing profile. Names are kept from **all** sources the collector reads, public and invite-only, the same as the event they appear on. The announcement's promotional text and its flyer (§3) often carry the same names.
+
+**Purpose.** Who teaches, performs or plays is core attendance information (§1: informed attendance decisions). An event listing without it is a worse listing.
+
+**Necessity.** A credit repeats the organizer's own billing, as text, with no profile, no artist page and no linking across events unless a manager links a profile. That is the least intrusive form in which the information can be shown. For public sources the name is already in public circulation. For invite-only sources the name is not public, and a separate analysis on sb-7wzb.17 judged that showing it at all fails necessity there. This assessment answers that concern with the event's audience instead of with the name: a credit is never shown beyond the audience of the event that carries it (below).
+
+**Balancing.** Artists differ from organizers in ways that weigh against them:
+
+- They are private persons in a narrow public role. A scene name is still personal data.
+- A credit at a kink event can indirectly reveal sex life or sexual orientation (Art. 9; the CJEU reads indirect revelation broadly, C-184/20). Art. 9(2)(e), data "manifestly made public", is weak here, because the organizer published the billing, not the artist (C-252/21 asks for the data subject's own deliberate choice).
+- An artist billed for an event expects the billing to circulate with that event, to the audience the organizer addressed.
+
+The safeguard is the event's **visibility tier** (ADR-012 D2), which a credit inherits without exception:
+
+- A credit on a `public` event is shown wherever the event is: it repeats a billing that is already public.
+- A credit on a non-public event (`semi_public`, `unlisted`) is shown only to that event's audience. Like everything else on the event, it never reaches search engines, sitemaps, structured data, link previews, feeds or anonymous visitors. Events collected from invite-only sources default to `semi_public` (§2), so their artist names stay inside a vouched audience that mirrors the source's own.
+
+There is no separate name-specific limit (no exclusion of names from search or metadata on public events, and no time-based deletion of credits). The operator chose this on 2026-10-02 (ruling recorded on sb-7wzb.17): the protection is that the tier gates hold. They are therefore load-bearing for this assessment. Their audit across every exposure surface, with a test per surface, is sb-7wzb.26; until it closes, this balancing rests on gates that have not been audited end to end.
+
+**Objection.** A credited artist can object under Art. 21 without a login. Today they use the `/takedown/` form, naming the event and themselves in the description, and the operator removes the credit by hand. A per-credit removal that also stops the collector from re-creating the credit from the same source is sb-7wzb.23, which also extends §4 to credited artists.
+
+**Conclusion.** With the tier gates holding and the objection route open, the balancing in §3 holds for artist credits: the names are shown only where the event itself may be seen, to an audience the organizer addressed, as the billing the organizer published. If the gates leak, this conclusion does not hold for credits from invite-only sources, and the leak is a data-protection incident, not a display bug.
+
+---
+
 ## 4. Art. 21 Opt-Out Path
 
 Organizers have the right to object to processing of their data under Art. 21 GDPR.
@@ -80,4 +107,4 @@ Telegram's API Terms of Service (section 1, https://core.telegram.org/api/terms)
 
 ---
 
-*Document maintained by the controller. Must be updated if: (a) new categories of organizer data are collected; (b) data is shared with third parties for new purposes; or (c) the review trigger is hit.*
+*Document maintained by the controller. Must be updated if: (a) new categories of organizer or artist data are collected, or a credit gains a surface beyond its event (artist pages, artist search, cross-event linking); (b) data is shared with third parties for new purposes; or (c) the review trigger is hit.*

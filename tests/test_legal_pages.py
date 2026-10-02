@@ -640,3 +640,25 @@ def test_privacy_says_a_reduced_flyer_copy_is_kept(client, public_read_on, lang,
     assert response.status_code == 200
     assert gone not in response.content
     assert present in response.content
+
+
+# ---------------------------------------------------------------------------
+# Artist credits (sb-7wzb.17): the privacy page follows the LIA artist clause
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("lang", "present"),
+    [
+        ("en", b"Artist names are shown only to the audience of the event that credits them"),
+        ("de", b"Namen von Artists sind nur f\xc3\xbcr das Publikum der Veranstaltung sichtbar"),
+    ],
+)
+def test_privacy_says_artist_names_follow_the_event_audience(client, public_read_on, lang, present):
+    """The organizer-publishing row names artist credits, their audience limit and the objection route."""
+    with override_settings(LANGUAGE_CODE=lang, LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = lang
+        response = client.get("/privacy/")
+    assert response.status_code == 200
+    assert present in response.content
