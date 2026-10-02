@@ -1,6 +1,6 @@
-# ADR-014: Profile claim flow — multi-claimant through-model, two-track verification, magic-link security envelope
+# ADR-014: Profile claim flow — multi-manager through-model, two-track verification, magic-link security envelope
 
-**Status:** Accepted 2026-05-21 (revised 2026-09-30 — D4 visible "Verified" mark derives from a verified claim)
+**Status:** Accepted 2026-05-21 (revised 2026-09-30 — D4 visible "Verified" mark derives from a verified claim; 2026-10-02 — wording only: claimant → manager, claim = the act, per ADR-007 D7)
 **Parent:** [ADR-007 D5 Profile claimable via User FK](ADR-007-profile-centric-schema.md) (evolved in place per ADR-011 D1)
 **Scope:** how Profiles are claimed by Users — schema cardinality, verification routing, security envelope. Operationalizes the upstream curated-trust gate (ADR-001 D1) at the Profile-ownership boundary.
 
@@ -11,7 +11,7 @@ Switch Berlin (V0 pre-launch) hosts Profiles that are **admin-curated from publi
 The claim flow has to honor three concrete realities surfaced during the sb-m69 brainstorm:
 
 1. **Collectives have multiple co-organizers.** IKSK is fronted by ~3 humans. The current schema (`Profile.claimed_by = FK(User, null=True)` per ADR-007 D5) forces one of them to fictitiously "own" IKSK.
-2. **Most facilitators don't operate domains.** Jana Felix Ruckert (`jana.felixruckert@gmx.de`) can't be verified via email-domain match — admin review must remain the universal fallback.
+2. **Most individual organizers and artists don't operate domains.** Jana Felix Ruckert (`jana.felixruckert@gmx.de`) can't be verified via email-domain match — admin review must remain the universal fallback.
 3. **Some organizers do.** IKSK runs `iksk.berlin`; a `lavinia@iksk.berlin` email is strong evidence of an IKSK claim. Domain-match is labor-saving when it applies.
 
 The claim flow sits **upstream** of:
@@ -21,9 +21,11 @@ The claim flow sits **upstream** of:
 
 This ADR canonicalizes the claim-flow primitives so those downstream surfaces have a stable substrate to bind against.
 
+*Vocabulary note (2026-10-02):* this ADR uses the words of [ADR-007 D7](ADR-007-profile-centric-schema.md). A **manager** is an account that manages a Profile (was "claimant"); a **claim** is only the act of becoming one, recorded as a `ProfileClaim` row (the model name stays). Wording only; no decision changed. *Code catches up in sb-x5xh.5* (today's code still says `claimants` / `active_claimants`).
+
 ## Decisions
 
-### D1 — Multi-claimant `ProfileClaim` through-model replaces single-FK ownership (revised 2026-05-21)
+### D1 — Multi-manager `ProfileClaim` through-model replaces single-FK ownership (revised 2026-05-21)
 
 **Decision:** Replace ADR-007 D5's `Profile.claimed_by = FK(User, null=True)` with a `ProfileClaim` through-model. A Profile has 0–N claims; each claim is one verified (User, Profile) pair.
 
@@ -49,10 +51,10 @@ ProfileClaim(
 - `"auto_self"` — signup-time auto-claim of the user's own `kind=person` Profile (S4: allauth adapter hook on User creation)
 
 Ergonomic accessors:
-- `profile.claimants.all()` — all Users with a ProfileClaim row (including revoked)
-- `profile.active_claimants` — Users with `ProfileClaim.rejected_at IS NULL` (non-revoked claims only)
+- `profile.managers.all()` — all Users with a ProfileClaim row (including revoked)
+- `profile.active_managers` — Users with `ProfileClaim.rejected_at IS NULL` (non-revoked claims only)
 - `user.claimed_profiles.all()` — all Profiles claimed by this user (including revoked)
-- `profile.is_claimed` — `active_claimants.exists()` (True if at least one non-revoked claim exists)
+- `profile.is_claimed` — `active_managers.exists()` (True if at least one non-revoked claim exists)
 
 **Firmness:** EXPLORATORY (overall — pending dogfooding); the through-model **shape** is the canonical schema replacement of D5 (FIRM evolution per ADR-011 D1, decision-property unchanged: "Profiles are claimable"). EXPLORATORY governs the `role` semantics, the `verified_method` enum vocabulary, and whether admin can revoke a claim.
 
@@ -68,15 +70,15 @@ Ergonomic accessors:
 | Keep single-FK `Profile.claimed_by` (ADR-007 D5 status quo) | `direct:` Cannot represent IKSK's actual co-organizer reality without out-of-band coordination. Surfaced during sb-m69 brainstorm. |
 | Separate `Agency` entity (Upwork model) | `reasoned:` Adds an entity layer not yet needed; `Profile(kind=collective)` already plays this role. Cheap foresight: through-model + `role` field accommodates richer hierarchies later. |
 | Pivot ApprovedSender to point at User instead of Profile | `reasoned:` Breaks the Phase 0.5 admin-curated workflow where ApprovedSender pre-exists for an unclaimed Profile. Telegram → Profile direction must remain. |
-| `Profile.claimants = M2M(User)` plain M2M (no through) | `reasoned:` Loses the verification metadata (`verified_at`, `verified_method`, `verified_by_admin`) — these aren't auxiliary, they're load-bearing for the audit trail required by ADR-006 (legal gate) and the curated-trust model (ADR-001 D1). |
+| `Profile.managers = M2M(User)` plain M2M (no through) | `reasoned:` Loses the verification metadata (`verified_at`, `verified_method`, `verified_by_admin`) — these aren't auxiliary, they're load-bearing for the audit trail required by ADR-006 (legal gate) and the curated-trust model (ADR-001 D1). |
 
 **Invalidation:**
-- All facilitators turn out to operate as solo organizers (no co-managed collectives) → the through-model is over-engineering; could revert to FK. Empirically: IKSK alone disproves this.
+- All organizers turn out to operate solo (no co-managed collectives) → the through-model is over-engineering; could revert to FK. Empirically: IKSK alone disproves this.
 - The `role` field never gets a second value beyond `"admin"` after 2 years of operation → cheap foresight didn't pay; could drop the field at the next clean-schema migration window (V1+).
 
 ### D2 — Web-first claim entry from the public Profile page, with two-track verification
 
-**Decision:** The claim entry point is a visible button on the **public Profile page** ("Manage this profile" when `Profile.is_claimed == False`; "Add me as a claimant" when claimed but the viewing User isn't already in `claimants`).
+**Decision:** The claim entry point is a visible button on the **public Profile page** ("Manage this profile" when `Profile.is_claimed == False`; "Add me as a manager" when claimed but the viewing User isn't already in `managers`).
 
 The flow runs two tracks based on email-domain evidence:
 
@@ -90,7 +92,7 @@ Both tracks pass through the magic-link confirmation step (proves the submitter 
 **Firmness:** EXPLORATORY (pending dogfooding the actual claim volume + admin labor load).
 
 **Rationale:**
-- `direct:` Per sb-m69 D1: many facilitators (e.g., Jana Felix Ruckert with a generic gmx.de email) won't have a matching domain. Admin-review must remain the **universal fallback**; the fast-path is opt-in per Profile and only operates when admin has explicitly set `verified_domain`.
+- `direct:` Per sb-m69 D1: many individual organizers and artists (e.g., Jana Felix Ruckert with a generic gmx.de email) won't have a matching domain. Admin-review must remain the **universal fallback**; the fast-path is opt-in per Profile and only operates when admin has explicitly set `verified_domain`.
 - `external:` Crunchbase's "Manage My Company" flow (scout, sb-m69) uses email-domain match → instant verification with email-support fallback for mismatches. Their help article on the buried claim flow has –15 net helpfulness — **putting the claim button on the profile page itself** is the corrective lesson; web-first entry from the Profile surface is non-negotiable.
 - `external:` GitHub's repo-claim and Eventbrite's organizer-claim flows both surface the claim entry on the public entity page itself (not a separate "claim center"), confirming the pattern.
 - `reasoned:` Two-track verification preserves ADR-001 D1's curated-trust default (admin review) while adding a labor-saving fast-path. Admin retains control: fast-path only activates when admin opts a Profile into it by setting `verified_domain`.
@@ -98,9 +100,9 @@ Both tracks pass through the magic-link confirmation step (proves the submitter 
 **Alternatives:**
 | Alternative | Why rejected |
 |---|---|
-| Bot-first claim (Telegram DM → admin keyboard) | `reasoned:` Couples identity to a third party; while Berlin scene is Telegram-native, web-first matches the broader user base (incoming facilitators discovering us via their public Profile URL share). Telegram link remains a separate primitive (ApprovedSender flow) downstream. |
+| Bot-first claim (Telegram DM → admin keyboard) | `reasoned:` Couples identity to a third party; while Berlin scene is Telegram-native, web-first matches the broader user base (incoming organizers and artists discovering us via their public Profile URL share). Telegram link remains a separate primitive (ApprovedSender flow) downstream. |
 | Always-admin-review (no fast-path) | `reasoned:` Admin labor scales linearly with claim rate; unnecessary friction for orgs with verifiable domains. Fast-path is opt-in so admin retains control. Invalidation predicate captures the reversal path: if fast-path abuse appears, retire it without affecting the admin-review default. |
-| DNS-TXT verification (GitHub pattern) | `external:` GitHub scout (sb-m69) — DNS verification is org-only and impractical for individual facilitators who don't operate domains. Email-domain match achieves the same evidence threshold (proves control of an address on the domain) without the DNS-edit barrier. |
+| DNS-TXT verification (GitHub pattern) | `external:` GitHub scout (sb-m69) — DNS verification is org-only and impractical for individual organizers and artists who don't operate domains. Email-domain match achieves the same evidence threshold (proves control of an address on the domain) without the DNS-edit barrier. |
 | Self-serve claim with no verification (just "I claim this") | `reasoned:` Violates ADR-001 D1's curated-trust posture. Anyone could claim IKSK by clicking a button. |
 
 **Invalidation:**
@@ -165,7 +167,7 @@ Admin approval of a Profile (`Profile.status`, ADR-001 D1's admin-gated organize
 
 ### Direct schema impact (foundation for D1)
 
-- ADR-007 D5 evolves in place per ADR-011 D1: `Profile.claimed_by = FK(User, null=True)` → `Profile.claimants = M2M(User, through="ProfileClaim")`.
+- ADR-007 D5 evolves in place per ADR-011 D1: `Profile.claimed_by = FK(User, null=True)` → `Profile.managers = M2M(User, through="ProfileClaim")` (named `Profile.claimants` until 2026-10-02).
 - New model: `ProfileClaim(profile, user, verified_at, verified_method, verified_by_admin, role, created_at)`.
 - New optional Profile field: `verified_domain = CharField(blank=True)` (admin-set, opt-in per Profile, enables D2 fast-path).
 - Existing `Profile.claimed_by` rows (if any exist at migration time — V0 pre-launch may have zero) migrate to `ProfileClaim` rows with `verified_method="admin_legacy"`, `verified_by_admin=<migration_admin>`, `role="admin"`.
@@ -195,10 +197,11 @@ Admin approval of a Profile (`Profile.status`, ADR-001 D1's admin-gated organize
 - [ADR-003](ADR-003-cheap-foresight-patterns.md) — cheap foresight discipline; D1's `role` field and `verified_domain` opt-in field are cheap-foresight applications.
 - [ADR-006 D2](ADR-006-legal-gate-execution.md) — FIRM organizer LIA basis; claim moment is the lawful-basis-migration trigger from LIA (Art. 6(1)(f)) to contract (Art. 6(1)(b)).
 - [ADR-007 D5](ADR-007-profile-centric-schema.md) — FIRM (evolved in place per ADR-011 D1) — original single-FK `claimed_by` replaced by through-model; cardinality 0..1 → 0..N; decision-property "Profiles are claimable" unchanged.
+- [ADR-007 D7](ADR-007-profile-centric-schema.md) — identity vocabulary (manager, claim) this ADR's wording follows since 2026-10-02.
 - [ADR-008 D1](ADR-008-code-posture-refactor-hard-fail-loud.md) — D1 predicates (firmness, rationale, alternatives, invalidation, warrant tags); D2 no speculative behavioral abstraction (claim flow ships the simplest two-track form; richer roles deferred); D3 fail-loud on data integrity (no silent fallback on domain-match parse failure or magic-link token tampering).
 - [ADR-011 D1](ADR-011-adrs-reflect-target-architecture.md) — FIRM in-place ADR evolution; routes the ADR-007 D5 evolution.
 - [ADR-013 D1+D3](ADR-013-user-trust-model.md) — EXPLORATORY user trust posture; claim-completion is a downstream signal for `User.status` transitions; ADR-013-referenced Turnstile primitive applies at D3's pre-issuance gate.
-- [bead sb-m69](https://github.com/jsnyde0/switch-berlin) — origin brainstorm (Identity and Trust Model). D1 (web-first claim with email-domain fast-path) and D2 (multi-claimant ProfileClaim through-model) canonicalized in this ADR.
+- [bead sb-m69](https://github.com/jsnyde0/switch-berlin) — origin brainstorm (Identity and Trust Model). D1 (web-first claim with email-domain fast-path) and D2 (multi-manager ProfileClaim through-model) canonicalized in this ADR.
 
 ## Post-write follow-ups (filed as separate beads per ADR-008 D4)
 
