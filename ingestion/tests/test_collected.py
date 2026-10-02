@@ -519,10 +519,53 @@ class CollectedEventLandingTest(TestCase):
 class ModelCallRetryTest(TestCase):
     """ADR-008 D4 (FIRM): a transport error is retried up to twice; a reply that does not parse never is."""
 
-    def test_the_router_client_retries_transport_errors_twice(self):
+    def test_the_client_itself_never_retries(self):
         from ingestion.extraction import router_model
 
-        self.assertEqual(router_model("m").client.max_retries, 2)
+        self.assertEqual(router_model("m").client.max_retries, 0)
+
+    def _ask_with(self, *effects):
+        import httpx
+        from openai import APIConnectionError
+        from pydantic_ai.exceptions import ModelAPIError
+
+        from ingestion.extraction import consolidate
+        from ingestion.schemas import Consolidation
+
+        def build(effect):
+            if effect == "connection":
+                exc = ModelAPIError(model_name="m", message="connection reset")
+                exc.__cause__ = APIConnectionError(request=httpx.Request("POST", "http://router"))
+                return exc
+            return effect
+
+        ok = MagicMock(output=Consolidation(decisions=[]))
+        with (
+            patch("ingestion.extraction.Agent") as MockAgent,
+            patch("ingestion.extraction.time.sleep") as sleep,
+        ):
+            MockAgent.return_value.run_sync.side_effect = [build(e) if e != "ok" else ok for e in effects]
+            try:
+                consolidate([])
+                error = None
+            except Exception as exc:  # noqa: BLE001 - the test inspects what escaped
+                error = exc
+        return MockAgent.return_value.run_sync.call_count, [c.args[0] for c in sleep.call_args_list], error
+
+    def test_a_connection_error_is_retried_twice_with_linear_backoff(self):
+        calls, sleeps, error = self._ask_with("connection", "connection", "connection")
+        self.assertEqual((calls, sleeps), (3, [2, 4]))
+        self.assertIsNotNone(error)
+        calls, _, error = self._ask_with("connection", "ok")
+        self.assertEqual((calls, error), (2, None))
+
+    def test_an_http_error_response_fails_at_once(self):
+        from pydantic_ai.exceptions import ModelHTTPError
+
+        for status in (500, 429, 400):
+            calls, sleeps, error = self._ask_with(ModelHTTPError(status_code=status, model_name="m", body=None))
+            self.assertEqual((calls, sleeps), (1, []), status)
+            self.assertIsInstance(error, ModelHTTPError)
 
     def test_both_collector_calls_never_retry_a_bad_reply(self):
         from ingestion.extraction import consolidate, extract_collected_events

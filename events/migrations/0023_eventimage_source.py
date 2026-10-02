@@ -4,6 +4,14 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def backfill_collected_cover_sources(apps, schema_editor):
+    """A cover on a collected event came from that event's raw message (sb-7wzb.30 ruling 24)."""
+    EventImage = apps.get_model("events", "EventImage")
+    for image in EventImage.objects.filter(is_cover=True, raw_message=None).exclude(event__raw_message=None):
+        image.raw_message_id = image.event.raw_message_id
+        image.save(update_fields=["raw_message"])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -17,4 +25,5 @@ class Migration(migrations.Migration):
             name='raw_message',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='event_images', to='ingestion.rawmessage'),
         ),
+        migrations.RunPython(backfill_collected_cover_sources, migrations.RunPython.noop),
     ]

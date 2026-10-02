@@ -202,6 +202,8 @@ class EventAdmin(admin.ModelAdmin):
         fields = list(form.changed_data)
         if any(fs.model is EventArtist and fs.has_changed() for fs in formsets):
             fields.append("artists")
+        if any(fs.model is EventOrganizer and fs.has_changed() for fs in formsets):
+            fields.append("organizers")
         record_person_edit(form.instance, fields)
 
     def save_model(self, request, obj, form, change):

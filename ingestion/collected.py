@@ -33,7 +33,8 @@ from django.utils.text import slugify
 from django_q.tasks import async_task
 from PIL import Image, ImageOps
 
-from events.backfill_visibility import _TIER_ORDER, derive_visibility_from_sources, rawmessage_source_to_conceptual
+from events.backfill_visibility import derive_visibility_from_sources, rawmessage_source_to_conceptual
+from events.models import TIER_RANK
 from organizers.duplicate_names import normalize
 from organizers.names import find_profile, find_venue, name_key
 from venues.address import split_street_address, validate_no_street_address
@@ -593,6 +594,8 @@ def find_candidates(
     return found[:_MAX_CANDIDATES]
 
 
+# debt: the consolidation model call runs inside this lock, holding a transaction open for its length;
+# fine for the nightly batch, revisit if collection runs continuously or in parallel at scale.
 def lock_days(drafts) -> None:
     """Serialize candidate finding and writing per Berlin day (Postgres advisory lock, released at commit).
 
@@ -719,7 +722,12 @@ DESCRIPTION_VIEW_CHARS = 3000  # the longest description one announcement shows 
 
 
 def _rank(tier: str) -> int:
-    return _TIER_ORDER.index(tier)
+    return TIER_RANK[tier]
+
+
+def _tier_after(event, announcements) -> str:
+    """The event's tier with these announcements attached: the most public source's, unless a person set it."""
+    return event.visibility if "visibility" in event.edited_groups else _event_tier(announcements)
 
 
 def _event_view(event, raw, draft) -> dict:
@@ -731,18 +739,18 @@ def _event_view(event, raw, draft) -> dict:
     when they came from sources that public.
     """
     earlier = _announcements(event, raw)
-    tier = _event_tier([*earlier, Announcement(0, raw, draft)])
-    content_tier = _event_tier(earlier) if earlier else event.visibility
+    tier = _tier_after(event, [*earlier, Announcement(0, raw, draft)])
+    content_tier = _event_tier(earlier) if earlier and "visibility" not in event.edited_groups else event.visibility
     view = {
         "id": event.id,
         "start": timezone.localtime(event.start).isoformat(),
         "end": timezone.localtime(event.end).isoformat() if event.end else None,
         "start_time_unknown": event.start_time_unknown,
         "organizer_keys": sorted(f"p{row.profile_id}" for row in event.event_organizer_set.all()),
-        "post_event_eligible": _tier(raw) == tier,
+        "post_event_eligible": _rank(_tier(raw)) >= _rank(tier),
         "announcements": [
             {"id": a.id, "eligible": True, **_draft_json(a.draft)}
-            if _tier(a.raw) == tier
+            if _rank(_tier(a.raw)) >= _rank(tier)
             else {"id": a.id, "eligible": False, **_bare(a.draft)}
             for a in earlier
         ],
@@ -922,14 +930,15 @@ def _organizer_rows(merged, announcements) -> tuple[list[str], str]:
 
 
 def _set_organizers(event, raw, names: list[str], attribution: str) -> bool:
-    """Make the collector's organizer rows `names`; rows a person set (blank attribution) are never touched."""
+    """Make the collector's organizer rows `names` (none: remove them); a person's rows are never touched."""
     from events.models import EventOrganizer
 
-    if not names:
-        return False
     rows = list(event.event_organizer_set.all())
     mine = [row for row in rows if row.attribution in (*_DEFAULTS, "explicit")]
     people = [row for row in rows if row.attribution not in (*_DEFAULTS, "explicit")]
+    if not names:  # no eligible announcement names one: the collector's rows go, a person's stay (ruling 20)
+        EventOrganizer.objects.filter(id__in=[row.id for row in mine]).delete()
+        return bool(mine)
     wanted = []
     for name in names:
         profile = find_profile(name) or _create_row_profile(name, raw)
@@ -967,10 +976,11 @@ def merge_into(event, raw, draft, merged, description_from, flyer, written_files
     if not collector_owned(event):
         return [], {}
     announcements = [*_announcements(event, raw), Announcement(0, raw, draft)]
-    tier = _event_tier(announcements)
-    eligible = [a for a in announcements if _tier(a.raw) == tier]
+    edited = set(event.edited_groups)
+    tier = _tier_after(event, announcements)  # ruling 21: a person-set visibility stands
+    eligible = [a for a in announcements if _rank(_tier(a.raw)) >= _rank(tier)]
     before = _snapshot(event)
-    if _tier(raw) != tier:
+    if _rank(_tier(raw)) < _rank(tier):
         # A post less public than the event attaches and shows nothing: everything it says stays with
         # it (its link and flyer kept, hidden while the event is more public; sb-7wzb.30 ruling 17).
         changed = []
@@ -980,13 +990,13 @@ def merge_into(event, raw, draft, merged, description_from, flyer, written_files
             changed.append("visibility")
         changed += _attach_media(event, raw, draft, flyer, written_files)
         return changed, before
-    edited = set(event.edited_groups)
     changed = []
-    # The event just became more public: what less public posts said goes, blanks included.
+    # The event just became more public: every shown field is rewritten from eligible announcements,
+    # blanks included, and the same-tier guards below do not apply (privacy first, ruling 19).
     raised = _rank(tier) > _rank(event.visibility)
 
     names, attribution = _organizer_rows(merged, eligible)
-    if _set_organizers(event, raw, names, attribution):
+    if "organizers" not in edited and _set_organizers(event, raw, names, attribution):
         changed.append("organizers")
 
     columns = {"visibility": tier}  # privacy first: the most public source decides, every attach
@@ -999,15 +1009,15 @@ def merge_into(event, raw, draft, merged, description_from, flyer, written_files
         elif event.description not in {a.draft.description for a in eligible}:
             columns["description"] = ""  # text no eligible announcement gave never stays on the event
     start, end = _times(merged)
-    if "date" not in edited and not (merged.start_time_unknown and not event.start_time_unknown):
+    if "date" not in edited and (raised or not (merged.start_time_unknown and not event.start_time_unknown)):
         columns.update(
             start=start, end=end, start_time_unknown=merged.start_time_unknown, timezone=merged.timezone or _BERLIN
         )
     price = (merged.price_min_cents, merged.price_max_cents, merged.is_free)
     if "price" not in edited and (raised or not _empty(list(price))):
         columns.update(zip(("price_min_cents", "price_max_cents", "is_free"), price, strict=True))
-    if "presence" not in edited and merged.presence is not None:
-        columns["presence"] = merged.presence
+    if "presence" not in edited and (raised or merged.presence is not None):
+        columns["presence"] = merged.presence or "in_person"
     if "category" not in edited and (raised or merged.category):
         columns["category"] = merged.category
     if "place" not in edited:
@@ -1029,6 +1039,10 @@ def merge_into(event, raw, draft, merged, description_from, flyer, written_files
         columns["status"] = "cancelled"
     for field, value in columns.items():
         setattr(event, field, value)
+    if "start_time_unknown" in columns:
+        # The collector states whether the time is known: Event.save must not read the new start
+        # as a person typing in a real time (its sb-7wzb.4 B1 rule) and flip a date-only start.
+        event._loaded_start = event.start
     event.save(update_fields=list(columns))
     if tags:
         event.tags.set(matched["matched_tags"])
@@ -1074,7 +1088,8 @@ def _add_cover(event, raw, draft, flyer: bytes, written_files: list[str] | None)
     from events.models import EventImage
 
     cover = EventImage(event=event, is_cover=True, alt=draft.title[:300], raw_message=raw)
-    cover.image.save(f"{event.slug}.webp", ContentFile(flyer), save=False)
+    # A random name: a hidden flyer (less public source) is not reachable by guessing it from the slug.
+    cover.image.save(f"{uuid.uuid4().hex}.webp", ContentFile(flyer), save=False)
     if written_files is not None:
         written_files.append(cover.image.name)
     cover.save()
@@ -1248,7 +1263,9 @@ def land_post_events(raw, drafts, attempt, flyer=None, written_files=None) -> li
     for i, draft in enumerate(drafts):
         hold = _hold_reason(draft)
         names, attribution = ([], "") if hold else organizer_names(raw, draft)
-        if hold is None and not names and not draft.cancelled:
+        # A draft naming no organizer may still be a copy of an event we have; it is held only
+        # when it matches none (below), never created without one (ADR-007 D9).
+        if hold is None and not names and i in pairs:
             hold = ("needs_review", attribution)
         if hold is None:
             ready[i] = (names, attribution)
@@ -1291,6 +1308,9 @@ def land_post_events(raw, drafts, attempt, flyer=None, written_files=None) -> li
             continue
         if draft.cancelled:  # cancels an event we never had: nothing to create
             outcomes[i] = _record(attempt, draft, "skipped", "cancelled", decision=decision)
+            continue
+        if not names:  # no organizer and no event of ours it is: held for review
+            outcomes[i] = _record(attempt, draft, "needs_review", attribution, decision=decision)
             continue
         suspected = decision.possibly_same_as if decision else None
         event = create_collected_event(raw, draft, names, attribution, flyer, written_files, suspected)

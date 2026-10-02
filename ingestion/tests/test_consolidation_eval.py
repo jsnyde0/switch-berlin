@@ -187,10 +187,22 @@ def _score_separate_hosts(raws):
     return []
 
 
-def _score_cancelled(raws):
-    zurich = Event.objects.filter(title="Temple Zurich").first()
-    if zurich is None or zurich.status != "cancelled":
-        return [f"the Zurich event is {zurich.status if zurich else 'missing'}, expected cancelled"]
+def _score_undated_cancellation(raws):
+    zurich = Event.objects.get(title="Temple Zurich")
+    if zurich.status == "cancelled":
+        return ["an undated cancellation cancelled the Zurich event"]
+    return []
+
+
+def _score_dated_cancellation(raws):
+    jams = _matching(r"erotic\s*jam") + [
+        e for e in Event.objects.filter(status="cancelled") if "jam" in e.title.lower()
+    ]
+    jams = list({e.id: e for e in jams}.values())
+    if len(jams) != 1:
+        return [f"expected ONE Erotic Jam event, got {[(e.id, e.status) for e in jams]}"]
+    if jams[0].status != "cancelled":
+        return [f"the Erotic Jam is {jams[0].status}, expected cancelled"]
     return []
 
 
@@ -251,7 +263,8 @@ SCORERS = {
     "privacy_private_then_public": _score_privacy,
     "privacy_public_then_private": _score_privacy,
     "different_explicit_organizers_stay_separate": _score_separate_hosts,
-    "cancellation_post_171": _score_cancelled,
+    "undated_cancellation_cancels_nothing": _score_undated_cancellation,
+    "dated_cancellation_cancels_the_event": _score_dated_cancellation,
     "re_read_after_consolidation": _score_re_read,
     "b_iksk_one_day_separate": _score_b,
     "c_moved_date_no_duplicate": _score_c,

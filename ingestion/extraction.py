@@ -1,8 +1,9 @@
 import base64
+import time
 
 import logfire
 from pydantic_ai import Agent, BinaryContent
-from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UnexpectedModelBehavior
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -172,9 +173,11 @@ Post events and their candidates (JSON):
 """
 
 
-# ADR-008 D4: a transport error (connection, timeout, 429/5xx from the router) is retried up to
-# twice by the client; a reply that does not parse into the schema is never retried (Agent retries=0).
+# ADR-008 D4 (FIRM): a connection error or timeout is retried up to twice, with linear backoff; any
+# HTTP 4xx/5xx response and any reply that does not fit the schema fails loud at once. The client
+# itself never retries (max_retries=0): this loop is the only retry.
 TRANSPORT_RETRIES = 2
+TRANSPORT_BACKOFF_SECONDS = 2
 
 
 def router_model(model_name: str) -> OpenAIChatModel:
@@ -184,8 +187,31 @@ def router_model(model_name: str) -> OpenAIChatModel:
 
     if not settings.LLM_API_KEY:
         raise RuntimeError("REQUESTY_API_KEY is not set; the LLM router needs it (ADR-008 D3).")
-    client = AsyncOpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY, max_retries=TRANSPORT_RETRIES)
+    client = AsyncOpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY, max_retries=0)
     return OpenAIChatModel(model_name, provider=OpenAIProvider(openai_client=client))
+
+
+def _is_transport_error(exc: Exception) -> bool:
+    """A connection error or timeout: no HTTP response came back."""
+    from openai import APIConnectionError
+
+    return (
+        isinstance(exc, ModelAPIError)
+        and not isinstance(exc, ModelHTTPError)
+        and isinstance(exc.__cause__, APIConnectionError)
+    )
+
+
+def with_transport_retries(call):
+    """`call()`, retried up to TRANSPORT_RETRIES times on a transport error only (ADR-008 D4)."""
+    for attempt in range(TRANSPORT_RETRIES + 1):
+        try:
+            return call()
+        except ModelAPIError as exc:
+            if attempt == TRANSPORT_RETRIES or not _is_transport_error(exc):
+                raise
+            logfire.warn("extraction.transport_retry", attempt=attempt + 1, error=str(exc))
+            time.sleep(TRANSPORT_BACKOFF_SECONDS * (attempt + 1))
 
 
 def _ask(output_type, prompt):
@@ -193,8 +219,9 @@ def _ask(output_type, prompt):
     it raises with the reason, so the row fails loud and the next collect run reads it again."""
     from django.conf import settings
 
+    agent = Agent(router_model(settings.LLM_MODEL_NAME), output_type=output_type, retries=0)
     try:
-        return Agent(router_model(settings.LLM_MODEL_NAME), output_type=output_type, retries=0).run_sync(prompt).output
+        return with_transport_retries(lambda: agent.run_sync(prompt)).output
     except UnexpectedModelBehavior as exc:
         reason = exc.__cause__ or exc.body or exc
         raise ValueError(f"the model's reply did not fit {output_type.__name__}: {reason}") from exc
@@ -271,7 +298,7 @@ def extract_event_draft(
 
     model_name = model_name or settings.LLM_MODEL_NAME
     agent = Agent(router_model(model_name), output_type=EventDraft)
-    result = agent.run_sync(prompt)
+    result = with_transport_retries(lambda: agent.run_sync(prompt))
     draft = result.output
 
     logfire.info(

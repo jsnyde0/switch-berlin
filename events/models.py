@@ -382,7 +382,7 @@ class Event(models.Model):
         if raw_message is None:
             return True
         tier = derive_visibility_from_sources([rawmessage_source_to_conceptual(raw_message.source_type)])
-        return _TIER_RANK[tier] >= _TIER_RANK[self.visibility]
+        return TIER_RANK[tier] >= TIER_RANK[self.visibility]
 
     @property
     def source_links(self) -> list:
@@ -526,8 +526,9 @@ class Attendance(models.Model):
         return f"{self.user} — {self.event} ({self.status})"
 
 
-# How public a visibility tier is: a source shows on an event of its own tier or a less public one.
-_TIER_RANK = {"semi_public": 0, "public": 1, "unlisted": 1}
+# How public each ADR-012 tier is (unlisted: URL-keyed only, the least). A source shows on an event
+# whose tier is no more public than the source's own.
+TIER_RANK = {"unlisted": 0, "semi_public": 1, "public": 2}
 
 
 class EventLink(models.Model):

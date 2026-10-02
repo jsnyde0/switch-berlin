@@ -22,6 +22,8 @@ FIELD_GROUPS = {
     "tags": "tags",
     "suggested_tags": "tags",
     "artists": "artists",
+    "organizers": "organizers",
+    "visibility": "visibility",
 }
 
 

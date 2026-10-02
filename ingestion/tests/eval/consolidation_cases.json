@@ -437,8 +437,8 @@
    ]
   },
   {
-   "id": "cancellation_post_171",
-   "criterion": "ruling 9: post 171 cancels Till & Shirka's Swiss dates -> the Zurich event we had is cancelled",
+   "id": "undated_cancellation_cancels_nothing",
+   "criterion": "ruling 18: post 171 cancels Swiss dates without naming any -> the Zurich event we had stays as it is",
    "seed_event": {
     "title": "Temple Zurich",
     "start": "2026-09-26T00:00:00+02:00",
@@ -623,6 +623,40 @@
       "poster": "Till Tailor"
      },
      "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed. The address, members' price, guest and link lines are synthetic: the dev DB holds no private post with them."
+    }
+   ]
+  },
+  {
+   "id": "dated_cancellation_cancels_the_event",
+   "criterion": "ruling 18: an announcement, then a post cancelling that event on its date -> the event is cancelled",
+   "posts": [
+    {
+     "raw_message_id": 267,
+     "source_type": "telegram_private_group",
+     "channel_id": "2214928196",
+     "message_id": "1327",
+     "now": "2026-09-26T20:29:12+00:00",
+     "text": "Telegram post in Velvet Julieverse, posted 2026-09-26 (Saturday).\n\nHello dears. First of all, thank you for all your resonance here, this makes me feel very connected to you 🥹\n\nI’m still receiving love letters about the MTE Festival, and it touches me so much. Especially when you tell me how safe you felt in my metaphorical festival hands - even though I didn’t put you in seat belts, inflatable armbands, life rings, training wheels, or under constant surveillance. Reading and hearing all of this makes my heart jump and my pussy pulsate.\n\nYou also tell me that you want more. So I thought: let’s simply continue where we stopped. I found a free spot in Soma House on November 21, so we can get a little nostalgic, with just the icing on the cake: another EROTIC JAM.🖤🩷🖤\n\nI’ve set up some early bird spots at a reduced price, and you are the first to know. I hope to continue this wonderful exploration with many familiar faces... And of course, people who didn’t attend the festival are very welcome too :)",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Velvet Julieverse",
+      "default_organizer": "poster",
+      "poster": "Julie"
+     }
+    },
+    {
+     "source_type": "telegram_private_group",
+     "channel_id": "2214928196",
+     "message_id": "synthetic-cancel-1",
+     "now": "2026-10-01T10:00:00+00:00",
+     "text": "Telegram post in Velvet Julieverse, posted 2026-10-01 (Thursday).\n\nSadly the EROTIC JAM on Saturday 21 November is cancelled. Everyone with a ticket gets a full refund this week. I'm so sorry, loves.",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Velvet Julieverse",
+      "default_organizer": "poster",
+      "poster": "Julie"
+     },
+     "note": "synthetic: no real dated cancellation is in the dev DB (ruling 18); written in the group's own voice."
     }
    ]
   }

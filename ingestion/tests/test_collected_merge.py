@@ -1122,3 +1122,126 @@ class PrivacyByTierTest(CollectedCase):
         self._land("@IKSKBerlin", {"default_organizer": "IKSK"}, title="Rope Social", venue_name="Hinterhof")
         event.refresh_from_db()
         self.assertEqual((event.visibility, event.venue, event.location_note), ("public", None, "Hinterhof"))
+
+    # -- round 2 (sb-7wzb.30 stamp review) ------------------------------------
+
+    def test_r19_a_raise_rewrites_times_timezone_and_presence_from_the_public_post(self):
+        evening = datetime.combine(self.start.date(), time(19, 0))
+        _, event = self._land(
+            "-100private",
+            {"default_organizer": "IKSK"},
+            {"source_type": "telegram_private_group"},
+            title="Rope Social",
+            start=evening,
+            end=evening + timedelta(hours=3),
+            timezone="Europe/Vienna",
+            presence="hybrid",
+        )
+        self.assertEqual((event.timezone, event.presence, event.start_time_unknown), ("Europe/Vienna", "hybrid", False))
+        midnight = datetime.combine(self.start.date(), time(0, 0))
+        self.decide = same_as_first
+        self._land(
+            "@IKSKBerlin", {"default_organizer": "IKSK"}, title="Rope Social", start=midnight, start_time_unknown=True
+        )
+        event.refresh_from_db()
+        self.assertEqual(event.visibility, "public")
+        self.assertEqual(
+            (event.start, event.end, event.start_time_unknown, event.timezone, event.presence),
+            (midnight.replace(tzinfo=_BERLIN), None, True, "Europe/Berlin", "in_person"),
+        )
+
+    def test_r20_a_raise_with_no_eligible_organizer_removes_the_collectors_rows(self):
+        _, event = self._land(
+            "-100private",
+            {"default_organizer": "IKSK"},
+            {"source_type": "telegram_private_group"},
+            title="Rope Social",
+            explicit_organizer="Secret Host",
+        )
+        staff_pick = Profile.objects.create(name="Staff Pick", slug="sp", status="approved")
+        EventOrganizer.objects.create(event=event, profile=staff_pick, order=9, attribution="")
+        self.decide = same_as_first
+        raw, kept = self._land("@noconfig", {}, title="Rope Social")  # a public teaser naming no organizer
+        self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
+        self.assertEqual(self._organizers(event), [("Staff Pick", False, "")])
+
+    def test_r20_a_draft_with_no_organizer_matching_nothing_is_held(self):
+        raw, _ = self._land("@noconfig", {}, title="Rope Social")
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "no_organizer"))
+        self.assertFalse(Event.objects.exists())
+
+    def test_r21_a_person_made_unlisted_candidate_is_judged_and_left_alone(self):
+        event = Event.objects.create(
+            title="Bondage Jam", slug="bj", start=self.start, status="published", visibility="unlisted",
+            organizer=self.iksk,
+        )  # fmt: skip
+        before = self._snapshot(event)
+        self.decide = same_as_first
+        raw, kept = self._land("@IKSKBerlin", description="Copy")
+        self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
+        self.assertEqual(self._snapshot(event), before)
+
+    def test_r21_a_staff_set_visibility_survives_an_attach(self):
+        from events.person_edits import record_person_edit
+
+        _, event = self._land()
+        Event.objects.filter(pk=event.pk).update(visibility="semi_public")
+        event.refresh_from_db()
+        record_person_edit(event, ["visibility"])
+        self.decide = same_as_first
+        self._land("@IKSKBerlin", description="Public copy.")
+        event.refresh_from_db()
+        self.assertEqual((event.visibility, event.description), ("semi_public", "Public copy."))
+
+    def test_r23_collected_flyer_names_are_random_not_the_slug(self):
+        from ingestion.collected import _add_cover, downsize_flyer
+
+        raw, event = self._land()
+        flyer = downsize_flyer(_flyer_b64())
+        draft = EventDraft(title="Bondage Jam", start=self.start, confidence=0.9)
+        _add_cover(event, raw, draft, flyer, None)
+        _add_cover(event, raw, draft, flyer, None)
+        names = [img.image.name.rsplit("/", 1)[-1] for img in event.images.all()]
+        self.assertEqual(len(set(names)), 2)
+        for name in names:
+            self.assertRegex(name, r"^[0-9a-f]{32}\.webp$")
+            self.assertNotIn(event.slug[:10], name)
+
+    def test_r25_no_ineligible_announcement_text_reaches_the_judgement(self):
+        import json
+
+        self._land(
+            "-100private",
+            {"default_organizer": "IKSK"},
+            {"source_type": "telegram_private_group"},
+            title="Secret Rope Social",
+            description="Members only: the code is 4711.",
+            artist_names=["Hidden Name"],
+            venue_name="Hinterhof",
+            external_url="https://secret.example/rsvp",
+        )
+        self.decide = same_as_first
+        self._land("@IKSKBerlin", {"default_organizer": "IKSK"}, title="Rope Social")
+        [[entry]] = self.requests
+        sent = json.dumps(entry, ensure_ascii=False)
+        for private in ("Secret Rope Social", "4711", "Hidden Name", "Hinterhof", "secret.example"):
+            self.assertNotIn(private, sent)
+        [announcement] = entry["candidates"][0]["announcements"]
+        self.assertEqual(set(announcement), {"id", "eligible", "start", "end", "organizer_keys"})
+
+    def test_r26_staff_saving_organizers_protects_them_from_the_collector(self):
+        from events.person_edits import record_person_edit
+
+        _, event = self._land("@IKSKBerlin", title="Friday at IKSK")
+        record_person_edit(event, ["organizers"])  # what the admin's organizer inline save records
+        self.decide = lambda request: same_as_first(request, explicit_organizer="Visionary Body")
+        self._land(title="Pelvic Work", explicit_organizer="Visionary Body")
+        self.assertEqual(self._organizers(event), [("IKSK", True, "publisher")])
+
+    def test_a_moved_date_only_event_stays_date_only(self):
+        _, event = self._land(start=self.start.replace(hour=0), start_time_unknown=True)
+        moved = self.start.replace(hour=0) + timedelta(days=1)
+        self.decide = same_as_first
+        self._land("@IKSKBerlin", start=moved, start_time_unknown=True, moved_from=self.start.replace(hour=0))
+        event.refresh_from_db()
+        self.assertEqual((event.start, event.start_time_unknown), (moved, True))
