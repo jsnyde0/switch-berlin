@@ -19,17 +19,21 @@ def name_key(name: str) -> str:
 
 def _merged_into(model, kind: str, name: str):
     """The live `model` row the merge records send `name` to, following a chain of merges, or None."""
-    key = normalize(name)
+    key = name_key(name)
+    # debt: scans every merge record of the kind per hop, because records store the
+    # looser normalize() form; fine at today's handful of merges, move to a stored
+    # name_key column when merges reach the thousands.
+    records = list(MergeRecord.objects.filter(kind=kind).order_by("-merged_at", "-id"))
     seen = set()
     while key not in seen:
         seen.add(key)
-        record = MergeRecord.objects.filter(kind=kind, loser_normalized=key).order_by("-merged_at", "-id").first()
+        record = next((r for r in records if name_key(r.loser_name) == key), None)
         if record is None:
             return None
         winner = model.objects.filter(pk=record.winner_id).first()
         if winner is not None:
             return winner
-        key = record.winner_normalized  # the winner was itself merged away
+        key = name_key(record.winner_name)  # the winner was itself merged away
     return None
 
 
@@ -51,10 +55,10 @@ def find_venue(name: str, address: str | None = None):
     """
     from venues.models import Venue
 
-    key = (normalize(name), None if address is None else normalize(address))
+    key = (name_key(name), None if address is None else normalize(address))
     # debt: scans every venue per event; fine at today's tens of venues, move
     # to a stored normalized-name column when venues reach the thousands.
     for venue in Venue.objects.all():
-        if (normalize(venue.name), None if address is None else normalize(venue.address)) == key:
+        if (name_key(venue.name), None if address is None else normalize(venue.address)) == key:
             return venue
     return None if address is not None else _merged_into(Venue, "venue", name)

@@ -2219,7 +2219,9 @@ msgid ""
 "audience of the event that credits them: a name on an event that is not "
 "public never reaches search engines, sitemaps, structured data, link "
 "previews or anonymous visitors. Credited artists may object through the "
-"same form, naming the event and themselves; the credit is then removed."
+"same form without a login (the option I am credited on this event, with the "
+"event page, their name and a contact email). Staff then remove the credit "
+"within 72 hours and the name is not collected again from the same source."
 msgstr ""
 "Veranstaltungen können ihre Artists (Personen, die dort unterrichten, "
 "auftreten oder auflegen) als Text nennen, so wie die Ankündigung sie "
@@ -2227,8 +2229,10 @@ msgstr ""
 "sichtbar, die sie nennt: Ein Name auf einer nicht öffentlichen Veranstaltung "
 "erreicht nie Suchmaschinen, Sitemaps, strukturierte Daten, Linkvorschauen "
 "oder anonyme Besucher:innen. Genannte Artists können über dasselbe Formular "
-"widersprechen, unter Angabe der Veranstaltung und ihres Namens; die Nennung "
-"wird dann entfernt."
+"ohne Anmeldung widersprechen (die Option „Ich werde auf dieser "
+"Veranstaltung genannt“, mit Veranstaltungsseite, Namen und Kontakt-E-Mail). "
+"Das Team entfernt die Nennung dann innerhalb von 72 Stunden, und der Name "
+"wird nicht erneut aus derselben Quelle gesammelt."
 
 #: templates/pages/privacy.html:74
 msgid "legitimate interest"
@@ -4045,3 +4049,30 @@ msgstr ""
 
 #~ msgid "You can also contact us directly by email:"
 #~ msgstr "Sie können uns auch direkt per E-Mail kontaktieren:"
+
+#: templates/reviews/takedown.html
+msgid ""
+"I am credited on this event and want my credit removed. Give the event page "
+"above, the name you are credited under and your email below; staff remove "
+"the credit and it is not collected again from the same source."
+msgstr ""
+"Ich werde auf dieser Veranstaltung genannt und möchte, dass meine Nennung "
+"entfernt wird. Gib oben die Veranstaltungsseite sowie unten den Namen, unter "
+"dem du genannt wirst, und deine E-Mail an; das Team entfernt die Nennung, "
+"und sie wird nicht erneut aus derselben Quelle gesammelt."
+
+#: templates/reviews/takedown.html
+msgid "The name you are credited under"
+msgstr "Name, unter dem du genannt wirst"
+
+#: templates/reviews/takedown.html
+msgid "Only for credit removal."
+msgstr "Nur für die Entfernung einer Nennung."
+
+#: reviews/forms.py
+msgid "I am credited on this event"
+msgstr "Ich werde auf dieser Veranstaltung genannt"
+
+#: reviews/forms.py
+msgid "Required to remove a credit."
+msgstr "Pflichtfeld für die Entfernung einer Nennung."

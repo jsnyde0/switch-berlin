@@ -662,3 +662,20 @@ def test_privacy_says_artist_names_follow_the_event_audience(client, public_read
         response = client.get("/privacy/")
     assert response.status_code == 200
     assert present in response.content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("lang", "present"),
+    [
+        ("en", b"the name is not collected again from the same source"),
+        ("de", b"der Name wird nicht erneut aus derselben Quelle gesammelt"),
+    ],
+)
+def test_privacy_says_a_removed_credit_is_not_collected_again(client, public_read_on, lang, present):
+    """sb-7wzb.23: the credit-removal route and its suppression are named on the privacy page."""
+    with override_settings(LANGUAGE_CODE=lang, LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = lang
+        response = client.get("/privacy/")
+    assert response.status_code == 200
+    assert present in response.content

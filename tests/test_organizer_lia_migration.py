@@ -196,6 +196,12 @@ class TestLIADocExists(TestCase):
         """docs/compliance/organizer-lia.md must exist."""
         self._read_lia()  # raises if missing
 
+    def test_lia_section_4_covers_credited_artists(self):
+        """sb-7wzb.23: §4 names credited artists and the suppression of a removed name."""
+        section_4 = self._read_lia().split("## 4. Art. 21 Opt-Out Path")[1].split("## 5.")[0]
+        assert "Credited artists" in section_4
+        assert "suppressed" in section_4
+
     def test_lia_contains_art6_reference(self):
         """LIA must reference Art. 6(1)(f)."""
         content = self._read_lia()

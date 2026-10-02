@@ -92,12 +92,14 @@ class Flag(models.Model):
             ("inaccurate", "Inaccurate"),
             ("harmful", "Harmful"),
             ("safety", "Safety concern"),
+            ("artist_credit", "Credited artist asks for removal"),
             ("other", "Other"),
         ],
     )
     body = models.TextField(blank=True)
     contact_email = models.EmailField(blank=True)
     law_reference = models.CharField(max_length=200, blank=True)
+    credited_name = models.CharField(max_length=200, blank=True)  # reason "artist_credit": the name to remove
     good_faith_confirmed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     resolved = models.BooleanField(default=False)

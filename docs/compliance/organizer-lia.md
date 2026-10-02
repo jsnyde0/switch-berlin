@@ -81,7 +81,7 @@ The safeguard is the event's **visibility tier** (ADR-012 D2), which a credit in
 
 There is no separate name-specific limit (no exclusion of names from search or metadata on public events, and no time-based deletion of credits). The operator chose this on 2026-10-02 (ruling recorded on sb-7wzb.17): the protection is that the tier gates hold. They are therefore load-bearing for this assessment. Their audit across every exposure surface, with a test per surface, is sb-7wzb.26; until it closes, this balancing rests on gates that have not been audited end to end.
 
-**Objection.** A credited artist can object under Art. 21 without a login. Today they use the `/takedown/` form, naming the event and themselves in the description, and the operator removes the credit by hand. A per-credit removal that also stops the collector from re-creating the credit from the same source is sb-7wzb.23, which also extends §4 to credited artists.
+**Objection.** A credited artist can object under Art. 21 without a login. On `/takedown/` they tick "I am credited on this event" and give the event page, the name they are credited under and a contact email. The form only files a request: anyone can submit it, so it never deletes anything by itself. Staff run the admin action "remove credit and suppress" within **72 hours**: it deletes the matching credit and records the name, normalized, against every source channel that collected that event, in one transaction. The collector then skips that name from those sources, so the credit is not re-created. Another source may still credit the name, and a new objection covers it. There is no adverse consequence for objecting.
 
 **Conclusion.** With the tier gates holding and the objection route open, the balancing in §3 holds for artist credits: the names are shown only where the event itself may be seen, to an audience the organizer addressed, as the billing the organizer published. If the gates leak, this conclusion does not hold for credits from invite-only sources, and the leak is a data-protection incident, not a display bug.
 
@@ -94,6 +94,8 @@ Organizers have the right to object to processing of their data under Art. 21 GD
 **How to exercise the right:** Submit a takedown request at `/takedown/` — no login is required. The form accepts the organizer name or Telegram channel URL and a reason.
 
 **Outcome:** The organizer listing is hidden within **72 hours** of a valid request. Event ingestion from that source is halted immediately after the request is processed. Existing past-event records are de-listed from public views. The organizer may request full erasure under Art. 17 by selecting "Erasure request" in the form.
+
+**Credited artists.** Artists credited on an event (§3a) exercise the same right through the same form (the "I am credited on this event" option). Outcome: the credit is removed within **72 hours** of a valid request and the name is suppressed for the sources that collected the event, so it is not re-created from them. The artist's event listing is unaffected: the organizer's event stays.
 
 **No adverse consequence.** There is no penalty, fee, or service degradation for submitting a takedown request.
 

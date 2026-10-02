@@ -42,6 +42,17 @@
       <form method="post" class="flex flex-col gap-7 pt-8">
         {% csrf_token %}
         <c-kb.field label="{% trans 'URL of the content' %}" name="event_url" type="url" placeholder="https://switch.berlin/events/..." value="{{ values.event_url|default:'' }}" />
+        <label class="inline-flex items-start gap-3 cursor-pointer">
+          <input type="checkbox"
+                 id="credited"
+                 name="credited"
+                 class="kb-check mt-0.5"
+                 {% if values.credited %}checked{% endif %}>
+          <span class="text-[13px] leading-[1.5] text-base-content/75">
+            {% trans "I am credited on this event and want my credit removed. Give the event page above, the name you are credited under and your email below; staff remove the credit and it is not collected again from the same source." %}
+          </span>
+        </label>
+        <c-kb.field label="{% trans 'The name you are credited under' %}" name="credited_name" type="text" value="{{ values.credited_name|default:'' }}" hint="{% trans 'Only for credit removal.' %}" />
         <c-kb.field-wrap label="{% trans 'Reason' %}" for_id="reason">
         <select id="reason" name="reason" class="kb-select">
           <option value="illegal"

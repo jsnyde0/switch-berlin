@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 from a_core.models import ModerationAction
 from events.models import Event
 from organizers.models import Profile
+from organizers.names import name_key
 
 from .models import Flag, Review
 
@@ -75,7 +76,7 @@ class FlagAdmin(admin.ModelAdmin):
         "created_at",
     ]
     change_form_template = "admin/reviews/flag/change_form.html"
-    actions = ["resolve_approved", "resolve_rejected"]
+    actions = ["resolve_approved", "resolve_rejected", "remove_credit_and_suppress"]
 
     class Media:
         js = ["admin/js/review_shortcuts.js"]
@@ -111,6 +112,51 @@ class FlagAdmin(admin.ModelAdmin):
     @admin.action(description=_("Mark selected flags resolved — rejected"))
     def resolve_rejected(self, request, queryset):
         self._bulk_resolve(request, queryset, resolution_notes="Bulk rejected via admin shortcut")
+
+    @admin.action(description=_("Remove the credited artist's credit and suppress the name for the event's sources"))
+    def remove_credit_and_suppress(self, request, queryset):
+        """Staff act on an artist-credit request: delete the matching EventArtist rows and suppress
+        the name for every source of the event, in one transaction (sb-7wzb.23).
+
+        The anonymous form only files the request; this is the one place a credit is removed.
+        """
+        from ingestion.models import ArtistCreditSuppression
+
+        done = skipped = 0
+        with transaction.atomic():
+            for flag in queryset.select_for_update():
+                if flag.reason != "artist_credit" or flag.event_id is None or not name_key(flag.credited_name):
+                    skipped += 1
+                    continue
+                key = name_key(flag.credited_name)
+                event = flag.event
+                for credit in event.artist_credits.all():
+                    if name_key(credit.name) == key:
+                        credit.delete()
+                channels = {a.raw_message.channel_id for a in event.extraction_attempts.select_related("raw_message")}
+                if event.raw_message_id is not None:
+                    channels.add(event.raw_message.channel_id)
+                for channel_id in channels:
+                    ArtistCreditSuppression.objects.get_or_create(name_key=key, channel_id=channel_id)
+                ModerationAction.objects.create(
+                    moderator=request.user,
+                    flag=flag,
+                    target_type="event",
+                    target_id=event.pk,
+                    target_repr=str(event),
+                    action="resolved",
+                    reason=f"credit {flag.credited_name!r} removed and suppressed for {len(channels)} source(s)",
+                )
+                flag.resolved = True
+                flag.resolved_by = request.user
+                flag.resolution_notes = "Credit removed and name suppressed via admin action"
+                flag.save(update_fields=["resolved", "resolved_by", "resolution_notes"])
+                done += 1
+        self.message_user(
+            request,
+            _("%(done)d removed, %(skipped)d skipped (not a credit request).") % {"done": done, "skipped": skipped},
+            messages.SUCCESS if done else messages.WARNING,
+        )
 
     def get_urls(self):
         urls = super().get_urls()

@@ -251,10 +251,22 @@ def takedown_view(request):
             )
 
         reason = form.cleaned_data["reason"]
+        credited_name = form.cleaned_data["credited_name"]
         body = form.cleaned_data.get("body", "")
         contact_email = form.cleaned_data.get("contact_email", "")
         law_reference = form.cleaned_data.get("law_reference", "")
         good_faith_confirmed = form.cleaned_data.get("good_faith_confirmed", False)
+
+        if form.cleaned_data["credited"] and not event_url:
+            return render(
+                request,
+                "reviews/takedown.html",
+                {
+                    "form": form,
+                    "error": "Please provide the URL of the event that credits you.",
+                    "values": request.POST,
+                },
+            )
 
         if not event_url and not body:
             return render(
@@ -319,6 +331,17 @@ def takedown_view(request):
                 },
             )
 
+        if credited_name and target_event is None:
+            return render(
+                request,
+                "reviews/takedown.html",
+                {
+                    "form": form,
+                    "error": "The URL must be the page of the event that credits you.",
+                    "values": request.POST,
+                },
+            )
+
         Flag.objects.create(
             reporter=None,
             event=target_event,
@@ -327,6 +350,7 @@ def takedown_view(request):
             body=f"URL: {event_url}\n\n{body}" if body else f"URL: {event_url}",
             contact_email=contact_email,
             law_reference=law_reference,
+            credited_name=credited_name,
             good_faith_confirmed=good_faith_confirmed,
         )
         from django_q.tasks import async_task
@@ -335,7 +359,7 @@ def takedown_view(request):
             "reviews.tasks.send_takedown_notification",
             event_url=event_url,
             reason=reason,
-            body=body,
+            body=f"Credited as: {credited_name}\n{body}" if credited_name else body,
             contact_email=contact_email,
         )
         return render(request, "reviews/takedown.html", {"submitted": True})

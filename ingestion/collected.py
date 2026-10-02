@@ -267,9 +267,12 @@ def credit_people(
 ) -> None:
     """Organizer rows (matched or created, never inferred) and artist credits as text, never linked.
 
-    An artist name equal to an organizer name (`names` or `taken_names`) is not credited again.
+    An artist name equal to an organizer name (`names` or `taken_names`) is not credited again,
+    nor one a credited artist had removed for this source (ArtistCreditSuppression, sb-7wzb.23).
     """
     from events.models import EventArtist, EventOrganizer
+
+    from .models import ArtistCreditSuppression
 
     seen = set()
     for order, name in enumerate(names):
@@ -281,6 +284,7 @@ def credit_people(
             event=event, profile=profile, is_primary=order == 0, order=order, attribution=attribution
         )
     taken = {name_key(part) for name in [*names, *taken_names] for part in [name, *split_names(name)]}
+    taken |= set(ArtistCreditSuppression.objects.filter(channel_id=raw.channel_id).values_list("name_key", flat=True))
     order = 0
     for entry in artist_names:
         for name in split_names(entry):

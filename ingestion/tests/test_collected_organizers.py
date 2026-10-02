@@ -274,3 +274,28 @@ class CollectorOrganizerRuleTest(TestCase):
         self.assertEqual(event.visibility, "semi_public")
         self.assertEqual(self._artists(event), [("Mal", None)])
         self.assertEqual(self._organizers(event), [("Fist Them Berlin", True, "publisher")])
+
+    # sb-7wzb.23: a suppressed artist name is not credited again from the same source
+
+    def _suppress(self, name, channel_id):
+        from ingestion.models import ArtistCreditSuppression
+        from organizers.names import name_key
+
+        ArtistCreditSuppression.objects.create(name_key=name_key(name), channel_id=channel_id)
+
+    def test_a_suppressed_name_is_skipped_under_any_spelling_from_the_same_source(self):
+        self._suppress("Mareen Scholl", "iksk-berlin.de")
+        event = self._land(self._raw(), artist_names=["mareen  SCHOLL!, Lukas Forstmeyer"])
+        self.assertEqual(self._artists(event), [("Lukas Forstmeyer", None)])
+
+    def test_another_source_still_credits_the_name(self):
+        self._suppress("Mareen Scholl", "some-other-source")
+        event = self._land(self._raw(), artist_names=["Mareen Scholl"])
+        self.assertEqual(self._artists(event), [("Mareen Scholl", None)])
+
+    def test_a_fill_gaps_re_read_does_not_bring_a_suppressed_name_back(self):
+        self._suppress("Mareen Scholl", "iksk-berlin.de")
+        first = self._land(self._raw(message_id="a"), artist_names=["Lukas Forstmeyer"])
+        EventArtist.objects.filter(event=first).delete()
+        second = self._land(self._raw(message_id="b"), artist_names=["Mareen Scholl"])
+        self.assertEqual(self._artists(second), [])

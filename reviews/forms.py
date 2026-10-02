@@ -13,7 +13,13 @@ class TakedownForm(forms.ModelForm):
     - good_faith_confirmed is always required (checkbox).
     - contact_email and law_reference are required when reason == 'illegal'.
     - For all other reasons, neither field is required.
+    - "I am credited on this event" (sb-7wzb.23) files an artist-credit removal request: the
+      credited name and a contact email are required, the reason is fixed, no law is needed.
+      The form only files the request; staff remove the credit.
     """
+
+    credited = forms.BooleanField(required=False, label=_("I am credited on this event"))
+    credited_name = forms.CharField(required=False, max_length=200, label=_("The name you are credited under"))
 
     good_faith_confirmed = forms.BooleanField(
         required=True,
@@ -27,11 +33,19 @@ class TakedownForm(forms.ModelForm):
             "body",
             "contact_email",
             "law_reference",
+            "credited_name",
             "good_faith_confirmed",
         ]
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("credited"):
+            cleaned["reason"] = "artist_credit"
+            for field in ("credited_name", "contact_email"):
+                if not cleaned.get(field):
+                    self.add_error(field, _("Required to remove a credit."))
+            return cleaned
+        cleaned["credited_name"] = ""
         reason = cleaned.get("reason")
         if reason == "illegal":
             if not cleaned.get("contact_email"):

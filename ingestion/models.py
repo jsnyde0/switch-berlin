@@ -158,3 +158,26 @@ class ApprovedSender(models.Model):
 
     def __str__(self):
         return f"{self.telegram_user_id} ({self.telegram_handle})"
+
+
+class ArtistCreditSuppression(models.Model):
+    """A credited artist's removed name, per source (sb-7wzb.23, LIA §3a objection).
+
+    Written by the staff action "remove credit and suppress"; the collector skips an artist
+    name whose `name_key` (organizers.names.name_key) is listed for the row's `channel_id`.
+    Another source may still credit the name.
+    """
+
+    name_key = models.CharField(max_length=200)
+    channel_id = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["name_key", "channel_id"], name="artist_suppression_one_per_name_source"),
+        ]
+        verbose_name = _("artist credit suppression")
+        verbose_name_plural = _("artist credit suppressions")
+
+    def __str__(self):
+        return f"{self.name_key} @ {self.channel_id}"

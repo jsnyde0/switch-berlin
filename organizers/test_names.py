@@ -62,3 +62,23 @@ def test_find_venue_by_name_and_by_address():
 @pytest.mark.django_db
 def test_merge_record_loser_normalized_is_indexed():
     assert MergeRecord._meta.get_field("loser_normalized").db_index is True
+
+
+@pytest.mark.django_db
+def test_a_merged_away_name_matches_under_the_same_key_as_a_live_name():
+    winner = Profile.objects.create(name="Winner", slug="winner")
+    loser = Profile.objects.create(name="Foo-Bar", slug="foo-bar")
+    merge_profiles(winner, loser, None)
+    assert find_profile("Foo Bar") == winner
+    assert find_profile("foo, bar!") == winner  # punctuation the live-row key drops
+
+
+@pytest.mark.django_db
+def test_find_venue_follows_a_chain_of_merges_under_one_key():
+    a = Venue.objects.create(name="Club-A", slug="club-a")
+    b = Venue.objects.create(name="Club B", slug="club-b")
+    c = Venue.objects.create(name="Club C", slug="club-c")
+    merge_venues(b, a, None)
+    merge_venues(c, b, None)
+    assert find_venue("Club A") == c
+    assert find_venue("club, b") == c
