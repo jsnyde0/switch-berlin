@@ -4,7 +4,7 @@ event's location note, a real place matches a Venue by exact normalized name or
 is created (address text, no coordinates), and a source's config names its
 default venue and who runs it. Venues never create profiles.
 
-Postgres-only: process_raw_message runs match_entities (TrigramSimilarity).
+Postgres-only: the duplicate check runs TrigramSimilarity.
 """
 
 import unittest
@@ -24,7 +24,7 @@ from venues.models import Venue
 
 _PG_ONLY = unittest.skipIf(
     connection.vendor == "sqlite",
-    "process_raw_message invokes match_entities (TrigramSimilarity / pg_trgm).",
+    "the duplicate check uses TrigramSimilarity (pg_trgm).",
 )
 
 # What collect.py's collected_row puts on an IKSK row from collector_sources.toml.
@@ -54,7 +54,7 @@ class CollectedVenueTest(TestCase):
         )
         draft = dict(
             title=f"Event {self.n}",
-            organizer_name="IKSK",
+            explicit_organizer="IKSK",
             start=self.start + timedelta(days=self.n),
             confidence=0.9,
             venue_name=venue_name,
@@ -198,7 +198,7 @@ class CollectedVenueTest(TestCase):
             enriched_payload={"url_content": "The address is shared with ticket holders."},
         )
         draft = EventDraft(
-            title="Linked", organizer_name="IKSK", start=self.start, confidence=0.9, venue_name="Wandel-Raum"
+            title="Linked", explicit_organizer="IKSK", start=self.start, confidence=0.9, venue_name="Wandel-Raum"
         )
         result = MagicMock()
         result.output = CollectedEvents(events=[draft])

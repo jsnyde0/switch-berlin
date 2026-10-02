@@ -58,7 +58,7 @@ def collected_row(source: dict, channel_id: str, message_id: str, text: str, **p
     raw_payload = {"source": source["name"], **payload}
     if source.get("organizer"):
         raw_payload["organizer"] = source["organizer"]
-    for key in ("venue", "venue_run_by"):
+    for key in ("venue", "venue_run_by", "aggregator"):
         if source.get(key):
             raw_payload[key] = source[key]
     return {
@@ -146,7 +146,7 @@ def iksk_rows(
                         f"Venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
                     )
                 else:
-                    header += "Organizer/host venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
+                    header += "Venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
                 text = header + (f"Details: {href}\n" if href else "")
                 row = collected_row(source, "iksk-berlin.de", f"{day.isoformat()}|{entry[:60]}", text, url=href)
                 if details.get(href):
@@ -175,13 +175,13 @@ def karada_rows(source: dict, start: date, end: date) -> list[dict]:
     for ev in resp.json().get("events", []):
         venue = ev.get("venue") or {}
         venue_name = venue.get("venue", "") if isinstance(venue, dict) else ""
-        facilitators = ", ".join(_strip_html(o.get("organizer", "")) for o in ev.get("organizer", []))
+        artists = ", ".join(_strip_html(o.get("organizer", "")) for o in ev.get("organizer", []))
         text = (
             f"Event listed on the Karada House events page ({source['url']}).\n"
             f"Title: {_strip_html(ev['title'])}\n"
             f"Start: {ev['start_date']} (Europe/Berlin)\nEnd: {ev['end_date']}\n"
-            f"Organizer/host venue: Karada House{f' ({venue_name})' if venue_name else ''}\n"
-            f"Facilitators: {facilitators}\n"
+            f"Venue: Karada House{f' ({venue_name})' if venue_name else ''}\n"
+            f"Artists: {artists}\n"
             f"Price: {_strip_html(ev.get('cost', ''))}\n"
             f"Link: {ev['url']}\n\n"
             f"{_strip_html(ev.get('description', ''))[:3000]}"

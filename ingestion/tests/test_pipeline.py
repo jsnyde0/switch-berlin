@@ -87,7 +87,7 @@ class ExtractEventDraftTest(TestCase):
 
         mock_draft = EventDraft(
             title="Test Event",
-            organizer_name="Test Org",
+            explicit_organizer="Test Org",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
         )
@@ -97,7 +97,7 @@ class ExtractEventDraftTest(TestCase):
             MockAgent.return_value.run_sync.return_value = mock_result
             draft, version = extract_event_draft("Some event text", {})
         self.assertIsInstance(draft, EventDraft)
-        self.assertEqual(version, "v2")
+        self.assertEqual(version, "v3")
         self.assertEqual(draft.title, "Test Event")
 
 
@@ -113,7 +113,7 @@ class EntityMatchingTest(TestCase):
         organizer = Profile.objects.create(name="Test Org", slug="test-org")
         draft = EventDraft(
             title="T",
-            organizer_name="Test Org",
+            explicit_organizer="Test Org",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
         )
@@ -126,7 +126,7 @@ class EntityMatchingTest(TestCase):
         organizer = Profile.objects.create(name="Test Org", slug="test-org")
         draft = EventDraft(
             title="T",
-            organizer_name="test org",
+            explicit_organizer="test org",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
         )
@@ -139,30 +139,24 @@ class EntityMatchingTest(TestCase):
         # Empty DB -- no organizers
         draft = EventDraft(
             title="T",
-            organizer_name="Unknown Org",
+            explicit_organizer="Unknown Org",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
         )
         result = match_entities(draft)
         self.assertIsNone(result["organizer"])
 
-    def test_organizer_fuzzy_match(self):
+    def test_organizer_near_miss_is_not_matched(self):
         from ingestion.extraction import match_entities
 
-        organizer = Profile.objects.create(name="Queer Collective", slug="queer-collective")
+        Profile.objects.create(name="Queer Collective", slug="queer-collective")
         draft = EventDraft(
             title="T",
-            organizer_name="Queer Colective",  # typo -- close enough
+            explicit_organizer="Queer Colective",  # a typo is a different name: never fuzzy (ADR-007 D9)
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
         )
-        # This test relies on pg_trgm being active (migration 0004_enable_pg_trgm).
-        # If it fails with "function similarity does not exist", the pg_trgm migration
-        # was not applied -- run: python manage.py migrate ingestion
-        result = match_entities(draft)
-        # Exact match fails ('Queer Colective' != 'Queer Collective'), fuzzy fires.
-        # pg_trgm threshold 0.6: 'Queer Colective' vs 'Queer Collective' should match.
-        self.assertEqual(result["organizer"], organizer)
+        self.assertIsNone(match_entities(draft)["organizer"])
 
     def test_venue_exact_match(self):
         from ingestion.extraction import match_entities
@@ -170,7 +164,7 @@ class EntityMatchingTest(TestCase):
         venue = Venue.objects.create(name="KitKatClub", slug="kitkatclub")
         draft = EventDraft(
             title="T",
-            organizer_name="X",
+            explicit_organizer="X",
             venue_name="KitKatClub",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
@@ -183,7 +177,7 @@ class EntityMatchingTest(TestCase):
 
         draft = EventDraft(
             title="T",
-            organizer_name="X",
+            explicit_organizer="X",
             venue_name="Unknown Venue",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
@@ -197,7 +191,7 @@ class EntityMatchingTest(TestCase):
         tag = Tag.objects.create(slug="queer", label="Queer", kind="identity")
         draft = EventDraft(
             title="T",
-            organizer_name="X",
+            explicit_organizer="X",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
             tags=["queer", "underground-tag", "fetish"],
@@ -221,7 +215,7 @@ class ProcessRawMessageTest(TestCase):
     def _mock_draft(self, confidence=0.9, **kwargs):
         defaults = dict(
             title="Test Event",
-            organizer_name="Nobody",
+            explicit_organizer="Nobody",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=confidence,
         )
@@ -317,7 +311,7 @@ class ProcessRawMessageTest(TestCase):
         raw = self._make_raw()
         mock_draft = EventDraft(
             title="Test",
-            organizer_name="Nobody",
+            explicit_organizer="Nobody",
             start=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
             confidence=0.9,
         )

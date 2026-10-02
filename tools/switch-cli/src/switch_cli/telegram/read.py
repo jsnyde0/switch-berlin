@@ -74,10 +74,6 @@ async def collect_telegram(
             if topic is not None:
                 channel_id = f"{channel_id}:{topic.id}"
                 title = f"{title} / {topic.title}"
-            organizer = source.get("organizer")
-            if not organizer and source.get("channel_organizer"):
-                organizer = getattr(entity, "title", "")
-            src = {**source, "organizer": organizer}
             posts: dict[int, list] = {}  # album or message id -> its messages, newest first
             async for msg in client.iter_messages(entity, reply_to=topic.id if topic else None, limit=limit):
                 if msg.date < cutoff:
@@ -97,7 +93,7 @@ async def collect_telegram(
                 header = f"Telegram post in {title}, posted {posted.date().isoformat()} ({posted.strftime('%A')})."
                 extra = {"images": images} if images else {}
                 row = collected_row(
-                    src,
+                    source,
                     channel_id,
                     str(first.id),
                     f"{header}\n\n{body}",

@@ -4,7 +4,7 @@ RawMessage seam through the staff-only API verb, and the pipeline lands each
 extracted event by claim state (ADR-017 D4) at the source-derived tier
 (ADR-012 D2).
 
-Postgres-only: process_raw_message runs match_entities (TrigramSimilarity).
+Postgres-only: the duplicate check runs TrigramSimilarity.
 """
 
 import base64
@@ -31,7 +31,7 @@ User = get_user_model()
 
 _PG_ONLY = unittest.skipIf(
     connection.vendor == "sqlite",
-    "process_raw_message invokes match_entities (TrigramSimilarity / pg_trgm).",
+    "the duplicate check uses TrigramSimilarity (pg_trgm).",
 )
 
 
@@ -122,7 +122,7 @@ class CollectedEventLandingTest(TestCase):
         self.iksk = Profile.objects.create(name="IKSK", slug="iksk", status="approved")
 
     def _draft(self, **draft_kwargs):
-        draft = dict(title="Bondage Jam", organizer_name="IKSK", start=self.start, confidence=0.9)
+        draft = dict(title="Bondage Jam", start=self.start, confidence=0.9)
         draft.update(draft_kwargs)
         return EventDraft(**draft)
 
@@ -198,7 +198,7 @@ class CollectedEventLandingTest(TestCase):
         self.assertEqual(Event.objects.get(raw_message=raw).status, "draft")
 
     def test_unknown_organizer_gets_reachable_unclaimed_profile(self):
-        raw = self._process(self._raw(raw_payload={}, channel_id="-100999"), organizer_name="Fist Them Berlin")
+        raw = self._process(self._raw(raw_payload={}, channel_id="-100999"), explicit_organizer="Fist Them Berlin")
         profile = Event.objects.get(raw_message=raw).organizer
         self.assertEqual(profile.name, "Fist Them Berlin")
         self.assertEqual(profile.status, "approved")  # organizer page (claim affordance) must resolve
@@ -238,11 +238,13 @@ class CollectedEventLandingTest(TestCase):
         self.assertFalse(Event.objects.exists())
 
     def test_post_announcing_several_events_lands_each(self):
-        raw = self._raw(source_type="telegram_telethon", channel_id="@TillTailorShirka", raw_payload={})
+        raw = self._raw(
+            source_type="telegram_telethon", channel_id="@TillTailorShirka", raw_payload={"organizer": "Till & Shirka"}
+        )
         drafts = [
-            self._draft(title="Tantra Evening", organizer_name="Till & Shirka"),
-            self._draft(title="Shibari Basics", organizer_name="Till & Shirka", start=self.start + timedelta(days=1)),
-            self._draft(title="Old Workshop", organizer_name="Till & Shirka", start=timezone.now() - timedelta(days=2)),
+            self._draft(title="Tantra Evening"),
+            self._draft(title="Shibari Basics", start=self.start + timedelta(days=1)),
+            self._draft(title="Old Workshop", start=timezone.now() - timedelta(days=2)),
         ]
         self._run(raw, CollectedEvents(events=drafts))
         titles = set(Event.objects.filter(raw_message=raw).values_list("title", flat=True))
@@ -302,7 +304,7 @@ class CollectedEventLandingTest(TestCase):
         self.assertEqual(raw.raw_payload["images"], ["aGVsbG8="])
 
     def test_unnamed_organizer_is_held_not_invented(self):
-        raw = self._process(self._raw(raw_payload={}, channel_id="-100888"), organizer_name="Unknown")
+        raw = self._process(self._raw(raw_payload={}, channel_id="-100888"), explicit_organizer="Unknown")
         self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "no_organizer"))
         self.assertFalse(Profile.objects.filter(name__iexact="unknown").exists())
 

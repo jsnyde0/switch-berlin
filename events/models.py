@@ -55,6 +55,12 @@ class EventOrganizer(models.Model):
     )
     is_primary = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
+    # How the collector attributed this organizer (ADR-007 D9); blank = set by a person.
+    attribution = models.CharField(
+        max_length=10,
+        blank=True,
+        choices=[("explicit", _("named in the text")), ("publisher", _("the publishing source"))],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

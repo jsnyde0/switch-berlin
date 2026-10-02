@@ -6,12 +6,16 @@
 #               telegram_private_group land semi_public.
 # publish     = the per-source collector switch: false = collect-only (rows and
 #               drafts, never published).
-# organizer   = the source's own organizer identity, when the source IS an
-#               organizer. Unset: the organizer comes from the post text.
+# organizer   = the Profile name of the source's own organizer (matched by
+#               exact name, else created), when the source IS an organizer: the
+#               publisher, credited unless a post explicitly names another
+#               organizer (ADR-007 D9). Channel titles are never used as names.
+#               Unset: only explicit organizer wording names one.
+# aggregator  = true: the source posts other people's events; a post without
+#               explicit organizer wording is held for review. None set today.
 # chat        = @username for public Telegram sources, else the dialog title
 #               (case-insensitive substring; must match exactly one dialog).
 # topic       = forum topic title (substring) for forum sources.
-# channel_organizer = true: a broadcast channel's own title is its organizer.
 # venue       = the source's default venue (exact Venue name): an event whose
 #               post names no place and no placeholder lands there.
 # venue_run_by = the Profile (exact name) that runs that venue; set on the
@@ -51,35 +55,35 @@ publish = true
 name = "@Kinkysoulevents"
 shape = "telegram_telethon"
 chat = "@Kinkysoulevents"
-channel_organizer = true
+organizer = "Kinky Soul"
 publish = true
 
 [[source]]
 name = "@dirtytalkmagic"
 shape = "telegram_telethon"
 chat = "@dirtytalkmagic"
-channel_organizer = true
+organizer = "Dirty Talk Magic"
 publish = true
 
 [[source]]
 name = "@portalsofpermission"
 shape = "telegram_telethon"
 chat = "@portalsofpermission"
-channel_organizer = true
+organizer = "Gili Jala"
 publish = true
 
 [[source]]
 name = "@luhmendarc"
 shape = "telegram_telethon"
 chat = "@luhmendarc"
-channel_organizer = true
+organizer = "luhmen d'arc"
 publish = true
 
 [[source]]
 name = "@TillTailorShirka"
 shape = "telegram_telethon"
 chat = "@TillTailorShirka"
-channel_organizer = true
+organizer = "Till & Shirka"
 publish = true
 
 [[source]]
@@ -108,28 +112,28 @@ publish = false
 name = "Fist Them Berlin"
 shape = "telegram_private_channel"
 chat = "Fist Them - Berlin"
-channel_organizer = true
+organizer = "Fist Them Berlin"
 publish = true
 
 [[source]]
 name = "Kinky Perreo Party"
 shape = "telegram_private_channel"
 chat = "Kinky Perreo Party"
-channel_organizer = true
+organizer = "Kinky Perreo Party"
 publish = true
 
 [[source]]
 name = "Garden of Earthly Delights"
 shape = "telegram_private_channel"
 chat = "Garden of Earthly Delights"
-channel_organizer = true
+organizer = "Garden of Earthly Delights"
 publish = true
 
 [[source]]
 name = "Connecting Passions & Charming Theys"
 shape = "telegram_private_channel"
 chat = "Connecting Passions & Charming Theys"
-channel_organizer = true
+organizer = "Connecting Passions & Charming Theys"
 publish = true
 
 [[source]]

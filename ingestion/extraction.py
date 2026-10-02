@@ -7,22 +7,19 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from ingestion.schemas import CollectedEvents, EventDraft
 
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 
 EXTRACTION_PROMPT = """
 Extract event details from the following text and return a JSON object
 matching the schema.
 
-Known organizers (prefer exact match): {organizer_names}
 Known venues (prefer exact match): {venue_names}
 Known tag slugs (prefer exact match): {tag_slugs}
 
 Set confidence between 0.0 and 1.0 based on completeness and certainty.
 If key fields (title, start datetime) are missing or ambiguous, set confidence < 0.4.
 
-organizer_name is the person or collective hosting the event, as the text names
-them. A Telegram group, forum or website the post merely appears in is not the
-organizer unless the text says it hosts. If the text names no host, return "".
+{people}
 
 Set in_berlin_area to false when the event takes place outside Berlin and its
 surroundings (another city or country), or only online.
@@ -34,7 +31,19 @@ Enriched content from URLs:
 {enriched_content}
 """
 
-COLLECTED_PROMPT_VERSION = "collected-v3"
+COLLECTED_PROMPT_VERSION = "collected-v4"
+
+# Who runs the event versus who is on the program (ADR-007 D9): never guessed.
+PEOPLE_RULES = """explicit_organizer is who runs the event, ONLY when the text uses explicit
+organizer wording for them: "organised by", "hosted by", "presented by",
+"Veranstalter", "Host:", "Organizer:". Copy the name(s) as written. Return ""
+when there is no such wording. Never fill it from a logo, page title, header,
+footer or website name, from the channel, group or website the post appears in,
+or from a line that names the venue.
+
+artist_names lists every other person or act the text names: teachers, guides,
+DJs, performers, speakers ("mit", "with", "w/", "led by"). One entry per person:
+"Tina, Ricardo & Mal" is three entries. Leave out the organizer and the venue."""
 
 COLLECTED_PROMPT = """
 Below is one post a collector gathered from an organizer website or a Telegram
@@ -45,7 +54,6 @@ date when a series lists several dates). Return an empty list when the post
 announces no specific event with its own date: chat messages, questions,
 replies, thank-yous, general discussion.
 
-Known organizers (prefer exact match): {organizer_names}
 Known venues (prefer exact match): {venue_names}
 Known tag slugs (prefer exact match): {tag_slugs}
 
@@ -54,9 +62,7 @@ If key fields (title, start datetime) are missing or ambiguous, set confidence <
 When a date is given but no start time, set start to that date at 00:00 and
 start_time_unknown to true; a missing time alone does not lower confidence.
 
-organizer_name is the person or collective hosting the event, as the post names
-them. A Telegram group, forum or website the post merely appears in is not the
-organizer unless the post says it hosts. If the post names no host, return "".
+{people}
 
 Set in_berlin_area to false when the event takes place outside Berlin and its
 surroundings (another city or country), or only online.
@@ -88,11 +94,9 @@ def router_model(model_name: str) -> OpenAIChatModel:
 
 def _known_names() -> dict:
     from events.models import Tag
-    from organizers.models import Profile
     from venues.models import Venue
 
     return dict(
-        organizer_names=", ".join(Profile.objects.values_list("name", flat=True)) or "(none)",
         venue_names=", ".join(Venue.objects.values_list("name", flat=True)) or "(none)",
         tag_slugs=", ".join(Tag.objects.values_list("slug", flat=True)) or "(none)",
     )
@@ -104,6 +108,7 @@ def extract_collected_events(text: str, images_b64: list[str], enriched_payload:
 
     prompt = COLLECTED_PROMPT.format(
         **_known_names(),
+        people=PEOPLE_RULES,
         text=text or "(no text; read the images)",
         enriched_content=enriched_payload.get("url_content", ""),
     )
@@ -126,6 +131,7 @@ def extract_event_draft(
     """Returns (draft, prompt_version). Runs synchronously inside a django-q2 worker."""
     prompt = EXTRACTION_PROMPT.format(
         **_known_names(),
+        people=PEOPLE_RULES,
         text=raw_message_text,
         enriched_content=enriched_payload.get("url_content", ""),
     )
@@ -152,24 +158,13 @@ def match_entities(draft: EventDraft) -> dict:
       organizer (Organizer|None), venue (Venue|None),
       matched_tags (list[Tag]), unmatched_tags (list[str])
     """
-    from django.contrib.postgres.search import TrigramSimilarity
-
     from events.models import Tag
-    from organizers.models import Profile
     from venues.models import Venue
 
-    # Profile matching: exact first, then trigram fuzzy
-    organizer = Profile.objects.filter(name__iexact=draft.organizer_name).first()
-    if organizer is None:
-        candidates = (
-            Profile.objects.annotate(sim=TrigramSimilarity("name", draft.organizer_name))
-            .filter(sim__gte=0.6)
-            .order_by("-sim")
-        )
-        count = candidates.count()
-        if count == 1:
-            organizer = candidates.first()
-        # If count == 0 or count > 1: leave organizer as None
+    from .collected import find_profile
+
+    # Profile matching: exact normalized name only, never fuzzy (ADR-007 D9)
+    organizer = find_profile(draft.explicit_organizer) if draft.explicit_organizer.strip() else None
 
     # Venue matching: exact only, no fuzzy fallback
     venue = Venue.objects.filter(name__iexact=draft.venue_name).first() if draft.venue_name else None

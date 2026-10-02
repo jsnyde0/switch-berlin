@@ -6,7 +6,11 @@ import pydantic
 class EventDraft(pydantic.BaseModel):
     title: str
     description: str | None = None
-    organizer_name: str
+    # Who runs the event, only as explicit organizer wording names them
+    # ("organised/hosted/presented by", "Veranstalter", "Host:"); "" when the text has none.
+    explicit_organizer: str = ""
+    # Every other person the post names (teachers, DJs, performers), one entry per name.
+    artist_names: list[str] = []
     # The place as the post names it: a real place, or a placeholder (online, a city, "secret").
     venue_name: str | None = None
     # A street address the post gives for the place, if any.

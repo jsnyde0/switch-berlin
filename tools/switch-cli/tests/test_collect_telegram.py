@@ -147,3 +147,12 @@ def test_failed_push_leaves_the_rows_file_for_a_retry(monkeypatch, tmp_path):
     result = _push(monkeypatch, path, fail=True)
     assert result.exit_code != 0
     assert path.exists()
+
+
+def test_channel_title_is_never_the_organizer_the_config_names_it():
+    titled = {**SOURCE, "name": "@party", "chat": "@party"}
+    rows, _ = asyncio.run(collect_telegram(FakeClient([_msg(1, "Party!")]), [titled], days=14, include_private=False))
+    assert "organizer" not in rows[0]["raw_payload"]  # FakeClient's channel title is "IKSK Berlin"
+    named = {**titled, "organizer": "Party Collective"}
+    rows, _ = asyncio.run(collect_telegram(FakeClient([_msg(1, "Party!")]), [named], days=14, include_private=False))
+    assert rows[0]["raw_payload"]["organizer"] == "Party Collective"

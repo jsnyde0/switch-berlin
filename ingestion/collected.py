@@ -7,7 +7,7 @@ Two ends of the RawMessage seam for rows that a collector (switch-cli
 - ingest_collected_rows: the staff-only API verb's service — one RawMessage per
   row, extraction enqueued exactly as the forward-bot does.
 - land_collected_event: called by process_raw_message after extraction —
-  resolves the organizer, drops past events and duplicates, derives the tier
+  credits the organizer and artists (ADR-007 D9), drops past events and duplicates, derives the tier
   from the source shape (ADR-012 D2) and publishes by claim state (ADR-017 D4).
 
 Plain functions over the existing seam; no source framework (sb-7wzb.2 D3).
@@ -86,7 +86,7 @@ def _aware(dt):
 
 
 def _create_collected_profile(name: str, raw):
-    """Unclaimed organizer Profile for a collected event (sb-7wzb.2 organizer waterfall, last step).
+    """Unclaimed organizer Profile for a name no Profile carries (ADR-007 D9: one profile per name).
 
     status=approved so the organizer page, and with it the claim affordance
     (ADR-014), resolves (mem auto-created-records-reachable-default). The lawful
@@ -109,23 +109,73 @@ def _create_collected_profile(name: str, raw):
     )
 
 
-def resolve_organizer(raw, draft, matched_organizer):
-    """Organizer waterfall: the source's declared identity, then the name in the text.
+def _name_key(name: str) -> str:
+    """Exact-match key for a profile name: casefold, punctuation dropped, whitespace collapsed."""
+    return " ".join(re.sub(r"[^\w\s]", " ", normalize(name).casefold()).split())
 
-    A name that matches no Profile gets an unclaimed one; an event without any
-    organizer name returns None and is held.
-    """
+
+def find_profile(name: str):
+    """The Profile whose name equals `name` under _name_key, or None. Never fuzzy (ADR-007 D9)."""
     from organizers.models import Profile
 
-    declared = (raw.raw_payload.get("organizer") or "").strip()
-    if declared:
-        return Profile.objects.filter(name__iexact=declared).first() or _create_collected_profile(declared, raw)
-    if matched_organizer is not None:
-        return matched_organizer
-    name = (draft.organizer_name or "").strip()
-    if name.lower() in _NO_NAME:
-        return None
-    return _create_collected_profile(name, raw)
+    key = _name_key(name)
+    # debt: scans every profile per lookup; fine at today's tens of profiles, move
+    # to a stored normalized-name column when profiles reach the thousands.
+    for profile in Profile.objects.all():
+        if _name_key(profile.name) == key:
+            return profile
+    return None
+
+
+# Separators between names in one string: "A, B & C", "A und B", "A + B".
+_NAME_SPLIT = re.compile(r"\s*(?:[,;]|\s(?:&|\+|and|und)\s)\s*", re.IGNORECASE)
+
+
+def split_names(text: str) -> list[str]:
+    """'Tina, Ricardo & Mal' -> ['Tina', 'Ricardo', 'Mal']; placeholder names dropped."""
+    return [n for n in (part.strip() for part in _NAME_SPLIT.split(text)) if n.lower() not in _NO_NAME]
+
+
+def organizer_names(raw, draft) -> tuple[list[str], str]:
+    """(names, attribution) for one collected event (ADR-007 D9), first name primary.
+
+    Explicit organizer wording wins (one name per person; a string that is an
+    existing profile's whole name stays one); else the publisher the source
+    config names. ([], reason) when the event must be held for review.
+    """
+    explicit = (draft.explicit_organizer or "").strip()
+    if explicit and explicit.lower() not in _NO_NAME:
+        return ([explicit] if find_profile(explicit) else split_names(explicit)), "explicit"
+    if raw.raw_payload.get("aggregator"):
+        return [], "no_explicit_organizer"
+    publisher = (raw.raw_payload.get("organizer") or "").strip()
+    if publisher:
+        return [publisher], "publisher"
+    return [], "no_organizer"
+
+
+def credit_people(event, raw, names: list[str], attribution: str, artist_names: list[str]) -> None:
+    """Organizer rows (matched or created, never inferred) and artist credits as text, never linked."""
+    from events.models import EventArtist, EventOrganizer
+
+    seen = set()
+    for order, name in enumerate(names):
+        profile = find_profile(name) or _create_collected_profile(name, raw)
+        if profile.id in seen:
+            continue
+        seen.add(profile.id)
+        EventOrganizer.objects.create(
+            event=event, profile=profile, is_primary=order == 0, order=order, attribution=attribution
+        )
+    taken = {_name_key(part) for name in names for part in [name, *split_names(name)]}
+    order = 0
+    for entry in artist_names:
+        for name in split_names(entry):
+            if _name_key(name) in taken:
+                continue
+            taken.add(_name_key(name))
+            EventArtist.objects.create(event=event, name=name, order=order)
+            order += 1
 
 
 # Location strings that name no place (sb-x5xh.2 ruling (b)): they become the
@@ -416,20 +466,19 @@ def land_collected_event(
     if draft.confidence < _LOW_CONFIDENCE:
         return _record(attempt_kwargs, "needs_review", "low_confidence")
 
+    names, attribution = organizer_names(raw, draft)
+    if not names:
+        return _record(attempt_kwargs, "needs_review", attribution)
+
     duplicate = find_duplicate(draft.title, start)
     if duplicate is not None:
         return _record(attempt_kwargs, "duplicate", "duplicate", event=duplicate)
-
-    organizer = resolve_organizer(raw, draft, matched["organizer"])
-    if organizer is None:
-        return _record(attempt_kwargs, "needs_review", "no_organizer")
 
     venue, location_note = resolve_place(raw, draft)
     event = Event.objects.create(
         title=draft.title,
         slug=slugify(draft.title)[:190] + "-" + uuid.uuid4().hex[:8],
         description=draft.description or "",
-        organizer=organizer,
         venue=venue,
         location_note=location_note,
         start=start,
@@ -444,6 +493,7 @@ def land_collected_event(
         raw_message=raw,
         suggested_tags=matched["unmatched_tags"],
     )
+    credit_people(event, raw, names, attribution, draft.artist_names)
     event.tags.set(matched["matched_tags"])
     if flyer is not None:
         cover = EventImage(event=event, is_cover=True, alt=draft.title[:300])

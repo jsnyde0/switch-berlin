@@ -87,7 +87,7 @@ class FullIngestionLoopTest(TestCase):
         # Step 2: Process task creates draft Event (mock httpx + pydantic-ai)
         mock_draft = EventDraft(
             title="Test Event",
-            organizer_name="Test Org",
+            explicit_organizer="Test Org",
             start=datetime(2026, 6, 1, 20, 0),
             confidence=0.9,
         )
@@ -143,7 +143,7 @@ class FullIngestionLoopTest(TestCase):
         raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Vague Event",
-            organizer_name="Unknown Org",
+            explicit_organizer="Unknown Org",
             start=datetime(2026, 6, 1, 20, 0),
             confidence=0.25,
         )
@@ -196,7 +196,7 @@ class FullIngestionLoopTest(TestCase):
         raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Test",
-            organizer_name="Test Org",
+            explicit_organizer="Test Org",
             start=datetime(2026, 6, 1, 20, 0),
             confidence=0.9,
         )
@@ -220,7 +220,7 @@ class FullIngestionLoopTest(TestCase):
         raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Test",
-            organizer_name="Completely Unknown Org",
+            explicit_organizer="Completely Unknown Org",
             start=datetime(2026, 6, 1, 20, 0),
             confidence=0.9,
         )
@@ -245,7 +245,7 @@ class FullIngestionLoopTest(TestCase):
         raw = RawMessage.objects.create(source_type="telegram_bot_forward", raw_payload={}, sender_id="111")
         mock_draft = EventDraft(
             title="Test",
-            organizer_name="Nobody",
+            explicit_organizer="Nobody",
             start=datetime(2026, 6, 1, 20, 0),
             confidence=0.9,
             tags=["queer", "underground", "fetish"],
