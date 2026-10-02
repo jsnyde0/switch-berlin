@@ -110,19 +110,34 @@ for rows in "$ROWS_DIR/web.jsonl" "$ROWS_DIR/telegram.jsonl"; do
 done
 cd "$REPO" || die "repo vanished"
 
-# 3. Wait for the extraction queue to drain.
+# 3. Wait for the extraction queue to drain. A running task keeps its queue row
+# (locked, so counted in_flight) until its ack; Q_CLUSTER's retry outlasts every
+# lock, so no task runs a second time unseen (sb-7wzb.33).
 log "waiting for extraction to drain"
 drained=0
 for _ in $(seq $((DRAIN_TIMEOUT_S / 20))); do
-    left="$(manage shell -c "
+    counts="$(manage shell -c "
+from django.utils import timezone
 from django_q.models import OrmQ
 from ingestion.models import RawMessage
-print(OrmQ.objects.count() + RawMessage.objects.filter(extraction_status='pending').count())
+queue = OrmQ.objects.all()
+in_flight = queue.filter(lock__gt=timezone.now()).count()
+print(f'queued={queue.count() - in_flight} in_flight={in_flight} pending_rows={RawMessage.objects.filter(extraction_status=\"pending\").count()}')
 " 2>/dev/null | tail -1)"
-    [ "$left" = "0" ] && { drained=1; break; }
+    log "drain: $counts"
+    [ "$counts" = "queued=0 in_flight=0 pending_rows=0" ] && { drained=1; break; }
     sleep 20
 done
 [ "$drained" = 1 ] || { log "FAIL: extraction queue did not drain in ${DRAIN_TIMEOUT_S}s"; FAILED=1; }
+# Stop the qcluster this run started before reporting: it finishes any task it
+# holds first, and a task that failed or timed out fails the run by name.
+[ -n "$QCLUSTER_PID" ] && { log "stopping the qcluster this run started"; stop_pid "$QCLUSTER_PID"; QCLUSTER_PID=""; }
+failed_tasks="$(manage shell -c "
+from django_q.models import Failure
+for t in Failure.objects.filter(started__gte='$RUN_START').order_by('started'):
+    print(t.name, t.func, t.args, str(t.result).splitlines()[-1] if t.result else '')
+" 2>&1 | grep -v "objects imported automatically" | sed '/^$/d')"
+[ -z "$failed_tasks" ] || { log "FAIL: queue tasks failed during this run:"; echo "$failed_tasks"; FAILED=1; }
 
 # 4. Per-source report for the rows this run created (counts only, no content).
 log "per-source report, rows received since $RUN_START"

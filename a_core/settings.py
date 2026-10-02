@@ -252,14 +252,18 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Django-Q2: use ORM broker on Postgres (no Redis)
+# The broker hands a task out again once `retry` seconds pass without its ack, so
+# `retry` must outlast the longest a locked task can wait plus run: the cluster
+# holds queue_limit + bulk + workers tasks locked, ceil(5 / 2) * 300 = 900s here.
+# A smaller retry ran 28 extractions twice on 2026-10-02 (sb-7wzb.33).
 Q_CLUSTER = {
     "name": "switch",
     "workers": 2,
     "recycle": 500,
     "timeout": 300,
-    "retry": 600,
-    "queue_limit": 50,
-    "bulk": 10,
+    "retry": 1200,
+    "queue_limit": 2,
+    "bulk": 1,
     "orm": "default",
 }
 

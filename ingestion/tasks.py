@@ -32,6 +32,16 @@ def process_raw_message(raw_message_id: int) -> None:
             raw_message_id=raw_message_id,
         )
         return
+    # Every enqueue sets the row pending first. A settled row means the broker handed this
+    # task out a second time after the first copy finished (sb-7wzb.33): reading it again
+    # would rewrite events no queue row accounts for.
+    if raw_message.extraction_status != "pending":
+        logfire.warning(
+            "pipeline.redelivered_task_skipped",
+            raw_message_id=raw_message_id,
+            extraction_status=raw_message.extraction_status,
+        )
+        return
 
     # Step 1: URL enrichment (best-effort), added after any link content the
     # collector fetched itself (sb-7wzb.15).

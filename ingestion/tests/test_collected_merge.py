@@ -719,8 +719,8 @@ class ConsolidationTest(CollectedCase):
     # -- re-read: drafts pair one-to-one with the row's own events -----------
 
     def _reread(self, raw, *drafts):
-        raw.text = f"{raw.text} (edited)"
-        raw.save(update_fields=["text"])
+        raw.text, raw.extraction_status = f"{raw.text} (edited)", "pending"  # as ingest re-queues a changed row
+        raw.save(update_fields=["text", "extraction_status"])
         return self._extract(raw, *drafts)
 
     def test_re_read_that_moves_the_date_updates_the_one_event(self):

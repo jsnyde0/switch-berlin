@@ -178,6 +178,9 @@ Post events and their candidates (JSON):
 # itself never retries (max_retries=0): this loop is the only retry.
 TRANSPORT_RETRIES = 2
 TRANSPORT_BACKOFF_SECONDS = 2
+# One call's limit: all three attempts end inside django-q's 300s task timeout, so a hung call
+# fails loud as a transport timeout instead of the task dying mid-call (sb-7wzb.33).
+MODEL_CALL_TIMEOUT_SECONDS = 90.0
 
 
 def router_model(model_name: str) -> OpenAIChatModel:
@@ -187,7 +190,9 @@ def router_model(model_name: str) -> OpenAIChatModel:
 
     if not settings.LLM_API_KEY:
         raise RuntimeError("REQUESTY_API_KEY is not set; the LLM router needs it (ADR-008 D3).")
-    client = AsyncOpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY, max_retries=0)
+    client = AsyncOpenAI(
+        base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY, max_retries=0, timeout=MODEL_CALL_TIMEOUT_SECONDS
+    )
     return OpenAIChatModel(model_name, provider=OpenAIProvider(openai_client=client))
 
 
