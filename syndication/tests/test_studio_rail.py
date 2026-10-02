@@ -9,7 +9,7 @@ Contract groups:
 (c) Each row carries hx-target="#studio-main" + hx-push-url to the real
     composer path (/syndication/events/<pk>/ or /syndication/posts/<pk>/).
 (d) Active row carries the active-state class when the current path matches.
-(e) Zero-publishables claimant sees the empty-state CTA, never a blank list.
+(e) Zero-publishables manager sees the empty-state CTA, never a blank list.
 (f) Partial-body extraction regression: event_hub_fragment + post_hub_fragment
     still render correctly after the shared-body refactor (sb-9f1h.3 task 6).
 
@@ -346,13 +346,13 @@ class ActiveRowTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# (e) Empty-state CTA for zero-publishables claimant
+# (e) Empty-state CTA for zero-publishables manager
 # ---------------------------------------------------------------------------
 
 
 class EmptyStateCTATest(TestCase):
     """
-    A claimant whose profile has zero publishables must see the empty-state CTA,
+    A manager whose profile has zero publishables must see the empty-state CTA,
     not a blank list (ADR-008 D3 — visible state over silence).
     """
 
@@ -360,18 +360,18 @@ class EmptyStateCTATest(TestCase):
         self.client = Client()
         self.user = _make_user(username="empty_user", email="empty@test.com", password="pw")
         self.profile = _make_profile("Empty Org", "empty-org", user=self.user)
-        # No Events or Posts created — zero-publishables claimant
+        # No Events or Posts created — zero-publishables manager
         self.client.force_login(self.user)
 
     def test_empty_state_renders_cta(self):
-        """Zero-publishables claimant sees the 'Create your first event' CTA."""
+        """Zero-publishables manager sees the 'Create your first event' CTA."""
         response = self.client.get("/studio/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertIn(
             "Create your first event",
             content,
-            "Zero-publishables claimant must see the 'Create your first event' CTA.",
+            "Zero-publishables manager must see the 'Create your first event' CTA.",
         )
 
     def test_empty_state_cta_links_to_event_create(self):
@@ -382,7 +382,7 @@ class EmptyStateCTATest(TestCase):
         self.assertContains(response, "/syndication/events/new/")
 
     def test_empty_state_not_blank(self):
-        """Zero-publishables claimant does NOT see a blank/empty list."""
+        """Zero-publishables manager does NOT see a blank/empty list."""
         response = self.client.get("/studio/")
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()

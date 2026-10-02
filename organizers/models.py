@@ -50,9 +50,9 @@ class Profile(models.Model):
 
     # Claim mechanism — ProfileClaim through-model
     # (ADR-014 D1, ADR-007 D5 revised 2026-05-21)
-    # Profile.claimed_by FK removed; use Profile.claimants M2M and
+    # Profile.claimed_by FK removed; use Profile.managers M2M and
     # Profile.is_claimed property.
-    claimants = models.ManyToManyField(
+    managers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through="ProfileClaim",
         related_name="claimed_profiles",
@@ -124,18 +124,18 @@ class Profile(models.Model):
         return self.name
 
     @property
-    def active_claimants(self):
+    def active_managers(self):
         """
         Returns the User queryset for active (non-revoked) ProfileClaim rows.
         Active = rejected_at IS NULL per ADR-014 D1 (revised 2026-05-21).
         """
-        return self.claimants.filter(profileclaim__rejected_at__isnull=True)
+        return self.managers.filter(profileclaim__rejected_at__isnull=True)
 
     @property
     def is_claimed(self):
         """
         True if there is at least one active (non-revoked) ProfileClaim.
-        Uses active_claimants per ADR-014 D1 (revised 2026-05-21) — excludes
+        Uses active_managers per ADR-014 D1 (revised 2026-05-21) — excludes
         claims with rejected_at set (soft-deleted via admin revoke, ADR-003).
         """
         return self.profileclaim_set.filter(rejected_at__isnull=True).exists()
@@ -146,7 +146,7 @@ class ProfileClaim(models.Model):
     Through-model for Profile ↔ User M2M claim relationship.
 
     Replaces Profile.claimed_by FK per ADR-014 D1 + ADR-007 D5 (revised 2026-05-21).
-    Cardinality: 0..N — a Profile may have multiple active claimants
+    Cardinality: 0..N — a Profile may have multiple active managers
     (e.g. IKSK co-organizers).
 
     verified_method enum vocabulary (ADR-014 D1):
@@ -389,7 +389,9 @@ class ClaimIntent(models.Model):
     # to approve directly or reach out via user.email for more info.
     message = models.TextField(
         blank=True,
-        help_text=("Optional message from the claimant explaining who they are. Shown to admins in the review queue."),
+        help_text=(
+            "Optional message from the person claiming, explaining who they are. Shown to admins in the review queue."
+        ),
     )
 
     class Meta:

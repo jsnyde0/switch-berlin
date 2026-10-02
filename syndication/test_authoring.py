@@ -66,35 +66,35 @@ class AuthorizationSeamTest(TestCase):
     """
     can_edit / can_publish gate in syndication.authz (ADR-017 D2).
 
-    Policy: edit/publish iff user is a claimant of an EventOrganizer Profile of the Event.
+    Policy: edit/publish iff user is a manager of an EventOrganizer Profile of the Event.
     EventArtists are credited-only.
     """
 
     def setUp(self):
         self.user_organizer = _make_vouched_user(username="org_user", email="org@test.com", password="x")
-        self.user_facilitator = _make_vouched_user(username="fac_user", email="fac@test.com", password="x")
+        self.user_artist = _make_vouched_user(username="artist_user", email="artist@test.com", password="x")
         self.user_stranger = _make_vouched_user(username="stranger", email="stranger@test.com", password="x")
         self.profile = _make_profile(name="Org Profile", slug="org-profile", user=self.user_organizer)
-        self.fac_profile = _make_profile(name="Fac Profile", slug="fac-profile", user=self.user_facilitator)
+        self.artist_profile = _make_profile(name="Artist Profile", slug="artist-profile", user=self.user_artist)
         self.event = Event.objects.create(
             title="Auth Test Event",
             slug="auth-test-event",
             start=timezone.now(),
         )
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
-        EventArtist.objects.create(event=self.event, profile=self.fac_profile, name=self.fac_profile.name)
+        EventArtist.objects.create(event=self.event, profile=self.artist_profile, name=self.artist_profile.name)
 
-    def test_can_edit_returns_true_for_organizer_claimant(self):
-        """Organizer Profile claimant may edit."""
+    def test_can_edit_returns_true_for_organizer_manager(self):
+        """Organizer Profile manager may edit."""
         from syndication.authz import can_edit
 
         self.assertTrue(can_edit(self.user_organizer, self.event))
 
-    def test_can_edit_returns_false_for_facilitator(self):
-        """Facilitator (credited-only) may NOT edit."""
+    def test_can_edit_returns_false_for_artist(self):
+        """Artist (credited-only) may NOT edit."""
         from syndication.authz import can_edit
 
-        self.assertFalse(can_edit(self.user_facilitator, self.event))
+        self.assertFalse(can_edit(self.user_artist, self.event))
 
     def test_can_edit_returns_false_for_stranger(self):
         """User with no relationship to the event may NOT edit."""
@@ -102,17 +102,17 @@ class AuthorizationSeamTest(TestCase):
 
         self.assertFalse(can_edit(self.user_stranger, self.event))
 
-    def test_can_publish_returns_true_for_organizer_claimant(self):
-        """Organizer Profile claimant may publish."""
+    def test_can_publish_returns_true_for_organizer_manager(self):
+        """Organizer Profile manager may publish."""
         from syndication.authz import can_publish
 
         self.assertTrue(can_publish(self.user_organizer, self.event))
 
-    def test_can_publish_returns_false_for_facilitator(self):
-        """Facilitator may NOT publish."""
+    def test_can_publish_returns_false_for_artist(self):
+        """Artist may NOT publish."""
         from syndication.authz import can_publish
 
-        self.assertFalse(can_publish(self.user_facilitator, self.event))
+        self.assertFalse(can_publish(self.user_artist, self.event))
 
     def test_can_publish_returns_false_for_stranger(self):
         """Stranger may NOT publish."""

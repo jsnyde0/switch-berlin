@@ -2124,8 +2124,8 @@ class NoBoardLLMGenerateAffordanceTest(TestCase):
 class BoardAuthzTest(TestCase):
     """
     Authorization tests:
-    - Co-claimant can load the board (200)
-    - Non-claimant gets 403
+    - Co-manager can load the board (200)
+    - Non-manager gets 403
     """
 
     def setUp(self):
@@ -2135,35 +2135,35 @@ class BoardAuthzTest(TestCase):
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
         self.conn = _make_connection(self.profile, destination_id="fl-authz")
 
-        # Co-claimant: second user claiming the same profile
-        self.co_claimant = _make_vouched_user(username="authz_co", email="authz_co@test.com", password="pw")
+        # Co-manager: second user claiming the same profile
+        self.co_manager = _make_vouched_user(username="authz_co", email="authz_co@test.com", password="pw")
         from organizers.models import ProfileClaim
 
         ProfileClaim.objects.create(
             profile=self.profile,
-            user=self.co_claimant,
+            user=self.co_manager,
             verified_method="auto_self",
         )
 
-        # Non-claimant: user with no profile claim on this event
+        # Non-manager: user with no profile claim on this event
         self.stranger = _make_vouched_user(username="authz_stranger", email="authz_stranger@test.com", password="pw")
 
     def test_owner_can_load_board(self):
-        """Owner (primary claimant) can load the syndication board."""
+        """Owner (primary manager) can load the syndication board."""
         client = Client()
         client.force_login(self.owner)
         response = client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
 
-    def test_co_claimant_can_load_board(self):
-        """Co-claimant (second profile claimant) can load the syndication board."""
+    def test_co_manager_can_load_board(self):
+        """Co-manager (second profile manager) can load the syndication board."""
         client = Client()
-        client.force_login(self.co_claimant)
+        client.force_login(self.co_manager)
         response = client.get(f"/syndication/events/{self.event.pk}/fragments/event_syndication/")
         self.assertEqual(response.status_code, 200)
 
-    def test_non_claimant_cannot_call_version_ops(self):
-        """Non-claimant POSTing to version-op endpoints gets 403."""
+    def test_non_manager_cannot_call_version_ops(self):
+        """Non-manager POSTing to version-op endpoints gets 403."""
         proj = _make_listing_projection(self.conn, self.event)
         stranger_client = Client()
         stranger_client.force_login(self.stranger)
@@ -2175,11 +2175,11 @@ class BoardAuthzTest(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            "Non-claimant must get 403 on version-op endpoints",
+            "Non-manager must get 403 on version-op endpoints",
         )
 
-    def test_non_claimant_cannot_edit_version(self):
-        """Non-claimant POSTing to edit-version endpoint gets 403."""
+    def test_non_manager_cannot_edit_version(self):
+        """Non-manager POSTing to edit-version endpoint gets 403."""
         proj = _make_listing_projection(self.conn, self.event)
         stranger_client = Client()
         stranger_client.force_login(self.stranger)
@@ -2192,7 +2192,7 @@ class BoardAuthzTest(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            "Non-claimant must get 403 on edit-version endpoint",
+            "Non-manager must get 403 on edit-version endpoint",
         )
 
 
@@ -2204,7 +2204,7 @@ class BoardAuthzTest(TestCase):
 class VersionDuplicateEndpointTest(TestCase):
     """
     F1: The 'version-duplicate' endpoint must exist, create a new independent
-    ContentVersion, and enforce the can_edit authz gate (non-claimant → 403).
+    ContentVersion, and enforce the can_edit authz gate (non-manager → 403).
     """
 
     def setUp(self):
@@ -2246,8 +2246,8 @@ class VersionDuplicateEndpointTest(TestCase):
             "version-duplicate must create a new ContentVersion row",
         )
 
-    def test_duplicate_endpoint_authz_non_claimant_gets_403(self):
-        """Non-claimant POSTing to version-duplicate gets 403."""
+    def test_duplicate_endpoint_authz_non_manager_gets_403(self):
+        """Non-manager POSTing to version-duplicate gets 403."""
         proj = _make_listing_projection(self.conn, self.event)
         stranger_client = Client()
         stranger_client.force_login(self.stranger)
@@ -2258,7 +2258,7 @@ class VersionDuplicateEndpointTest(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            "Non-claimant must get 403 on version-duplicate endpoint",
+            "Non-manager must get 403 on version-duplicate endpoint",
         )
 
 
@@ -2268,7 +2268,7 @@ class VersionCopyFromEndpointTest(TestCase):
     projection at a NEW independent copy of the source version (via
     source_projection_pk — the only supported path since ADR-008 D1 deletion
     of the legacy source_version_pk path), and enforce the can_edit authz gate
-    (non-claimant → 403).
+    (non-manager → 403).
     """
 
     def setUp(self):
@@ -2390,8 +2390,8 @@ class VersionCopyFromEndpointTest(TestCase):
             "sb-s41r: copy-from must make target SHARE the source's CV row (live-follow, not independent copy)",
         )
 
-    def test_copy_from_endpoint_authz_non_claimant_gets_403(self):
-        """Non-claimant POSTing to version-copy-from gets 403."""
+    def test_copy_from_endpoint_authz_non_manager_gets_403(self):
+        """Non-manager POSTing to version-copy-from gets 403."""
         proj_src = _make_listing_projection(self.conn, self.event)
         proj_tgt = _make_listing_projection(self.conn2, self.event)
         stranger_client = Client()
@@ -2404,7 +2404,7 @@ class VersionCopyFromEndpointTest(TestCase):
         self.assertEqual(
             response.status_code,
             403,
-            "Non-claimant must get 403 on version-copy-from endpoint",
+            "Non-manager must get 403 on version-copy-from endpoint",
         )
 
 

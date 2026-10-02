@@ -1,7 +1,7 @@
 {% extends "layouts/_default.html" %}
 {% load i18n %}
 {% block title %}
-  {% if already_claimant %}
+  {% if already_manager %}
     {% trans "You already manage this profile" %} — {{ organizer.name }}
   {% else %}
     {% trans "Claim this profile" %} — {{ organizer.name }}
@@ -17,9 +17,9 @@
 {% block content %}
   <div class="max-w-3xl">
     <c-kb.page-header eyebrow="{% trans 'Organizer · Claim' %}" title="{{ organizer.name }}" />
-    {% if already_claimant %}
+    {% if already_manager %}
       <c-kb.alert variant="info" kicker="{% trans 'Already yours' %}">
-      <p>{% trans "You are already listed as a claimant for this profile." %}</p>
+      <p>{% trans "You are already listed as a manager for this profile." %}</p>
       </c-kb.alert>
       <a href="{% url 'organizer-profile' slug=organizer.slug %}"
          class="kb-btn-secondary mt-8">← {% trans "Back to profile" %}</a>

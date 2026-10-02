@@ -4,14 +4,14 @@ Studio backend foundations tests (sb-9f1h.1).
 Three contract groups:
 (a) get_publishables_for_profile — merged Event+Post sorted updated_at desc,
     no visibility filter (owner always sees their own assets, ADR-012).
-(b) user_primary_profile context processor — returns Profile for claimant,
-    None (not raise) for non-claimant.
-(c) /studio/ view — 200 for claimant, 403/redirect for zero-claims user.
+(b) user_primary_profile context processor — returns Profile for manager,
+    None (not raise) for non-manager.
+(c) /studio/ view — 200 for manager, 403/redirect for zero-claims user.
 
 canonical_refs:
 - ADR-008 D2 (no UNION/pagination at V0), D3 (zero-claims fail-loud)
 - ADR-012 (visibility does NOT gate owner-management)
-- ADR-014 D1 (ProfileClaim presence = claimant)
+- ADR-014 D1 (ProfileClaim presence = manager)
 """
 
 from django.contrib.auth import get_user_model
@@ -190,18 +190,18 @@ class UserPrimaryProfileProcessorTest(TestCase):
     Tests for user_primary_profile context processor.
 
     Asserts:
-    - Returns the Profile for a claimant user.
-    - Returns None (does NOT raise) for a non-claimant user.
+    - Returns the Profile for a manager user.
+    - Returns None (does NOT raise) for a non-manager user.
     """
 
     def setUp(self):
         self.factory = RequestFactory()
 
-    def test_returns_profile_for_claimant(self):
-        """Context processor returns the claimant's primary Profile."""
+    def test_returns_profile_for_manager(self):
+        """Context processor returns the manager's primary Profile."""
         from a_core.context_processors import user_primary_profile
 
-        user = _make_user(username="cp_claimant", email="cp_claimant@test.com", password="pw")
+        user = _make_user(username="cp_manager", email="cp_manager@test.com", password="pw")
         profile = _make_profile("CP Organizer", "cp-organizer", user=user)
 
         request = self.factory.get("/")
@@ -212,17 +212,17 @@ class UserPrimaryProfileProcessorTest(TestCase):
         self.assertIn("user_primary_profile", ctx)
         self.assertEqual(ctx["user_primary_profile"], profile)
 
-    def test_returns_none_for_non_claimant(self):
+    def test_returns_none_for_non_manager(self):
         """
         Context processor returns None for a user with no ProfileClaim.
         MUST NOT raise (raising would break template rendering on every page).
         """
         from a_core.context_processors import user_primary_profile
 
-        non_claimant = _make_user(username="cp_noclaim", email="cp_noclaim@test.com", password="pw")
+        non_manager = _make_user(username="cp_noclaim", email="cp_noclaim@test.com", password="pw")
 
         request = self.factory.get("/")
-        request.user = non_claimant
+        request.user = non_manager
 
         # Must not raise — that's the critical contract
         ctx = user_primary_profile(request)
@@ -230,13 +230,13 @@ class UserPrimaryProfileProcessorTest(TestCase):
         self.assertIn("user_primary_profile", ctx)
         self.assertIsNone(
             ctx["user_primary_profile"],
-            "Context processor must return None for a non-claimant user, never raise.",
+            "Context processor must return None for a non-manager user, never raise.",
         )
 
     def test_returns_none_for_anonymous_user(self):
         """
         Context processor returns None for an anonymous user.
-        Anonymous users are never claimants.
+        Anonymous users are never managers.
         """
         from django.contrib.auth.models import AnonymousUser
 
@@ -261,7 +261,7 @@ class StudioViewAuthzTest(TestCase):
     AUTHZ invariant tests for the /studio/ view.
 
     Asserts:
-    - A claimant gets 200.
+    - A manager gets 200.
     - A zero-claims user gets 403 or a redirect (fail loud, ADR-008 D3).
 
     Note: does NOT assert response.context['publishables'] — that is a hollow-
@@ -272,9 +272,9 @@ class StudioViewAuthzTest(TestCase):
     def setUp(self):
         self.client = Client()
 
-    def test_claimant_gets_200(self):
-        """A claimant user hitting /studio/ gets HTTP 200."""
-        user = _make_user(username="studio_claimant", email="sc@test.com", password="pw")
+    def test_manager_gets_200(self):
+        """A manager user hitting /studio/ gets HTTP 200."""
+        user = _make_user(username="studio_manager", email="sc@test.com", password="pw")
         _make_profile("Studio Org", "studio-org", user=user)
         self.client.force_login(user)
 
@@ -283,7 +283,7 @@ class StudioViewAuthzTest(TestCase):
         self.assertEqual(
             response.status_code,
             200,
-            "A claimant user must get 200 from /studio/.",
+            "A manager user must get 200 from /studio/.",
         )
 
     def test_zero_claims_user_gets_styled_403(self):

@@ -160,7 +160,7 @@ def test_profile_verified_domain_null_queryable():
 
 @pytest.mark.django_db
 def test_profile_is_claimed_still_works_after_verified_domain():
-    """Profile.is_claimed still passes through active_claimants.exists()
+    """Profile.is_claimed still passes through active_managers.exists()
     (regression guard)."""
     from organizers.models import Profile, ProfileClaim
 

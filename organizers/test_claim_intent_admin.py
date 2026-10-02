@@ -7,7 +7,7 @@ Coverage:
 (A) ClaimIntentAdmin is registered in Django admin
 (B) approve action creates ProfileClaim with verified_method='admin_review',
     sets resolved_at on intent (atomic)
-(C) approve on already-active claimant fails loud (ADR-008 D3)
+(C) approve on already-active manager fails loud (ADR-008 D3)
 (D) approve on already-resolved intent fails loud (ADR-008 D3)
 (E) reject action sets rejected_at + rejected_by_admin + rejection_reason,
     no ProfileClaim
@@ -124,13 +124,13 @@ def test_approve_sets_verified_by_admin(admin_user, regular_user, profile, pendi
 
 
 # ---------------------------------------------------------------------------
-# (C) Approve fails loud if user is already active claimant (ADR-008 D3)
+# (C) Approve fails loud if user is already active manager (ADR-008 D3)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_approve_fails_loud_on_duplicate_active_claimant(admin_user, regular_user, profile, pending_intent):
-    """Approve on a user who is already an active claimant fails loud — no duplicate
+def test_approve_fails_loud_on_duplicate_active_manager(admin_user, regular_user, profile, pending_intent):
+    """Approve on a user who is already an active manager fails loud — no duplicate
     ProfileClaim."""
     from organizers.admin import ClaimIntentAdmin
 

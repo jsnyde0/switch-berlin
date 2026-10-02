@@ -187,9 +187,9 @@ class CollectedEventLandingTest(TestCase):
         event = Event.objects.get(raw_message=raw)
         self.assertEqual((event.status, event.visibility), ("published", "semi_public"))
 
-    def test_claimed_organizer_lands_draft_for_claimant(self):
-        claimant = User.objects.create_user(username="claimant", password="pw")
-        ProfileClaim.objects.create(profile=self.iksk, user=claimant)
+    def test_claimed_organizer_lands_draft_for_manager(self):
+        manager = User.objects.create_user(username="manager", password="pw")
+        ProfileClaim.objects.create(profile=self.iksk, user=manager)
         raw = self._process(self._raw())
         self.assertEqual(Event.objects.get(raw_message=raw).status, "draft")
 

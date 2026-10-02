@@ -1038,7 +1038,7 @@ def create_post(user, event, **kwargs):
     Create a Post for an Event, gated through the can_edit seam (ADR-017 D2).
 
     Steps:
-    1. Gate: user must be able to edit the event (organizer claimant).
+    1. Gate: user must be able to edit the event (organizer manager).
     2. Create Post with FK to Event.
     3. Eager-create draft promotion projections per enabled promotion-capable connection
        (ADR-016 D4).
@@ -1170,7 +1170,7 @@ def _resolve_projection_event(projection):
 # ContentVersion snapshot-semantic operations (sb-wz8m.3, ADR-016 D2, ADR-017 D2)
 #
 # All version ops are can_edit-gated through the existing auth seam (ADR-017 D2).
-# Non-claimant → PermissionError.
+# Non-manager → PermissionError.
 #
 # Co-equal-ready: no HTTP endpoints here (deferred per ADR-008 D2; sb-f6yp).
 # These service functions are callable identically by HTMX views (sb-wz8m.5)

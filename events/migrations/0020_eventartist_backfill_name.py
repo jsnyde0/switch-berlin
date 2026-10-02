@@ -9,6 +9,10 @@ def backfill_name(apps, schema_editor):
     for credit in EventArtist.objects.select_related("profile").filter(name=""):
         if credit.profile is None:
             raise RuntimeError(f"EventArtist {credit.pk} has neither a name nor a profile")
+        if not credit.profile.name.strip():
+            raise RuntimeError(
+                f"EventArtist {credit.pk}: profile {credit.profile.pk} has an empty name to backfill from"
+            )
         credit.name = credit.profile.name
         credit.save(update_fields=["name"])
 

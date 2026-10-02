@@ -138,13 +138,13 @@ class ClaimIntentAdmin(admin.ModelAdmin):
     is_pending.boolean = True
 
     def user_email(self, obj):
-        """Claimant's email — admin can mailto: from the list view (sb-j8u)."""
+        """Claiming user's email — admin can mailto: from the list view (sb-j8u)."""
         return obj.user.email
 
     user_email.short_description = _("Email (contact)")
 
     def message_preview(self, obj):
-        """First 80 chars of the claimant's message (sb-j8u)."""
+        """First 80 chars of the claiming user's message (sb-j8u)."""
         if not obj.message:
             return ""
         return obj.message if len(obj.message) <= 80 else obj.message[:77] + "…"
@@ -158,7 +158,7 @@ class ClaimIntentAdmin(admin.ModelAdmin):
 
         Atomic. Per ADR-008 D3: fails loud if:
         - intent is already resolved (resolved_at IS NOT NULL)
-        - user is already an active claimant of this profile
+        - user is already an active manager of this profile
         """
         approved_count = 0
         skipped_count = 0
@@ -174,7 +174,7 @@ class ClaimIntentAdmin(admin.ModelAdmin):
                 skipped_count += 1
                 continue
 
-            # Fail loud: user is already an active claimant of this profile
+            # Fail loud: user is already an active manager of this profile
             already_active = intent.profile.profileclaim_set.filter(
                 user=intent.user,
                 rejected_at__isnull=True,
@@ -182,7 +182,7 @@ class ClaimIntentAdmin(admin.ModelAdmin):
             if already_active:
                 self.message_user(
                     request,
-                    _(f"User {intent.user} is already an active claimant of {intent.profile} — skipped (ADR-008 D3)."),
+                    _(f"User {intent.user} is already an active manager of {intent.profile} — skipped (ADR-008 D3)."),
                     level="WARNING",
                 )
                 skipped_count += 1

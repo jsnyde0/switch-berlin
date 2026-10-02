@@ -1872,7 +1872,7 @@ msgid "Already yours"
 msgstr ""
 
 #: templates/organizers/claim_start.html:22
-msgid "You are already listed as a claimant for this profile."
+msgid "You are already listed as a manager for this profile."
 msgstr ""
 
 #: templates/organizers/claim_start.html:28

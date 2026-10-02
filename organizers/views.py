@@ -89,11 +89,11 @@ def organizer_profile(request, slug):
                 "event__venue_id", flat=True
             )
         )
-        # CTA state: viewer-IS-claimant → explicit "you manage" (ADR-014 D2, ADR-008 D3)
-        viewer_is_claimant = organizer.active_claimants.filter(pk=request.user.pk).exists()
+        # CTA state: viewer-IS-manager → explicit "you manage" (ADR-014 D2, ADR-008 D3)
+        viewer_is_manager = organizer.active_managers.filter(pk=request.user.pk).exists()
         # CTA state: viewer has a pending ClaimIntent (unresolved, not rejected)
         viewer_claim_is_pending = (
-            not viewer_is_claimant
+            not viewer_is_manager
             and ClaimIntent.objects.filter(
                 user=request.user,
                 profile=organizer,
@@ -104,7 +104,7 @@ def organizer_profile(request, slug):
     else:
         following = False
         going_venue_ids = []
-        viewer_is_claimant = False
+        viewer_is_manager = False
         viewer_claim_is_pending = False
 
     rating_count = organizer.rating_count
@@ -142,7 +142,7 @@ def organizer_profile(request, slug):
         "EVENT_REVIEWS_DISPLAYED": event_reviews_displayed,
         "MIN_RATINGS_FOR_DISPLAY": threshold,
         # Claim CTA state (ADR-014 D2, ADR-008 D3)
-        "viewer_is_claimant": viewer_is_claimant,
+        "viewer_is_manager": viewer_is_manager,
         "viewer_claim_is_pending": viewer_claim_is_pending,
     }
     return render(request, "organizers/profile.html", context)
@@ -200,16 +200,16 @@ def claim_entry(request, slug):
         Both tracks redirect to check-email page; ProfileClaim is NOT created at
         POST time.
 
-    Explicit branch for user-IS-claimant (ADR-008 D3 — not silent).
+    Explicit branch for user-IS-manager (ADR-008 D3 — not silent).
     """
     profile = get_object_or_404(Profile, slug=slug)
 
     # ADR-008 D3: explicit branch — not silent omission
-    if profile.active_claimants.filter(pk=request.user.pk).exists():
+    if profile.active_managers.filter(pk=request.user.pk).exists():
         return render(
             request,
             "organizers/claim_start.html",
-            {"organizer": profile, "already_claimant": True},
+            {"organizer": profile, "already_manager": True},
         )
 
     # Pre-fill with the logged-in user's email (the common case: claiming with
@@ -281,7 +281,7 @@ def claim_entry(request, slug):
         {
             "organizer": profile,
             "form": form,
-            "already_claimant": False,
+            "already_manager": False,
             "turnstile_site_key": turnstile_site_key,
         },
     )

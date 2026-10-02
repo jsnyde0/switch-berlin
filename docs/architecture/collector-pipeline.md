@@ -106,7 +106,7 @@ erDiagram
 | Event draft | One event as the AI read it: title, start, price, link, confidence, Berlin flag. | `ingestion/schemas.py:6` |
 | Landing checks | Per draft, in order: past, not Berlin, low confidence, duplicate, organizer known. | `ingestion/collected.py:180` |
 | Duplicate finder | Same Berlin day and title similarity of at least 0.4. Best match wins (gate 2). | `ingestion/collected.py:118` |
-| Publish by claim state | Organizer unclaimed: publish now. Claimed: keep as draft for the claimant. | `syndication/authz.py:56` |
+| Publish by claim state | Organizer unclaimed: publish now. Claimed: keep as draft for the manager. | `syndication/authz.py:56` |
 | Visibility tier | Website and public Telegram channels give public. Private sources give semi_public. | `events/backfill_visibility.py:36, 47` |
 | Event | The listing itself. Links back to the post it came from. | `events/models.py:111 (raw_message 323)` |
 | Who sees what | Visitors see public only. Trusted members add semi_public. Staff see all. | `events/managers.py:30` |

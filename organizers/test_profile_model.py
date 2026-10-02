@@ -116,14 +116,14 @@ def test_profile_no_claimed_by_field():
 
 
 @pytest.mark.django_db
-def test_profile_claimants_m2m_via_profile_claim():
-    """Profile.claimants M2M via ProfileClaim works; user.claimed_profiles reverse
+def test_profile_managers_m2m_via_profile_claim():
+    """Profile.managers M2M via ProfileClaim works; user.claimed_profiles reverse
     works."""
     from organizers.models import Profile, ProfileClaim
 
     user = User.objects.create_user(
-        username="claimant",
-        email="claimant@example.com",
+        username="manager",
+        email="manager@example.com",
         password="x",
     )
     p = Profile.objects.create(
@@ -137,7 +137,7 @@ def test_profile_claimants_m2m_via_profile_claim():
         verified_method="admin_legacy",
         role="admin",
     )
-    assert user in p.claimants.all()
+    assert user in p.managers.all()
     assert p in user.claimed_profiles.all()
 
 

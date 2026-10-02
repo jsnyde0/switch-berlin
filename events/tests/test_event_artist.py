@@ -119,3 +119,35 @@ class ArtistCannotEditTest(TestCase):
         event = _event(organizer=Profile.objects.create(name="Org", slug="org"))
         EventArtist.objects.create(event=event, profile=artist, name="Lu")
         self.assertFalse(can_edit(manager, event))
+
+
+class EventArtistMigrationsTest(TestCase):
+    """0019/0020 fail loud instead of losing or synthesizing data (ADR-008 D3)."""
+
+    def _migration(self, name):
+        import importlib
+
+        return importlib.import_module(f"events.migrations.{name}")
+
+    def test_backfill_raises_on_empty_profile_name(self):
+        from django.apps import apps
+
+        backfill_name = self._migration("0020_eventartist_backfill_name").backfill_name
+        profile = Profile.objects.create(name="", slug="nameless", status="approved")
+        EventArtist.objects.create(event=_event(), profile=profile, name="")
+        with self.assertRaisesRegex(RuntimeError, "empty name"):
+            backfill_name(apps, None)
+
+    def test_backfill_copies_profile_name(self):
+        from django.apps import apps
+
+        backfill_name = self._migration("0020_eventartist_backfill_name").backfill_name
+        profile = Profile.objects.create(name="Lavinia", slug="lavinia", status="approved")
+        credit = EventArtist.objects.create(event=_event(), profile=profile, name="")
+        backfill_name(apps, None)
+        credit.refresh_from_db()
+        self.assertEqual(credit.name, "Lavinia")
+
+    def test_0019_is_irreversible(self):
+        migration = self._migration("0019_eventartist").Migration
+        self.assertFalse(all(op.reversible for op in migration.operations))

@@ -50,4 +50,7 @@ class Migration(migrations.Migration):
             field=models.CharField(default="", max_length=200),
             preserve_default=False,
         ),
+        # No reverse: undoing this would need a profile on every credit and
+        # would drop name-only credits. Django refuses to unapply it.
+        migrations.RunPython(migrations.RunPython.noop, reverse_code=None),
     ]

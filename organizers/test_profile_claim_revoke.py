@@ -7,7 +7,7 @@ Coverage:
 (A) revoke_claim action sets rejected_at on the ProfileClaim
 (B) revoke_claim sets rejected_by_admin to admin username
 (C) revoke_claim sets revocation_reason if field exists
-(D) revoked claim is no longer in active_claimants
+(D) revoked claim is no longer in active_managers
 (E) re-revoking already-revoked claim fails loud (ADR-008 D3)
 (F) ProfileClaimAdmin is registered with revoke_claim action
 (G) ProfileClaim has revocation_reason field (cheap-foresight ADR-003)
@@ -172,27 +172,27 @@ def test_revoke_sets_revocation_reason_default_blank(admin_user, active_claim):
 
 
 # ---------------------------------------------------------------------------
-# (D) Revoked claim excluded from active_claimants
+# (D) Revoked claim excluded from active_managers
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_revoked_claim_excluded_from_active_claimants(admin_user, regular_user, profile, active_claim):
-    """After revoke, user is no longer in profile.active_claimants."""
+def test_revoked_claim_excluded_from_active_managers(admin_user, regular_user, profile, active_claim):
+    """After revoke, user is no longer in profile.active_managers."""
     from organizers.admin import ProfileClaimAdmin
 
     site = AdminSite()
     claim_admin = ProfileClaimAdmin(ProfileClaim, site)
     request = make_request(admin_user)
 
-    # Before revoke — user is active claimant
-    assert regular_user in profile.active_claimants
+    # Before revoke — user is active manager
+    assert regular_user in profile.active_managers
 
     queryset = ProfileClaim.objects.filter(pk=active_claim.pk)
     claim_admin.revoke_claim(request, queryset)
 
-    # After revoke — user is no longer active claimant
-    assert regular_user not in profile.active_claimants
+    # After revoke — user is no longer active manager
+    assert regular_user not in profile.active_managers
 
 
 # ---------------------------------------------------------------------------

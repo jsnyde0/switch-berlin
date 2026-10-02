@@ -680,7 +680,7 @@ def _event_to_dict(event):
 )
 def events_list(request):
     """
-    List all Events where the authenticated user is an EventOrganizer claimant.
+    List all Events where the authenticated user is an EventOrganizer manager.
     Returns HttpResponse directly so X-Actor-Marker header is preserved.
     """
     from events.models import Event, EventOrganizer

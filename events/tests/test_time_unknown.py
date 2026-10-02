@@ -61,7 +61,7 @@ class TimeUnknownClearsOnRealStartTest(TestCase):
         from organizers.models import ProfileClaim
 
         self.user = get_user_model().objects.create_user(
-            username="claimant", email="claimant@test.com", password="x", status="vouched"
+            username="manager", email="manager@test.com", password="x", status="vouched"
         )
         self.org = Profile.objects.create(name="Shirka & Till", slug="shirka-till", status="approved")
         ProfileClaim.objects.create(profile=self.org, user=self.user, verified_method="auto_self")

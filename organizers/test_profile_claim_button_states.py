@@ -4,7 +4,7 @@ TDD regression tests for sb-x0s: profile page claim button three states.
 Covers:
 - no claim → 'Claim this profile' button shown
 - pending ClaimIntent (unresolved, not rejected) → 'Claim Pending' shown
-- approved ProfileClaim (active claimant) → 'You manage this profile' shown
+- approved ProfileClaim (active manager) → 'You manage this profile' shown
 """
 
 import pytest
@@ -65,8 +65,8 @@ def test_profile_claim_button_pending_claim(client):
 
 
 @pytest.mark.django_db
-def test_profile_claim_button_approved_claimant(client):
-    """Approved claimant (active ProfileClaim) sees 'You manage this profile'."""
+def test_profile_claim_button_approved_manager(client):
+    """Approved manager (active ProfileClaim) sees 'You manage this profile'."""
     from organizers.models import ProfileClaim
 
     user = make_user("user_approved_claim")

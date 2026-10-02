@@ -9,7 +9,7 @@ Acceptance criteria tested:
   (b) category persists + reads back via web EventForm AND JSON API.
   (c) cover upload creates EventImage(is_cover=True) via web form AND API cover endpoint.
   (d) single-cover invariant: second cover upload leaves exactly one is_cover=True row.
-  (e) can_edit gate: non-claimant blocked (PermissionError / 403).
+  (e) can_edit gate: non-manager blocked (PermissionError / 403).
   (f) invalid image (oversize or bad extension) raises (fails loud).
 """
 
@@ -314,7 +314,7 @@ class SetEventCoverServiceTest(TestCase):
         covers = EventImage.objects.filter(event=self.event, is_cover=True)
         self.assertEqual(covers.count(), 1)
 
-    def test_set_cover_raises_permission_error_for_non_claimant(self):
+    def test_set_cover_raises_permission_error_for_non_manager(self):
         from syndication.services import set_event_cover
 
         other_user = _make_vouched_user(username="cover_other", email="cover_other@test.com", password="x")
@@ -446,7 +446,7 @@ class CoverImageAPITest(TestCase):
         covers = EventImage.objects.filter(event=self.event, is_cover=True)
         self.assertEqual(covers.count(), 1)
 
-    def test_upload_cover_blocked_for_non_claimant(self):
+    def test_upload_cover_blocked_for_non_manager(self):
         other_user = _make_vouched_user(username="cov_api_other", email="cov_api_other@test.com", password="x")
         _make_profile("Cov API Other", "cov-api-other", user=other_user)
         other_token = _get_identity_token_for(other_user)

@@ -13,7 +13,7 @@ Shares _post_hub_body.html with post_hub_fragment.html.
 studio_swap=True so HTMX cross-links (Event hub link) resolve within the shell.
 
 Context variables required (in addition to the base hub ctx):
-  primary_profile  — Profile instance (claimant's profile)
+  primary_profile  — Profile instance (manager's profile)
   publishables     — list of {"kind": "event"|"post", "obj": <instance>} dicts
   current_path     — request.path for active-row detection
   studio_swap      — True (always; this page IS the studio shell)

@@ -5,7 +5,7 @@ Co-equal seam (ADR-016 D3/D6): views call the same syndication.services
 functions as the Ninja API handlers. No parallel persistence implementations.
 
 Authorization: edit/publish gated through syndication.authz.can_edit /
-can_publish seam (ADR-017 D2). No inline is_primary / claimant checks.
+can_publish seam (ADR-017 D2). No inline is_primary / manager checks.
 
 HTMX + Alpine per ADR-004.
 Fragment-seam composition: the Event hub page composes independently-addressable
@@ -162,9 +162,9 @@ def _render_sibling_body_oob_fragments(request, projections, *, skip_pk=None, is
 @login_required
 def studio(request):
     """
-    Organizer studio front door — claimant-gated.
+    Organizer studio front door — manager-gated.
 
-    A claimant sees their publishables (Events + Posts) merged and sorted by
+    A manager sees their publishables (Events + Posts) merged and sorted by
     updated_at descending. A zero-claims user gets 403 (fail loud, ADR-008 D3 —
     never a synthesized empty workspace).
 

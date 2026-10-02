@@ -3,12 +3,12 @@ Authorization seam for syndication (ADR-017 D2).
 
 Single chokepoint for edit/publish authorization.
 Policy per ADR-017 D1: a principal may edit/publish an Event iff they are a
-claimant (via ProfileClaim) of a Profile that is an EventOrganizer of that Event.
+manager (via ProfileClaim) of a Profile that is an EventOrganizer of that Event.
 EventArtists are credited-only and cannot edit or publish.
 
 v0: trivially satisfied for single-facilitator case.
 Future: enrich this seam for team-management (ADR-017 D3 — ProfileClaim.role).
-Do NOT inline is_primary / claimant checks at call sites.
+Do NOT inline is_primary / manager checks at call sites.
 """
 
 from events.models import EventOrganizer
@@ -17,13 +17,13 @@ from organizers.models import ProfileClaim
 
 def can_edit(user, event) -> bool:
     """
-    Return True iff user is a claimant of an EventOrganizer Profile for this event.
+    Return True iff user is a manager of an EventOrganizer Profile for this event.
 
-    A claimant is a user with an active (non-revoked) ProfileClaim on a Profile
+    A manager is a user with an active (non-revoked) ProfileClaim on a Profile
     that is in the event's EventOrganizer through-table.
 
     EventArtists are credited-only — they do NOT get edit rights.
-    v0: ProfileClaim.role is trivially 'admin' for all claimants.
+    v0: ProfileClaim.role is trivially 'admin' for all managers.
     ADR-017 D2: single seam, no scattered is_primary checks.
     """
     # Get all organizer Profile IDs for this event.
@@ -58,7 +58,7 @@ def collector_may_publish(event) -> bool:
     Return True iff a collector may publish this collected Event at ingest
     (ADR-017 D4): no organizer Profile on the event holds an active ProfileClaim.
 
-    Once any organizer Profile is claimed, the claimants publish through
+    Once any organizer Profile is claimed, the managers publish through
     can_publish, so the collector lands the event as a draft for them. The
     per-source collect-only switch is not an authorization concept and is
     checked by the collector, not here.

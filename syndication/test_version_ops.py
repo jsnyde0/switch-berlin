@@ -9,7 +9,7 @@ Acceptance assertions:
 - edit_version on a shared row propagates to all consumers.
 - consumers(version) returns correct set of projections.
 - content_version_consumers_map(event) returns correct mapping.
-- non-claimant raises PermissionError for all gated ops.
+- non-manager raises PermissionError for all gated ops.
 - save_projection_override is gone from syndication.services.
 
 canonical_refs: ADR-016 D2, ADR-017 D2, ADR-008 D2/D3.
@@ -333,8 +333,8 @@ class DuplicateVersionTest(TestCase):
         proj.refresh_from_db()
         self.assertEqual(proj.content_version_id, original_cv_pk)
 
-    def test_duplicate_non_claimant_raises_permission_error(self):
-        """Non-claimant cannot duplicate a version."""
+    def test_duplicate_non_manager_raises_permission_error(self):
+        """Non-manager cannot duplicate a version."""
         from syndication.services import duplicate
 
         other_user = _make_user(username="dup_other", email="dupother@test.com", password="pw")
@@ -420,8 +420,8 @@ class CustomizeTest(TestCase):
         self.assertNotIn("CUSTOM BODY — must not appear in sibling", proj_b_body)
         self.assertIn("Cust Event Title", proj_b_body)
 
-    def test_customize_non_claimant_raises_permission_error(self):
-        """Non-claimant cannot customize a projection."""
+    def test_customize_non_manager_raises_permission_error(self):
+        """Non-manager cannot customize a projection."""
         from syndication.services import customize
 
         other_user = _make_user(username="cust_other", email="custother@test.com", password="pw")
@@ -508,8 +508,8 @@ class CopyFromTest(TestCase):
         source_cv.refresh_from_db()
         self.assertEqual(source_cv.body, "Original source body")
 
-    def test_copy_from_non_claimant_raises(self):
-        """Non-claimant cannot copy_from."""
+    def test_copy_from_non_manager_raises(self):
+        """Non-manager cannot copy_from."""
         from syndication.services import copy_from
 
         other_user = _make_user(username="cpfrom_other", email="cpfromoth@test.com", password="pw")
@@ -661,8 +661,8 @@ class CopyToTest(TestCase):
         self.assertEqual(new_cv.headline, "Fields Headline")
         self.assertEqual(new_cv.cta, "Fields CTA")
 
-    def test_copy_to_non_claimant_raises(self):
-        """Non-claimant cannot copy_to."""
+    def test_copy_to_non_manager_raises(self):
+        """Non-manager cannot copy_to."""
         from syndication.services import copy_to
 
         other_user = _make_user(username="cpto_other", email="cptoother@test.com", password="pw")
@@ -791,8 +791,8 @@ class ResetToCanonicalTest(TestCase):
 
         self.assertEqual(cv_count_after, cv_count_before)
 
-    def test_reset_non_claimant_raises(self):
-        """Non-claimant cannot reset_to_canonical."""
+    def test_reset_non_manager_raises(self):
+        """Non-manager cannot reset_to_canonical."""
         from syndication.services import reset_to_canonical
 
         other_user = _make_user(username="reset_other", email="resetoth@test.com", password="pw")
@@ -1076,8 +1076,8 @@ class EditVersionTest(TestCase):
         self.assertIn("Shared edit propagates everywhere", body_a)
         self.assertIn("Shared edit propagates everywhere", body_b)
 
-    def test_edit_version_non_claimant_raises(self):
-        """Non-claimant cannot edit a version."""
+    def test_edit_version_non_manager_raises(self):
+        """Non-manager cannot edit a version."""
         from syndication.services import edit_version
 
         other_user = _make_user(username="editv_other", email="editvoth@test.com", password="pw")

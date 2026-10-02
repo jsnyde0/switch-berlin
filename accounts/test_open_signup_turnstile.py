@@ -419,5 +419,5 @@ def test_open_signup_creates_profile_and_claim():
 
     user = User.objects.filter(email="withprofile@example.com").first()
     assert user is not None
-    assert Profile.objects.filter(claimants=user, kind="person").count() == 1
+    assert Profile.objects.filter(managers=user, kind="person").count() == 1
     assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1

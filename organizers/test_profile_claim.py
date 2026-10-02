@@ -6,10 +6,10 @@ These tests describe the target state per ADR-014 D1 + ADR-007 D5 (revised 2026-
 
 Coverage:
 (a) backfill on snapshot with mixed claimed_by states
-(b) M2M accessor (profile.claimants)
+(b) M2M accessor (profile.managers)
 (c) is_claimed property excludes revoked
-(d) admin inline renders claimants
-(e) active_claimants accessor
+(d) admin inline renders managers
+(e) active_managers accessor
 (f) ProfileClaim model fields
 """
 
@@ -86,8 +86,8 @@ def test_profile_claim_unique_together():
 
 
 @pytest.mark.django_db
-def test_profile_claimants_m2m_accessor():
-    """Profile.claimants M2M accessor returns users who claimed the profile."""
+def test_profile_managers_m2m_accessor():
+    """Profile.managers M2M accessor returns users who claimed the profile."""
     from organizers.models import Profile, ProfileClaim
 
     user = User.objects.create_user(username="claimer_m2m", email="claimer_m2m@example.com", password="x")
@@ -100,7 +100,7 @@ def test_profile_claimants_m2m_accessor():
         role="admin",
     )
 
-    assert user in profile.claimants.all()
+    assert user in profile.managers.all()
 
 
 @pytest.mark.django_db
@@ -127,7 +127,7 @@ def test_user_claimed_profiles_reverse_accessor():
 
 
 @pytest.mark.django_db
-def test_profile_is_claimed_false_when_no_claimants():
+def test_profile_is_claimed_false_when_no_managers():
     """Profile.is_claimed is False when there are no ProfileClaim rows."""
     from organizers.models import Profile
 
@@ -136,8 +136,8 @@ def test_profile_is_claimed_false_when_no_claimants():
 
 
 @pytest.mark.django_db
-def test_profile_is_claimed_true_when_active_claimant():
-    """Profile.is_claimed is True when there is at least one active claimant."""
+def test_profile_is_claimed_true_when_active_manager():
+    """Profile.is_claimed is True when there is at least one active manager."""
     from organizers.models import Profile, ProfileClaim
 
     user = User.objects.create_user(username="active_claimer", email="active_claimer@example.com", password="x")
@@ -203,13 +203,13 @@ def test_profile_is_claimed_true_when_one_active_among_revoked():
 
 
 # ---------------------------------------------------------------------------
-# (e) active_claimants accessor
+# (e) active_managers accessor
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_profile_active_claimants_excludes_revoked():
-    """Profile.active_claimants excludes users with rejected_at set."""
+def test_profile_active_managers_excludes_revoked():
+    """Profile.active_managers excludes users with rejected_at set."""
     from django.utils import timezone
 
     from organizers.models import Profile, ProfileClaim
@@ -232,14 +232,14 @@ def test_profile_active_claimants_excludes_revoked():
         rejected_at=timezone.now(),
     )
 
-    active = list(profile.active_claimants.all())
+    active = list(profile.active_managers.all())
     assert user1 in active
     assert user2 not in active
 
 
 @pytest.mark.django_db
-def test_profile_active_claimants_empty_when_all_revoked():
-    """Profile.active_claimants is empty when all claims are revoked."""
+def test_profile_active_managers_empty_when_all_revoked():
+    """Profile.active_managers is empty when all claims are revoked."""
     from django.utils import timezone
 
     from organizers.models import Profile, ProfileClaim
@@ -254,7 +254,7 @@ def test_profile_active_claimants_empty_when_all_revoked():
         rejected_at=timezone.now(),
     )
 
-    assert profile.active_claimants.count() == 0
+    assert profile.active_managers.count() == 0
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +281,7 @@ def test_profile_has_no_claimed_at_field():
 
 
 # ---------------------------------------------------------------------------
-# (d) Admin inline renders claimants
+# (d) Admin inline renders managers
 # ---------------------------------------------------------------------------
 
 

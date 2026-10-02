@@ -11,19 +11,19 @@ def legal_contact_processor(request):
 
 def user_primary_profile(request):
     """
-    Expose the claimant's primary Profile in all template contexts.
+    Expose the manager's primary Profile in all template contexts.
 
-    Returns the first active ProfileClaim's Profile for a claimant user,
-    or None for non-claimants, anonymous users, and any user with no claim.
+    Returns the first active ProfileClaim's Profile for a manager user,
+    or None for non-managers, anonymous users, and any user with no claim.
 
     MUST NOT call the raising _get_primary_profile_for_user — wraps the
     zero-claims case as None so it never raises during template rendering
     (parent D3, ADR-008 D3 context-processor contract).
 
-    Used by the navbar to show/hide the Studio link (claimant-gated).
+    Used by the navbar to show/hide the Studio link (manager-gated).
     """
     user = request.user
-    # Anonymous users are never claimants
+    # Anonymous users are never managers
     if not user.is_authenticated:
         return {"user_primary_profile": None}
 

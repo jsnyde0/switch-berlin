@@ -111,7 +111,7 @@ def _make_promotion_projection(conn, post, cv, status="draft"):
 
 class StudioRouteTest(TestCase):
     """
-    Route resolution: syndication:studio resolves and returns 200 for a claimant.
+    Route resolution: syndication:studio resolves and returns 200 for a manager.
 
     The studio view must be registered under the syndication namespace so that
     {% url 'syndication:studio' %} works in templates without raising NoReverseMatch.
@@ -131,7 +131,7 @@ class StudioRouteTest(TestCase):
 
     def test_studio_view_returns_200_for_authenticated_organizer(self):
         """
-        GET syndication:studio returns 200 for an authenticated organizer (claimant).
+        GET syndication:studio returns 200 for an authenticated organizer (manager).
         """
         user = _make_user(username="sb_route_user", email="sb_route@test.com", password="pw")
         _make_profile("SB Route Org", "sb-route-org", user=user)

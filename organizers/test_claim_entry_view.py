@@ -4,7 +4,7 @@ Updated sb-m69.11: Turnstile added to ClaimForm; POST tests mock Turnstile.
 
 Per ADR-014 D2 — web-first, two-track verification, auth-required.
 Per ADR-014 D3 — Turnstile pre-issuance gate on the submit form.
-Per ADR-008 D3 — fail loud; explicit branch for user-IS-claimant.
+Per ADR-008 D3 — fail loud; explicit branch for user-IS-manager.
 """
 
 from unittest.mock import patch
@@ -119,12 +119,12 @@ def test_claim_entry_prefills_email_with_logged_in_user(client):
 
 
 # ---------------------------------------------------------------------------
-# Auth'd claimant viewer: sees "you manage" branch (ADR-008 D3 — explicit, not absent)
+# Auth'd manager viewer: sees "you manage" branch (ADR-008 D3 — explicit, not absent)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_claim_entry_already_claimant_shows_explicit_branch(client):
+def test_claim_entry_already_manager_shows_explicit_branch(client):
     """User who already claims a profile sees explicit 'you manage' message."""
     from organizers.models import ProfileClaim
 
@@ -144,19 +144,19 @@ def test_claim_entry_already_claimant_shows_explicit_branch(client):
     assert response.status_code == 200
     content = response.content.decode()
     # ADR-008 D3: explicit branch, not silent omission
-    assert "manage" in content.lower() or "already" in content.lower() or "claimant" in content.lower()
+    assert "manage" in content.lower() or "already" in content.lower() or "manager" in content.lower()
 
 
 # ---------------------------------------------------------------------------
-# Profile detail: auth'd non-claimant sees "Claim" CTA
+# Profile detail: auth'd non-manager sees "Claim" CTA
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_profile_detail_auth_non_claimant_sees_claim_cta(client):
-    """Authenticated non-claimant on profile detail sees 'Claim' CTA."""
+def test_profile_detail_auth_non_manager_sees_claim_cta(client):
+    """Authenticated non-manager on profile detail sees 'Claim' CTA."""
     make_profile("claim-cta-profile")
-    user = make_user("non_claimant_viewer")
+    user = make_user("non_manager_viewer")
     client.force_login(user)
     response = client.get(reverse("organizer-profile", kwargs={"slug": "claim-cta-profile"}))
     assert response.status_code == 200
@@ -165,13 +165,13 @@ def test_profile_detail_auth_non_claimant_sees_claim_cta(client):
 
 
 # ---------------------------------------------------------------------------
-# Profile detail: auth'd claimant sees "you manage" badge (ADR-008 D3)
+# Profile detail: auth'd manager sees "you manage" badge (ADR-008 D3)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_profile_detail_auth_claimant_sees_manage_badge(client):
-    """Authenticated claimant sees 'you manage' badge on profile detail."""
+def test_profile_detail_auth_manager_sees_manage_badge(client):
+    """Authenticated manager sees 'you manage' badge on profile detail."""
     from organizers.models import ProfileClaim
 
     profile = make_profile("manage-badge-profile")
@@ -189,7 +189,7 @@ def test_profile_detail_auth_claimant_sees_manage_badge(client):
     assert response.status_code == 200
     content = response.content.decode()
     # Must be explicit (ADR-008 D3) — not absent
-    assert "manage" in content.lower() or "claimant" in content.lower() or "your profile" in content.lower()
+    assert "manage" in content.lower() or "manager" in content.lower() or "your profile" in content.lower()
 
 
 # ---------------------------------------------------------------------------

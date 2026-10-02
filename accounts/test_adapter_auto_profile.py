@@ -47,7 +47,7 @@ def test_auto_profile_created_on_save_user():
     )
     adapter._create_owned_profile(user)
 
-    profiles = Profile.objects.filter(claimants=user)
+    profiles = Profile.objects.filter(managers=user)
     assert profiles.count() == 1
     profile = profiles.first()
     assert profile.kind == "person"
@@ -77,7 +77,7 @@ def test_save_user_creates_profile_and_claim():
 
     adapter._create_owned_profile(user)
 
-    assert Profile.objects.filter(claimants=user, kind="person").count() == 1
+    assert Profile.objects.filter(managers=user, kind="person").count() == 1
     assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
 
 
@@ -127,7 +127,7 @@ def test_auto_profile_creation_is_atomic():
             adapter._create_owned_profile(user)
 
     # Profile should NOT persist because the transaction rolled back
-    assert Profile.objects.filter(claimants=user).count() == 0
+    assert Profile.objects.filter(managers=user).count() == 0
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ def test_auto_profile_creation_is_idempotent():
     adapter._create_owned_profile(user)
     adapter._create_owned_profile(user)  # second call should be a no-op
 
-    assert Profile.objects.filter(claimants=user).count() == 1
+    assert Profile.objects.filter(managers=user).count() == 1
     assert ProfileClaim.objects.filter(user=user, verified_method="auto_self").count() == 1
 
 
@@ -175,7 +175,7 @@ def test_auto_profile_name_from_full_name():
     )
     adapter._create_owned_profile(user)
 
-    profile = Profile.objects.get(claimants=user)
+    profile = Profile.objects.get(managers=user)
     assert profile.name == "Jane Doe"
 
 
@@ -193,7 +193,7 @@ def test_auto_profile_name_falls_back_to_email():
     )
     adapter._create_owned_profile(user)
 
-    profile = Profile.objects.get(claimants=user)
+    profile = Profile.objects.get(managers=user)
     assert profile.name == "nofullname@example.com"
 
 
@@ -236,7 +236,7 @@ def test_auto_profile_has_status_approved():
     )
     adapter._create_owned_profile(user)
 
-    profile = Profile.objects.get(claimants=user, kind="person")
+    profile = Profile.objects.get(managers=user, kind="person")
     assert profile.status == "approved", (
         f"Auto-created Profile must have status='approved' so owner can view it; got '{profile.status}'"
     )
