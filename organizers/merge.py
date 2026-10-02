@@ -21,7 +21,8 @@ from .models import MergeRecord
 # Never filled from the loser: slug is the winner's identity; the counters are
 # recomputed by ingestion/tasks_flags.py; approval and consent are each one
 # record, and filling them field by field would build a state neither side had
-# (ADR-008 D3). Venue privacy is settled as a whole by _stricter_privacy.
+# (ADR-008 D3); verified_domain is the claim fast-path's trust anchor (ADR-014 D2),
+# an admin's word for one profile, never inherited. Venue privacy is settled as a whole by _stricter_privacy.
 _NOT_FILLED = {
     "slug",
     "follower_count",
@@ -33,6 +34,7 @@ _NOT_FILLED = {
     "consent_recorded_at",
     "consent_method",
     "consent_notes",
+    "verified_domain",
     "privacy_mode",
     "blur_radius_m",
 }

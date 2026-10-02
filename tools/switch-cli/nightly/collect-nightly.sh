@@ -77,6 +77,9 @@ fi
 # Register django-q schedules (idempotent) so the qcluster below runs the
 # 90-day RawMessage purge the privacy page promises (sb-7wzb.8).
 manage schedule_tasks >/dev/null || die "could not register django-q schedules"
+# Create the profiles and venues collector_sources.toml names (idempotent):
+# collection never creates them, a missing one fails its rows (sb-7wzb.25).
+manage seed_collector_sources || die "could not seed the collector source profiles and venues"
 
 if ! curl -s -o /dev/null --max-time 5 "$SERVER_URL"; then
     log "runserver down; starting it for this run"

@@ -32,6 +32,7 @@ from PIL import Image, ImageOps
 
 from events.backfill_visibility import derive_visibility_from_sources, rawmessage_source_to_conceptual
 from organizers.duplicate_names import normalize
+from organizers.names import find_profile, find_venue, name_key
 from venues.address import split_street_address, validate_no_street_address
 
 # RawMessage.source_type values a collector may write. The bot forward stays the
@@ -192,18 +193,18 @@ def _aware(dt):
     return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
 
 
-def _create_collected_profile(name: str, raw):
+def create_collected_profile(name: str, origin: str):
     """Unclaimed organizer Profile for a name no Profile carries (ADR-007 D9: one profile per name).
 
-    status=approved so the organizer page, and with it the claim affordance
-    (ADR-014), resolves (mem auto-created-records-reachable-default). The lawful
-    basis is the organizer LIA (docs/compliance/organizer-lia.md).
+    `origin` says where the name came from, for the consent note. status=approved
+    so the organizer page, and with it the claim affordance (ADR-014), resolves
+    (mem auto-created-records-reachable-default). The lawful basis is the
+    organizer LIA (docs/compliance/organizer-lia.md).
     """
     from organizers.models import Profile
 
     base = slugify(name)[:40] or "organizer"
     slug = base if not Profile.objects.filter(slug=base).exists() else f"{base}-{uuid.uuid4().hex[:6]}"
-    source = raw.raw_payload.get("source") or raw.channel_id
     now = timezone.now()
     return Profile.objects.create(
         name=name,
@@ -212,26 +213,12 @@ def _create_collected_profile(name: str, raw):
         approved_at=now,
         consent_recorded_at=now,
         consent_method="legitimate_interest",
-        consent_notes=f"Auto-created by the event collector from {source} ({raw.source_type}) on {now.date()}.",
+        consent_notes=f"Auto-created by the event collector from {origin} on {now.date()}.",
     )
 
 
-def _name_key(name: str) -> str:
-    """Exact-match key for a profile name: casefold, punctuation dropped, whitespace collapsed."""
-    return " ".join(re.sub(r"[^\w\s]", " ", normalize(name).casefold()).split())
-
-
-def find_profile(name: str):
-    """The Profile whose name equals `name` under _name_key, or None. Never fuzzy (ADR-007 D9)."""
-    from organizers.models import Profile
-
-    key = _name_key(name)
-    # debt: scans every profile per lookup; fine at today's tens of profiles, move
-    # to a stored normalized-name column when profiles reach the thousands.
-    for profile in Profile.objects.all():
-        if _name_key(profile.name) == key:
-            return profile
-    return None
+def _create_row_profile(name: str, raw):
+    return create_collected_profile(name, f"{raw.raw_payload.get('source') or raw.channel_id} ({raw.source_type})")
 
 
 # Separators between names in one string: "A, B & C", "A und B", "A + B".
@@ -255,7 +242,8 @@ def organizer_names(raw, draft) -> tuple[list[str], str]:
     One chain for every source, first hit wins: the post names its organizer
     (explicit; one name per person, a string that is an existing profile's
     whole name stays one); else the source's default_organizer, a Profile name
-    (publisher: the source is that organizer's own site or channel); else
+    (publisher: the source is that organizer's own site or channel; a name no
+    Profile carries raises, a typo never creates a public profile); else
     default_organizer "poster", the post's author by display name (a community
     board where members post their own events). ([], reason) when the event
     must be held for review.
@@ -268,6 +256,8 @@ def organizer_names(raw, draft) -> tuple[list[str], str]:
         poster = (raw.raw_payload.get("poster") or "").strip()
         return ([poster], "poster") if poster else ([], "no_organizer")
     if default:
+        if find_profile(default) is None:
+            raise ValueError(f"source config names default_organizer {default!r}, which matches no profile")
         return [default], "publisher"
     return [], "no_organizer"
 
@@ -283,20 +273,20 @@ def credit_people(
 
     seen = set()
     for order, name in enumerate(names):
-        profile = find_profile(name) or _create_collected_profile(name, raw)
+        profile = find_profile(name) or _create_row_profile(name, raw)
         if profile.id in seen:
             continue
         seen.add(profile.id)
         EventOrganizer.objects.create(
             event=event, profile=profile, is_primary=order == 0, order=order, attribution=attribution
         )
-    taken = {_name_key(part) for name in [*names, *taken_names] for part in [name, *split_names(name)]}
+    taken = {name_key(part) for name in [*names, *taken_names] for part in [name, *split_names(name)]}
     order = 0
     for entry in artist_names:
         for name in split_names(entry):
-            if _name_key(name) in taken:
+            if name_key(name) in taken:
                 continue
-            taken.add(_name_key(name))
+            taken.add(name_key(name))
             EventArtist.objects.create(event=event, name=name, order=order)
             order += 1
 
@@ -341,20 +331,9 @@ def _drop_area_brackets(name: str) -> str:
     return re.sub(r"\s*\(([^)]*)\)", lambda m: "" if _is_area(m.group(1)) else m.group(0), name).strip()
 
 
-def _find_venue(name: str, address: str | None = None):
-    """The venue with this exact normalized name (and address, when given), or None."""
-    from venues.models import Venue
-
-    key = (normalize(name), None if address is None else normalize(address))
-    # debt: scans every venue per event; fine at today's tens of venues, move
-    # to a stored normalized-name column when venues reach the thousands.
-    for venue in Venue.objects.all():
-        if (normalize(venue.name), None if address is None else normalize(venue.address)) == key:
-            return venue
-    return None
-
-
-def _venue(name: str, address: str = "", private: bool = False, by_address: bool = False, create: bool = True):
+def find_or_create_venue(
+    name: str, address: str = "", private: bool = False, by_address: bool = False, create: bool = True
+):
     """The venue with this exact normalized name (and address, when `by_address`), else a new one.
 
     With create=False a missing venue is None instead.
@@ -364,7 +343,7 @@ def _venue(name: str, address: str = "", private: bool = False, by_address: bool
     """
     from venues.models import Venue
 
-    found = _find_venue(name, address if by_address else None)
+    found = find_venue(name, address if by_address else None)
     if found is not None or not create:
         return found
     base = slugify(name)[:40] or "venue"
@@ -381,17 +360,15 @@ def apply_source_venue(raw):
     neither fails the row (a typo never makes a second venue; venues never
     create profiles). A staff-set run-by is never overwritten.
     """
-    from organizers.models import Profile
-
     name = (raw.raw_payload.get("venue") or "").strip()
     if not name:
         return None
-    venue = _find_venue(name)
+    venue = find_venue(name)
     if venue is None:
         raise ValueError(f"source config names default venue {name!r}, which does not exist")
     runner_name = (raw.raw_payload.get("venue_run_by") or "").strip()
     if runner_name:
-        runner = Profile.objects.filter(name__iexact=runner_name).first()
+        runner = find_profile(runner_name)
         if runner is None:
             raise ValueError(f"source config names venue run-by profile {runner_name!r}, which does not exist")
         if venue.run_by_id is None:
@@ -418,7 +395,7 @@ def resolve_place(raw, draft, create: bool = True) -> tuple:
     default = apply_source_venue(raw)
 
     # A known venue matches on its whole name, even one that holds its address.
-    known = _find_venue(name) if name and not _is_placeholder(name) else None
+    known = find_venue(name) if name and not _is_placeholder(name) else None
     if known is None:
         found, name = split_street_address(name)
         address = address or found
@@ -434,13 +411,13 @@ def resolve_place(raw, draft, create: bool = True) -> tuple:
     if known is not None:
         venue = known
     elif name:
-        venue = _venue(name, address, private, create=create)
+        venue = find_or_create_venue(name, address, private, create=create)
     elif address:
         # No place name, only an address: name the venue without it, so a
         # private address never shows through the venue name.
         label = re.sub(r"\s*\([^)]*\)", "", note).split(",")[0].strip()
         label = label or ("Private venue" if private else address)
-        venue = _venue(label, address, private, by_address=True, create=create)
+        venue = find_or_create_venue(label, address, private, by_address=True, create=create)
     elif not placeholder:
         venue = default
     else:
@@ -636,7 +613,7 @@ def fill_gaps(event, raw, draft, matched, names, attribution, flyer, written_fil
             have = {row.profile_id: row for row in owned_rows}
             order = max(row.order for row in owned_rows) + 1
             for name in names:
-                profile = find_profile(name) or _create_collected_profile(name, raw)
+                profile = find_profile(name) or _create_row_profile(name, raw)
                 if profile.id in have:
                     if have[profile.id].attribution != "explicit":
                         have[profile.id].attribution = "explicit"

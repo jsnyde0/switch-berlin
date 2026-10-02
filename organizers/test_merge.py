@@ -361,3 +361,12 @@ def test_merge_records_cannot_be_deleted_in_the_admin(client, staff):
     client.force_login(staff)
     page = client.get(f"/admin/organizers/mergerecord/{MergeRecord.objects.get().pk}/delete/")
     assert page.status_code == 403
+
+
+@pytest.mark.django_db
+def test_merge_never_fills_verified_domain_from_the_loser(staff):
+    winner = Profile.objects.create(name="Soma House", slug="soma-house")
+    loser = Profile.objects.create(name="SOMA House Berlin", slug="soma-house-berlin", verified_domain="soma.example")
+    merge_profiles(winner, loser, staff)
+    winner.refresh_from_db()
+    assert not winner.verified_domain

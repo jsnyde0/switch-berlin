@@ -8,19 +8,26 @@
 #               drafts, never published).
 # default_organizer = who organizes a post that does not name its own organizer
 #               (ADR-007 D9; an explicit organizer in the post always wins):
-#               a Profile name (matched by exact name, else created) = the
-#               source IS that organizer's own site or channel; "poster" = a
+#               a Profile name (must exist, directly or as the winner of a
+#               staff merge; else the row fails) = the source IS that
+#               organizer's own site or channel; "poster" = a
 #               community board, the post's author (their Telegram display
 #               name) organizes it; unset = hold the row for review. Channel
 #               titles are never used as names.
 # chat        = @username for public Telegram sources, else the dialog title
 #               (case-insensitive substring; must match exactly one dialog).
 # topic       = forum topic title (substring) for forum sources.
-# venue       = the source's default venue (exact Venue name): an event whose
+# venue       = the source's default venue (Venue name, merge-aware): an event whose
 #               post names no place and no placeholder lands there.
-# venue_run_by = the Profile (exact name) that runs that venue; set on the
+# venue_run_by = the Profile (name, merge-aware) that runs that venue; set on the
 #               venue when it has none. The profile must exist; venues never
 #               create profiles.
+#
+# Seeding: collection never creates a config-named profile or venue (a typo
+# must not make a public one). On a fresh database run
+#     uv run python manage.py seed_collector_sources
+# (idempotent; resolves merged-away names to the winner; prints what it created).
+# collect-nightly.sh runs it before collecting.
 
 [[source]]
 name = "IKSK program page"

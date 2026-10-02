@@ -171,15 +171,13 @@ def match_entities(draft: EventDraft) -> dict:
       matched_tags (list[Tag]), unmatched_tags (list[str])
     """
     from events.models import Tag
-    from venues.models import Venue
-
-    from .collected import find_profile
+    from organizers.names import find_profile, find_venue
 
     # Profile matching: exact normalized name only, never fuzzy (ADR-007 D9)
     organizer = find_profile(draft.explicit_organizer) if draft.explicit_organizer.strip() else None
 
     # Venue matching: exact only, no fuzzy fallback
-    venue = Venue.objects.filter(name__iexact=draft.venue_name).first() if draft.venue_name else None
+    venue = find_venue(draft.venue_name) if draft.venue_name else None
 
     # Tag matching: exact on slug, unmatched -> suggested_tags
     # Fetch all tags in one query and match in Python to avoid N+1.

@@ -280,6 +280,7 @@ class CollectedEventLandingTest(TestCase):
         self.assertFalse(Event.objects.exists())
 
     def test_post_announcing_several_events_lands_each(self):
+        Profile.objects.create(name="Till & Shirka", slug="till-shirka", status="approved")  # config names must exist
         raw = self._raw(
             source_type="telegram_telethon",
             channel_id="@TillTailorShirka",

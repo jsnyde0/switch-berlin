@@ -416,7 +416,7 @@ class MergeRecord(models.Model):
     winner_name = models.CharField(max_length=200)
     loser_name = models.CharField(max_length=200)
     winner_normalized = models.CharField(max_length=200)
-    loser_normalized = models.CharField(max_length=200)
+    loser_normalized = models.CharField(max_length=200, db_index=True)
     merged_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

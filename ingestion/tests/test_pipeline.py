@@ -1,8 +1,6 @@
-import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-from django.db import connection
 from django.test import TestCase
 from django.utils import timezone
 
@@ -101,11 +99,6 @@ class ExtractEventDraftTest(TestCase):
         self.assertEqual(draft.title, "Test Event")
 
 
-@unittest.skipIf(
-    connection.vendor == "sqlite",
-    "EntityMatchingTest uses TrigramSimilarity (pg_trgm / SIMILARITY SQL function) "
-    "which does not exist in SQLite. Run under default Postgres settings.",
-)
 class EntityMatchingTest(TestCase):
     def test_organizer_exact_match(self):
         from ingestion.extraction import match_entities
@@ -222,11 +215,6 @@ class ProcessRawMessageTest(TestCase):
         defaults.update(kwargs)
         return EventDraft(**defaults)
 
-    @unittest.skipIf(
-        connection.vendor == "sqlite",
-        "Calls process_raw_message which invokes match_entities (TrigramSimilarity / "
-        "pg_trgm). Not available in SQLite. Run under default Postgres settings.",
-    )
     def test_low_confidence_skips_event_creation(self):
         from ingestion.tasks import process_raw_message
 
@@ -244,11 +232,6 @@ class ProcessRawMessageTest(TestCase):
             ExtractionAttempt.objects.filter(raw_message=raw, success=False, error="low_confidence").exists()
         )
 
-    @unittest.skipIf(
-        connection.vendor == "sqlite",
-        "Calls process_raw_message which invokes match_entities (TrigramSimilarity / "
-        "pg_trgm). Not available in SQLite. Run under default Postgres settings.",
-    )
     def test_high_confidence_creates_draft_event(self):
         from ingestion.tasks import process_raw_message
 
@@ -295,11 +278,6 @@ class ProcessRawMessageTest(TestCase):
         self.assertIn("LLM boom", sf.error_message)
         self.assertEqual(sf.source_type, raw.source_type)
 
-    @unittest.skipIf(
-        connection.vendor == "sqlite",
-        "Calls process_raw_message which invokes match_entities (TrigramSimilarity / "
-        "pg_trgm). Not available in SQLite. Run under default Postgres settings.",
-    )
     def test_enrichment_failure_creates_source_failure(self):
         """When enrich_urls raises unexpectedly, a SourceFailure is created."""
         from datetime import UTC, datetime

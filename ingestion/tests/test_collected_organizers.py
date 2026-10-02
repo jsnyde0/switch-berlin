@@ -264,6 +264,7 @@ class CollectorOrganizerRuleTest(TestCase):
 
     # (8)
     def test_private_channel_artist_names_are_stored_on_a_semi_public_event(self):
+        Profile.objects.create(name="Fist Them Berlin", slug="fist-them-berlin", status="approved")
         raw = self._raw(
             source_type="telegram_private_channel",
             channel_id="-100123",
