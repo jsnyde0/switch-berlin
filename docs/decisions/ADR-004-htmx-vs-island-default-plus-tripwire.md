@@ -1,6 +1,6 @@
 # ADR-004: HTMX+Alpine as default for `/events` map surface, React island as tripwire escape hatch
 
-**Status:** Accepted — spike graduated 2026-04-20; D4 applied (HTMX code is Phase 0.4 map surface)
+**Status:** Accepted — spike graduated 2026-04-20; D4 applied (HTMX code is Phase 0.4 map surface) (revised 2026-10-02 — D1 fetch/filter split, D2 FIRM → FLEXIBLE, T1 dropped)
 **Date:** 2026-04-20
 **Design:** [Phase 0.4 HTMX map spike](../plans/2026-04-20-phase-0.4-htmx-map-spike-design.md)
 **Parent:** [ADR-001 D5](ADR-001-core-product-and-stack.md), [ADR-002 D3](ADR-002-phased-rollout-and-legal-gate.md)
@@ -25,7 +25,7 @@ Two evaluation protocols were considered: a parallel bakeoff (HTMX spike vs Reac
 
 **Firmness: FLEXIBLE** — held by evidence from the spike; revisitable if tripwires fire.
 
-Phase 0.4's map surface is built HTMX-first: vanilla MapLibre instance pinned via `hx-preserve`, filter state round-tripped through HTMX partials, cross-panel selection bridged by custom DOM events against a single `Alpine.store('map', …)`. The React island scaffold (`frontend/src/events/EventsIsland.tsx`, `django-vite`, Vite config) stays in the repo as dormant code — wiring it in later is a local refactor; deleting the capability is wasteful (ADR-002 D3).
+Phase 0.4's map surface is built HTMX-first: vanilla MapLibre instance pinned via `hx-preserve`, the server bounding each fetch (visibility, dates, padded map area, whole-day date chunks served as rendered cards) while cheap filters show/hide those server-rendered cards in the browser (revised 2026-10-02, sb-x5xh.8), cross-panel selection bridged by custom DOM events against a single `Alpine.store('map', …)`. The React island scaffold (`frontend/src/events/EventsIsland.tsx`, `django-vite`, Vite config) stays in the repo as dormant code — wiring it in later is a local refactor; deleting the capability is wasteful (ADR-002 D3).
 
 **Rationale:**
 
@@ -46,37 +46,40 @@ Any D2 tripwire firing during the Phase 0.4 spike. Or, post-1.0, a feature requi
 
 ---
 
-### D2: Tripwires — objective stop conditions that flip the decision to React island
+### D2: Tripwires — stop conditions that flip the decision to React island
 
-**Firmness: FIRM** — tripwires are the whole point; softening them defeats the design.
+**Firmness: FLEXIBLE** *(was FIRM until 2026-10-02 — the human ruled live in sb-x5xh.8 that a line count is a poor decision signal; T1 dropped, judgment trigger added)*
 
-During the Phase 0.4 spike, if **any** of the following fires, stop the HTMX path and run the React-island spike (see D3):
+While building the map surface, if **any** of the following fires, stop the HTMX path and run the React-island spike (see D3):
 
 | # | Tripwire | Measurement |
 |---|---|---|
-| T1 | Alpine + handwritten JS glue exceeds **300 LOC** across the map surface | `wc -l` on all `<script>` blocks in `templates/events/` and any JS module under `static/js/events/` |
 | T2 | Any single state-sync bug takes **>2 hours** to diagnose | Time each bug with a timer; one over-budget bug trips |
-| T3 | `hx-preserve` + `Alpine.store` pattern **fails on browser back/forward navigation** (map state lost, stale markers, double-init) | Manual QA checklist in the spike doc |
-| T4 | The glue needs to be duplicated in **≥3 unrelated templates** | Count on the final spike diff |
-| T5 | A scope item requires **`setTimeout`, manual DOM hand-syncing, or monkey-patching MapLibre internals** to work | Self-review against the spike diff before claiming done |
+| T3 | `hx-preserve` + `Alpine.store` pattern **fails on browser back/forward navigation** (map state lost, stale markers, double-init) | Manual QA checklist |
+| T4 | The glue needs to be duplicated in **≥3 unrelated templates** | Count on the diff |
+| T5 | A scope item requires **`setTimeout`, manual DOM hand-syncing, or monkey-patching MapLibre internals** to work. Alpine-declarative show/hide (`x-show`) of server-rendered cards is not hand-syncing. | Self-review against the diff before claiming done |
+| J | The approach becomes **unwieldy or performs poorly**, noticed while building | Judgment; name the symptom when raising it |
+
+**T1 (300 LOC of glue) was dropped 2026-10-02 after it had already fired:** the events JS measured 334 LOC (`map.js` 283 + `store.js` 25 + `bridge.js` 26) when the human ruled it out. The drop is not cosmetic: line count is no longer a trigger.
 
 **Rationale:**
 
-The risk of an "HTMX default" decision is that it turns into "HTMX forever" through sunk cost — the spike gets 80% there, you've already written the glue, "one more workaround" compounds until the code is a hairball no one wants to touch. Objective tripwires defuse this: each one describes a specific failure mode documented in the research (alpine-morph bugs, back/forward state loss, glue-LOC explosion). Tripwires are measured, not vibed.
+The risk of an "HTMX default" decision is that it turns into "HTMX forever" through sunk cost. The objective tripwires T2–T5 each describe a specific failure mode (back/forward state loss, hand-syncing, glue duplication, long state bugs) and stay. Line count was the one tripwire measuring size rather than a failure: the surface grew by legitimate scope (filters, clustering, privacy circles) and crossed 300 without any of the failure modes showing.
 
-300 LOC for T1 is 2× the realistic budget (80–150 LOC cited in external examples) — enough headroom that brittle false-positives are unlikely, tight enough that a genuine architectural mismatch will trigger it.
+**Counter-argument to the original FIRM rationale (2026-10-02):** the original held that softening tripwires defeats the design. That holds for the failure-mode tripwires, which stay. It does not hold for T1: a size proxy that fires on healthy growth teaches people to ignore tripwires, which is the sunk-cost path this decision exists to block. Adding judgment trigger J reintroduces the subjective gate rejected below; the human accepts that risk knowingly, with T2–T5 as the objective backstop.
 
 **Alternatives considered:**
 
 | Approach | Pros | Cons |
 |---|---|---|
-| **Objective tripwires (chosen)** | Defuses sunk-cost bias; decision is reproducible | Requires discipline to actually measure |
-| Subjective "felt tangled" gate | Matches how people actually evaluate code | Too easy to rationalize past; relitigated every week |
-| No tripwires, just ship whatever HTMX can do | Minimum ceremony | Unbounded hairball risk |
+| **Failure-mode tripwires + judgment trigger (chosen 2026-10-02)** | Fires on real failure, not size; reproducible for T2–T5 | J is easy to rationalize past — `reasoned:` mitigated by the objective T2–T5 |
+| Objective tripwires incl. T1 300 LOC (chosen 2026-04-20) | Fully measurable | `direct:` T1 fired at 334 LOC on healthy growth with no failure mode present; human ruled 2026-10-02 (sb-x5xh.8) line count a poor signal |
+| Subjective "felt tangled" gate only | Matches how people actually evaluate code | `reasoned:` too easy to rationalize past; relitigated every week |
+| No tripwires, just ship whatever HTMX can do | Minimum ceremony | `reasoned:` unbounded hairball risk |
 
 **What would invalidate this:**
 
-If after Phase 0.4 the tripwires feel either over-engineered (no tripwire ever came close) or miscalibrated (everything felt fine but a tripwire fired anyway), retune for Phase 0.5+ or retire them entirely.
+A failure mode shows up that none of T2–T5 caught (for example a hairball no single bug or template count reveals), or J is invoked and argued away more than once while the code visibly degrades. Either way: restore an objective size or complexity measure that tracks failure rather than growth.
 
 ---
 
@@ -129,7 +132,7 @@ If mid-spike the scope drifts below shipping quality (skipped tests, no privacy 
 - ADR-002 D3 is resolved — the pending decision gate is closed.
 
 **Harder:**
-- Tripwire discipline requires actually measuring (T1 LOC, T2 timer) rather than vibing. Easy to skip.
+- Tripwire discipline requires actually measuring (T2 timer, T3 checklist) rather than vibing. Easy to skip.
 - Event-bus discipline for D3's escape hatch adds ~30 LOC that wouldn't exist in a pure-HTMX-forever build.
 - If tripwires fire mid-phase, Phase 0.4 slips by ~2 days for the React-island spike.
 
