@@ -88,10 +88,7 @@ class FillGapsMergeTest(TestCase):
         events = [EventDraft(**{"title": "Bondage Jam", "start": self.start, "confidence": 0.9, **d}) for d in drafts]
         result = MagicMock()
         result.output = CollectedEvents(events=events)
-        with (
-            patch("ingestion.extraction.Agent") as MockAgent,
-            patch("ingestion.enrichment.enrich_urls", return_value={}),
-        ):
+        with patch("ingestion.extraction.Agent") as MockAgent:  # row texts carry no URL: enrichment fetches nothing
             MockAgent.return_value.run_sync.return_value = result
             process_raw_message(raw.id)
         self.extract_calls += MockAgent.return_value.run_sync.call_count
@@ -444,6 +441,127 @@ class FillGapsMergeTest(TestCase):
         }
         result, enqueued = self._ingest(row)
         self.assertEqual((result["re_read"], enqueued), (1, 1))
+
+    # -- one extraction of one row: its drafts are distinct events ----------
+
+    def test_a_post_with_two_hosted_workshops_lands_two_events_intact(self):
+        later = self.start + timedelta(hours=2)
+        raw = self._extract(
+            self._raw("@IKSKBerlin"),
+            {
+                "title": "Shibari Workshop w/ Anna",
+                "explicit_organizer": "Anna Rope",
+                "description": "Anna's floor work.",
+            },
+            {
+                "title": "Shibari Workshop w/ Bea",
+                "explicit_organizer": "Bea Knots",
+                "description": "Bea's suspension basics.",
+                "start": later,
+            },
+        )
+        events = list(Event.objects.order_by("start"))
+        self.assertEqual(len(events), 2)
+        self.assertEqual([e.description for e in events], ["Anna's floor work.", "Bea's suspension basics."])
+        self.assertEqual(self._organizers(events[0]), [("Anna Rope", True, "explicit")])
+        self.assertEqual(self._organizers(events[1]), [("Bea Knots", True, "explicit")])
+        self.assertEqual(raw.extraction_status, "extracted")
+
+    def test_a_post_with_two_events_at_one_start_and_venue_lands_two_events(self):
+        self._extract(
+            self._raw("@IKSKBerlin"),
+            {"title": "Rope Jam", "description": "Ropes.", "price_min_cents": 1000},
+            {"title": "Massage Evening", "description": "Oils.", "price_min_cents": 2500},
+        )
+        events = {e.title: e for e in Event.objects.all()}
+        self.assertEqual(set(events), {"Rope Jam", "Massage Evening"})
+        self.assertEqual((events["Rope Jam"].description, events["Rope Jam"].price_min_cents), ("Ropes.", 1000))
+        self.assertEqual(
+            (events["Massage Evening"].description, events["Massage Evening"].price_min_cents), ("Oils.", 2500)
+        )
+        self.assertEqual({e.venue for e in events.values()}, {self.iksk_venue})
+
+    # -- re-read: drafts pair one-to-one with the row's own events -----------
+
+    def _reread(self, raw, *drafts):
+        raw.text = f"{raw.text} (edited)"
+        raw.save(update_fields=["text"])
+        return self._extract(raw, *drafts)
+
+    def test_re_read_that_moves_the_date_updates_the_one_event(self):
+        raw = self._extract(self._raw(), {"title": "Rope Jam", "description": "Ropes."})
+        moved = self.start + timedelta(days=1)
+        raw = self._reread(raw, {"title": "Rope Jam", "description": "Ropes.", "start": moved})
+        event = Event.objects.get()
+        self.assertEqual(event.start, moved)
+        self.assertEqual(raw.extraction_status, "extracted")
+
+    def test_re_read_of_a_two_event_post_overwrites_per_event_only_what_this_row_wrote(self):
+        raw = self._extract(
+            self._raw("@IKSKBerlin"),
+            {"title": "Rope Jam", "description": "Ropes."},
+            {"title": "Massage Evening", "description": "Oils."},
+        )
+        Event.objects.filter(title="Massage Evening").update(description="Edited by staff.")
+        self._reread(
+            raw,
+            {"title": "Massage Evening", "description": "Warm oils."},
+            {"title": "Rope Jam", "description": "Ropes for all levels."},
+        )
+        events = {e.title: e.description for e in Event.objects.all()}
+        self.assertEqual(events, {"Rope Jam": "Ropes for all levels.", "Massage Evening": "Edited by staff."})
+
+    def test_re_read_leaves_an_event_no_draft_pairs_with_and_records_it(self):
+        raw = self._extract(
+            self._raw("@IKSKBerlin"),
+            {"title": "Rope Jam", "description": "Ropes."},
+            {"title": "Massage Evening", "description": "Oils."},
+        )
+        massage = Event.objects.get(title="Massage Evening")
+        before = self._snapshot(massage)
+        raw = self._reread(raw, {"title": "Rope Jam", "description": "Ropes!"})
+        self.assertEqual(Event.objects.count(), 2)
+        self.assertEqual(self._snapshot(massage), before)
+        self.assertTrue(raw.attempts.filter(event=massage, error="unpaired_on_re_read").exists())
+
+    def test_re_read_never_changes_a_claimed_event_even_to_move_its_date(self):
+        raw = self._extract(self._raw(), {"title": "Rope Jam"})
+        event = Event.objects.get()
+        ProfileClaim.objects.create(profile=self.iksk, user=User.objects.create_user(username="m", password="pw"))
+        before = self._snapshot(event)
+        self._reread(raw, {"title": "Rope Jam", "description": "New", "start": self.start + timedelta(days=1)})
+        self.assertEqual(Event.objects.count(), 1)
+        self.assertEqual(self._snapshot(event), before)
+
+    # -- residues: images hashed, same_listing only behind a landed event ----
+
+    def test_c_telegram_post_whose_only_change_is_a_new_flyer_is_re_read(self):
+        row = self._row("Rope Jam tonight", source_type="telegram_telethon", channel_id="@IKSKBerlin", message_id="7")
+        row["raw_payload"] = {**_IKSK, "images": [_flyer_b64()]}
+        self._ingest(row)
+        RawMessage.objects.update(
+            extraction_status="extracted"
+        )  # read once; a pending row is re-read by its queued task
+        buf = io.BytesIO()
+        Image.new("RGB", (800, 600), "navy").save(buf, "JPEG")
+        row["raw_payload"] = {**_IKSK, "images": [base64.b64encode(buf.getvalue()).decode()]}
+        result, enqueued = self._ingest(row)
+        self.assertEqual((result["re_read"], enqueued), (1, 1))
+
+    def test_c_same_text_without_images_keeps_its_hash(self):
+        from ingestion.collected import content_hash
+
+        self.assertEqual(content_hash("t", {"url_content": "u"}, []), content_hash("t", {"url_content": "u"}))
+
+    def test_d_relisting_of_a_listing_that_produced_no_event_re_enters_normally(self):
+        day = self.start.date().isoformat()
+        first = self._row("x", message_id="a", raw_payload={**_IKSK, "listing": {"date": day, "title": "Rope Jam"}})
+        self._ingest(first)
+        held = self._extract(RawMessage.objects.get(message_id="a"), {"title": "Rope Jam", "confidence": 0.2})
+        self.assertEqual(held.extraction_status, "needs_review")
+        second = self._row("y", message_id="b", raw_payload={**_IKSK, "listing": {"date": day, "title": "ROPE JAM"}})
+        result, enqueued = self._ingest(second)
+        self.assertEqual((result["created"], result["same_listing"], enqueued), (1, 0, 1))
 
     # -- (f) organizer and venue resolved before the duplicate check ----------
 

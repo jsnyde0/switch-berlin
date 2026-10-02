@@ -24,7 +24,7 @@ import logfire
 from django.contrib.postgres.search import TrigramSimilarity
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django_q.tasks import async_task
@@ -49,10 +49,16 @@ _FLYER_LONG_EDGE = 1600
 _FLYER_WEBP_QUALITY = 80
 
 
-def content_hash(text: str, enriched_payload: dict | None) -> str:
-    """The digest of what a collected row says: its text plus the link content the collector fetched."""
+def content_hash(text: str, enriched_payload: dict | None, images: list[str] = ()) -> str:
+    """The digest of what a collected row says: its text, the link content the collector fetched, its images.
+
+    A row without images keeps the digest it had before images were hashed.
+    """
     url_content = (enriched_payload or {}).get("url_content", "")
-    return hashlib.sha256(f"{text}\0{url_content}".encode()).hexdigest()
+    said = f"{text}\0{url_content}"
+    if images:
+        said += "\0" + "\0".join(hashlib.sha256(image.encode()).hexdigest() for image in images)
+    return hashlib.sha256(said.encode()).hexdigest()
 
 
 def ingest_collected_rows(rows: list[dict]) -> dict:
@@ -70,7 +76,7 @@ def ingest_collected_rows(rows: list[dict]) -> dict:
     for row in rows:
         if row["source_type"] not in COLLECTED_SOURCE_TYPES:
             raise ValueError(f"source_type {row['source_type']!r} is not a collected feed")
-        digest = content_hash(row["text"], row.get("enriched_payload"))
+        digest = content_hash(row["text"], row.get("enriched_payload"), row.get("raw_payload", {}).get("images", []))
         content = dict(
             sender_id=row.get("sender_id", ""),
             text=row["text"],
@@ -133,7 +139,9 @@ def mark_same_listing(raw) -> bool:
 
     The collector names a website row's listing as raw_payload.listing
     {date, title}. A row re-listing an earlier row is stored as a duplicate of
-    that row's event, with no extraction call. Returns True when it was.
+    that row's event, with no extraction call. An earlier listing that ended
+    without an event (needs_review, failed, skipped) does not count: the row
+    is read normally. Returns True when it was.
     """
     from events.models import Event
 
@@ -143,19 +151,26 @@ def mark_same_listing(raw) -> bool:
     if raw.source_type != "website" or not listing.get("date") or not listing.get("title"):
         return False
     key = _listing_key(listing["title"])
-    earlier = next(
-        (
-            other
-            for other in RawMessage.objects.filter(
-                source_type="website", channel_id=raw.channel_id, raw_payload__listing__date=listing["date"]
-            )
-            .exclude(id=raw.id)
-            .exclude(extraction_error="same_listing")
+    earlier, event = None, None
+    for other in (
+        RawMessage.objects.filter(
+            source_type="website", channel_id=raw.channel_id, raw_payload__listing__date=listing["date"]
+        )
+        .exclude(id=raw.id)
+        .exclude(extraction_error="same_listing")
+        .order_by("id")
+    ):
+        if _listing_key(other.raw_payload["listing"].get("title", "")) != key:
+            continue
+        landed = (
+            Event.objects.filter(extraction_attempts__raw_message=other)
+            .exclude(status__in=["rejected", "cancelled"])
             .order_by("id")
-            if _listing_key(other.raw_payload["listing"].get("title", "")) == key
-        ),
-        None,
-    )
+            .first()
+        )
+        if landed is not None or other.extraction_status == "pending":  # a pending row may still land one
+            earlier, event = other, landed
+            break
     if earlier is None:
         return False
     raw.extraction_status, raw.extraction_error = "duplicate", "same_listing"
@@ -165,7 +180,7 @@ def mark_same_listing(raw) -> bool:
         model_name="none",
         prompt_version="same_listing",
         raw_response={"same_listing_as": earlier.id},
-        event=Event.objects.filter(raw_message=earlier).order_by("id").first(),
+        event=event,
         error="same_listing",
     )
     logfire.info("collected.same_listing", raw_message_id=raw.id, same_as=earlier.id)
@@ -445,16 +460,18 @@ def _explicit_ids(event) -> set[int]:
     return {row.profile_id for row in event.event_organizer_set.all() if not _provisional(row, owned)}
 
 
-def find_duplicate(raw, title: str, start, time_known: bool, venue, explicit: set[int], explicit_named: bool):
+def find_duplicate(
+    title: str, start, time_known: bool, venue, explicit: set[int], explicit_named: bool, taken: set[int] = frozenset()
+):
     """The live event on the same Berlin day that is this event, or None (sb-x5xh.2 ruling (d)).
 
     Same event when the titles are similar, or when both start at the same
     known time and share an explicit organizer or the venue; never when both
-    name explicit organizers and the two sets share none. `explicit` holds the
-    draft's explicit organizers that already have a profile; `explicit_named`
-    says whether it names any. The event this row landed itself comes first,
-    and the organizer exclusion keeps sources apart, never a row from its own
-    event: a re-read naming a new host is the same listing.
+    name explicit organizers and the two sets share none, with no exception.
+    `explicit` holds the draft's explicit organizers that already have a
+    profile; `explicit_named` says whether it names any. `taken` holds the
+    events other drafts of the same extraction landed on: drafts of one
+    extraction are distinct events.
     """
     from events.models import Event
 
@@ -462,13 +479,14 @@ def find_duplicate(raw, title: str, start, time_known: bool, venue, explicit: se
     candidates = (
         Event.objects.exclude(status__in=["rejected", "cancelled"])
         .filter(start__date=day)
+        .exclude(id__in=taken)
         .annotate(sim=TrigramSimilarity("title", title))
         .prefetch_related("event_organizer_set")
     )
 
     def same(event) -> bool:
         theirs = _explicit_ids(event)
-        if explicit_named and theirs and not theirs & explicit and event.raw_message_id != raw.id:
+        if explicit_named and theirs and not theirs & explicit:
             return False
         if event.sim >= _DUPLICATE_TITLE_SIMILARITY:
             return True
@@ -477,26 +495,62 @@ def find_duplicate(raw, title: str, start, time_known: bool, venue, explicit: se
         return bool(theirs & explicit) or (venue is not None and event.venue_id == venue.id)
 
     matches = [event for event in candidates if same(event)]
-    return min(matches, key=lambda e: (e.raw_message_id != raw.id, -e.sim, e.id), default=None)
+    return min(matches, key=lambda e: (-e.sim, e.id), default=None)
 
 
-def _previous_reading(raw, event) -> dict | None:
-    """What this row said about `event` last time it landed it, or None when another row landed it."""
+def _similarity(a: str, b: str) -> float:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT similarity(%s, %s)", [a, b])
+        return cursor.fetchone()[0]
+
+
+def pair_with_own_events(raw, drafts) -> tuple[dict, list]:
+    """Pair a re-read's drafts one-to-one with the events this row landed before (sb-7wzb.16 ruling 3).
+
+    Returns ({draft index: (event, what this row said about it last time)},
+    [own events no draft pairs with]). A draft pairs by title similarity with
+    the event's title or the row's last reading of it, on any day: a re-read
+    may move the date.
+    """
+    from events.models import Event
+
     from .models import ExtractionAttempt
+    from .schemas import EventDraft
 
-    if event.raw_message_id != raw.id:
-        return None
-    attempt = ExtractionAttempt.objects.filter(raw_message=raw, event=event, success=True).order_by("-id").first()
-    return attempt.extracted_draft if attempt else None
+    own = {}
+    for event in Event.objects.filter(raw_message=raw).exclude(status__in=["rejected", "cancelled"]).order_by("id"):
+        attempt = (
+            ExtractionAttempt.objects.filter(raw_message=raw, event=event)
+            .exclude(extracted_draft={})
+            .order_by("-id")
+            .first()
+        )
+        own[event.id] = (event, EventDraft.model_validate(attempt.extracted_draft) if attempt else None)
+    scored = sorted(
+        (
+            -max(_similarity(draft.title, event.title), _similarity(draft.title, said.title) if said else 0),
+            i,
+            event_id,
+        )
+        for i, draft in enumerate(drafts)
+        for event_id, (event, said) in own.items()
+    )
+    pairs = {}
+    for score, i, event_id in scored:
+        if -score >= _DUPLICATE_TITLE_SIMILARITY and i not in pairs and event_id in own:
+            pairs[i] = own.pop(event_id)
+    return pairs, [event for event, _ in own.values()]
 
 
-def fill_gaps(event, raw, draft, matched, names, attribution, flyer, written_files) -> list[str]:
+def fill_gaps(event, raw, draft, matched, names, attribution, flyer, written_files, before=None) -> list[str]:
     """Fill the kept event's weaker fields from a matching draft; return the fields filled (sb-7wzb.16).
 
-    A field is weaker when empty, or, on the event this same row landed, when
-    it still holds what the row said last time (the source updated itself,
-    nobody edited it since). A filled field is never overwritten otherwise. An
-    explicit organizer replaces the provisional publisher row; explicit sets
+    A field is weaker when empty, or, on an event this row's re-read paired
+    with, when it still holds what `before` (this row's last reading of that
+    event) said: the source updated itself, nobody edited it since. Only then
+    may the title and the date change too. A filled field is never
+    overwritten otherwise. An explicit organizer replaces the provisional
+    publisher row and the organizers this row named last time; explicit sets
     are united, one row per profile. A frozen event (collector_owned False)
     never changes.
     """
@@ -504,22 +558,32 @@ def fill_gaps(event, raw, draft, matched, names, attribution, flyer, written_fil
 
     if not collector_owned(event):
         return []
-    before = _previous_reading(raw, event)
 
     def weaker(current, said_before) -> bool:
         return current in ("", None, (None, None, False)) or (before is not None and current == said_before)
 
-    said = before or {}
+    def said(field):
+        return getattr(before, field) if before is not None else None
+
     columns = {}  # model field -> new value
     for field in ("description", "external_url"):
         new = getattr(draft, field) or ""
-        if new and new != getattr(event, field) and weaker(getattr(event, field), said.get(field) or ""):
+        if new and new != getattr(event, field) and weaker(getattr(event, field), said(field) or ""):
             columns[field] = new
     price_fields = ("price_min_cents", "price_max_cents", "is_free")
     price = tuple(getattr(draft, f) for f in price_fields)
     current = tuple(getattr(event, f) for f in price_fields)
-    if price != (None, None, False) and price != current and weaker(current, tuple(said.get(f) for f in price_fields)):
+    if price != (None, None, False) and price != current and weaker(current, tuple(map(said, price_fields))):
         columns.update(zip(price_fields, price, strict=True))
+    date_fields = ("start", "end", "start_time_unknown")
+    if before is not None:
+        if draft.title != event.title and event.title == before.title:
+            columns["title"] = draft.title
+        date = (_aware(draft.start), _aware(draft.end) if draft.end else None, draft.start_time_unknown)
+        was = (_aware(before.start), _aware(before.end) if before.end else None, before.start_time_unknown)
+        current = tuple(getattr(event, f) for f in date_fields)
+        if date != current and current == was:
+            columns.update(zip(date_fields, date, strict=True))
     if not event.suggested_tags and matched["unmatched_tags"]:
         columns["suggested_tags"] = matched["unmatched_tags"]
     if event.venue_id is None or not event.location_note:
@@ -532,7 +596,7 @@ def fill_gaps(event, raw, draft, matched, names, attribution, flyer, written_fil
         setattr(event, field, value)
     if columns:
         event.save(update_fields=list(columns))
-    filled = ["price" if f in price_fields else f for f in columns]
+    filled = ["price" if f in price_fields else "date" if f in date_fields else f for f in columns]
     filled = list(dict.fromkeys(filled))
     if not event.tags.exists() and matched["matched_tags"]:
         event.tags.set(matched["matched_tags"])
@@ -540,7 +604,10 @@ def fill_gaps(event, raw, draft, matched, names, attribution, flyer, written_fil
 
     if attribution == "explicit":
         owned_rows = list(event.event_organizer_set.all())
-        if all(_provisional(row, True) for row in owned_rows):
+        named_before = set()
+        if before is not None:
+            named_before = {p.id for p in map(find_profile, organizer_names(raw, before)[0]) if p}
+        if all(_provisional(row, True) or row.profile_id in named_before for row in owned_rows):
             EventOrganizer.objects.filter(id__in=[row.id for row in owned_rows]).delete()
             credit_people(event, raw, names, attribution, [])
             filled.append("organizers")
@@ -624,6 +691,7 @@ def process_collected_row(raw, enriched: dict) -> None:
     from django.conf import settings
 
     from .extraction import COLLECTED_PROMPT_VERSION, extract_collected_events, match_entities
+    from .models import ExtractionAttempt
 
     images = raw.raw_payload.get("images", [])
     drafts = extract_collected_events(raw.text, images, enriched)
@@ -638,8 +706,10 @@ def process_collected_row(raw, enriched: dict) -> None:
                 raw.raw_payload = {k: v for k, v in raw.raw_payload.items() if k != "images"}
                 raw.save(update_fields=["raw_payload"])
 
+            pairs, unpaired = pair_with_own_events(raw, drafts)
+            taken: set[int] = set()
             outcomes = []
-            for draft in drafts:
+            for i, draft in enumerate(drafts):
                 draft_json = draft.model_dump(mode="json")
                 attempt_kwargs = dict(
                     raw_message=raw,
@@ -649,8 +719,19 @@ def process_collected_row(raw, enriched: dict) -> None:
                     extracted_draft=draft_json,
                     confidence_score=draft.confidence,
                 )
-                landed = land_collected_event(raw, draft, match_entities(draft), attempt_kwargs, flyer, written_files)
+                landed = land_collected_event(
+                    raw, draft, match_entities(draft), attempt_kwargs, flyer, written_files, pairs.get(i), taken
+                )
                 outcomes.append(landed)
+            for event in unpaired:  # left as it is: a re-read never deletes
+                ExtractionAttempt.objects.create(
+                    raw_message=raw,
+                    model_name=settings.LLM_MODEL_NAME,
+                    prompt_version=COLLECTED_PROMPT_VERSION,
+                    raw_response={},
+                    event=event,
+                    error="unpaired_on_re_read",
+                )
 
             status, error = min(outcomes, key=lambda o: _OUTCOME_RANK.index(o[0]))
             raw.extraction_status, raw.extraction_error = status, error
@@ -688,13 +769,23 @@ def _record(attempt_kwargs, status, error="", event=None, success=False) -> tupl
 
 
 def land_collected_event(
-    raw, draft, matched, attempt_kwargs, flyer: bytes | None = None, written_files: list[str] | None = None
+    raw,
+    draft,
+    matched,
+    attempt_kwargs,
+    flyer: bytes | None = None,
+    written_files: list[str] | None = None,
+    paired: tuple | None = None,
+    taken: set[int] | None = None,
 ) -> tuple[str, str]:
     """Land one extracted event: skipped, held, duplicate, draft or published. Returns (outcome, reason).
 
     A newly landed event takes `flyer` (downsized bytes) as its cover, its stored
     name appended to `written_files`; a duplicate fills its gaps (fill_gaps),
-    a cover only when it has none.
+    a cover only when it has none. `paired` = (event, this row's last reading
+    of it) when a re-read paired this draft with an event the row landed
+    before: that event is updated in place. The event landed on joins `taken`,
+    so no other draft of the same extraction lands on it.
     """
     from events.models import Event
     from syndication.authz import collector_may_publish
@@ -715,22 +806,30 @@ def land_collected_event(
     if not names:
         return _record(attempt_kwargs, "needs_review", attribution)
 
+    taken = set() if taken is None else taken
+    if paired is not None:
+        event, before = paired
+        taken.add(event.id)
+        fill_gaps(event, raw, draft, matched, names, attribution, flyer, written_files, before=before)
+        return _record(attempt_kwargs, "extracted", "re_read", event=event, success=True)
+
     # Organizer and venue resolve before the duplicate check, looked up only:
     # nothing is created for an event that turns out to exist (sb-7wzb.16 (f)).
     explicit = {p.id for p in map(find_profile, names) if p} if attribution == "explicit" else set()
     known_venue, _ = resolve_place(raw, draft, create=False)
     duplicate = find_duplicate(
-        raw,
         draft.title,
         start,
         time_known=not draft.start_time_unknown,
         venue=known_venue,
         explicit=explicit,
         explicit_named=attribution == "explicit",
+        taken=taken,
     )
     if duplicate is not None:
+        taken.add(duplicate.id)
         filled = fill_gaps(duplicate, raw, draft, matched, names, attribution, flyer, written_files)
-        if duplicate.raw_message_id == raw.id:  # this row's own event, read again
+        if duplicate.raw_message_id == raw.id:  # an event this row landed before, no draft paired with it
             return _record(attempt_kwargs, "extracted", "re_read", event=duplicate, success=True)
         reason = f"duplicate (filled: {', '.join(filled)})" if filled else "duplicate"
         return _record(attempt_kwargs, "duplicate", reason, event=duplicate)
@@ -762,4 +861,5 @@ def land_collected_event(
         event.status = "published"
         event.published_at = timezone.now()
         event.save(update_fields=["status", "published_at"])
+    taken.add(event.id)
     return _record(attempt_kwargs, "extracted", event=event, success=True)
