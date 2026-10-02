@@ -401,6 +401,13 @@ class Event(models.Model):
         ~30 call sites (templates, views, admin, ingestion, tests) continue
         working without modification.
         """
+        # Read the prefetched rows when the caller prefetched event_organizer_set
+        # (list views); .get() would bypass the cache and query once per event.
+        if "event_organizer_set" in getattr(self, "_prefetched_objects_cache", {}):
+            for eo in self.event_organizer_set.all():
+                if eo.is_primary:
+                    return eo.profile
+            return None
         try:
             return self.event_organizer_set.get(is_primary=True).profile
         except EventOrganizer.DoesNotExist:
