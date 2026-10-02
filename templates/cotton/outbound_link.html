@@ -1,0 +1,11 @@
+{% comment %}
+  Every link that leaves Switch renders here (ADR-007 D11), so click analytics
+  can be added in one place. <c-outbound-link href="..." class="...">label</c-outbound-link>
+{% endcomment %}
+<c-vars href class="" label="" />
+<a href="{{ href }}"
+   target="_blank"
+   rel="noopener noreferrer"
+   class="{{ class }}"
+   {% if label %}aria-label="{{ label }}"{% endif %}
+   {{ attrs }}>{{ slot }}</a>

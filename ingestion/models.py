@@ -110,6 +110,11 @@ class ExtractionAttempt(models.Model):
     confidence_score = models.FloatField(null=True, blank=True)
     success = models.BooleanField(default=False)
     error = models.TextField(blank=True)
+    # What the collected post is (ADR-007 D10): announcement | about_event | other; "" = not a collected read.
+    post_kind = models.CharField(max_length=20, blank=True)
+    # The collector-owned field values this attempt wrote to its event; the latest one tells a
+    # person's later edit apart from the collector's own value (ADR-007 D10).
+    wrote = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-attempted_at"]

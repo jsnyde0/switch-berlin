@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 import pydantic
 
@@ -22,16 +23,46 @@ class EventDraft(pydantic.BaseModel):
     price_min_cents: int | None = None
     price_max_cents: int | None = None
     is_free: bool = False
+    # The post's link for this event (tickets, info page); it becomes the source's link row (ADR-007 D11).
     external_url: str | None = None
     tags: list[str] = []
+    # Event.CATEGORY_CHOICES key, "" when none fits.
+    category: Literal["", "play_party", "workshop", "munch", "performance", "social", "festival", "talk", "other"] = ""
+    # in_person | online | hybrid (ADR-007 D11); an online-only event is kept wherever it is run from.
+    presence: Literal["in_person", "online", "hybrid"] = "in_person"
     confidence: float  # self-reported 0.0-1.0
     # True when the source gives the date but no start time; start is then that day at 00:00.
     start_time_unknown: bool = False
-    # False when the event happens outside Berlin and its surroundings, or only online.
+    # When the post says the event moved: the start it had before (finds the event under its old date).
+    moved_from: datetime | None = None
+    # False when an in-person event happens outside Berlin and its surroundings.
     in_berlin_area: bool = True
 
 
-class CollectedEvents(pydantic.BaseModel):
-    """Every event one collected post announces, read from its text and images; empty = not an event."""
+PostKind = Literal["announcement", "about_event", "other"]
 
+
+class CollectedEvents(pydantic.BaseModel):
+    """The events one collected post announces, read from its text and images, and what the post is (ADR-007 D10).
+
+    announcement: it announces events (a change of date, time or place announces the changed event).
+    about_event: it is about an event without announcing it (a helper call, sold-out notice, reminder,
+    recap) and returns none. other: chat, questions, no event.
+    """
+
+    post_kind: PostKind
     events: list[EventDraft]
+
+
+class Decision(pydantic.BaseModel):
+    """The consolidation call's judgement on one of the post's events (ADR-007 D10)."""
+
+    draft: int  # index into the post's events, as numbered in the request
+    same_as: int | None = None  # the existing event's id when it IS that event
+    possibly_same_as: int | None = None  # when unsure: a new event, flagged for staff against this id
+    # With same_as: the event written out in full from every announcement attached to it.
+    event: EventDraft | None = None
+
+
+class Consolidation(pydantic.BaseModel):
+    decisions: list[Decision]

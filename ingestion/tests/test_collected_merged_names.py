@@ -48,7 +48,7 @@ class CollectorMergedNamesTest(TestCase):
             }
         )
         result = MagicMock()
-        result.output = CollectedEvents(events=[draft])
+        result.output = CollectedEvents(post_kind="announcement", events=[draft])
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),
@@ -135,7 +135,7 @@ class ExtractionPromptTest(TestCase):
         from ingestion.extraction import PEOPLE_RULES, extract_collected_events, extract_event_draft
 
         with patch("ingestion.extraction.Agent") as MockAgent, patch("ingestion.extraction.router_model"):
-            MockAgent.return_value.run_sync.return_value.output = CollectedEvents(events=[])
+            MockAgent.return_value.run_sync.return_value.output = CollectedEvents(post_kind="other", events=[])
             extract_collected_events("text", [], {})
             parts = MockAgent.return_value.run_sync.call_args.args[0]
             self.assertTrue(PEOPLE_RULES.strip())

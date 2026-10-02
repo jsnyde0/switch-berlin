@@ -1,14 +1,14 @@
 """
-Find the existing event and improve it (sb-7wzb.16): a duplicate match fills the
-kept event's gaps, a re-collected row whose text changed is read again, and a
-website re-listing is caught before any extraction call.
+Copies of one collected event consolidate (ADR-007 D10, sb-7wzb.30): code finds
+candidates (dates overlap AND one more signal), one model call judges which
+existing event a draft is and writes it out in full; the event is rewritten from
+it, a person's edit never overwritten. A re-collected row whose text changed is
+read again and pairs with its own events (sb-7wzb.16); a website re-listing is
+caught before any extraction call. The model call is scripted here
+(consolidation_fakes); the real model is scored by the eval set
+(ingestion/tests/test_consolidation_eval.py).
 
-Matching rule (sb-x5xh.2 ruling (d), sb-7wzb.16 addenda): same Berlin day AND
-(similar titles OR (same start AND (same explicit organizer OR same venue))),
-never when both sides carry explicit organizers and the sets share none. A
-publisher-attributed organizer counts as absent.
-
-Postgres-only: the duplicate check runs TrigramSimilarity.
+Postgres-only: candidate finding and pairing run pg_trgm similarity.
 """
 
 import base64
@@ -20,23 +20,22 @@ from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
-from django.contrib.postgres.search import TrigramSimilarity
 from django.db import connection
-from django.db.models import Value
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
-from events.models import Event, EventArtist, EventImage, EventOrganizer
-from ingestion.collected import ingest_collected_rows
+from events.models import Event, EventArtist, EventImage, EventLink, EventOrganizer
+from ingestion.collected import _similarity, find_candidates, ingest_collected_rows
 from ingestion.models import ExtractionAttempt, RawMessage
-from ingestion.schemas import CollectedEvents, EventDraft
+from ingestion.schemas import CollectedEvents, Consolidation, Decision, EventDraft
+from ingestion.tests.consolidation_fakes import all_new, as_draft, judge, same_as_first
 from organizers.models import Profile, ProfileClaim
 from venues.models import Venue
 
 User = get_user_model()
 
-_PG_ONLY = unittest.skipIf(connection.vendor == "sqlite", "the duplicate check uses TrigramSimilarity (pg_trgm).")
+_PG_ONLY = unittest.skipIf(connection.vendor == "sqlite", "candidate finding uses pg_trgm similarity.")
 
 _BERLIN = ZoneInfo("Europe/Berlin")
 
@@ -51,7 +50,7 @@ def _flyer_b64() -> str:
 
 
 @_PG_ONLY
-class FillGapsMergeTest(TestCase):
+class ConsolidationTest(TestCase):
     @classmethod
     def setUpClass(cls):
         media = tempfile.TemporaryDirectory()
@@ -66,6 +65,8 @@ class FillGapsMergeTest(TestCase):
         self.iksk_venue = Venue.objects.create(name="IKSK", slug="iksk-venue")
         self.n = 0
         self.extract_calls = 0
+        self.decide = None  # the scripted consolidation judgement; None = no call expected
+        self.requests = []
 
     # -- helpers -----------------------------------------------------------
 
@@ -87,10 +88,15 @@ class FillGapsMergeTest(TestCase):
 
         events = [EventDraft(**{"title": "Bondage Jam", "start": self.start, "confidence": 0.9, **d}) for d in drafts]
         result = MagicMock()
-        result.output = CollectedEvents(events=events)
-        with patch("ingestion.extraction.Agent") as MockAgent:  # row texts carry no URL: enrichment fetches nothing
+        result.output = CollectedEvents(post_kind="announcement", events=events)
+        decide = self.decide or (lambda request: self.fail(f"no consolidation call expected: {request}"))
+        with (
+            patch("ingestion.extraction.Agent") as MockAgent,  # row texts carry no URL: enrichment fetches nothing
+            judge(decide) as seen,
+        ):
             MockAgent.return_value.run_sync.return_value = result
             process_raw_message(raw.id)
+        self.requests += seen
         self.extract_calls += MockAgent.return_value.run_sync.call_count
         raw.refresh_from_db()
         return raw
@@ -113,33 +119,48 @@ class FillGapsMergeTest(TestCase):
         fields["artists"] = list(event.artist_credits.values_list("name", flat=True))
         return fields
 
-    # -- (a) fill gaps -----------------------------------------------------
+    # -- (a) the same event is rewritten from all its announcements ----------
 
-    def test_a_duplicate_fills_an_empty_description_and_leaves_filled_fields_byte_identical(self):
-        _, event = self._land(external_url="https://iksk-berlin.de/bondage-jam", price_min_cents=1500)
-        before = self._snapshot(event)
-        self.assertEqual(before["description"], "")
-
+    def test_a_same_event_is_rewritten_from_the_merged_announcement(self):
+        _, event = self._land(price_min_cents=1500)
+        self.decide = lambda request: same_as_first(
+            request, description="Rope practice for all levels. Bring your own rope.", price_min_cents=2000
+        )
         raw, kept = self._land(
-            "@IKSKBerlin",
-            description="Rope practice for all levels. Bring your own rope.",
-            external_url="https://t.me/IKSKBerlin/1",
-            price_min_cents=2000,
+            "@IKSKBerlin", description="Bring your own rope.", external_url="https://t.me/IKSKBerlin/1"
         )
 
-        after = self._snapshot(event)
-        self.assertEqual(after.pop("description"), "Rope practice for all levels. Bring your own rope.")
-        before.pop("description")
-        self.assertEqual(after, before)
-        self.assertEqual(raw.extraction_status, "duplicate")
+        event.refresh_from_db()
         self.assertEqual(kept, event)
+        self.assertEqual(event.description, "Rope practice for all levels. Bring your own rope.")
+        self.assertEqual(event.price_min_cents, 2000)
+        self.assertEqual(raw.extraction_status, "duplicate")
         self.assertEqual(Event.objects.count(), 1)
+        self.assertEqual(
+            list(EventLink.objects.values_list("url", "raw_message")), [("https://t.me/IKSKBerlin/1", raw.id)]
+        )
+        self.assertEqual(event.external_url, "")  # the organizer's own field; the collector writes link rows
 
-    def test_a_duplicate_fills_price_url_tags_artists_and_cover_when_empty(self):
+    def test_a_the_judgement_sees_the_post_event_and_each_candidate_with_its_announcements(self):
+        _, event = self._land(description="Ropes.", artist_names=["Mal"])
+        self.decide = same_as_first
+        self._land("@IKSKBerlin", title="BONDAGE JAM!")
+        [request] = self.requests
+        [entry] = request
+        self.assertEqual(entry["event"]["title"], "BONDAGE JAM!")
+        [candidate] = entry["candidates"]
+        self.assertEqual(candidate["id"], event.id)
+        self.assertEqual(set(candidate["signals"]), {"host", "venue", "title"})
+        self.assertEqual(candidate["organizers"], [{"name": "IKSK", "attribution": "publisher"}])
+        self.assertEqual(candidate["artists"], ["Mal"])
+        self.assertEqual([a["description"] for a in candidate["announcements"]], ["Ropes."])
+
+    def test_a_same_event_gets_tags_artists_cover_and_link(self):
         from events.models import Tag
 
         Tag.objects.create(label="Rope", slug="rope")
         _, event = self._land()
+        self.decide = same_as_first
         self._land(
             "@IKSKBerlin",
             raw_kwargs={"raw_payload": {**_IKSK, "images": [_flyer_b64()]}},
@@ -151,36 +172,95 @@ class FillGapsMergeTest(TestCase):
         )
         event.refresh_from_db()
         self.assertEqual((event.price_min_cents, event.price_max_cents), (1500, 2500))
-        self.assertEqual(event.external_url, "https://iksk-berlin.de/jam")
+        self.assertEqual(list(event.links.values_list("url", flat=True)), ["https://iksk-berlin.de/jam"])
         self.assertEqual(list(event.tags.values_list("slug", flat=True)), ["rope"])
         self.assertEqual(list(event.artist_credits.values_list("name", flat=True)), ["Mal"])
         self.assertEqual(event.images.filter(is_cover=True).count(), 1)
 
-    def test_a_duplicate_never_adds_a_second_cover(self):
+    def test_a_same_event_never_adds_a_second_cover(self):
         _, event = self._land(raw_kwargs={"raw_payload": {**_IKSK, "images": [_flyer_b64()]}})
+        self.decide = same_as_first
         self._land("@IKSKBerlin", raw_kwargs={"raw_payload": {**_IKSK, "images": [_flyer_b64()]}})
         self.assertEqual(EventImage.objects.filter(event=event).count(), 1)
 
     def test_a_merge_is_recorded_on_the_duplicates_attempt(self):
         _, event = self._land()
+        self.decide = same_as_first
         raw, _ = self._land("@IKSKBerlin", description="Long text")
         attempt = raw.attempts.get()
         self.assertEqual(attempt.event, event)
         self.assertIn("description", attempt.error)
+        self.assertEqual(attempt.raw_response["decision"]["same_as"], event.id)
+        self.assertEqual(attempt.wrote["description"], "Long text")
+
+    def test_a_persons_edit_is_never_overwritten_by_consolidation(self):
+        _, event = self._land(description="Ropes.")
+        Event.objects.filter(pk=event.pk).update(description="Edited by staff.", price_min_cents=999)
+        self.decide = lambda request: same_as_first(request, description="Merged ropes.", price_min_cents=1500)
+        self._land("@IKSKBerlin", title="Bondage Jam (all levels)")
+        event.refresh_from_db()
+        self.assertEqual((event.description, event.price_min_cents), ("Edited by staff.", 999))
+        self.assertEqual(event.title, "Bondage Jam (all levels)")  # an unedited field is still rewritten
+
+        # The edit stays protected on every later consolidation.
+        self._land("@third", title="Bondage Jam")
+        event.refresh_from_db()
+        self.assertEqual((event.description, event.price_min_cents), ("Edited by staff.", 999))
+
+    def test_a_an_empty_merged_value_never_blanks_a_filled_field(self):
+        _, event = self._land(description="Ropes.", price_min_cents=1500)
+        self.decide = lambda request: same_as_first(request, description="", price_min_cents=None)
+        self._land("@IKSKBerlin")
+        event.refresh_from_db()
+        self.assertEqual((event.description, event.price_min_cents), ("Ropes.", 1500))
+
+    def test_a_unsure_judgement_lands_a_new_event_flagged_for_staff(self):
+        _, event = self._land()
+        self.decide = lambda request: Consolidation(
+            decisions=[Decision(draft=0, possibly_same_as=request[0]["candidates"][0]["id"])]
+        )
+        raw, new = self._land("@IKSKBerlin")
+        self.assertNotEqual(new, event)
+        self.assertEqual(new.possible_duplicate_of, event)
+        self.assertEqual(raw.extraction_status, "extracted")
+
+    def test_a_judgement_naming_a_non_candidate_fails_the_row_loudly(self):
+        self._land()
+        other = Event.objects.create(title="Elsewhere", slug="e", start=self.start + timedelta(days=9))
+        self.decide = lambda request: Consolidation(
+            decisions=[Decision(draft=0, same_as=other.id, event=as_draft(request[0]["event"]))]
+        )
+        raw = self._extract(self._raw("@IKSKBerlin"), {"description": "Copy"})
+        self.assertEqual(raw.extraction_status, "failed")
+        self.assertIn("not a candidate", raw.extraction_error)
+        self.assertEqual(Event.objects.count(), 2)
+        self.assertEqual(Event.objects.get(title="Bondage Jam").description, "")
+
+    def test_a_judgement_giving_one_event_to_two_post_events_fails_the_row(self):
+        _, event = self._land()
+        self.decide = lambda request: Consolidation(
+            decisions=[Decision(draft=e["draft"], same_as=event.id, event=as_draft(e["event"])) for e in request]
+        )
+        raw = self._extract(self._raw("@IKSKBerlin"), {"title": "Bondage Jam"}, {"title": "Bondage Jam II"})
+        self.assertEqual(raw.extraction_status, "failed")
+        self.assertIn("two post events", raw.extraction_error)
 
     # -- (b) claimed or organizer-edited events are never touched -----------
 
-    def test_b_claimed_event_never_changes_on_a_duplicate_match(self):
+    def test_b_claimed_event_never_changes_on_a_match(self):
         _, event = self._land()
         ProfileClaim.objects.create(profile=self.iksk, user=User.objects.create_user(username="m", password="pw"))
         before = self._snapshot(event)
+        self.decide = same_as_first
         raw, kept = self._land("@IKSKBerlin", description="Filled by the second source", explicit_organizer="Lu")
         self.assertEqual(self._snapshot(event), before)
         self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
+        self.assertFalse(EventLink.objects.exists())
 
-    def test_b_event_made_by_a_person_never_changes_on_a_duplicate_match(self):
+    def test_b_event_made_by_a_person_never_changes_on_a_match(self):
         event = Event.objects.create(title="Bondage Jam", slug="bj", start=self.start, status="published")
         before = self._snapshot(event)
+        self.decide = same_as_first
         raw, kept = self._land("@IKSKBerlin", description="Filled by the collector")
         self.assertEqual(self._snapshot(event), before)
         self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
@@ -188,6 +268,7 @@ class FillGapsMergeTest(TestCase):
     def test_b_wins_over_e3_claimed_event_keeps_its_publisher_organizer_row(self):
         _, event = self._land("@IKSKBerlin", title="IKSK Friday")
         ProfileClaim.objects.create(profile=self.iksk, user=User.objects.create_user(username="m", password="pw"))
+        self.decide = same_as_first
         self._land(title="Pelvic Work", explicit_organizer="Visionary Body")
         self.assertIn(("IKSK", True, "publisher"), self._organizers(event))
 
@@ -325,31 +406,84 @@ class FillGapsMergeTest(TestCase):
         result, enqueued = self._ingest(*rows)
         self.assertEqual((result["created"], result["same_listing"], enqueued), (3, 0, 3))
 
-    # -- (e) matching rule -------------------------------------------------
+    # -- (e) candidate finding: dates overlap AND one more signal --------------
 
-    def _assert_dissimilar(self, a, b):
-        sim = Event.objects.annotate(s=TrigramSimilarity(Value(a), b)).values_list("s", flat=True).first()
-        self.assertLess(sim, 0.4, f"{a!r} vs {b!r} must stay under the title threshold for this test")
+    def _candidates(self, draft_kwargs, names=("IKSK",), venue=None):
+        draft = EventDraft(**{"title": "Bondage Jam", "start": self.start, "confidence": 0.9, **draft_kwargs})
+        return {event.title: signals for event, signals in find_candidates(draft, list(names), venue)}
 
-    def test_e1_spike_pairs_match_by_same_start_and_same_venue(self):
+    def _event(self, title, start=None, end=None, organizer=None, venue=None, artists=()):
+        event = Event.objects.create(
+            title=title, slug=f"e{Event.objects.count()}", start=start or self.start, end=end, venue=venue
+        )
+        if organizer is not None:
+            EventOrganizer.objects.create(event=event, profile=organizer, is_primary=True, attribution="publisher")
+        for name in artists:
+            EventArtist.objects.create(event=event, name=name)
+        return event
+
+    def test_e_overlapping_dates_alone_never_make_a_candidate(self):
+        self._event("Massage Evening")
+        self.assertEqual(self._candidates({}, names=["Someone Else"]), {})
+
+    def test_e_each_signal_makes_a_candidate_on_overlapping_dates(self):
+        till = Profile.objects.create(name="Till & Shirka - sexpositive Workshops", slug="ts", status="approved")
+        self._event("Temple Night", organizer=till)
+        self._event("Massage Evening", venue=self.iksk_venue)
+        self._event("Cacao Ceremony", artists=["Mal"])
+        self._event("BONDAGE-JAM!")
+        found = self._candidates({"artist_names": ["Mal & Lu"]}, names=["Till & Shirka"], venue=self.iksk_venue)
+        self.assertEqual(
+            found,
+            {
+                "Temple Night": ["host"],
+                "Massage Evening": ["venue"],
+                "Cacao Ceremony": ["artist"],
+                "BONDAGE-JAM!": ["title"],
+            },
+        )
+
+    def test_e_a_shared_long_title_word_is_a_title_signal(self):
+        long_title = "Retreat at Spitzmühle near Berlin with Till and Shirka"
+        self._event(long_title)
+        self.assertLess(_similarity("Spielwiese Temple Retreat", long_title), 0.3)
+        self.assertEqual(self._candidates({"title": "Spielwiese Temple Retreat"}, names=[]), {long_title: ["title"]})
+
+    def test_e_dates_overlap_across_a_multi_day_event(self):
+        retreat = self._event("Temple Retreat", start=self.start, end=self.start + timedelta(days=3))
+        self.assertEqual(
+            self._candidates({"title": "Temple Retreat", "start": self.start + timedelta(days=2)}, names=[]),
+            {retreat.title: ["title"]},
+        )
+        self.assertEqual(
+            self._candidates({"title": "Temple Retreat", "start": self.start + timedelta(days=4)}, names=[]), {}
+        )
+
+    def test_e_a_moved_event_is_found_under_its_old_date(self):
+        self._event("Erotic Jam", start=self.start)
+        moved = {"title": "The Erotic Jam", "start": self.start - timedelta(days=1), "moved_from": self.start}
+        self.assertEqual(self._candidates(moved, names=[]), {"Erotic Jam": ["title"]})
+        self.assertEqual(self._candidates({**moved, "moved_from": None}, names=[]), {})
+
+    def test_e_rejected_and_cancelled_events_are_never_candidates(self):
+        self._event("Bondage Jam").__class__.objects.update(status="cancelled")
+        self.assertEqual(self._candidates({}), {})
+
+    def test_e1_spike_pairs_are_candidates_by_same_venue(self):
         for website, telegram in (
             ("PUSSY MASSAGE w/ Lu", "P.U.S.S.Y Massage"),
             ("GIRLS WITH COCKS w/ Micha Stella", "Girls with C**ks"),
         ):
             _, event = self._land(title=website, venue_name="IKSK")
-            self._assert_dissimilar(website, telegram)
+            self.decide = same_as_first
             raw, kept = self._land("@IKSKBerlin", title=telegram)
             self.assertEqual((raw.extraction_status, kept), ("duplicate", event), website)
+            self.decide = None
             Event.objects.all().delete()
-
-    def test_e2_different_explicit_organizers_stay_separate_even_with_similar_titles(self):
-        _, first = self._land(title="Rope Jam", explicit_organizer="Rope Club")
-        raw, second = self._land("@IKSKBerlin", title="Rope Jam!", explicit_organizer="Shibari Berlin")
-        self.assertEqual(raw.extraction_status, "extracted")
-        self.assertNotEqual(first, second)
 
     def test_e2_explicit_sets_sharing_one_profile_merge_into_one_row_per_profile(self):
         _, event = self._land(title="Rope Jam", explicit_organizer="Rope Club, Lu")
+        self.decide = same_as_first
         raw, kept = self._land("@IKSKBerlin", title="Something else", explicit_organizer="Lu & Mal")
         self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
         self.assertEqual(
@@ -367,7 +501,7 @@ class FillGapsMergeTest(TestCase):
         _, event = self._land(
             title="Pelvic Work. Das Becken II", explicit_organizer="Visionary Body", venue_name="IKSK"
         )
-        self._assert_dissimilar("Pelvic Work. Das Becken II", "Friday at IKSK")
+        self.decide = lambda request: same_as_first(request, title="Pelvic Work. Das Becken II")
         raw, kept = self._land("@IKSKBerlin", title="Friday at IKSK")
         self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
         event.refresh_from_db()
@@ -376,6 +510,7 @@ class FillGapsMergeTest(TestCase):
     def test_e3_explicit_host_replaces_the_publisher_row_on_the_telegram_copy(self):
         _, event = self._land("@IKSKBerlin", title="Friday at IKSK")
         self.assertEqual(self._organizers(event), [("IKSK", True, "publisher")])
+        self.decide = same_as_first
         raw, kept = self._land(
             title="Pelvic Work. Das Becken II", explicit_organizer="Visionary Body", venue_name="IKSK"
         )
@@ -386,6 +521,7 @@ class FillGapsMergeTest(TestCase):
     def test_e3_blank_attribution_on_a_collected_unclaimed_event_counts_as_publisher(self):
         _, event = self._land("@IKSKBerlin", title="Friday at IKSK")
         EventOrganizer.objects.filter(event=event).update(attribution="")  # collected before 7d39889
+        self.decide = same_as_first
         self._land(title="Pelvic Work", explicit_organizer="Visionary Body")
         event.refresh_from_db()
         self._assert_e3(event)
@@ -405,25 +541,26 @@ class FillGapsMergeTest(TestCase):
         self.assertEqual(self._snapshot(event), before)
         self.assertEqual(raw.extraction_status, "extracted")
 
-    def test_e3_blank_attribution_on_a_persons_event_counts_as_explicit(self):
+    def test_e3_a_persons_event_shows_its_organizer_as_set_by_a_person(self):
         Event.objects.create(title="Rope Jam", slug="rj", start=self.start, status="published", organizer=self.iksk)
+        self.decide = all_new
         raw, _ = self._land(title="Rope Jam", explicit_organizer="Shibari Berlin")
         self.assertEqual(raw.extraction_status, "extracted")
         self.assertEqual(Event.objects.count(), 2)
+        [[entry]] = self.requests
+        self.assertEqual(entry["candidates"][0]["organizers"], [{"name": "IKSK", "attribution": "set by a person"}])
 
-    def test_e4_no_explicit_organizer_and_no_venue_matches_by_title_only(self):
+    def test_e4_no_shared_signal_means_no_consolidation_call(self):
         payload = {"default_organizer": "IKSK"}  # no default venue
         _, first = self._land(payload=payload, title="Rope Jam")
-        raw, _ = self._land("@other", payload=payload, title="Massage Evening")
+        raw, _ = self._land(
+            "@other", payload={"default_organizer": "poster", "poster": "Anna"}, title="Massage Evening"
+        )
         self.assertEqual(raw.extraction_status, "extracted")
+        self.assertEqual(self.requests, [])
+        self.decide = same_as_first
         raw, kept = self._land("@third", payload=payload, title="ROPE JAM")
         self.assertEqual((raw.extraction_status, kept), ("duplicate", first))
-
-    def test_e_same_start_needs_a_known_time(self):
-        midnight = self.start.replace(hour=0)
-        self._land(title="Rope Jam", start=midnight, start_time_unknown=True)
-        raw, _ = self._land("@IKSKBerlin", title="Massage Evening", start=midnight, start_time_unknown=True)
-        self.assertEqual(raw.extraction_status, "extracted")
 
     def test_e5_needs_review_row_is_never_a_candidate_and_re_enters_when_changed(self):
         held, _ = self._land(title="Rope Jam", confidence=0.2)
@@ -553,9 +690,9 @@ class FillGapsMergeTest(TestCase):
             {"title": "Shibari Workshop w/ Bea", "description": "B."},
         )
         anna, bea = (Event.objects.get(title__endswith=n) for n in ("Anna", "Bea"))
-        with patch("ingestion.collected.find_duplicate", return_value=None) as spy:
+        with patch("ingestion.collected.find_candidates", return_value=[]) as spy:
             self._reread(raw, {"title": "Shibari Workshop", "description": "New"})
-        self.assertEqual(spy.call_count, 1)  # not paired: it went through the duplicate rule
+        self.assertEqual(spy.call_count, 1)  # not paired: it went through candidate finding
         self.assertEqual(Event.objects.count(), 3)
         self.assertTrue(raw.attempts.filter(event=anna, error="unpaired_on_re_read").exists())
         self.assertTrue(raw.attempts.filter(event=bea, error="unpaired_on_re_read").exists())
@@ -579,6 +716,7 @@ class FillGapsMergeTest(TestCase):
         board = {"default_organizer": "poster", "venue": "IKSK"}
         _, event = self._land("@board", {**board, "poster": "Anna Berg"}, title="Rope Jam", venue_name="IKSK")
         self.assertEqual(self._organizers(event), [("Anna Berg", True, "poster")])
+        self.decide = same_as_first
         raw, kept = self._land("@board2", {**board, "poster": "Bea Roth"}, title="Rope Jam", venue_name="IKSK")
         self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
         self.assertEqual(Event.objects.count(), 1)
@@ -586,6 +724,7 @@ class FillGapsMergeTest(TestCase):
     def test_explicit_organizer_replaces_a_poster_row_on_merge(self):
         board = {"default_organizer": "poster", "venue": "IKSK", "poster": "Anna Berg"}
         _, event = self._land("@board", board, title="Rope Jam", venue_name="IKSK")
+        self.decide = same_as_first
         self._land("@IKSKBerlin", title="Rope Jam", explicit_organizer="Visionary Body", venue_name="IKSK")
         self.assertEqual(self._organizers(event), [("Visionary Body", True, "explicit")])
 
@@ -619,18 +758,32 @@ class FillGapsMergeTest(TestCase):
         result, enqueued = self._ingest(second)
         self.assertEqual((result["created"], result["same_listing"], enqueued), (1, 0, 1))
 
-    # -- (f) organizer and venue resolved before the duplicate check ----------
+    # -- (f) organizer and venue resolved before candidate finding, looked up only --
 
-    def test_f_duplicate_check_receives_resolved_venue_and_organizer_ids(self):
+    def test_f_candidate_finding_receives_the_organizer_names_and_the_resolved_venue(self):
         Profile.objects.create(name="Visionary Body", slug="vb", status="approved")
-        with patch("ingestion.collected.find_duplicate", return_value=None) as spy:
+        with patch("ingestion.collected.find_candidates", return_value=[]) as spy:
             self._land(title="Pelvic Work", explicit_organizer="Visionary Body", venue_name="IKSK")
-        kwargs = spy.call_args.kwargs
-        self.assertEqual(kwargs["venue"], self.iksk_venue)
-        self.assertEqual(kwargs["explicit"], {Profile.objects.get(name="Visionary Body").id})
+        names, venue = spy.call_args.args[1:3]
+        self.assertEqual((names, venue), (["Visionary Body"], self.iksk_venue))
 
-    def test_f_a_duplicate_creates_no_profile_or_venue_it_does_not_use(self):
+    def test_f_candidate_finding_creates_no_profile_or_venue(self):
         _, event = self._land(title="Rope Jam", explicit_organizer="Rope Club", venue_name="IKSK")
+        self.decide = lambda request: same_as_first(request, venue_name="IKSK", explicit_organizer="Rope Club")
         self._land("@IKSKBerlin", title="Rope Jam", venue_name="Somewhere New")
         self.assertFalse(Venue.objects.filter(name="Somewhere New").exists())
         self.assertEqual(EventArtist.objects.count(), 0)
+
+    # -- re-read whose event other posts also announce: the judgement merges ----
+
+    def test_re_read_of_an_event_other_posts_announce_goes_through_the_judgement(self):
+        raw, event = self._land(description="Ropes.")
+        self.decide = same_as_first
+        self._land("@IKSKBerlin", description="Ropes and tea.")
+        self.requests.clear()
+        self.decide = lambda request: same_as_first(request, description="Ropes, tea and cake.")
+        self._reread(raw, {"title": "Bondage Jam", "description": "Ropes and cake."})
+        [[entry]] = self.requests
+        self.assertEqual(entry["is"], event.id)
+        self.assertEqual([a["description"] for a in entry["candidates"][0]["announcements"]], ["Ropes and tea."])
+        self.assertEqual(Event.objects.get().description, "Ropes, tea and cake.")

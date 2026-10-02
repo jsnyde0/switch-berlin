@@ -59,7 +59,7 @@ class CollectorOrganizerRuleTest(TestCase):
 
         draft = EventDraft(**{"title": "Bondage Jam", "start": self.start, "confidence": 0.9, **draft_kwargs})
         result = MagicMock()
-        result.output = CollectedEvents(events=[draft])
+        result.output = CollectedEvents(post_kind="announcement", events=[draft])
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),

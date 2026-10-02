@@ -11,6 +11,7 @@ th{background:#f0f0f0} code{font-size:12px;color:#666}
 noscript,.offline{color:#a00}
 </style></head><body>
 <h1>How an event gets collected</h1>
+<p><strong>Snapshot from before sb-7wzb.16 and sb-7wzb.30.</strong> Gate 2 is no longer a title rule: copies of one event consolidate by model judgement over code-found candidates (ADR-007 D10), and a match rewrites the kept event instead of dropping the second copy's fields.</p>
 <p>This page shows how an event announcement travels from a website or Telegram channel to the public events list. It focuses on the two places where the system decides two posts are the same thing. Read it to reason about how matching and de-duplication should work.</p>
 <p class="offline" id="off" hidden>The diagrams need internet to load. The same content is in collector-pipeline.md.</p>
 <h2>A. The journey of one post</h2>

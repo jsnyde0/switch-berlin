@@ -61,7 +61,7 @@ class CollectedVenueTest(TestCase):
         )
         draft.update(draft_kwargs)
         result = MagicMock()
-        result.output = CollectedEvents(events=[EventDraft(**draft)])
+        result.output = CollectedEvents(post_kind="announcement", events=[EventDraft(**draft)])
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),
@@ -201,7 +201,7 @@ class CollectedVenueTest(TestCase):
             title="Linked", explicit_organizer="IKSK", start=self.start, confidence=0.9, venue_name="Wandel-Raum"
         )
         result = MagicMock()
-        result.output = CollectedEvents(events=[draft])
+        result.output = CollectedEvents(post_kind="announcement", events=[draft])
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),

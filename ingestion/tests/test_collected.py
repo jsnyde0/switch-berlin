@@ -24,6 +24,7 @@ from PIL import Image
 from events.models import Event, EventImage
 from ingestion.models import ExtractionAttempt, RawMessage
 from ingestion.schemas import CollectedEvents, EventDraft
+from ingestion.tests.consolidation_fakes import judge, same_as_first
 from organizers.models import Profile, ProfileClaim
 from syndication.models import IdentityToken
 
@@ -135,6 +136,7 @@ class CollectedEventLandingTest(TestCase):
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),
+            judge(same_as_first),  # a candidate is the same event
         ):
             MockAgent.return_value.run_sync.return_value = result
             process_raw_message(raw.id)
@@ -146,7 +148,7 @@ class CollectedEventLandingTest(TestCase):
 
         raw = self._raw(enriched_payload={"url_content": "COLLECTOR PAGE TEXT"})
         result = MagicMock()
-        result.output = CollectedEvents(events=[self._draft()])
+        result.output = CollectedEvents(post_kind="announcement", events=[self._draft()])
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={"url_content": "ENRICHED LINK TEXT"}),
@@ -167,7 +169,7 @@ class CollectedEventLandingTest(TestCase):
             self.sent_prompt = prompt
             description = link_text if link_text and link_text in prompt else ""
             result = MagicMock()
-            result.output = CollectedEvents(events=[self._draft(description=description)])
+            result.output = CollectedEvents(post_kind="announcement", events=[self._draft(description=description)])
             return result
 
         with (
@@ -190,9 +192,9 @@ class CollectedEventLandingTest(TestCase):
         self.assertIn("never write one yourself", self.sent_prompt)
         self.assertIn(prose, self.sent_prompt)
         self.assertEqual(event.description, prose)
-        self.assertEqual(COLLECTED_PROMPT_VERSION, "collected-v5")
+        self.assertEqual(COLLECTED_PROMPT_VERSION, "collected-v6")
         attempt = ExtractionAttempt.objects.get(raw_message=raw)
-        self.assertEqual(attempt.prompt_version, "collected-v5")
+        self.assertEqual(attempt.prompt_version, "collected-v6")
 
     def test_row_without_prose_lands_an_empty_description(self):
         raw = self._raw(enriched_payload={})
@@ -201,7 +203,11 @@ class CollectedEventLandingTest(TestCase):
 
     def _process(self, raw, **draft_kwargs):
         draft = self._draft(**draft_kwargs)
-        output = draft if raw.source_type == "telegram_bot_forward" else CollectedEvents(events=[draft])
+        output = (
+            draft
+            if raw.source_type == "telegram_bot_forward"
+            else CollectedEvents(post_kind="announcement", events=[draft])
+        )
         self._run(raw, output)
         return raw
 
@@ -273,7 +279,7 @@ class CollectedEventLandingTest(TestCase):
             text="Anyone for a taxi?",
             raw_payload={"source": "SeQret", "images": ["aGVsbG8="]},
         )
-        self._run(raw, CollectedEvents(events=[]))
+        self._run(raw, CollectedEvents(post_kind="other", events=[]))
         self.assertEqual((raw.extraction_status, raw.extraction_error), ("skipped", "not_event"))
         self.assertEqual((raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id), ("", {}, {}, ""))
         self.assertEqual(raw.message_id, "m1")  # the bare id stays so a re-collect does not re-extract
@@ -291,7 +297,7 @@ class CollectedEventLandingTest(TestCase):
             self._draft(title="Shibari Basics", start=self.start + timedelta(days=1)),
             self._draft(title="Old Workshop", start=timezone.now() - timedelta(days=2)),
         ]
-        self._run(raw, CollectedEvents(events=drafts))
+        self._run(raw, CollectedEvents(post_kind="announcement", events=drafts))
         titles = set(Event.objects.filter(raw_message=raw).values_list("title", flat=True))
         self.assertEqual(titles, {"Tantra Evening", "Shibari Basics"})
         self.assertEqual(Profile.objects.filter(name="Till & Shirka").count(), 1)  # one organizer, not one per event
@@ -308,7 +314,7 @@ class CollectedEventLandingTest(TestCase):
             text="THURSDAY 1.10.26",
             raw_payload={"default_organizer": "IKSK", "images": [flyer, back]},
         )
-        agent = self._run(raw, CollectedEvents(events=[self._draft()]))
+        agent = self._run(raw, CollectedEvents(post_kind="announcement", events=[self._draft()]))
         (parts,), _ = agent.return_value.run_sync.call_args
         self.assertIn("THURSDAY 1.10.26", parts[0])
         self.assertEqual(
@@ -357,6 +363,38 @@ class CollectedEventLandingTest(TestCase):
         raw = self._process(self._raw(), in_berlin_area=False)
         self.assertEqual((raw.extraction_status, raw.extraction_error), ("skipped", "not_berlin"))
         self.assertFalse(Event.objects.exists())
+
+    def test_online_only_event_is_kept_without_a_venue(self):
+        from venues.models import Venue
+
+        Venue.objects.create(name="IKSK", slug="iksk")
+        raw = self._raw(raw_payload={"default_organizer": "IKSK", "venue": "IKSK"})
+        self._process(raw, presence="online", in_berlin_area=False, venue_name="Zoom", category="talk")
+        event = Event.objects.get(raw_message=raw)
+        self.assertEqual((event.presence, event.venue, event.location_note), ("online", None, "Zoom"))
+        self.assertEqual((event.category, event.timezone, event.status), ("talk", "Europe/Berlin", "published"))
+
+    def test_a_post_about_an_event_that_announces_none_is_wiped_with_its_kind(self):
+        raw = self._raw(text="We lost some helpers from our Retreat-Team and would love one more person.")
+        self._run(raw, CollectedEvents(post_kind="about_event", events=[]))
+        self.assertEqual((raw.extraction_status, raw.extraction_error, raw.text), ("skipped", "not_event", ""))
+        self.assertEqual(raw.attempts.get().post_kind, "about_event")
+        self.assertFalse(Event.objects.exists())
+
+    def test_the_posts_link_becomes_a_link_row_of_its_source(self):
+        raw = self._process(self._raw(), external_url="https://www.eventbrite.com/e/ecstatikink-1010-tickets-1")
+        event = Event.objects.get(raw_message=raw)
+        [link] = event.links.all()
+        self.assertEqual(
+            (link.url, link.raw_message, link.site),
+            ("https://www.eventbrite.com/e/ecstatikink-1010-tickets-1", raw, "eventbrite.com"),
+        )
+        self.assertEqual(event.external_url, "")
+        self.assertEqual(raw.attempts.get().post_kind, "announcement")
+
+    def test_a_link_that_is_not_a_url_is_left_out(self):
+        raw = self._process(self._raw(), external_url="see bio")
+        self.assertFalse(Event.objects.get(raw_message=raw).links.exists())
 
     def _flyer_raw(self, *images, **kwargs):
         return self._raw(
@@ -425,7 +463,7 @@ class CollectedEventLandingTest(TestCase):
             self._draft(title="Bondage Jam"),
             self._draft(title="Rope Social", start=self.start + timedelta(days=1)),
         ]
-        self._run(raw, CollectedEvents(events=drafts))
+        self._run(raw, CollectedEvents(post_kind="announcement", events=drafts))
         self.assertEqual(
             sorted(EventImage.objects.filter(is_cover=True).values_list("event__title", flat=True)),
             ["Bondage Jam", "Rope Social"],
@@ -461,7 +499,7 @@ class CollectedEventLandingTest(TestCase):
         ]
         before = {p for p in self.media_root.rglob("*") if p.is_file()}
         with patch.object(FileSystemStorage, "_save", save_then_fail):
-            self._run(raw, CollectedEvents(events=drafts))
+            self._run(raw, CollectedEvents(post_kind="announcement", events=drafts))
         self.assertEqual(len(calls), 2)  # the first cover was written before the second failed
         self.assertEqual(raw.extraction_status, "failed")
         self.assertEqual(raw.raw_payload["images"], [flyer])  # whole row kept for a re-run

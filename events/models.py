@@ -143,15 +143,24 @@ class Event(models.Model):
     # "Online (Zoom)"), shown where the venue would be. Never a street address:
     # addresses live on a Venue, where privacy_mode applies (sb-x5xh.2 ruling (b)).
     location_note = models.CharField(max_length=200, blank=True, validators=[validate_no_street_address])
+    # Where the event happens (ADR-007 D11): an online event has no venue.
+    PRESENCE_CHOICES = [
+        ("in_person", _("In person")),
+        ("online", _("Online")),
+        ("hybrid", _("In person and online")),
+    ]
+    presence = models.CharField(max_length=10, choices=PRESENCE_CHOICES, default="in_person")
     tags = models.ManyToManyField(Tag, blank=True, related_name="events")
     suggested_tags = models.JSONField(default=list, blank=True)
 
-    # Time — no per-event timezone in 0.1 (TIME_ZONE=Europe/Berlin covers single-city).
+    # Times are stored in UTC; `timezone` is the event's own IANA zone (ADR-007 D11),
+    # stored only: nothing converts or displays it yet.
     start = models.DateTimeField()
     end = models.DateTimeField(null=True, blank=True)
     # The source gave a date but no time: start holds that day at 00:00 and every
     # render says "time to be announced" instead (sb-7wzb.4; ADR-008 D3).
     start_time_unknown = models.BooleanField(default=False)
+    timezone = models.CharField(max_length=64, default="Europe/Berlin")
 
     # Price
     price_min_cents = models.IntegerField(null=True, blank=True)
@@ -249,6 +258,7 @@ class Event(models.Model):
         ("performance", "Performance"),
         ("social", "Social"),
         ("festival", "Festival"),
+        ("talk", "Talk"),
         ("other", "Other"),
     ]
     category = models.CharField(
@@ -335,6 +345,10 @@ class Event(models.Model):
         on_delete=models.SET_NULL,
         related_name="extracted_events",
     )
+    # The collector was unsure this event is not the one named here (ADR-007 D10): staff decide.
+    possible_duplicate_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="possible_duplicates"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -357,6 +371,14 @@ class Event(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def source_links(self) -> list:
+        """The links collected sources gave (ADR-007 D11), one per URL however many sources gave it."""
+        seen = {}
+        for link in self.links.all():
+            seen.setdefault(link.url, link)
+        return list(seen.values())
 
     @classmethod
     def from_db(cls, db, field_names, values):
@@ -480,6 +502,38 @@ class Attendance(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.event} ({self.status})"
+
+
+class EventLink(models.Model):
+    """One outbound link a collected source gave for an event (ADR-007 D11).
+
+    One row per link per source (the raw message it came from). The event's own
+    external_url and tickets_url stay the organizer's fields. No kind yet.
+    """
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="links")
+    url = models.URLField(max_length=1000)
+    raw_message = models.ForeignKey("ingestion.RawMessage", on_delete=models.CASCADE, related_name="event_links")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(fields=["event", "url", "raw_message"], name="eventlink_one_per_url_source"),
+        ]
+        verbose_name = _("event link")
+        verbose_name_plural = _("event links")
+
+    def __str__(self):
+        return self.url
+
+    @property
+    def site(self) -> str:
+        """The link's site name: 'www.eventbrite.com/e/x' -> 'eventbrite.com'."""
+        from urllib.parse import urlsplit
+
+        host = urlsplit(self.url).hostname or self.url
+        return host.removeprefix("www.")
 
 
 class EventImage(models.Model):

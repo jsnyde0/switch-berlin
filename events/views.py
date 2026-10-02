@@ -264,7 +264,7 @@ def event_detail(request, org_slug, event_slug):
             status="published",
         )
         .select_related("venue", "venue__run_by")
-        .prefetch_related("tags", "images", "event_organizer_set__profile", "artist_credits__profile")
+        .prefetch_related("tags", "images", "event_organizer_set__profile", "artist_credits__profile", "links")
         .distinct()
     )
     event = qs.first()

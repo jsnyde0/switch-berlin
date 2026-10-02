@@ -48,12 +48,10 @@
                 <span class="kb-tag kb-tag-accent">{% trans "Verified" %}</span>
               {% endif %}
               {% if organizer.website %}
-                <a href="{{ organizer.website }}"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content border-b border-white/15 hover:border-fuchsia-300/60 transition-colors pb-0.5">
+                <c-outbound-link href="{{ organizer.website }}"
+                                 class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/55 hover:text-base-content border-b border-white/15 hover:border-fuchsia-300/60 transition-colors pb-0.5">
                   {{ organizer.website|cut:"https://"|cut:"http://"|cut:"www." }}
-                </a>
+                </c-outbound-link>
               {% endif %}
               {% if organizer.telegram_link %}
                 <span class="kb-mono text-[11px] uppercase tracking-[0.18em] text-base-content/45">

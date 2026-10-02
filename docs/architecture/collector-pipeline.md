@@ -1,5 +1,7 @@
 # How an event gets collected
 
+> **Snapshot from before sb-7wzb.16 and sb-7wzb.30.** Gate 2 is no longer a title rule: copies of one event consolidate by model judgement over code-found candidates (ADR-007 D10), and a match rewrites the kept event instead of dropping the second copy's fields.
+
 This page shows how an event announcement travels from a website or Telegram channel to the public events list. It focuses on the two places where the system decides two posts are the same thing. Read it to reason about how matching and de-duplication should work.
 
 ## A. The journey of one post

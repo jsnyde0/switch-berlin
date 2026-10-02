@@ -63,12 +63,10 @@
                     {% trans "View full event" %} <span aria-hidden="true">→</span>
                   </a>
                   {% if event.external_url %}
-                    <a href="{{ event.external_url }}"
-                       target="_blank"
-                       rel="noopener"
-                       class="kb-btn-secondary inline-flex items-center gap-1.5"
-                       aria-label="{% trans 'Open organizer site in new tab' %}"
-                       @click.stop>
+                    <c-outbound-link href="{{ event.external_url }}"
+                                     class="kb-btn-secondary inline-flex items-center gap-1.5"
+                                     label="{% trans 'Open organizer site in new tab' %}"
+                                     @click.stop>
                       <svg class="h-3.5 w-3.5"
                            viewBox="0 0 24 24"
                            fill="none"
@@ -82,7 +80,7 @@
                         <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
                       </svg>
                       {% trans "Organizer site" %}
-                    </a>
+                    </c-outbound-link>
                   {% endif %}
                 </div>
               </div>

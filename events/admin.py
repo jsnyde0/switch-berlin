@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .models import Event, EventArtist, EventImage, EventOrganizer, Tag
+from .models import Event, EventArtist, EventImage, EventLink, EventOrganizer, Tag
 
 
 def _capture_organizer_consent(organizer, approved_by_user):
@@ -26,6 +26,13 @@ class EventOrganizerInline(admin.TabularInline):
     fields = ["profile", "is_primary", "order"]
 
 
+class EventLinkInline(admin.TabularInline):
+    model = EventLink
+    extra = 0
+    fields = ["url", "raw_message"]
+    raw_id_fields = ["raw_message"]
+
+
 class EventArtistInline(admin.TabularInline):
     model = EventArtist
     extra = 1
@@ -35,9 +42,10 @@ class EventArtistInline(admin.TabularInline):
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
     list_display = ["title", "primary_organizer_display", "start", "status"]
-    list_filter = ["status", "start", "tags"]
+    list_filter = ["status", "start", "presence", ("possible_duplicate_of", admin.EmptyFieldListFilter), "tags"]
     search_fields = ["title", "description", "event_organizer_set__profile__name"]
-    inlines = [EventImageInline, EventOrganizerInline, EventArtistInline]
+    inlines = [EventImageInline, EventOrganizerInline, EventArtistInline, EventLinkInline]
+    raw_id_fields = ["possible_duplicate_of"]
     fieldsets = [
         (
             None,
@@ -45,6 +53,7 @@ class EventAdmin(admin.ModelAdmin):
                 "fields": [
                     "title",
                     "slug",
+                    "presence",
                     "venue",
                     "location_note",
                     "tags",
@@ -53,6 +62,8 @@ class EventAdmin(admin.ModelAdmin):
                     "status",
                     "start",
                     "end",
+                    "timezone",
+                    "possible_duplicate_of",
                 ]
             },
         ),

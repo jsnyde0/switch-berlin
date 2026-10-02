@@ -65,6 +65,13 @@ class FullIngestionLoopTest(TestCase):
             "artist_credits-INITIAL_FORMS": "0",
             "artist_credits-MIN_NUM_FORMS": "0",
             "artist_credits-MAX_NUM_FORMS": "1000",
+            # EventLinkInline management form, presence and timezone (sb-7wzb.30, ADR-007 D11)
+            "links-TOTAL_FORMS": "0",
+            "links-INITIAL_FORMS": "0",
+            "links-MIN_NUM_FORMS": "0",
+            "links-MAX_NUM_FORMS": "1000",
+            "presence": event.presence,
+            "timezone": event.timezone,
             "_save": "Save",
         }
 
