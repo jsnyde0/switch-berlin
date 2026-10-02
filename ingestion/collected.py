@@ -243,6 +243,8 @@ def split_names(text: str) -> list[str]:
     return [n for n in (part.strip() for part in _NAME_SPLIT.split(text)) if n.lower() not in _NO_NAME]
 
 
+# An attempt error "re_read_<status>: <reason>" marks a paired draft that ended skipped or held and wrote nothing.
+_RE_READ_ENDED = "re_read_"
 POSTER = "poster"  # default_organizer value: the post's author is the organizer
 _DEFAULT_ATTRIBUTIONS = ("publisher", POSTER)  # organizers taken from the source, not named by the post
 
@@ -532,7 +534,7 @@ def pair_with_own_events(raw, drafts) -> tuple[dict, list]:
         attempt = (
             ExtractionAttempt.objects.filter(raw_message=raw, event=event)
             .exclude(extracted_draft={})
-            .exclude(error__startswith="re_read_")  # a paired draft that ended skipped or held wrote nothing
+            .exclude(error__startswith=_RE_READ_ENDED)  # a paired draft that ended skipped or held wrote nothing
             .order_by("-id")
             .first()
         )
@@ -817,7 +819,7 @@ def land_collected_event(
         # A paired draft that ends here still leaves its trail on the event it paired with.
         if paired is None:
             return _record(attempt_kwargs, status, reason)
-        _record(attempt_kwargs, status, f"re_read_{status}: {reason}", event=paired[0])
+        _record(attempt_kwargs, status, f"{_RE_READ_ENDED}{status}: {reason}", event=paired[0])
         return status, reason
 
     if (end or start) < timezone.now() - timedelta(hours=1):

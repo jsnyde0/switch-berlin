@@ -18,6 +18,8 @@ and iter_messages. It never sends, posts, forwards, joins or drafts
 import base64
 from datetime import UTC, datetime, timedelta
 
+from telethon.tl.types import User
+
 from switch_cli.collect import collected_row
 
 PRIVATE_SHAPES = ("telegram_private_channel", "telegram_private_group")
@@ -53,12 +55,17 @@ async def _topic(client, entity, wanted: str):
 
 
 def _display_name(sender) -> str:
-    """A sender's name as people see it: first + last, else @username; '' when neither (never the numeric id)."""
-    name = " ".join(p for p in (getattr(sender, "first_name", None), getattr(sender, "last_name", None)) if p)
+    """A person sender's name as people see it: first + last, else @username.
+
+    '' for anything but a person (a channel or an anonymous admin posting as the group, no sender) and for a
+    person with neither name: a handle of a channel, or the numeric id, never becomes a profile name (ADR-007 D9).
+    """
+    if not isinstance(sender, User):
+        return ""
+    name = " ".join(p for p in (sender.first_name, sender.last_name) if p)
     if name:
         return name
-    username = getattr(sender, "username", None)
-    return f"@{username}" if username else ""
+    return f"@{sender.username}" if sender.username else ""
 
 
 async def collect_telegram(

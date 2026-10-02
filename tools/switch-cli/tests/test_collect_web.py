@@ -136,3 +136,11 @@ def test_default_organizer_rides_the_row_and_no_shipped_source_uses_the_retired_
         "Conscious Events Berlin / Love",
         "Sober Events in Berlin / Sex-positive offerings",
     ]
+
+
+def test_row_names_its_listing_day_and_title_for_the_pre_ai_dedup():
+    rows, _, _ = _rows()
+    assert rows["19 00 - 23 00 Bondage Jam"]["raw_payload"]["listing"] == {
+        "date": "2026-10-06",
+        "title": "19 00 - 23 00 Bondage Jam",
+    }

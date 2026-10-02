@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from switch_cli.telegram.read import collect_telegram
+from telethon.tl.types import User
 
 NOW = datetime.now(UTC)
 
@@ -21,7 +22,7 @@ def _msg(id, text="", photo=False, grouped_id=None, age_hours=1):
         grouped_id=grouped_id,
         date=NOW - timedelta(hours=age_hours),
         sender_id=777,
-        sender=SimpleNamespace(first_name="Anna", last_name="Berg", username="anna"),
+        sender=User(id=777, first_name="Anna", last_name="Berg", username="anna"),
     )
 
 
@@ -166,8 +167,19 @@ def test_row_carries_the_posters_display_name_never_the_numeric_id():
         rows, _ = asyncio.run(collect_telegram(FakeClient([msg]), [SOURCE], days=14, include_private=False))
         return rows[0]["raw_payload"].get("poster")
 
-    assert run(SimpleNamespace(first_name="Anna", last_name="Berg", username="anna")) == "Anna Berg"
-    assert run(SimpleNamespace(first_name="Anna", last_name=None, username="anna")) == "Anna"
-    assert run(SimpleNamespace(first_name=None, last_name=None, username="anna")) == "@anna"
-    assert run(SimpleNamespace(first_name=None, last_name=None, username=None)) is None  # sender_id 777 stays out
+    assert run(User(id=7, first_name="Anna", last_name="Berg", username="anna")) == "Anna Berg"
+    assert run(User(id=7, first_name="Anna", username="anna")) == "Anna"
+    assert run(User(id=7, username="anna")) == "@anna"
+    assert run(User(id=7)) is None  # the numeric id never becomes a name
     assert run(None) is None
+
+
+def test_a_channel_or_anonymous_admin_sender_is_not_a_poster():
+    from telethon.tl.types import Channel
+
+    channel = Channel(id=9, title="Berlin Board", photo=None, date=None, username="berlinboard")
+    for sender in (channel, SimpleNamespace(first_name=None, last_name=None, username="anon", title="Berlin Board")):
+        msg = _msg(1, "Party!")
+        msg.sender = sender
+        rows, _ = asyncio.run(collect_telegram(FakeClient([msg]), [SOURCE], days=14, include_private=False))
+        assert "poster" not in rows[0]["raw_payload"]
