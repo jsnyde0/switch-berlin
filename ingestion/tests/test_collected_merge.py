@@ -393,6 +393,21 @@ class FillGapsMergeTest(TestCase):
         event.refresh_from_db()
         self._assert_e3(event)
 
+    def test_e_a_row_re_reading_its_own_claimed_event_never_lands_a_second_copy(self):
+        # Dev-DB rows 177/189 (2026-10-02): landed under the claimed publisher before 7d39889,
+        # re-read after the off-site host became an explicit organizer.
+        claimed = Profile.objects.create(name="IKSK Berlin", slug="iksk-berlin", status="approved")
+        ProfileClaim.objects.create(profile=claimed, user=User.objects.create_user(username="m", password="pw"))
+        raw, event = self._land(payload={"organizer": "IKSK Berlin"}, title="Cali Sessions w/ Ashraf")
+        EventOrganizer.objects.filter(event=event).update(attribution="")
+        before = self._snapshot(event)
+        raw.text = "re-collected"
+        raw.save()
+        raw = self._extract(raw, {"title": "Cali Sessions w/ Ashraf", "explicit_organizer": "ashrafalali.com"})
+        self.assertEqual(Event.objects.count(), 1)
+        self.assertEqual(self._snapshot(event), before)
+        self.assertEqual(raw.extraction_status, "extracted")
+
     def test_e3_blank_attribution_on_a_persons_event_counts_as_explicit(self):
         Event.objects.create(title="Rope Jam", slug="rj", start=self.start, status="published", organizer=self.iksk)
         raw, _ = self._land(title="Rope Jam", explicit_organizer="Shibari Berlin")

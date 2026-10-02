@@ -452,7 +452,9 @@ def find_duplicate(raw, title: str, start, time_known: bool, venue, explicit: se
     known time and share an explicit organizer or the venue; never when both
     name explicit organizers and the two sets share none. `explicit` holds the
     draft's explicit organizers that already have a profile; `explicit_named`
-    says whether it names any. The event this row landed itself comes first.
+    says whether it names any. The event this row landed itself comes first,
+    and the organizer exclusion keeps sources apart, never a row from its own
+    event: a re-read naming a new host is the same listing.
     """
     from events.models import Event
 
@@ -466,7 +468,7 @@ def find_duplicate(raw, title: str, start, time_known: bool, venue, explicit: se
 
     def same(event) -> bool:
         theirs = _explicit_ids(event)
-        if explicit_named and theirs and not theirs & explicit:
+        if explicit_named and theirs and not theirs & explicit and event.raw_message_id != raw.id:
             return False
         if event.sim >= _DUPLICATE_TITLE_SIMILARITY:
             return True
