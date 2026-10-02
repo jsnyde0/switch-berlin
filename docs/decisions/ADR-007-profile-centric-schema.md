@@ -265,7 +265,7 @@ Built in sb-x5xh.6 (`run_by`, `location_note`) and sb-7wzb.19 (collector venues,
 
 - **Presence:** `in_person | online | hybrid`. Online-only events are kept, marked clearly, and hidden by default in the events filters (design in sb-x5xh.1). An online event has no venue.
 - **Timezone:** one IANA name per event, default `Europe/Berlin`. Stored only; nothing converts or displays it yet. Start times stay stored in UTC.
-- **Links:** one row per link per source (the event, the URL, the raw message it came from). Shown as plain links named by their site. No link kind yet; a kind column (tickets, info) is a later additive change. Every outbound link renders through one shared template component so click analytics can be added in one place.
+- **Links:** the collector writes one row per link per source (the event, the URL, the raw message it came from); `Event.external_url` and `tickets_url` stay the organizer's own fields (ADR-016). Pages show both, as plain links named by their site. No link kind yet; a kind column (tickets, info) is a later additive change. Every outbound link renders through one shared template component so click analytics can be added in one place.
 
 **Rationale:** `direct:` the human, 2026-10-02 — online events are worth listing ("Emotional Sadomasochism"); a ticket link stored for an event never reached the page; timezones matter later for online events from elsewhere and cost one field now.
 
