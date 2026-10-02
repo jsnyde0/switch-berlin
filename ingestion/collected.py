@@ -43,6 +43,7 @@ _NO_NAME = {"", "unknown", "n/a", "none", "not specified", "unbekannt"}
 
 # Title similarity at which two same-day events count as one (pg_trgm, case-folded).
 _DUPLICATE_TITLE_SIMILARITY = 0.4
+_PAIRING_TIE = 0.05  # two own events this close in score: the draft pairs with neither
 
 # The kept flyer copy (sb-7wzb.12 D1): web size, re-encoded, never the original bytes.
 _FLYER_LONG_EDGE = 1600
@@ -510,7 +511,7 @@ def pair_with_own_events(raw, drafts) -> tuple[dict, list]:
     Returns ({draft index: (event, what this row said about it last time)},
     [own events no draft pairs with]). A draft pairs by title similarity with
     the event's title or the row's last reading of it, on any day: a re-read
-    may move the date.
+    may move the date. A draft that ties between two events pairs with neither.
     """
     from events.models import Event
 
@@ -535,8 +536,16 @@ def pair_with_own_events(raw, drafts) -> tuple[dict, list]:
         for i, draft in enumerate(drafts)
         for event_id, (event, said) in own.items()
     )
+    best: dict[int, list[float]] = {}
+    for score, i, _ in scored:
+        best.setdefault(i, []).append(-score)
+    # A draft whose two best events score within a hair of each other cannot say which it is:
+    # it pairs with neither and goes through the duplicate rule.
+    ambiguous = {i for i, top in best.items() if len(top) > 1 and top[0] - top[1] <= _PAIRING_TIE}
     pairs = {}
     for score, i, event_id in scored:
+        if i in ambiguous:
+            continue
         if -score >= _DUPLICATE_TITLE_SIMILARITY and i not in pairs and event_id in own:
             pairs[i] = own.pop(event_id)
     return pairs, [event for event, _ in own.values()]
@@ -707,7 +716,8 @@ def process_collected_row(raw, enriched: dict) -> None:
                 raw.save(update_fields=["raw_payload"])
 
             pairs, unpaired = pair_with_own_events(raw, drafts)
-            taken: set[int] = set()
+            # Paired events are spoken for before any draft is processed, so no unpaired draft matches one.
+            taken: set[int] = {event.id for event, _ in pairs.values()}
             outcomes = []
             for i, draft in enumerate(drafts):
                 draft_json = draft.model_dump(mode="json")
@@ -793,18 +803,25 @@ def land_collected_event(
     start = _aware(draft.start)
     end = _aware(draft.end) if draft.end else None
 
+    def held(status: str, reason: str) -> tuple[str, str]:
+        # A paired draft that ends here still leaves its trail on the event it paired with.
+        if paired is None:
+            return _record(attempt_kwargs, status, reason)
+        _record(attempt_kwargs, status, f"re_read_{status}: {reason}", event=paired[0])
+        return status, reason
+
     if (end or start) < timezone.now() - timedelta(hours=1):
-        return _record(attempt_kwargs, "skipped", "past_event")
+        return held("skipped", "past_event")
 
     if not draft.in_berlin_area:
-        return _record(attempt_kwargs, "skipped", "not_berlin")
+        return held("skipped", "not_berlin")
 
     if draft.confidence < _LOW_CONFIDENCE:
-        return _record(attempt_kwargs, "needs_review", "low_confidence")
+        return held("needs_review", "low_confidence")
 
     names, attribution = organizer_names(raw, draft)
     if not names:
-        return _record(attempt_kwargs, "needs_review", attribution)
+        return held("needs_review", attribution)
 
     taken = set() if taken is None else taken
     if paired is not None:

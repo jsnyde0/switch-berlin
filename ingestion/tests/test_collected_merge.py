@@ -533,6 +533,42 @@ class FillGapsMergeTest(TestCase):
         self.assertEqual(Event.objects.count(), 1)
         self.assertEqual(self._snapshot(event), before)
 
+    def test_re_read_with_a_new_event_first_never_lets_it_match_the_paired_event(self):
+        raw = self._extract(self._raw("@IKSKBerlin"), {"title": "Rope Jam", "description": "Ropes."})
+        raw = self._reread(
+            raw,
+            {"title": "Massage Evening", "description": "Oils."},
+            {"title": "Rope Jam", "description": "Ropes for all."},
+        )
+        events = {e.title: e for e in Event.objects.all()}
+        self.assertEqual(set(events), {"Rope Jam", "Massage Evening"})
+        self.assertEqual(events["Rope Jam"].description, "Ropes for all.")
+        self.assertEqual(events["Massage Evening"].description, "Oils.")
+        self.assertEqual(raw.attempts.filter(event=events["Rope Jam"], error="re_read").count(), 1)
+
+    def test_re_read_draft_tying_between_two_own_events_pairs_with_neither(self):
+        raw = self._extract(
+            self._raw("@IKSKBerlin"),
+            {"title": "Shibari Workshop w/ Anna", "description": "A."},
+            {"title": "Shibari Workshop w/ Bea", "description": "B."},
+        )
+        anna, bea = (Event.objects.get(title__endswith=n) for n in ("Anna", "Bea"))
+        with patch("ingestion.collected.find_duplicate", return_value=None) as spy:
+            self._reread(raw, {"title": "Shibari Workshop", "description": "New"})
+        self.assertEqual(spy.call_count, 1)  # not paired: it went through the duplicate rule
+        self.assertEqual(Event.objects.count(), 3)
+        self.assertTrue(raw.attempts.filter(event=anna, error="unpaired_on_re_read").exists())
+        self.assertTrue(raw.attempts.filter(event=bea, error="unpaired_on_re_read").exists())
+
+    def test_re_read_paired_draft_that_ends_skipped_still_records_an_attempt(self):
+        raw = self._extract(self._raw(), {"title": "Rope Jam"})
+        event = Event.objects.get()
+        before = self._snapshot(event)
+        raw = self._reread(raw, {"title": "Rope Jam", "confidence": 0.2})
+        self.assertEqual(self._snapshot(event), before)
+        self.assertTrue(raw.attempts.filter(event=event, error="re_read_needs_review: low_confidence").exists())
+        self.assertFalse(raw.attempts.filter(event=event, error="unpaired_on_re_read").exists())
+
     # -- residues: images hashed, same_listing only behind a landed event ----
 
     def test_c_telegram_post_whose_only_change_is_a_new_flyer_is_re_read(self):
