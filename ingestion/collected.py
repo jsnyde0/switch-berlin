@@ -202,15 +202,18 @@ def _venue(name: str, address: str = "", private: bool = False, by_address: bool
 def apply_source_venue(raw):
     """The source config's default venue, with its run-by profile set from config. None when unset.
 
-    The run-by profile must already exist (venues never create profiles); a
-    staff-set run-by is never overwritten.
+    The venue and the run-by profile must already exist: a config name matching
+    neither fails the row (a typo never makes a second venue; venues never
+    create profiles). A staff-set run-by is never overwritten.
     """
     from organizers.models import Profile
 
     name = (raw.raw_payload.get("venue") or "").strip()
     if not name:
         return None
-    venue = _venue(name, private=raw.source_type in _PRIVATE_SHAPES)
+    venue = _find_venue(name)
+    if venue is None:
+        raise ValueError(f"source config names default venue {name!r}, which does not exist")
     runner_name = (raw.raw_payload.get("venue_run_by") or "").strip()
     if runner_name:
         runner = Profile.objects.filter(name__iexact=runner_name).first()
@@ -234,7 +237,8 @@ def resolve_place(raw, draft) -> tuple:
     name = (draft.venue_name or "").strip()
     note = (draft.location_note or "").strip()
     address = (draft.venue_address or "").strip()
-    private = raw.source_type in _PRIVATE_SHAPES or bool(_RESTRICTED.search(f"{name} {note} {address}"))
+    row_text = " ".join((raw.text, raw.enriched_payload.get("url_content", ""), name, note, address))
+    private = raw.source_type in _PRIVATE_SHAPES or bool(_RESTRICTED.search(row_text))
     default = apply_source_venue(raw)
 
     # A known venue matches on its whole name, even one that holds its address.
@@ -245,9 +249,10 @@ def resolve_place(raw, draft) -> tuple:
         name = _drop_area_brackets(name) if found else name
     found, note = split_street_address(note)
     address = address or found
+    placeholder = bool(note) and _is_placeholder(note)
     if name and _is_placeholder(name):
         note = ", ".join(part for part in (name, note) if part)
-        name = ""
+        name, placeholder = "", True
     validate_no_street_address(note)
 
     if known is not None:
@@ -260,7 +265,7 @@ def resolve_place(raw, draft) -> tuple:
         label = re.sub(r"\s*\([^)]*\)", "", note).split(",")[0].strip()
         label = label or ("Private venue" if private else address)
         venue = _venue(label, address, private, by_address=True)
-    elif not note:
+    elif not placeholder:
         venue = default
     else:
         venue = None

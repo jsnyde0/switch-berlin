@@ -36,9 +36,11 @@ class CollectedVenueTest(TestCase):
     def setUp(self):
         self.start = timezone.now() + timedelta(days=3)
         self.iksk = Profile.objects.create(name="IKSK", slug="iksk", status="approved")
+        # The source config's default venue must already exist (the collector never creates it).
+        self.iksk_venue = Venue.objects.create(name="IKSK", slug="iksk-venue")
         self.n = 0
 
-    def _land(self, venue_name=None, raw_payload=None, source_type="website", **draft_kwargs):
+    def _land(self, venue_name=None, raw_payload=None, source_type="website", text="post", **draft_kwargs):
         """Run one collected row through the pipeline; return its landed Event."""
         from ingestion.tasks import process_raw_message
 
@@ -47,7 +49,7 @@ class CollectedVenueTest(TestCase):
             source_type=source_type,
             channel_id="iksk-berlin.de" if source_type == "website" else "-100777",
             message_id=f"m{self.n}",
-            text="post",
+            text=text,
             raw_payload=dict(_IKSK_PAYLOAD) if raw_payload is None else raw_payload,
         )
         draft = dict(
@@ -135,9 +137,20 @@ class CollectedVenueTest(TestCase):
 
     def test_runner_is_never_overwritten(self):
         other = Profile.objects.create(name="Holzmarkt eG", slug="holzmarkt", status="approved")
-        Venue.objects.create(name="IKSK", slug="iksk-venue", run_by=other)
+        self.iksk_venue.run_by = other
+        self.iksk_venue.save()
         self._land(None)
         self.assertEqual(Venue.objects.get(name="IKSK").run_by, other)
+
+    def test_default_venue_named_in_config_must_exist(self):
+        payload = {**_IKSK_PAYLOAD, "venue": "IKSK Typo"}
+        with self.assertRaises(Event.DoesNotExist):
+            self._land(None, raw_payload=payload)
+        raw = RawMessage.objects.get(message_id=f"m{self.n}")
+        self.assertEqual(raw.extraction_status, "failed")
+        self.assertIn("IKSK Typo", raw.extraction_error)
+        self.assertFalse(Venue.objects.filter(name="IKSK Typo").exists())
+        self.assertIsNone(Venue.objects.get(name="IKSK").run_by)
 
     def test_runner_named_in_config_must_exist(self):
         payload = {**_IKSK_PAYLOAD, "venue_run_by": "Nobody Known"}
@@ -165,6 +178,46 @@ class CollectedVenueTest(TestCase):
         self.assertIn("Oranienstraße 12", event.venue.address)
         self.assertEqual(event.venue.privacy_mode, "private")
 
+    def test_restricted_wording_in_the_post_body_makes_the_venue_private(self):
+        event = self._land(
+            "Wandel-Raum",
+            venue_address="Wandelweg 3, 12043 Berlin",
+            text="Tantra evening at Wandel-Raum. Exact address on request.",
+        )
+        self.assertEqual(event.venue.privacy_mode, "private")
+
+    def test_restricted_wording_in_the_link_content_makes_the_venue_private(self):
+        from ingestion.tasks import process_raw_message
+
+        raw = RawMessage.objects.create(
+            source_type="website",
+            channel_id="iksk-berlin.de",
+            message_id="linked",
+            text="post",
+            raw_payload={"organizer": "IKSK"},
+            enriched_payload={"url_content": "The address is shared with ticket holders."},
+        )
+        draft = EventDraft(
+            title="Linked", organizer_name="IKSK", start=self.start, confidence=0.9, venue_name="Wandel-Raum"
+        )
+        result = MagicMock()
+        result.output = CollectedEvents(events=[draft])
+        with (
+            patch("ingestion.extraction.Agent") as MockAgent,
+            patch("ingestion.enrichment.enrich_urls", return_value={}),
+        ):
+            MockAgent.return_value.run_sync.return_value = result
+            process_raw_message(raw.id)
+        self.assertEqual(Event.objects.get(raw_message=raw).venue.privacy_mode, "private")
+
+    def test_a_note_left_holding_a_street_address_fails_the_row(self):
+        # Two addresses: the first goes to a venue, the second would stay in the note.
+        with self.assertRaises(Event.DoesNotExist):
+            self._land(None, location_note="Oranienstraße 12 or Kastanienallee 5")
+        raw = RawMessage.objects.get(message_id=f"m{self.n}")
+        self.assertEqual(raw.extraction_status, "failed")
+        self.assertIn("street address", raw.extraction_error)
+
     def test_public_website_row_with_open_address_gets_a_public_venue(self):
         event = self._land("Wandel-Raum", venue_address="Wandelweg 3, 12043 Berlin")
         self.assertEqual(event.venue.privacy_mode, "public")
@@ -183,6 +236,14 @@ class CollectedVenueTest(TestCase):
         event = self._land(None)
         self.assertEqual(event.venue, Venue.objects.get(name="IKSK"))
         self.assertEqual(event.location_note, "")
+
+    def test_row_with_a_plain_note_and_no_place_lands_on_the_default_venue(self):
+        event = self._land(None, location_note="Ring the bell twice")
+        self.assertEqual((event.venue, event.location_note), (self.iksk_venue, "Ring the bell twice"))
+
+    def test_row_with_a_placeholder_note_gets_no_default_venue(self):
+        event = self._land(None, location_note="Online (Zoom)")
+        self.assertIsNone(event.venue)
 
     def test_row_naming_a_placeholder_gets_a_note_not_the_default_venue(self):
         event = self._land("Online (Zoom)")
