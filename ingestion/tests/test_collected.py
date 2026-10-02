@@ -22,7 +22,7 @@ from django.utils import timezone
 from PIL import Image
 
 from events.models import Event, EventImage
-from ingestion.models import RawMessage
+from ingestion.models import ExtractionAttempt, RawMessage
 from ingestion.schemas import CollectedEvents, EventDraft
 from organizers.models import Profile, ProfileClaim
 from syndication.models import IdentityToken
@@ -156,6 +156,48 @@ class CollectedEventLandingTest(TestCase):
         prompt = str(MockAgent.return_value.run_sync.call_args)
         self.assertIn("COLLECTOR PAGE TEXT", prompt)
         self.assertIn("ENRICHED LINK TEXT", prompt)
+
+    def _run_faithful_model(self, raw, link_text):
+        """Run the pipeline with a model that obeys the description rule: it copies the
+        link prose out of the prompt it was sent, or returns "" when the prompt holds none."""
+        from ingestion.tasks import process_raw_message
+
+        def run_sync(parts):
+            prompt = parts[0]
+            self.sent_prompt = prompt
+            description = link_text if link_text and link_text in prompt else ""
+            result = MagicMock()
+            result.output = CollectedEvents(events=[self._draft(description=description)])
+            return result
+
+        with (
+            patch("ingestion.extraction.Agent") as MockAgent,
+            patch("ingestion.enrichment.enrich_urls", return_value={}),
+        ):
+            MockAgent.return_value.run_sync.side_effect = run_sync
+            process_raw_message(raw.id)
+        return Event.objects.get()
+
+    def test_prompt_asks_for_the_organizers_own_prose_capped_and_never_invented(self):
+        from ingestion.extraction import COLLECTED_PROMPT_VERSION, DESCRIPTION_CAP_CHARS
+
+        prose = "An open evening for rope practice. Bring your own ropes, newcomers welcome. " * 12
+        self.assertGreaterEqual(len(prose), 500)
+        raw = self._raw(enriched_payload={"url_content": prose})
+        event = self._run_faithful_model(raw, prose)
+        self.assertIn("copied unchanged", self.sent_prompt)
+        self.assertIn(f"at most {DESCRIPTION_CAP_CHARS}", self.sent_prompt)
+        self.assertIn("never write one yourself", self.sent_prompt)
+        self.assertIn(prose, self.sent_prompt)
+        self.assertEqual(event.description, prose)
+        self.assertEqual(COLLECTED_PROMPT_VERSION, "collected-v5")
+        attempt = ExtractionAttempt.objects.get(raw_message=raw)
+        self.assertEqual(attempt.prompt_version, "collected-v5")
+
+    def test_row_without_prose_lands_an_empty_description(self):
+        raw = self._raw(enriched_payload={})
+        event = self._run_faithful_model(raw, "")
+        self.assertEqual(event.description, "")
 
     def _process(self, raw, **draft_kwargs):
         draft = self._draft(**draft_kwargs)

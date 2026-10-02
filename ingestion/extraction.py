@@ -31,7 +31,11 @@ Enriched content from URLs:
 {enriched_content}
 """
 
-COLLECTED_PROMPT_VERSION = "collected-v4"
+COLLECTED_PROMPT_VERSION = "collected-v5"
+
+# Longest description the prompt allows; the organizer's promotional text is covered by
+# docs/compliance/organizer-lia.md §1 (sb-7wzb.27).
+DESCRIPTION_CAP_CHARS = 3000
 
 # Who runs the event versus who is on the program (ADR-007 D9): never guessed.
 PEOPLE_RULES = """explicit_organizer is who runs the event, ONLY when the text uses explicit
@@ -73,6 +77,13 @@ that names no place: "Online (Zoom)", a city or district, "Secret location,
 shared with ticket holders". Never put a street address in location_note. Leave
 all three empty when the post says nothing about where.
 
+description is the organizer's own prose about this event, copied unchanged from
+the post text or the link content: same words, no summary, no rewriting, no
+translation, nothing added. Leave out menus, navigation, cookie notices, prices
+and booking boilerplate that is not about the event. Keep at most {description_cap}
+characters (cut at the end of a sentence). Return "" when the source has no prose
+about the event; never write one yourself.
+
 Post:
 {text}
 
@@ -109,6 +120,7 @@ def extract_collected_events(text: str, images_b64: list[str], enriched_payload:
     prompt = COLLECTED_PROMPT.format(
         **_known_names(),
         people=PEOPLE_RULES,
+        description_cap=DESCRIPTION_CAP_CHARS,
         text=text or "(no text; read the images)",
         enriched_content=enriched_payload.get("url_content", ""),
     )
