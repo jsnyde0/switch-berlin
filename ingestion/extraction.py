@@ -58,7 +58,8 @@ Read the text AND the images.
 First say what the post is (post_kind):
 - "announcement": it announces one or more events, inviting people to come. A
   post that changes an event's date, time or place announces the changed event;
-  a post that cancels an event announces it with cancelled true.
+  a post that cancels events announces each with cancelled true (when it names
+  only a period, such as "next week", give that period as start and end).
 - "about_event": it is about an event but does not announce it: a call for
   helpers or volunteers, a sold-out or waiting-list notice, a reminder, a recap
   or thank-you after the event.
@@ -129,9 +130,13 @@ events on one day at one venue; a post may also be a copy of an announcement we
 already have, reposted in another channel or with different wording.
 
 Each candidate lists its announcements (id, the post's reading of the event,
-eligible). Only ELIGIBLE announcements may supply the event's text: the others
-come from a less public source and must not show on this event. The post event
-itself counts as announcement id 0, eligible as "post_event_eligible" says.
+eligible). Only ELIGIBLE announcements may supply the event's text. The others
+come from a less public source: they show only their dates and organizer keys
+(an organizer key names one organizer; equal keys are the same organizer), to
+help you judge whether it is the same event, and nothing of them may show on
+the event. The post event itself counts as announcement id 0, eligible as
+"post_event_eligible" says; when it is not eligible, still judge same_as, but
+write `event` from the eligible announcements only.
 
 For each post event, decide:
 - same_as: the candidate's id when the post event IS that event (the same

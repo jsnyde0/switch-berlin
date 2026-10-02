@@ -3,12 +3,12 @@
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from ingestion.schemas import Consolidation, Decision, EventDraft
+from ingestion.schemas import Consolidation, Decision, MergedEvent
 
 
-def as_draft(view: dict, **overrides) -> EventDraft:
-    """An EventDraft from a request's draft view (the JSON the call receives)."""
-    return EventDraft(**{"confidence": 0.9, **view, **overrides})
+def as_draft(view: dict, **overrides) -> MergedEvent:
+    """The written event from a request's draft view (the JSON the call receives)."""
+    return MergedEvent(**{**view, **overrides})
 
 
 def same_as_first(request: list[dict], description_from=0, **merged) -> Consolidation:

@@ -374,17 +374,33 @@ class Event(models.Model):
     def __str__(self):
         return self.title
 
+    def shows_source(self, raw_message) -> bool:
+        """True when what `raw_message` gave may show on this event: its source is at least as public as the
+        event (ADR-007 D10, sb-7wzb.30 ruling 17). A person's own upload (no source) always shows."""
+        from .backfill_visibility import derive_visibility_from_sources, rawmessage_source_to_conceptual
+
+        if raw_message is None:
+            return True
+        tier = derive_visibility_from_sources([rawmessage_source_to_conceptual(raw_message.source_type)])
+        return _TIER_RANK[tier] >= _TIER_RANK[self.visibility]
+
     @property
     def source_links(self) -> list:
         """The links collected sources gave (ADR-007 D11), one per URL however many sources gave it,
-        leaving out the organizer's own external_url and tickets_url (shown on their own)."""
+        leaving out the organizer's own external_url and tickets_url (shown on their own) and any
+        link from a source less public than the event (kept, shown again if the event's tier drops)."""
         seen = {self.external_url, self.tickets_url} - {""}
         links = []
         for link in self.links.all():
-            if link.url not in seen:
+            if link.url not in seen and self.shows_source(link.raw_message):
                 seen.add(link.url)
                 links.append(link)
         return links
+
+    @property
+    def shown_cover(self):
+        """The cover image to show: a person's upload, or a flyer from a source at least as public as the event."""
+        return next((img for img in self.images.all() if img.is_cover and self.shows_source(img.raw_message)), None)
 
     @classmethod
     def from_db(cls, db, field_names, values):
@@ -510,6 +526,10 @@ class Attendance(models.Model):
         return f"{self.user} — {self.event} ({self.status})"
 
 
+# How public a visibility tier is: a source shows on an event of its own tier or a less public one.
+_TIER_RANK = {"semi_public": 0, "public": 1, "unlisted": 1}
+
+
 class EventLink(models.Model):
     """One outbound link a collected source gave for an event (ADR-007 D11).
 
@@ -553,6 +573,10 @@ class EventImage(models.Model):
     )
     alt = models.CharField(max_length=300, blank=True)
     is_cover = models.BooleanField(default=False)
+    # The collected post this flyer came from (ADR-007 D10); None = a person uploaded it.
+    raw_message = models.ForeignKey(
+        "ingestion.RawMessage", null=True, blank=True, on_delete=models.CASCADE, related_name="event_images"
+    )
     order = models.IntegerField(default=0)
 
     class Meta:

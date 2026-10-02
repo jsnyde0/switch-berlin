@@ -33,7 +33,7 @@ from django.utils.text import slugify
 from django_q.tasks import async_task
 from PIL import Image, ImageOps
 
-from events.backfill_visibility import derive_visibility_from_sources, rawmessage_source_to_conceptual
+from events.backfill_visibility import _TIER_ORDER, derive_visibility_from_sources, rawmessage_source_to_conceptual
 from organizers.duplicate_names import normalize
 from organizers.names import find_profile, find_venue, name_key
 from venues.address import split_street_address, validate_no_street_address
@@ -718,25 +718,58 @@ def _draft_json(draft) -> dict:
 DESCRIPTION_VIEW_CHARS = 3000  # the longest description one announcement shows the judgement
 
 
+def _rank(tier: str) -> int:
+    return _TIER_ORDER.index(tier)
+
+
 def _event_view(event, raw, draft) -> dict:
+    """One candidate as the judgement sees it (sb-7wzb.30 rulings 1, 17).
+
+    Announcements from a source less public than the event would become carry no
+    text, only their id, dates and organizer keys: they inform the same-event
+    judgement and never the written event. The event's current fields show only
+    when they came from sources that public.
+    """
     earlier = _announcements(event, raw)
     tier = _event_tier([*earlier, Announcement(0, raw, draft)])
-    return {
+    content_tier = _event_tier(earlier) if earlier else event.visibility
+    view = {
         "id": event.id,
-        "title": event.title,
         "start": timezone.localtime(event.start).isoformat(),
         "end": timezone.localtime(event.end).isoformat() if event.end else None,
         "start_time_unknown": event.start_time_unknown,
-        "venue": event.venue.name if event.venue_id else None,
-        "location_note": event.location_note,
-        "presence": event.presence,
-        "organizers": [
-            {"name": row.profile.name, "attribution": row.attribution or "set by a person"}
-            for row in event.event_organizer_set.select_related("profile")
-        ],
-        "artists": list(event.artist_credits.values_list("name", flat=True)),
+        "organizer_keys": sorted(f"p{row.profile_id}" for row in event.event_organizer_set.all()),
         "post_event_eligible": _tier(raw) == tier,
-        "announcements": [{"id": a.id, "eligible": _tier(a.raw) == tier, **_draft_json(a.draft)} for a in earlier],
+        "announcements": [
+            {"id": a.id, "eligible": True, **_draft_json(a.draft)}
+            if _tier(a.raw) == tier
+            else {"id": a.id, "eligible": False, **_bare(a.draft)}
+            for a in earlier
+        ],
+    }
+    if _rank(content_tier) >= _rank(tier):
+        view.update(
+            title=event.title,
+            venue=event.venue.name if event.venue_id else None,
+            location_note=event.location_note,
+            presence=event.presence,
+            organizers=[
+                {"name": row.profile.name, "attribution": row.attribution or "set by a person"}
+                for row in event.event_organizer_set.select_related("profile")
+            ],
+            artists=list(event.artist_credits.values_list("name", flat=True)),
+        )
+    return view
+
+
+def _bare(draft) -> dict:
+    """An announcement without its text: dates and organizer keys only."""
+    explicit = (draft.explicit_organizer or "").strip()
+    names = ([explicit] if find_profile(explicit) else split_names(explicit)) if explicit else []
+    return {
+        "start": draft.model_dump(mode="json")["start"],
+        "end": draft.model_dump(mode="json")["end"],
+        "organizer_keys": sorted(_organizer_key(n) for n in names),
     }
 
 
@@ -937,10 +970,22 @@ def merge_into(event, raw, draft, merged, description_from, flyer, written_files
     tier = _event_tier(announcements)
     eligible = [a for a in announcements if _tier(a.raw) == tier]
     before = _snapshot(event)
+    if _tier(raw) != tier:
+        # A post less public than the event attaches and shows nothing: everything it says stays with
+        # it (its link and flyer kept, hidden while the event is more public; sb-7wzb.30 ruling 17).
+        changed = []
+        if event.visibility != tier:
+            event.visibility = tier
+            event.save(update_fields=["visibility"])
+            changed.append("visibility")
+        changed += _attach_media(event, raw, draft, flyer, written_files)
+        return changed, before
     edited = set(event.edited_groups)
     changed = []
+    # The event just became more public: what less public posts said goes, blanks included.
+    raised = _rank(tier) > _rank(event.visibility)
 
-    names, attribution = _organizer_rows(merged, announcements)
+    names, attribution = _organizer_rows(merged, eligible)
     if _set_organizers(event, raw, names, attribution):
         changed.append("organizers")
 
@@ -959,40 +1004,52 @@ def merge_into(event, raw, draft, merged, description_from, flyer, written_files
             start=start, end=end, start_time_unknown=merged.start_time_unknown, timezone=merged.timezone or _BERLIN
         )
     price = (merged.price_min_cents, merged.price_max_cents, merged.is_free)
-    if "price" not in edited and not _empty(list(price)):
+    if "price" not in edited and (raised or not _empty(list(price))):
         columns.update(zip(("price_min_cents", "price_max_cents", "is_free"), price, strict=True))
     if "presence" not in edited and merged.presence is not None:
         columns["presence"] = merged.presence
-    if "category" not in edited and merged.category:
+    if "category" not in edited and (raised or merged.category):
         columns["category"] = merged.category
     if "place" not in edited:
         placed = [a for a in eligible if _has_place(a.draft)] or eligible
         source = max(placed, key=lambda a: a.id or float("inf"))  # the latest eligible announcement that says where
         presence = columns.get("presence", event.presence)
-        columns["venue"], columns["location_note"] = resolve_place(
-            source.raw, source.draft.model_copy(update={"presence": presence})
-        )
+        venue, note = resolve_place(source.raw, source.draft.model_copy(update={"presence": presence}))
+        if venue is not None and venue.privacy_mode == "private" and _rank(tier) > _rank("semi_public"):
+            # A private venue (its address from a less public post, or kept for ticket holders) never
+            # hangs on a public event through another post: the public one names the place, no more.
+            if not _RESTRICTED.search(f"{source.raw.text} {source.raw.enriched_payload.get('url_content', '')}"):
+                venue, note = None, ", ".join(part for part in (venue.name, note) if part)[:200]
+        columns["venue"], columns["location_note"] = venue, note
     matched = match_entities(merged)
-    if "tags" not in edited and (matched["matched_tags"] or matched["unmatched_tags"]):
+    tags = "tags" not in edited and (raised or matched["matched_tags"] or matched["unmatched_tags"])
+    if tags:
         columns["suggested_tags"] = matched["unmatched_tags"]
     if merged.cancelled or draft.cancelled:
         columns["status"] = "cancelled"
     for field, value in columns.items():
         setattr(event, field, value)
     event.save(update_fields=list(columns))
-    if "tags" not in edited and (matched["matched_tags"] or matched["unmatched_tags"]):
+    if tags:
         event.tags.set(matched["matched_tags"])
     if "artists" not in edited:
         _sync_artists(event, announcements, merged.artist_names)
 
     after = _snapshot(event)
     changed += [key for key in after if key != "organizers" and after[key] != before[key]]
+    changed += _attach_media(event, raw, draft, flyer, written_files)
+    return changed, before
+
+
+def _attach_media(event, raw, draft, flyer, written_files) -> list[str]:
+    """This post's link row, and its flyer as a cover when the event shows none; both remember their source."""
+    changed = []
     if _add_link(event, raw, draft.external_url):
         changed.append("link")
-    if flyer is not None and not event.images.exists():
-        _add_cover(event, draft, flyer, written_files)
+    if flyer is not None and event.shown_cover is None and not event.images.filter(raw_message=raw).exists():
+        _add_cover(event, raw, draft, flyer, written_files)
         changed.append("cover")
-    return changed, before
+    return changed
 
 
 def _add_link(event, raw, url: str | None) -> bool:
@@ -1013,10 +1070,10 @@ def _add_link(event, raw, url: str | None) -> bool:
     return EventLink.objects.get_or_create(event=event, url=url[:1000], raw_message=raw)[1]
 
 
-def _add_cover(event, draft, flyer: bytes, written_files: list[str] | None) -> None:
+def _add_cover(event, raw, draft, flyer: bytes, written_files: list[str] | None) -> None:
     from events.models import EventImage
 
-    cover = EventImage(event=event, is_cover=True, alt=draft.title[:300])
+    cover = EventImage(event=event, is_cover=True, alt=draft.title[:300], raw_message=raw)
     cover.image.save(f"{event.slug}.webp", ContentFile(flyer), save=False)
     if written_files is not None:
         written_files.append(cover.image.name)
@@ -1279,7 +1336,7 @@ def create_collected_event(raw, draft, names, attribution, flyer, written_files,
     event.tags.set(matched["matched_tags"])
     _add_link(event, raw, draft.external_url)
     if flyer is not None:
-        _add_cover(event, draft, flyer, written_files)
+        _add_cover(event, raw, draft, flyer, written_files)
     if not raw.collect_only and collector_may_publish(event):
         event.status = "published"
         event.published_at = timezone.now()

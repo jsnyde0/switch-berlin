@@ -50,7 +50,7 @@ def _flyer_b64() -> str:
 
 
 @_PG_ONLY
-class ConsolidationTest(TestCase):
+class CollectedCase(TestCase):
     @classmethod
     def setUpClass(cls):
         media = tempfile.TemporaryDirectory()
@@ -119,6 +119,9 @@ class ConsolidationTest(TestCase):
         fields["artists"] = list(event.artist_credits.values_list("name", flat=True))
         return fields
 
+
+@_PG_ONLY
+class ConsolidationTest(CollectedCase):
     # -- (a) the same event is rewritten from all its announcements ----------
 
     def test_a_same_event_is_rewritten_from_the_merged_announcement(self):
@@ -1046,3 +1049,76 @@ class DayLockTest(TransactionTestCase):
         self.assertEqual(
             sorted(RawMessage.objects.values_list("extraction_status", flat=True)), ["duplicate", "extracted"]
         )
+
+
+@_PG_ONLY
+class PrivacyByTierTest(CollectedCase):
+    """Ruling 17: a public event shows nothing a private post said, in either arrival order."""
+
+    _PRIVATE = dict(
+        title="Secret Rope Social",
+        price_min_cents=4200,
+        artist_names=["Hidden Name"],
+        external_url="https://secret.example/rsvp",
+        description="Members only.",
+    )
+
+    def _private(self):
+        return self._land(
+            "-100private",
+            {"default_organizer": "IKSK"},
+            {
+                "source_type": "telegram_private_group",
+                "raw_payload": {"default_organizer": "IKSK", "images": [_flyer_b64()]},
+            },
+            **self._PRIVATE,
+        )
+
+    def _public(self):
+        return self._land(
+            "@IKSKBerlin", {"default_organizer": "IKSK"}, title="Rope Social", description="Ropes, all levels."
+        )
+
+    def _assert_shows_nothing_private(self, event):
+        from django.urls import reverse
+
+        event.refresh_from_db()
+        self.assertEqual(event.visibility, "public")
+        self.assertEqual(
+            (event.title, event.price_min_cents, event.description), ("Rope Social", None, "Ropes, all levels.")
+        )
+        self.assertFalse(event.artist_credits.filter(name="Hidden Name").exists())
+        self.assertEqual(event.source_links, [])
+        self.assertIsNone(event.shown_cover)
+        self.assertTrue(event.links.exists() and event.images.exists())  # kept, not shown
+        html = self.client.get(
+            reverse("event-detail", kwargs={"org_slug": "iksk", "event_slug": event.slug})
+        ).content.decode()
+        for private in ("Secret Rope Social", "Hidden Name", "secret.example", "42", "Members only"):
+            self.assertNotIn(private, html)
+
+    def test_private_post_then_public_teaser(self):
+        _, event = self._private()
+        self.decide = same_as_first
+        self._public()
+        self._assert_shows_nothing_private(event)
+
+    def test_public_teaser_then_private_post(self):
+        _, event = self._public()
+        self.decide = lambda request: same_as_first(request, **self._PRIVATE)  # even a careless write is ignored
+        self._private()
+        self._assert_shows_nothing_private(event)
+
+    def test_a_public_event_never_takes_a_private_venue_through_a_public_post(self):
+        _, event = self._land(
+            "-100private",
+            {"default_organizer": "IKSK"},
+            {"source_type": "telegram_private_group"},
+            title="Rope Social",
+            venue_name="Hinterhof",
+            venue_address="Geheimstraße 5, 10115 Berlin",
+        )
+        self.decide = same_as_first
+        self._land("@IKSKBerlin", {"default_organizer": "IKSK"}, title="Rope Social", venue_name="Hinterhof")
+        event.refresh_from_db()
+        self.assertEqual((event.visibility, event.venue, event.location_note), ("public", None, "Hinterhof"))

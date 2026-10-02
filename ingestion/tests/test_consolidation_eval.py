@@ -141,6 +141,10 @@ def _score_a(raws):
 
 
 def _score_privacy(raws):
+    """Nothing the private post alone said shows on the public event: fields, credits, links, cover, page."""
+    from django.test import Client
+    from django.urls import reverse
+
     retreats = _retreats()
     if len(retreats) != 1:
         return [f"expected ONE retreat event, got {[(e.id, e.title) for e in retreats]}"]
@@ -148,10 +152,29 @@ def _score_privacy(raws):
     failures = []
     if event.visibility != "public":
         failures.append(f"visibility {event.visibility!r}, expected public (a public source is attached)")
-    shown = f"{event.title}\n{event.description}\n{event.location_note}\n{event.venue.address if event.venue else ''}"
-    for private_only in ("Mühlenweg", "Centre to yourself", "The topic of our gathering"):
-        if private_only in shown:
-            failures.append(f"the public event carries private-only text {private_only!r}")
+    shown = "\n".join(
+        [
+            event.title,
+            event.description,
+            event.location_note,
+            event.venue.address if event.venue else "",
+            str(event.price_min_cents),
+            str(event.price_max_cents),
+            *event.artist_credits.values_list("name", flat=True),
+            *(link.url for link in event.source_links),
+        ]
+    )
+    organizer = event.event_organizer_set.order_by("order").first()
+    page = (
+        Client()
+        .get(reverse("event-detail", kwargs={"org_slug": organizer.profile.slug, "event_slug": event.slug}))
+        .content.decode()
+    )
+    for private_only in ("Mühlenweg", "444", "Hidden Guest", "members.example", "Centre to yourself"):
+        if private_only in shown or private_only in page:
+            failures.append(f"the public event shows private-only {private_only!r}")
+    if event.shown_cover is not None and not event.shows_source(event.shown_cover.raw_message):
+        failures.append("the cover comes from a less public source")
     return failures
 
 
@@ -223,7 +246,8 @@ def _score_e(raws):
 SCORERS = {
     "a_retreat_one_event": _score_a,
     "a_retreat_reverse_order": _score_a,
-    "privacy_public_teaser_drops_private_text": _score_privacy,
+    "privacy_private_then_public": _score_privacy,
+    "privacy_public_then_private": _score_privacy,
     "different_explicit_organizers_stay_separate": _score_separate_hosts,
     "cancellation_post_171": _score_cancelled,
     "re_read_after_consolidation": _score_re_read,

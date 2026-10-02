@@ -442,7 +442,7 @@ class CollectedEventLandingTest(TestCase):
         self.assertTrue(Event.objects.filter(raw_message=raw).exists())
         self.assertFalse(EventImage.objects.exists())
 
-    def test_duplicate_and_second_ingest_never_add_a_second_cover(self):
+    def test_a_shown_cover_is_never_doubled_and_a_less_public_flyer_hides(self):
         flyer = _flyer_b64()
         self._process(self._flyer_raw(flyer, message_id="m1"))
         self.assertEqual(EventImage.objects.count(), 1)
@@ -457,8 +457,13 @@ class CollectedEventLandingTest(TestCase):
             )
         )
         self.assertEqual(other.extraction_status, "duplicate")
-        self.assertEqual(EventImage.objects.count(), 1)
-        self.assertEqual(EventImage.objects.filter(is_cover=True).count(), 1)
+        # The public copy makes the event public: the private flyer is kept but hidden, the public one shows.
+        event = Event.objects.get()
+        self.assertEqual(event.visibility, "public")
+        self.assertEqual(EventImage.objects.count(), 2)
+        self.assertEqual(event.shown_cover.raw_message, other)
+        self._process(self._flyer_raw(flyer, message_id="m4"))
+        self.assertEqual(EventImage.objects.count(), 2)  # a shown cover exists: no further flyer
 
     def test_one_flyer_covers_each_event_of_a_multi_event_post(self):
         raw = self._flyer_raw(_flyer_b64())

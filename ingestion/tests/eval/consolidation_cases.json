@@ -394,40 +394,6 @@
    ]
   },
   {
-   "id": "privacy_public_teaser_drops_private_text",
-   "criterion": "ruling 1: a private-group post with an address, then a public teaser of the same event -> a public event carrying neither the private-only prose nor the address",
-   "posts": [
-    {
-     "raw_message_id": 555,
-     "source_type": "telegram_private_group",
-     "channel_id": "2287767683:894",
-     "message_id": "2456",
-     "now": "2026-09-30T10:28:09+00:00",
-     "text": "Telegram post in Sober Events in Berlin / Sex-positive offerings, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram\n\n🏠 Address for registered guests: Mühlenweg 7, 15848 Spitzmühle",
-     "url_content": "",
-     "raw_payload": {
-      "source": "Sober Events in Berlin / Sex-positive offerings",
-      "default_organizer": "poster",
-      "poster": "Till Tailor"
-     },
-     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed. The address line is synthetic: the dev DB holds no private post with an address."
-    },
-    {
-     "raw_message_id": 226,
-     "source_type": "telegram_telethon",
-     "channel_id": "@TillTailorShirka",
-     "message_id": "171",
-     "now": "2026-09-18T13:53:44+00:00",
-     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-18 (Friday).\n\n🇨🇭 Zurich / Switzerland  - All events cancelled 😞\n\nWe're taking a break from hosting events in Zurich.\n-- and we cancelled all our Swiss dates - next week, and also in November and in 2027. \n\n🐌🐌 The reasons are personal: we took on too much and need a break. \n\nWe ran 5 events and got to know curious and playful humans.\nThanks to everyone who participated. 🙏🏼\n\nWe'd love to bring more events to Zurich, and maybe other Swiss cities as well. 🍇🌶🌈\nIt might take a while, and we'll keep you updated.\n\nMaybe we'll see you at one of our other events in Vienna or Berlin instead?\n\n💞 best wishes, Shirka & Till \n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext dates:\n08.-11.10 - Retreat Berlin\n06.-08.11. - Vienna Weekend\n14.11. - Berlin Temple\n11.-13. 12. - Vienna Weekend\n02.01.27 - New Years Temple Berlin\n! SAVE THE DATE: 26.-29.03. 27 - EASTER in Vienna: Kinky catholics and hot orgy bunnys! \n\n🍑 «We 💜 sillysexual! »  🍑\n\n ! Last call:  Temple Retreat! \n👉🏼 08.-11.10.26 at Spitzmühle / 4 days, 3 Nights / 530€-800€\n\n❗️October Retreat ❗️| TG | Insta",
-     "url_content": "",
-     "raw_payload": {
-      "source": "@TillTailorShirka",
-      "default_organizer": "Till & Shirka"
-     }
-    }
-   ]
-  },
-  {
    "id": "different_explicit_organizers_stay_separate",
    "criterion": "ruling 6: two workshops at one venue on one day, each naming a different host -> two events",
    "posts": [
@@ -587,6 +553,76 @@
       "default_organizer": "Till & Shirka"
      },
      "note": "re-read: the same post collected again with edited text"
+    }
+   ]
+  },
+  {
+   "id": "privacy_private_then_public",
+   "criterion": "rulings 1 + 17: a private-group post (address, price, guest, link) and a public teaser of the same event -> a public event showing none of the private post's values",
+   "now": "2026-09-30T12:00:00+00:00",
+   "posts": [
+    {
+     "raw_message_id": 555,
+     "source_type": "telegram_private_group",
+     "channel_id": "2287767683:894",
+     "message_id": "2456",
+     "now": "2026-09-30T10:28:09+00:00",
+     "text": "Telegram post in Sober Events in Berlin / Sex-positive offerings, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram\n\n🏠 Address for registered guests: Mühlenweg 7, 15848 Spitzmühle\n💶 Members' price: 444€\n🎧 With special guest: Hidden Guest\n🔗 https://members.example/rsvp",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Sober Events in Berlin / Sex-positive offerings",
+      "default_organizer": "poster",
+      "poster": "Till Tailor"
+     },
+     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed. The address, members' price, guest and link lines are synthetic: the dev DB holds no private post with them."
+    },
+    {
+     "raw_message_id": 226,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "171",
+     "now": "2026-09-18T13:53:44+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-18 (Friday).\n\n🇨🇭 Zurich / Switzerland  - All events cancelled 😞\n\nWe're taking a break from hosting events in Zurich.\n-- and we cancelled all our Swiss dates - next week, and also in November and in 2027. \n\n🐌🐌 The reasons are personal: we took on too much and need a break. \n\nWe ran 5 events and got to know curious and playful humans.\nThanks to everyone who participated. 🙏🏼\n\nWe'd love to bring more events to Zurich, and maybe other Swiss cities as well. 🍇🌶🌈\nIt might take a while, and we'll keep you updated.\n\nMaybe we'll see you at one of our other events in Vienna or Berlin instead?\n\n💞 best wishes, Shirka & Till \n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext dates:\n08.-11.10 - Retreat Berlin\n06.-08.11. - Vienna Weekend\n14.11. - Berlin Temple\n11.-13. 12. - Vienna Weekend\n02.01.27 - New Years Temple Berlin\n! SAVE THE DATE: 26.-29.03. 27 - EASTER in Vienna: Kinky catholics and hot orgy bunnys! \n\n🍑 «We 💜 sillysexual! »  🍑\n\n ! Last call:  Temple Retreat! \n👉🏼 08.-11.10.26 at Spitzmühle / 4 days, 3 Nights / 530€-800€\n\n❗️October Retreat ❗️| TG | Insta",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    }
+   ]
+  },
+  {
+   "id": "privacy_public_then_private",
+   "criterion": "rulings 1 + 17: a private-group post (address, price, guest, link) and a public teaser of the same event -> a public event showing none of the private post's values",
+   "now": "2026-09-30T12:00:00+00:00",
+   "posts": [
+    {
+     "raw_message_id": 226,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "171",
+     "now": "2026-09-18T13:53:44+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-18 (Friday).\n\n🇨🇭 Zurich / Switzerland  - All events cancelled 😞\n\nWe're taking a break from hosting events in Zurich.\n-- and we cancelled all our Swiss dates - next week, and also in November and in 2027. \n\n🐌🐌 The reasons are personal: we took on too much and need a break. \n\nWe ran 5 events and got to know curious and playful humans.\nThanks to everyone who participated. 🙏🏼\n\nWe'd love to bring more events to Zurich, and maybe other Swiss cities as well. 🍇🌶🌈\nIt might take a while, and we'll keep you updated.\n\nMaybe we'll see you at one of our other events in Vienna or Berlin instead?\n\n💞 best wishes, Shirka & Till \n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext dates:\n08.-11.10 - Retreat Berlin\n06.-08.11. - Vienna Weekend\n14.11. - Berlin Temple\n11.-13. 12. - Vienna Weekend\n02.01.27 - New Years Temple Berlin\n! SAVE THE DATE: 26.-29.03. 27 - EASTER in Vienna: Kinky catholics and hot orgy bunnys! \n\n🍑 «We 💜 sillysexual! »  🍑\n\n ! Last call:  Temple Retreat! \n👉🏼 08.-11.10.26 at Spitzmühle / 4 days, 3 Nights / 530€-800€\n\n❗️October Retreat ❗️| TG | Insta",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
+     "raw_message_id": 555,
+     "source_type": "telegram_private_group",
+     "channel_id": "2287767683:894",
+     "message_id": "2456",
+     "now": "2026-09-30T10:28:09+00:00",
+     "text": "Telegram post in Sober Events in Berlin / Sex-positive offerings, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram\n\n🏠 Address for registered guests: Mühlenweg 7, 15848 Spitzmühle\n💶 Members' price: 444€\n🎧 With special guest: Hidden Guest\n🔗 https://members.example/rsvp",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Sober Events in Berlin / Sex-positive offerings",
+      "default_organizer": "poster",
+      "poster": "Till Tailor"
+     },
+     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed. The address, members' price, guest and link lines are synthetic: the dev DB holds no private post with them."
     }
    ]
   }

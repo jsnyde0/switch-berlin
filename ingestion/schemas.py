@@ -70,6 +70,12 @@ class CollectedEvents(pydantic.BaseModel):
     events: list[EventDraft]
 
 
+class MergedEvent(EventDraft):
+    """An event the consolidation call writes out in full; its confidence is not asked for."""
+
+    confidence: float = 1.0
+
+
 class Decision(pydantic.BaseModel):
     """The consolidation call's judgement on one of the post's events (ADR-007 D10)."""
 
@@ -77,7 +83,7 @@ class Decision(pydantic.BaseModel):
     same_as: int | None = None  # the existing event's id when it IS that event
     possibly_same_as: int | None = None  # when unsure: a new event, flagged for staff against this id
     # With same_as: the event written out in full from every eligible announcement attached to it.
-    event: EventDraft | None = None
+    event: MergedEvent | None = None
     # With same_as: the eligible announcement whose description the event takes, copied verbatim
     # (0 = this post event); None when no eligible announcement has one.
     description_from: int | None = None

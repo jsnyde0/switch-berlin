@@ -264,7 +264,13 @@ def event_detail(request, org_slug, event_slug):
             status="published",
         )
         .select_related("venue", "venue__run_by")
-        .prefetch_related("tags", "images", "event_organizer_set__profile", "artist_credits__profile", "links")
+        .prefetch_related(
+            "tags",
+            "images__raw_message",
+            "event_organizer_set__profile",
+            "artist_credits__profile",
+            "links__raw_message",
+        )
         .distinct()
     )
     event = qs.first()
@@ -273,7 +279,7 @@ def event_detail(request, org_slug, event_slug):
     # Annotate resolved event on request so XRobotsTagMiddleware can set headers.
     request._resolved_event = event
     # Use generator over prefetch cache — avoids a second DB query from .filter()
-    cover_image = next((img for img in event.images.all() if img.is_cover), None)
+    cover_image = event.shown_cover
     if request.user.is_authenticated:
         try:
             attendance = Attendance.objects.get(user=request.user, event=event)

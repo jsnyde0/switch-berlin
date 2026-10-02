@@ -39,7 +39,7 @@ def card_image_url(event, request) -> str:
     # .prefetch_related("images")); a live DB hit otherwise. No try/except —
     # a failing relation access is a real error and must surface (ADR-008 D3),
     # not be masked as "no cover".
-    cover = next((img for img in event.images.all() if img.is_cover), None)
+    cover = event.shown_cover  # a flyer from a less public source never shows (ADR-007 D10)
 
     if cover is not None:
         # Build absolute URL matching the template pattern:
