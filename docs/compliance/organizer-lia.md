@@ -5,7 +5,7 @@
 **Legal basis:** Art. 6(1)(f) GDPR — Legitimate interest of the controller  
 **Data category:** Organizer identity and public event listings  
 **Controller:** Switch Berlin (operator details in Impressum)  
-**Date:** 2026-04-22; revised 2026-09-29 for automated collection (sb-7wzb.2: organizer websites, automated collection, the Telegram API terms note, invite-only communities)  
+**Date:** 2026-04-22; revised 2026-09-29 for automated collection (sb-7wzb.2: organizer websites, automated collection, the Telegram API terms note, invite-only communities); revised 2026-10-02 for event flyers (sb-7wzb.21, §3)  
 **Review trigger:** Re-assess if 3 or more organizer objections per calendar quarter, or if processing purposes change materially.
 
 ---
@@ -49,6 +49,10 @@ Organizers who publish events on their websites, public Telegram channels and gr
 - **No automated profiling or scoring** of organizers occurs. The language model only extracts event fields (title, dates, venue, price, organizer name) from the announcement text and its attached images.
 - **No widening of a closed audience.** Events collected from invite-only sources are shown only to vouched members (see §2).
 - **Minimal retention.** Organizer listings are hidden immediately upon a valid takedown request (see §4 below). Event records for past events are retained for community reference but can be de-listed on request.
+
+### Event flyers
+
+We re-host a reduced copy of the flyer the organizer themselves published, credited to the organizer on their Switch profile, removed on request via the takedown route (§4). Same lawful basis as the event listing. The copy is web-size (long edge at most 1600 px, re-encoded); the original file is never stored. A flyer is shown to the same audience as the event it came from: a flyer collected from an invite-only source is shown only to vouched members (see §2). An event without a flyer has no image.
 
 ### Conclusion
 

@@ -7,16 +7,21 @@ extracted event by claim state (ADR-017 D4) at the source-derived tier
 Postgres-only: process_raw_message runs match_entities (TrigramSimilarity).
 """
 
+import base64
+import io
+import tempfile
 import unittest
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
+from PIL import Image
 
-from events.models import Event
+from events.models import Event, EventImage
 from ingestion.models import RawMessage
 from ingestion.schemas import CollectedEvents, EventDraft
 from organizers.models import Profile, ProfileClaim
@@ -28,6 +33,13 @@ _PG_ONLY = unittest.skipIf(
     connection.vendor == "sqlite",
     "process_raw_message invokes match_entities (TrigramSimilarity / pg_trgm).",
 )
+
+
+def _flyer_b64(width=3000, height=2000, color="crimson") -> str:
+    """A real JPEG flyer as the Telegram collector ships it: base64 in raw_payload["images"]."""
+    buf = io.BytesIO()
+    Image.new("RGB", (width, height), color).save(buf, "JPEG", quality=95)
+    return base64.b64encode(buf.getvalue()).decode()
 
 
 def _row(**kwargs):
@@ -96,6 +108,7 @@ class CollectedRowsEndpointTest(TestCase):
 
 
 @_PG_ONLY
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CollectedEventLandingTest(TestCase):
     def setUp(self):
         self.start = timezone.now() + timedelta(days=3)
@@ -234,17 +247,19 @@ class CollectedEventLandingTest(TestCase):
     def test_images_reach_the_extractor_and_are_dropped_after(self):
         from pydantic_ai import BinaryContent
 
+        flyer, back = _flyer_b64(800, 600), _flyer_b64(800, 600, "navy")
         raw = self._raw(
             source_type="telegram_telethon",
             channel_id="@IKSKBerlin",
             text="THURSDAY 1.10.26",
-            raw_payload={"organizer": "IKSK", "images": ["aGVsbG8=", "d29ybGQ="]},
+            raw_payload={"organizer": "IKSK", "images": [flyer, back]},
         )
         agent = self._run(raw, CollectedEvents(events=[self._draft()]))
         (parts,), _ = agent.return_value.run_sync.call_args
         self.assertIn("THURSDAY 1.10.26", parts[0])
         self.assertEqual(
-            [(p.data, p.media_type) for p in parts[1:]], [(b"hello", "image/jpeg"), (b"world", "image/jpeg")]
+            [(p.data, p.media_type) for p in parts[1:]],
+            [(base64.b64decode(flyer), "image/jpeg"), (base64.b64decode(back), "image/jpeg")],
         )
         self.assertTrue(all(isinstance(p, BinaryContent) for p in parts[1:]))
         self.assertEqual(raw.raw_payload, {"organizer": "IKSK"})  # image bytes do not outlive the pipeline
@@ -287,4 +302,88 @@ class CollectedEventLandingTest(TestCase):
     def test_event_outside_berlin_is_skipped(self):
         raw = self._process(self._raw(), in_berlin_area=False)
         self.assertEqual((raw.extraction_status, raw.extraction_error), ("skipped", "not_berlin"))
+        self.assertFalse(Event.objects.exists())
+
+    def _flyer_raw(self, *images, **kwargs):
+        return self._raw(
+            source_type="telegram_private_channel",
+            channel_id="-100555",
+            text="",
+            raw_payload={"organizer": "IKSK", "images": list(images)},
+            **kwargs,
+        )
+
+    def test_flyer_is_kept_as_one_downsized_cover(self):
+        flyer = _flyer_b64(3000, 2000)
+        raw = self._process(self._flyer_raw(flyer, _flyer_b64(900, 900, "navy")))
+        event = Event.objects.get(raw_message=raw)
+        cover = EventImage.objects.get(event=event)  # one cover, not one per attachment
+        self.assertTrue(cover.is_cover)
+        self.assertTrue(cover.image.name.startswith("events/"))
+        with cover.image.open("rb") as f:
+            stored = f.read()
+        with Image.open(io.BytesIO(stored)) as img:
+            self.assertLessEqual(max(img.size), 1600)
+            self.assertEqual(img.size, (1600, 1067))  # aspect kept
+            self.assertGreater(img.getpixel((800, 500))[0], 150)  # the first attachment, the crimson flyer
+        self.assertNotEqual(stored, base64.b64decode(flyer))
+        # The original bytes are kept nowhere: not on the row, not in storage.
+        self.assertNotIn("images", raw.raw_payload)
+        media = [p for p in Path(cover.image.storage.location).rglob("*") if p.is_file()]
+        self.assertEqual([p.read_bytes() for p in media].count(base64.b64decode(flyer)), 0)
+
+    def test_small_flyer_is_re_encoded_not_copied(self):
+        flyer = _flyer_b64(800, 600)
+        raw = self._process(self._flyer_raw(flyer))
+        cover = EventImage.objects.get(event__raw_message=raw)
+        with cover.image.open("rb") as f:
+            stored = f.read()
+        self.assertNotEqual(stored, base64.b64decode(flyer))
+        with Image.open(io.BytesIO(stored)) as img:
+            self.assertEqual(img.size, (800, 600))
+
+    def test_post_without_flyer_gets_no_image(self):
+        raw = self._process(self._raw(source_type="telegram_telethon", channel_id="@IKSKBerlin"))
+        self.assertTrue(Event.objects.filter(raw_message=raw).exists())
+        self.assertFalse(EventImage.objects.exists())
+
+    def test_duplicate_and_second_ingest_never_add_a_second_cover(self):
+        flyer = _flyer_b64()
+        self._process(self._flyer_raw(flyer, message_id="m1"))
+        self.assertEqual(EventImage.objects.count(), 1)
+        again = self._process(self._flyer_raw(flyer, message_id="m2"))
+        self.assertEqual(again.extraction_status, "duplicate")
+        other = self._process(
+            self._raw(
+                source_type="telegram_telethon",
+                channel_id="@IKSKBerlin",
+                message_id="m3",
+                raw_payload={"organizer": "IKSK", "images": [flyer]},
+            )
+        )
+        self.assertEqual(other.extraction_status, "duplicate")
+        self.assertEqual(EventImage.objects.count(), 1)
+        self.assertEqual(EventImage.objects.filter(is_cover=True).count(), 1)
+
+    def test_one_flyer_covers_each_event_of_a_multi_event_post(self):
+        raw = self._flyer_raw(_flyer_b64())
+        drafts = [
+            self._draft(title="Bondage Jam"),
+            self._draft(title="Rope Social", start=self.start + timedelta(days=1)),
+        ]
+        self._run(raw, CollectedEvents(events=drafts))
+        self.assertEqual(
+            sorted(EventImage.objects.filter(is_cover=True).values_list("event__title", flat=True)),
+            ["Bondage Jam", "Rope Social"],
+        )
+
+    def test_private_channel_flyer_rides_its_events_tier(self):
+        raw = self._process(self._flyer_raw(_flyer_b64()))
+        cover = EventImage.objects.get(event__raw_message=raw)
+        self.assertEqual(cover.event.visibility, "semi_public")
+
+    def test_undecodable_flyer_fails_loud_and_keeps_the_row_whole(self):
+        raw = self._process(self._flyer_raw("aGVsbG8="))
+        self.assertEqual(raw.extraction_status, "failed")
+        self.assertEqual(raw.raw_payload["images"], ["aGVsbG8="])
         self.assertFalse(Event.objects.exists())

@@ -13,15 +13,19 @@ Two ends of the RawMessage seam for rows that a collector (switch-cli
 Plain functions over the existing seam; no source framework (sb-7wzb.2 D3).
 """
 
+import base64
+import io
 import uuid
 from datetime import timedelta
 
 import logfire
 from django.contrib.postgres.search import TrigramSimilarity
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django_q.tasks import async_task
+from PIL import Image, ImageOps
 
 from events.backfill_visibility import derive_visibility_from_sources, rawmessage_source_to_conceptual
 
@@ -34,6 +38,10 @@ _NO_NAME = {"", "unknown", "n/a", "none", "not specified", "unbekannt"}
 
 # Title similarity at which two same-day events count as one (pg_trgm, case-folded).
 _DUPLICATE_TITLE_SIMILARITY = 0.4
+
+# The kept flyer copy (sb-7wzb.12 D1): web size, re-encoded, never the original bytes.
+_FLYER_LONG_EDGE = 1600
+_FLYER_WEBP_QUALITY = 80
 
 
 def ingest_collected_rows(rows: list[dict]) -> dict:
@@ -163,18 +171,21 @@ def wipe_non_event(raw) -> None:
 def process_collected_row(raw, enriched: dict) -> None:
     """Extract every event a collected post announces (text + images) and land each one.
 
-    No events = not an event post = wiped at once (LIA §1). Otherwise image bytes
-    are dropped once extraction settles; the post text stays with its events.
+    No events = not an event post = wiped at once (LIA §1). Otherwise the first
+    image becomes each landed event's cover as a downsized copy (sb-7wzb.12 D1),
+    then the original bytes are dropped; the post text stays with its events.
     A failed extraction keeps the row whole so it can be re-run.
     """
     from django.conf import settings
 
     from .extraction import COLLECTED_PROMPT_VERSION, extract_collected_events, match_entities
 
-    drafts = extract_collected_events(raw.text, raw.raw_payload.get("images", []), enriched)
+    images = raw.raw_payload.get("images", [])
+    drafts = extract_collected_events(raw.text, images, enriched)
     if not drafts:
         return wipe_non_event(raw)
 
+    flyer = downsize_flyer(images[0]) if images else None
     if "images" in raw.raw_payload:
         raw.raw_payload = {k: v for k, v in raw.raw_payload.items() if k != "images"}
         raw.save(update_fields=["raw_payload"])
@@ -190,12 +201,28 @@ def process_collected_row(raw, enriched: dict) -> None:
             extracted_draft=draft_json,
             confidence_score=draft.confidence,
         )
-        outcomes.append(land_collected_event(raw, draft, match_entities(draft), attempt_kwargs))
+        outcomes.append(land_collected_event(raw, draft, match_entities(draft), attempt_kwargs, flyer))
 
     status, error = min(outcomes, key=lambda o: _OUTCOME_RANK.index(o[0]))
     raw.extraction_status, raw.extraction_error = status, error
     raw.save(update_fields=["extraction_status", "extraction_error"])
     logfire.info("collected.row_landed", raw_message_id=raw.id, events=len(drafts), outcome=status)
+
+
+def downsize_flyer(image_b64: str) -> bytes:
+    """One web-size WebP of a collected flyer: long edge <= 1600 px, metadata dropped.
+
+    An undecodable image raises (ADR-008 D3), before any event lands, so the row
+    fails whole and keeps its images for a re-run.
+    """
+    with Image.open(io.BytesIO(base64.b64decode(image_b64))) as img:
+        img = ImageOps.exif_transpose(img)
+        img.thumbnail((_FLYER_LONG_EDGE, _FLYER_LONG_EDGE))
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGBA")
+        out = io.BytesIO()
+        img.save(out, "WEBP", quality=_FLYER_WEBP_QUALITY)
+    return out.getvalue()
 
 
 def _record(attempt_kwargs, status, error="", event=None, success=False) -> tuple[str, str]:
@@ -206,9 +233,13 @@ def _record(attempt_kwargs, status, error="", event=None, success=False) -> tupl
     return status, error
 
 
-def land_collected_event(raw, draft, matched, attempt_kwargs) -> tuple[str, str]:
-    """Land one extracted event: skipped, held, duplicate, draft or published. Returns (outcome, reason)."""
-    from events.models import Event
+def land_collected_event(raw, draft, matched, attempt_kwargs, flyer: bytes | None = None) -> tuple[str, str]:
+    """Land one extracted event: skipped, held, duplicate, draft or published. Returns (outcome, reason).
+
+    A newly landed event takes `flyer` (downsized bytes) as its cover; a duplicate
+    gets nothing here, so it never gains a second cover.
+    """
+    from events.models import Event, EventImage
     from syndication.authz import collector_may_publish
 
     start = _aware(draft.start)
@@ -250,6 +281,9 @@ def land_collected_event(raw, draft, matched, attempt_kwargs) -> tuple[str, str]
         suggested_tags=matched["unmatched_tags"],
     )
     event.tags.set(matched["matched_tags"])
+    if flyer is not None:
+        cover = EventImage(event=event, is_cover=True, alt=draft.title[:300])
+        cover.image.save(f"{event.slug}.webp", ContentFile(flyer), save=True)
     if not raw.collect_only and collector_may_publish(event):
         event.status = "published"
         event.published_at = timezone.now()
