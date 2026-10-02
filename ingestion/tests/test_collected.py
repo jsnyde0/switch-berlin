@@ -108,8 +108,15 @@ class CollectedRowsEndpointTest(TestCase):
 
 
 @_PG_ONLY
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CollectedEventLandingTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        media = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(media.cleanup)
+        cls.media_root = Path(media.name)
+        cls.enterClassContext(override_settings(MEDIA_ROOT=media.name))
+        super().setUpClass()
+
     def setUp(self):
         self.start = timezone.now() + timedelta(days=3)
         self.iksk = Profile.objects.create(name="IKSK", slug="iksk", status="approved")
@@ -387,3 +394,30 @@ class CollectedEventLandingTest(TestCase):
         self.assertEqual(raw.extraction_status, "failed")
         self.assertEqual(raw.raw_payload["images"], ["aGVsbG8="])
         self.assertFalse(Event.objects.exists())
+
+    def test_storage_failure_mid_landing_leaves_nothing_behind(self):
+        from django.core.files.storage import FileSystemStorage
+
+        real_save, calls = FileSystemStorage._save, []
+
+        def save_then_fail(storage, name, content):
+            calls.append(name)
+            if len(calls) == 2:
+                raise OSError("disk full")
+            return real_save(storage, name, content)
+
+        flyer = _flyer_b64()
+        raw = self._flyer_raw(flyer)
+        drafts = [
+            self._draft(title="Bondage Jam"),
+            self._draft(title="Rope Social", start=self.start + timedelta(days=1)),
+        ]
+        before = {p for p in self.media_root.rglob("*") if p.is_file()}
+        with patch.object(FileSystemStorage, "_save", save_then_fail):
+            self._run(raw, CollectedEvents(events=drafts))
+        self.assertEqual(len(calls), 2)  # the first cover was written before the second failed
+        self.assertEqual(raw.extraction_status, "failed")
+        self.assertEqual(raw.raw_payload["images"], [flyer])  # whole row kept for a re-run
+        self.assertFalse(Event.objects.exists())
+        self.assertFalse(EventImage.objects.exists())
+        self.assertEqual({p for p in self.media_root.rglob("*") if p.is_file()}, before)  # no orphaned file

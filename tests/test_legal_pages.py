@@ -609,3 +609,26 @@ def test_takedown_de_gdpr_notice_translated(client, public_read_on):
     content_decoded = response.content.decode("utf-8")
     # Must mention DSGVO or Art. 6(1)(c) in German context
     assert "DSGVO" in content_decoded or "Datenschutz" in content_decoded
+
+
+# ---------------------------------------------------------------------------
+# Kept flyer copy (sb-7wzb.21): the privacy page follows the LIA flyer clause
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("lang", "gone", "present"),
+    [
+        ("en", b"deleted once the events are extracted.", b"one reduced copy of the flyer"),
+        ("de", b"sobald die Veranstaltungen extrahiert sind.", b"eine verkleinerte Kopie des Flyers"),
+    ],
+)
+def test_privacy_says_a_reduced_flyer_copy_is_kept(client, public_read_on, lang, gone, present):
+    """Event-post images are no longer all deleted: one reduced flyer copy stays, removable via takedown."""
+    with override_settings(LANGUAGE_CODE=lang, LANGUAGE_COOKIE_NAME="django_language"):
+        client.cookies["django_language"] = lang
+        response = client.get("/privacy/")
+    assert response.status_code == 200
+    assert gone not in response.content
+    assert present in response.content

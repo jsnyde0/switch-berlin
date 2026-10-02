@@ -22,6 +22,7 @@ from datetime import timedelta
 import logfire
 from django.contrib.postgres.search import TrigramSimilarity
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -305,6 +306,8 @@ def process_collected_row(raw, enriched: dict) -> None:
     No events = not an event post = wiped at once (LIA §1). Otherwise the first
     image becomes each landed event's cover as a downsized copy (sb-7wzb.12 D1),
     then the original bytes are dropped; the post text stays with its events.
+    The row lands whole or not at all: on any failure the events roll back, the
+    images stay and the cover files already written are deleted.
     A failed extraction keeps the row whole so it can be re-run.
     """
     from django.conf import settings
@@ -317,26 +320,35 @@ def process_collected_row(raw, enriched: dict) -> None:
         return wipe_non_event(raw)
 
     flyer = downsize_flyer(images[0]) if images else None
-    if "images" in raw.raw_payload:
-        raw.raw_payload = {k: v for k, v in raw.raw_payload.items() if k != "images"}
-        raw.save(update_fields=["raw_payload"])
+    written_files: list[str] = []
+    try:
+        with transaction.atomic():
+            if "images" in raw.raw_payload:
+                raw.raw_payload = {k: v for k, v in raw.raw_payload.items() if k != "images"}
+                raw.save(update_fields=["raw_payload"])
 
-    outcomes = []
-    for draft in drafts:
-        draft_json = draft.model_dump(mode="json")
-        attempt_kwargs = dict(
-            raw_message=raw,
-            model_name=settings.LLM_MODEL_NAME,
-            prompt_version=COLLECTED_PROMPT_VERSION,
-            raw_response=draft_json,
-            extracted_draft=draft_json,
-            confidence_score=draft.confidence,
-        )
-        outcomes.append(land_collected_event(raw, draft, match_entities(draft), attempt_kwargs, flyer))
+            outcomes = []
+            for draft in drafts:
+                draft_json = draft.model_dump(mode="json")
+                attempt_kwargs = dict(
+                    raw_message=raw,
+                    model_name=settings.LLM_MODEL_NAME,
+                    prompt_version=COLLECTED_PROMPT_VERSION,
+                    raw_response=draft_json,
+                    extracted_draft=draft_json,
+                    confidence_score=draft.confidence,
+                )
+                landed = land_collected_event(raw, draft, match_entities(draft), attempt_kwargs, flyer, written_files)
+                outcomes.append(landed)
 
-    status, error = min(outcomes, key=lambda o: _OUTCOME_RANK.index(o[0]))
-    raw.extraction_status, raw.extraction_error = status, error
-    raw.save(update_fields=["extraction_status", "extraction_error"])
+            status, error = min(outcomes, key=lambda o: _OUTCOME_RANK.index(o[0]))
+            raw.extraction_status, raw.extraction_error = status, error
+            raw.save(update_fields=["extraction_status", "extraction_error"])
+    except Exception:
+        # The rollback took the events and kept the images; the cover files are not transactional.
+        for name in written_files:
+            default_storage.delete(name)
+        raise
     logfire.info("collected.row_landed", raw_message_id=raw.id, events=len(drafts), outcome=status)
 
 
@@ -364,11 +376,14 @@ def _record(attempt_kwargs, status, error="", event=None, success=False) -> tupl
     return status, error
 
 
-def land_collected_event(raw, draft, matched, attempt_kwargs, flyer: bytes | None = None) -> tuple[str, str]:
+def land_collected_event(
+    raw, draft, matched, attempt_kwargs, flyer: bytes | None = None, written_files: list[str] | None = None
+) -> tuple[str, str]:
     """Land one extracted event: skipped, held, duplicate, draft or published. Returns (outcome, reason).
 
-    A newly landed event takes `flyer` (downsized bytes) as its cover; a duplicate
-    gets nothing here, so it never gains a second cover.
+    A newly landed event takes `flyer` (downsized bytes) as its cover, its stored
+    name appended to `written_files`; a duplicate gets nothing here, so it never
+    gains a second cover.
     """
     from events.models import Event, EventImage
     from syndication.authz import collector_may_publish
@@ -416,7 +431,10 @@ def land_collected_event(raw, draft, matched, attempt_kwargs, flyer: bytes | Non
     event.tags.set(matched["matched_tags"])
     if flyer is not None:
         cover = EventImage(event=event, is_cover=True, alt=draft.title[:300])
-        cover.image.save(f"{event.slug}.webp", ContentFile(flyer), save=True)
+        cover.image.save(f"{event.slug}.webp", ContentFile(flyer), save=False)
+        if written_files is not None:
+            written_files.append(cover.image.name)
+        cover.save()
     if not raw.collect_only and collector_may_publish(event):
         event.status = "published"
         event.published_at = timezone.now()
