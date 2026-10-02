@@ -102,6 +102,16 @@ class CollectedVenueTest(TestCase):
         self.assertEqual(self._land("IKSK Berlin (Holzmarkt 25, Haus 2)").venue, seeded)
         self.assertEqual(Venue.objects.count(), 2)  # + the source's default venue "IKSK"
 
+    def test_address_inside_a_name_leaves_a_clean_venue_name(self):
+        venue = self._land("IKSK Berlin (Holzmarkt 25, Berlin)").venue
+        self.assertEqual(venue.name, "IKSK Berlin")
+        self.assertEqual(venue.address, "Holzmarkt 25")
+
+    def test_a_nearby_hint_is_a_note_not_a_venue(self):
+        event = self._land("Near S Treptower Park")
+        self.assertIsNone(event.venue)
+        self.assertEqual(event.location_note, "Near S Treptower Park")
+
     # (3)
     def test_unknown_place_creates_one_venue_without_coordinates_or_runner(self):
         event = self._land("Wandel-Raum", venue_address="Wandelweg 3, 12043 Berlin")

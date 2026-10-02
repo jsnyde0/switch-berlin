@@ -44,4 +44,5 @@ def split_street_address(text: str) -> tuple[str, str]:
     rest = text[: match.start()] + " " + text[end:]
     rest = re.sub(r"\s+([,)])", r"\1", re.sub(r"\(\s+", "(", re.sub(r"\s+", " ", rest)))
     rest = re.sub(r",\s*\(", " (", re.sub(r",+", ",", rest))
+    rest = re.sub(r"\(\s*\)", "", re.sub(r",\s*\)", ")", re.sub(r"\(\s*,\s*", "(", rest)))
     return text[match.start() : end].strip(" ,"), rest.strip(" ,")

@@ -133,7 +133,8 @@ def resolve_organizer(raw, draft, matched_organizer):
 _PLACEHOLDER = re.compile(
     r"\b(?:online|zoom|livestream|virtual|secret|geheim|on request|auf anfrage|ticket ?holders?|tba|tbd"
     r"|private (?:venue|location|address|flat|apartment)"
-    r"|(?:location|address) (?:will be )?(?:shared|sent|announced))\b",
+    r"|(?:location|address) (?:will be )?(?:shared|sent|announced))\b"
+    r"|^\s*(?:near|nahe|close to)\b",  # a hint near somewhere, not a place
     re.IGNORECASE,
 )
 # A name made only of these words is a city or district, not a place.
@@ -153,9 +154,18 @@ _RESTRICTED = re.compile(
 _PRIVATE_SHAPES = ("telegram_private_channel", "telegram_private_group")
 
 
+def _is_area(text: str) -> bool:
+    words = re.findall(r"[^\W\d_]+", normalize(text))
+    return bool(words) and all(w in _AREAS for w in words)
+
+
 def _is_placeholder(name: str) -> bool:
-    words = re.findall(r"[^\W\d_]+", normalize(name))
-    return bool(_PLACEHOLDER.search(name)) or bool(words) and all(w in _AREAS for w in words)
+    return bool(_PLACEHOLDER.search(name)) or _is_area(name)
+
+
+def _drop_area_brackets(name: str) -> str:
+    """'IKSK Berlin (Berlin)' -> 'IKSK Berlin': a bracket left holding only a city adds nothing."""
+    return re.sub(r"\s*\(([^)]*)\)", lambda m: "" if _is_area(m.group(1)) else m.group(0), name).strip()
 
 
 def _find_venue(name: str, address: str | None = None):
@@ -232,6 +242,7 @@ def resolve_place(raw, draft) -> tuple:
     if known is None:
         found, name = split_street_address(name)
         address = address or found
+        name = _drop_area_brackets(name) if found else name
     found, note = split_street_address(note)
     address = address or found
     if name and _is_placeholder(name):
