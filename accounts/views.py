@@ -10,7 +10,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django_ratelimit.core import is_ratelimited
 
-from events.models import Attendance
+from events.models import Attendance, Event
 from organizers.models import Follow
 
 
@@ -99,6 +99,7 @@ def me_view(request):
             event__start__gte=now,
             event__status="published",
             event__hidden=False,
+            event__in=Event.objects.visible_to_url(request.user),
         )
         .select_related("event", "event__venue")
         .prefetch_related("event__event_organizer_set__profile", "event__artist_credits")
@@ -111,6 +112,7 @@ def me_view(request):
             event__start__lt=now,
             event__status="published",
             event__hidden=False,
+            event__in=Event.objects.visible_to_url(request.user),
         )
         .select_related("event", "event__venue")
         .prefetch_related("event__event_organizer_set__profile", "event__artist_credits")

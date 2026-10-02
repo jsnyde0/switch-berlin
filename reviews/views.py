@@ -123,7 +123,7 @@ def submit_review(request):
             )
 
         elif target_type == "event":
-            event = get_object_or_404(Event, pk=target_id, status="published")
+            event = get_object_or_404(Event.objects.visible_to_url(request.user), pk=target_id, status="published")
             if not Attendance.objects.filter(user=request.user, event=event, status="went").exists():
                 return render(
                     request,
@@ -194,7 +194,7 @@ def flag_target(request):
 
     with transaction.atomic():
         if target_type == "event":
-            event = get_object_or_404(Event, pk=target_id)
+            event = get_object_or_404(Event.objects.visible_to_url(request.user), pk=target_id)
             flag, created = Flag.objects.get_or_create(
                 reporter=request.user,
                 event=event,

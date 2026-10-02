@@ -305,8 +305,11 @@ class TestSitemap:
 
     def test_sitemap_includes_public_events(self, db):
         from events.sitemap import EventSitemap
+        from organizers.models import Profile
 
-        pub = make_event("SitemapPub", slug="sm-pub")
+        # Sitemap lists only events with a primary organizer (no detail route without one).
+        org = Profile.objects.create(name="Sitemap Org", slug="sitemap-org", status="approved")
+        pub = make_event("SitemapPub", slug="sm-pub", organizer=org)
         sitemap = EventSitemap()
         items = list(sitemap.items())
         assert pub in items

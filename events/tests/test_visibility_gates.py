@@ -73,12 +73,14 @@ def tag(db):
     return Tag.objects.create(slug="gate-tag", label="Gate Tag", kind="activity")
 
 
-def _collected_event(tier, organizer, venue, tag, *, status="published", hidden=False):
+def _collected_event(tier, organizer, venue, tag, *, status="published", hidden=False, label=None):
+    """A collected event (RawMessage provenance) with artist credit, cover and private venue."""
+    label = label or tier
     raw = RawMessage.objects.create(source_type="telegram_private_channel", raw_payload={}, text="flyer")
     event = Event.objects.create(
-        title=f"Leakcheck {tier} Night",
-        slug=f"leakcheck-{tier}-night",
-        description=f"Leakcheck {tier} description body",
+        title=f"Leakcheck {label} Night",
+        slug=f"leakcheck-{label}-night",
+        description=f"Leakcheck {label} description body",
         organizer=organizer,
         venue=venue,
         start=timezone.now() + timedelta(days=3),
@@ -89,11 +91,11 @@ def _collected_event(tier, organizer, venue, tag, *, status="published", hidden=
         raw_message=raw,
     )
     event.tags.add(tag)
-    EventArtist.objects.create(event=event, name=f"Mistress Nightshade {tier}")
+    EventArtist.objects.create(event=event, name=f"Mistress Nightshade {label}")
     EventImage.objects.create(
         event=event,
         is_cover=True,
-        image=SimpleUploadedFile(f"leakcover-{tier}.gif", _GIF, content_type="image/gif"),
+        image=SimpleUploadedFile(f"leakcover-{label}.gif", _GIF, content_type="image/gif"),
     )
     return event
 
@@ -104,10 +106,10 @@ def _markers(event):
     return [
         event.title,
         event.slug,
-        f"Leakcheck {event.visibility} description",
-        f"Mistress Nightshade {event.visibility}",
+        event.description[:24],
+        *(credit.name for credit in event.artist_credits.all()),
         event.venue.address,
-        f"leakcover-{event.visibility}",
+        cover.image.name.rsplit("/", 1)[-1].rsplit(".", 1)[0],
         cover.image.name,
     ]
 
@@ -430,3 +432,137 @@ def test_takedown_renders_no_event_fields(non_public_events):
             if marker == event.slug:
                 continue  # the reporter's own submitted URL may be echoed back
             assert marker not in body
+
+
+# ---------------------------------------------------------------------------
+# Withheld states — collected events land as DRAFTS; moderation HIDES events.
+# Tier is public here on purpose, so only the status/hidden filter protects them.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def withheld_events(organizer, private_venue, tag):
+    return [
+        _collected_event("public", organizer, private_venue, tag, status="draft", label="draft"),
+        _collected_event("public", organizer, private_venue, tag, hidden=True, label="hidden"),
+    ]
+
+
+@pytest.fixture(params=("anonymous", "vouched", "staff"))
+def any_viewer_client(request, db):
+    if request.param == "anonymous":
+        return _client_for()
+    user = _make_user(f"withheld-{request.param}", "vouched")
+    if request.param == "staff":
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+    return _client_for(user)
+
+
+@pytest.mark.django_db
+class TestDraftAndHiddenWithheld:
+    def test_list_and_markers_absent(self, any_viewer_client, withheld_events):
+        response = any_viewer_client.get(reverse("event-list"))
+        assert response.status_code == 200
+        assert_no_leak(response, withheld_events)
+        slugs = {f["properties"]["event_slug"] for f in response.context["markers_geojson"]["features"]}
+        assert not slugs & {e.slug for e in withheld_events}
+
+    def test_detail_404(self, any_viewer_client, withheld_events):
+        for event in withheld_events:
+            response = any_viewer_client.get(_detail_url(event))
+            assert response.status_code == 404
+            assert_no_leak(response, withheld_events)
+
+    def test_profile_absent(self, any_viewer_client, withheld_events, organizer):
+        response = any_viewer_client.get(reverse("organizer-profile", kwargs={"slug": organizer.slug}))
+        assert response.status_code == 200
+        assert_no_leak(response, withheld_events)
+
+    def test_sitemap_absent(self, withheld_events):
+        assert not {e.pk for e in EventSitemap().items()} & {e.pk for e in withheld_events}
+
+
+# ---------------------------------------------------------------------------
+# Approved but under-tier — passes the login wall and approved_required, fails the
+# tier gate. Simulates EVENT_VISIBILITY_TRUSTED_STATUSES (FLEXIBLE, ADR-012 D3)
+# diverging from the wall's hard-coded "vouched", so the tier gate itself is exercised.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def approved_under_tier_user(settings, db):
+    settings.EVENT_VISIBILITY_TRUSTED_STATUSES = ()
+    user = _make_user("approved-under-tier", "vouched")
+    user.art9_consent_given_at = timezone.now()
+    user.save(update_fields=["art9_consent_given_at"])
+    return user
+
+
+@pytest.mark.django_db
+class TestApprovedButUnderTier:
+    def test_list_and_detail_withheld(self, approved_under_tier_user, non_public_events):
+        client = _client_for(approved_under_tier_user)
+        assert_no_leak(client.get(reverse("event-list")), non_public_events)
+        for event in non_public_events:
+            response = client.get(_detail_url(event))
+            assert response.status_code == 404
+
+    def test_attend_404(self, approved_under_tier_user, non_public_events):
+        client = _client_for(approved_under_tier_user)
+        for event in non_public_events:
+            url = reverse("event-attend", kwargs={"org_slug": event.organizer.slug, "event_slug": event.slug})
+            response = client.post(url, {"status": "going"})
+            assert response.status_code == 404
+            assert_no_leak(response, non_public_events)
+        assert not Attendance.objects.filter(event__in=non_public_events).exists()
+
+    def test_flag_404(self, approved_under_tier_user, non_public_events):
+        from reviews.models import Flag
+
+        client = _client_for(approved_under_tier_user)
+        for event in non_public_events:
+            response = client.post(reverse("flag-target"), {"target_type": "event", "target_id": event.pk})
+            assert response.status_code == 404
+        assert not Flag.objects.filter(event__in=non_public_events).exists()
+
+    def test_review_submit_404(self, approved_under_tier_user, non_public_events):
+        from reviews.models import Review
+
+        client = _client_for(approved_under_tier_user)
+        for event in non_public_events:
+            Attendance.objects.create(user=approved_under_tier_user, event=event, status="went")
+            response = client.post(
+                reverse("review-submit"),
+                {"target_type": "event", "target_id": event.pk, "rating": 4, "body": "ok"},
+            )
+            assert response.status_code == 404
+        assert not Review.objects.filter(event__in=non_public_events).exists()
+
+    def test_me_page_omits_attended_non_public_events(self, approved_under_tier_user, non_public_events):
+        for event in non_public_events:
+            Attendance.objects.create(user=approved_under_tier_user, event=event, status="going")
+        response = _client_for(approved_under_tier_user).get(reverse("me"))
+        assert response.status_code == 200
+        assert_no_leak(response, non_public_events)
+
+
+# ---------------------------------------------------------------------------
+# Sitemap: an organizer-less event has no routable URL (ADR-008 D3: no silent fallback)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestSitemapOrganizerless:
+    def _organizerless(self):
+        return Event.objects.create(
+            title="Orphan", slug="orphan", start=timezone.now(), status="published", visibility="public"
+        )
+
+    def test_organizerless_event_excluded_from_items(self):
+        orphan = self._organizerless()
+        assert orphan.pk not in {e.pk for e in EventSitemap().items()}
+
+    def test_location_raises_without_organizer(self):
+        with pytest.raises(ValueError):
+            EventSitemap().location(self._organizerless())

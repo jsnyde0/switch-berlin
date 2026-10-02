@@ -24,6 +24,8 @@ class EventSitemap(Sitemap):
                 visibility="public",
                 status="published",
                 hidden=False,
+                # location() needs a primary organizer; no route exists without one.
+                event_organizer_set__is_primary=True,
             )
             .select_related("venue")
             .prefetch_related("event_organizer_set__profile")
@@ -34,8 +36,8 @@ class EventSitemap(Sitemap):
         """Return the URL for the given event."""
         organizer = obj.organizer
         if organizer is None:
-            # Events without an organizer are rare; fall back to a generic path.
-            return f"/events/{obj.slug}/"
+            # ADR-008 D3: no route matches an organizer-less event; never emit a broken URL.
+            raise ValueError(f"Event {obj.pk} has no primary organizer; it has no detail URL")
         return reverse(
             "event-detail",
             kwargs={"org_slug": organizer.slug, "event_slug": obj.slug},
