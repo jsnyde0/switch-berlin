@@ -58,8 +58,7 @@ Read the text AND the images.
 First say what the post is (post_kind):
 - "announcement": it announces one or more events, inviting people to come. A
   post that changes an event's date, time or place announces the changed event;
-  a post that cancels events announces each with cancelled true (when it names
-  only a period, such as "next week", give that period as start and end).
+  a post that cancels an event announces it with cancelled true.
 - "about_event": it is about an event but does not announce it: a call for
   helpers or volunteers, a sold-out or waiting-list notice, a reminder, a recap
   or thank-you after the event.
@@ -67,6 +66,8 @@ First say what the post is (post_kind):
 
 Then return the events the post ANNOUNCES as a list of objects matching the
 schema: one object per event (one per date when a series lists several dates).
+An event the post mentions twice (in a list of dates and again in a "last
+call" line) is one object.
 Return an empty list for "about_event" and "other": their events are announced
 elsewhere.
 
@@ -106,8 +107,8 @@ talk (a talk, lecture, colloquium or online intro), other; "" when unsure.
 
 description is the organizer's own prose about this event, copied unchanged from
 the post text or the link content: same words, no summary, no rewriting, no
-translation, nothing added. Keep the programme and the price lines that are
-about the event. Leave out menus, navigation, cookie notices and booking
+translation, nothing added. Keep every line about the event, in order,
+including its programme and its date, place and price lines. Leave out menus, navigation, cookie notices and booking
 boilerplate that is not about the event. Keep at most {description_cap}
 characters (cut at the end of a sentence). Return "" when the source has no prose
 about the event; never write one yourself.

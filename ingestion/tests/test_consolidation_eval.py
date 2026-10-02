@@ -10,7 +10,9 @@ Run (needs REQUESTY_API_KEY in .env; costs a few model calls per case):
 
 Posts run in the listed order, each at its own "now" (when it was posted, unless the
 case sets one), so the eval stays valid after the events are past. Each case runs
-RUNS times; a case passes only when every run does. -s prints each case's scorecard (the events it ended with).
+RUNS times; a case passes only when every run does. A row whose read failed is read
+again once, as the next collect run would (sb-7wzb.30 ruling 8); the scorecard lists
+every such re-run, so first-read failures stay visible. -s prints each case's scorecard (the events it ended with).
 """
 
 import io
@@ -274,8 +276,17 @@ def test_consolidation_eval(case, run, settings, tmp_path):
     call_command("seed_collector_sources", stdout=io.StringIO())
     if "seed_event" in case:
         _seed_event(case["seed_event"])
-    raws = [_run_post(post, case.get("now")) for post in case["posts"]]
-    raws = list({raw.id: raw for raw in raws}.values())  # a re-read post counts once
+    ran = {}  # raw id -> (raw, the post it last read); a re-read post counts once
+    for post in case["posts"]:
+        raw = _run_post(post, case.get("now"))
+        ran[raw.id] = (raw, post)
+    raws = [raw for raw, _ in ran.values()]
+    # The next collect run reads a failed row again (ruling 8): the eval runs that pass too, and says so.
+    for raw, post in [(raw, post) for raw, post in ran.values() if raw.extraction_status == "failed"]:
+        print(f"  re-run {raw.message_id}: first read failed: {raw.extraction_error[:300]!r}")
+        _run_post(post, case.get("now"))
+    for raw in raws:
+        raw.refresh_from_db()
     failures = SCORERS[case["id"]](raws)
     print(_card(f"{case['id']} run{run}", raws))
     print("  PASS" if not failures else "  FAIL: " + "; ".join(failures))
