@@ -20,12 +20,14 @@ import hashlib
 import io
 import re
 import uuid
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, time, timedelta
+from typing import NamedTuple
+from zoneinfo import ZoneInfo
 
 import logfire
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, connection, models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django_q.tasks import async_task
@@ -75,7 +77,7 @@ def ingest_collected_rows(rows: list[dict]) -> dict:
     """
     from .models import RawMessage
 
-    counts = {"created": 0, "already_collected": 0, "re_read": 0, "same_listing": 0}
+    counts = {"created": 0, "already_collected": 0, "re_read": 0, "same_listing": 0, "re_run": 0}
     for row in rows:
         if row["source_type"] not in COLLECTED_SOURCE_TYPES:
             raise ValueError(f"source_type {row['source_type']!r} is not a collected feed")
@@ -94,6 +96,12 @@ def ingest_collected_rows(rows: list[dict]) -> dict:
             if not raw.content_hash:
                 raw.content_hash = digest
                 raw.save(update_fields=["content_hash"])
+            if raw.extraction_status == "failed":  # read again: a failed row kept everything it said
+                raw.extraction_status, raw.extraction_error = "pending", ""
+                raw.save(update_fields=["extraction_status", "extraction_error"])
+                async_task("ingestion.tasks.process_raw_message", raw.id)
+                counts["re_run"] += 1
+                continue
             counts["already_collected"] += 1
             continue
         if raw is not None:
@@ -190,8 +198,12 @@ def mark_same_listing(raw) -> bool:
     return True
 
 
-def _aware(dt):
-    return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+_BERLIN = "Europe/Berlin"
+
+
+def _aware(dt, zone: str | None = None):
+    """`dt` made aware in `zone` (the IANA zone a post states; Europe/Berlin when none)."""
+    return timezone.make_aware(dt, ZoneInfo(zone or _BERLIN)) if timezone.is_naive(dt) else dt
 
 
 def create_collected_profile(name: str, origin: str):
@@ -234,7 +246,7 @@ def split_names(text: str) -> list[str]:
 # An attempt error "re_read_<status>: <reason>" marks a paired draft that ended skipped or held and wrote nothing.
 _RE_READ_ENDED = "re_read_"
 POSTER = "poster"  # default_organizer value: the post's author is the organizer
-_DEFAULT_ATTRIBUTIONS = ("publisher", POSTER)  # organizers taken from the source, not named by the post
+_DEFAULTS = ("publisher", POSTER)  # organizer attributions taken from the source, not named by the post
 
 
 def organizer_names(raw, draft) -> tuple[list[str], str]:
@@ -448,25 +460,37 @@ def collector_owned(event) -> bool:
     return event.raw_message_id is not None and collector_may_publish(event)
 
 
-def _provisional(row, owned: bool) -> bool:
-    """A default organizer row (publisher or poster), or a blank one (collected before 7d39889) on an owned event."""
-    return row.attribution in _DEFAULT_ATTRIBUTIONS or (row.attribution == "" and owned)
-
-
 def _similarity(a: str, b: str) -> float:
     with connection.cursor() as cursor:
         cursor.execute("SELECT similarity(%s, %s)", [a, b])
         return cursor.fetchone()[0]
 
 
+def _organizer_key(name: str) -> str:
+    """One key per organizer: its profile (merge-aware), else its normalized name."""
+    profile = find_profile(name)
+    return f"p{profile.id}" if profile else f"n{name_key(name)}"
+
+
+def _explicit_keys(event) -> set[str]:
+    """The event's named organizers: explicit rows; on an event a person made, the rows they set.
+
+    Publisher and poster rows never count; nor does an organizer staff added to a collected event.
+    """
+    named = ("explicit",) if event.raw_message_id else ("explicit", "")
+    return {f"p{row.profile_id}" for row in event.event_organizer_set.all() if row.attribution in named}
+
+
 # --- Candidate finding (ADR-007 D10) ------------------------------------------
-# A live event is a candidate for a draft when their dates overlap AND at least one
+# A live event is a candidate for a draft when their times overlap AND at least one
 # signal below matches. Loose on purpose: the consolidation call decides. Tune the
 # signals here, toward fewer false positives, from dogfood findings.
 
 _SIMILAR = 0.3  # pg_trgm similarity at which two titles or two host names count as similar
 _TITLE_WORD_MIN = 5  # a shared title word this long counts ("retreat", "bondage"), short filler does not
 _TITLE_STOPWORDS = {"berlin", "event", "events", "night", "party", "workshop", "special", "edition"}
+_UNKNOWN_END = timedelta(hours=6)  # an event with no end overlaps as if it ran this long
+_MAX_CANDIDATES = 5  # the most-signalled candidates one post event shows the judgement
 
 
 def _title_words(title: str) -> set[str]:
@@ -480,8 +504,11 @@ def _similar_names(a: str, b: str) -> bool:
 
 
 def _host_signal(event, draft, names, venue) -> bool:
-    theirs = [row.profile.name for row in event.event_organizer_set.all()]
-    return any(_similar_names(mine, other) for mine in names for other in theirs)
+    rows = list(event.event_organizer_set.all())
+    mine = {p.id for p in map(find_profile, names) if p}  # merge-aware: a merged-away name finds its winner
+    return any(row.profile_id in mine for row in rows) or any(
+        _similar_names(name, row.profile.name) for name in names for row in rows
+    )
 
 
 def _artist_signal(event, draft, names, venue) -> bool:
@@ -501,31 +528,54 @@ def _title_signal(event, draft, names, venue) -> bool:
 CANDIDATE_SIGNALS = {"host": _host_signal, "artist": _artist_signal, "venue": _venue_signal, "title": _title_signal}
 
 
-def _day_span(start, end) -> tuple:
-    first = timezone.localtime(_aware(start)).date()
-    return first, max(first, timezone.localtime(_aware(end)).date()) if end else first
+def _times(draft) -> tuple:
+    """(start, end) of a draft, aware in the timezone it states (Europe/Berlin when none)."""
+    return _aware(draft.start, draft.timezone), _aware(draft.end, draft.timezone) if draft.end else None
 
 
-def find_candidates(draft, names: list[str], venue, exclude: set[int] = frozenset()) -> list[tuple]:
-    """[(event, signals)] for the live events that may be the draft's event (ADR-007 D10).
+def _windows(draft) -> list[tuple]:
+    """The whole Berlin days a draft occupies, as [start, end) windows; a moved event's old day too."""
+    start, end = _times(draft)
+    spans = [(start, end or start + _UNKNOWN_END)]
+    if draft.moved_from is not None:
+        old = _aware(draft.moved_from, draft.timezone)
+        spans.append((old, old + _UNKNOWN_END))
+    windows = []
+    for first, last in spans:
+        day0 = timezone.localtime(first).date()
+        day1 = max(day0, timezone.localtime(last - timedelta(microseconds=1)).date())
+        midnight = timezone.make_aware(datetime.combine(day0, time()))
+        windows.append((midnight, timezone.make_aware(datetime.combine(day1 + timedelta(days=1), time()))))
+    return windows
 
-    Dates overlap (by Berlin day; the day the post says the event moved from counts
-    too) AND at least one CANDIDATE_SIGNALS entry matches. Overlapping dates alone
-    never make a candidate. `names` = the draft's organizer names (the D9 chain);
-    `venue` = its resolved venue, looked up only; `exclude` = events already spoken for.
+
+def find_candidates(
+    draft, names: list[str], venue, explicit: set[str] = frozenset(), exclude: set[int] = frozenset()
+) -> list[tuple]:
+    """[(event, signals)] for the live events that may be the draft's event, at most _MAX_CANDIDATES (ADR-007 D10).
+
+    Times overlap (by Berlin day, an unknown end counted as start + 6h; the day the
+    post says the event moved from counts too) AND at least one CANDIDATE_SIGNALS
+    entry matches. Overlapping times alone never make a candidate. Two explicit
+    organizer sets that share nobody never consolidate (`explicit`: the draft's
+    explicit organizer keys). `names` = the draft's organizer names (the D9 chain);
+    `venue` = its resolved venue, looked up only; `exclude` = events spoken for.
     """
-    from django.db.models import Q
+    from django.db.models import ExpressionWrapper, F, Q, Value
+    from django.db.models.functions import Coalesce
 
     from events.models import Event
 
-    spans = [_day_span(draft.start, draft.end)]
-    if draft.moved_from is not None:
-        spans.append(_day_span(draft.moved_from, None))
     overlaps = Q()
-    for first, last in spans:
-        overlaps |= Q(start__date__lte=last) & (Q(end__date__gte=first) | Q(end__isnull=True, start__date__gte=first))
+    for begin, finish in _windows(draft):
+        overlaps |= Q(start__lt=finish, until__gt=begin)
     events = (
         Event.objects.exclude(status__in=["rejected", "cancelled"])
+        .annotate(
+            until=Coalesce(
+                "end", ExpressionWrapper(F("start") + Value(_UNKNOWN_END), output_field=models.DateTimeField())
+            )
+        )
         .filter(overlaps)
         .exclude(id__in=exclude)
         .prefetch_related("event_organizer_set__profile", "artist_credits")
@@ -533,10 +583,38 @@ def find_candidates(draft, names: list[str], venue, exclude: set[int] = frozense
     )
     found = []
     for event in events:
+        theirs = _explicit_keys(event)
+        if explicit and theirs and not explicit & theirs:
+            continue
         signals = [name for name, signal in CANDIDATE_SIGNALS.items() if signal(event, draft, names, venue)]
         if signals:
             found.append((event, signals))
-    return found
+    found.sort(key=lambda pair: (-len(pair[1]), pair[0].id))
+    return found[:_MAX_CANDIDATES]
+
+
+def lock_days(drafts) -> None:
+    """Serialize candidate finding and writing per Berlin day (Postgres advisory lock, released at commit).
+
+    Two posts landing the same event at once both wait for the day's lock, so the
+    second sees the first's event as a candidate. Days lock in order: no deadlock.
+    """
+    if connection.vendor != "postgresql":
+        return
+    days = sorted(
+        {
+            day.toordinal()
+            for draft in drafts
+            for begin, finish in _windows(draft)
+            for day in (timezone.localtime(begin).date() + timedelta(days=n) for n in range((finish - begin).days))
+        }
+    )
+    with connection.cursor() as cursor:
+        for day in days:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s, %s)", [_DAY_LOCK, day])
+
+
+_DAY_LOCK = 7030  # advisory-lock namespace for the collector's per-day lock
 
 
 def pair_with_own_events(raw, drafts) -> tuple[dict, list]:
@@ -586,16 +664,33 @@ def pair_with_own_events(raw, drafts) -> tuple[dict, list]:
     return pairs, [event for event, _ in own.values()]
 
 
-# --- Consolidation (ADR-007 D10) ------------------------------------------------
+# --- Announcements and privacy (ADR-007 D10, ADR-012 D2) -------------------------
+# An event's announcements are the posts attached to it. Its visibility is the most
+# public tier among their sources; only announcements from a source of that tier
+# ("eligible") supply its text and place.
 
 _DRAFT_VIEW = {
-    "title", "description", "start", "end", "start_time_unknown", "moved_from", "price_min_cents",
+    "title", "description", "start", "end", "start_time_unknown", "moved_from", "timezone", "price_min_cents",
     "price_max_cents", "is_free", "venue_name", "location_note", "explicit_organizer", "artist_names",
-    "external_url", "presence", "category", "tags",
+    "external_url", "presence", "category", "tags", "cancelled",
 }  # fmt: skip
 
 
-def _announcements(event, raw) -> list:
+class Announcement(NamedTuple):
+    id: int  # the attempt that read it; 0 = the post being landed now
+    raw: object
+    draft: object
+
+
+def _tier(raw) -> str:
+    return derive_visibility_from_sources([rawmessage_source_to_conceptual(raw.source_type)])
+
+
+def _event_tier(announcements) -> str:
+    return derive_visibility_from_sources([rawmessage_source_to_conceptual(a.raw.source_type) for a in announcements])
+
+
+def _announcements(event, raw) -> list[Announcement]:
     """The latest reading of every other post attached to `event`, oldest post first."""
     from .models import ExtractionAttempt
     from .schemas import EventDraft
@@ -606,13 +701,26 @@ def _announcements(event, raw) -> list:
         .exclude(raw_message=raw)
         .exclude(extracted_draft={})
         .exclude(error__startswith=_RE_READ_ENDED)
+        .select_related("raw_message")
         .order_by("id")
     ):
-        latest[attempt.raw_message_id] = EventDraft.model_validate(attempt.extracted_draft)
+        draft = EventDraft.model_validate(attempt.extracted_draft)
+        latest[attempt.raw_message_id] = Announcement(attempt.id, attempt.raw_message, draft)
     return [latest[key] for key in sorted(latest)]
 
 
-def _event_view(event, raw) -> dict:
+def _draft_json(draft) -> dict:
+    view = draft.model_dump(mode="json", include=_DRAFT_VIEW)
+    view["description"] = (view.get("description") or "")[:DESCRIPTION_VIEW_CHARS]
+    return view
+
+
+DESCRIPTION_VIEW_CHARS = 3000  # the longest description one announcement shows the judgement
+
+
+def _event_view(event, raw, draft) -> dict:
+    earlier = _announcements(event, raw)
+    tier = _event_tier([*earlier, Announcement(0, raw, draft)])
     return {
         "id": event.id,
         "title": event.title,
@@ -627,8 +735,8 @@ def _event_view(event, raw) -> dict:
             for row in event.event_organizer_set.select_related("profile")
         ],
         "artists": list(event.artist_credits.values_list("name", flat=True)),
-        "description": event.description,
-        "announcements": [d.model_dump(mode="json", include=_DRAFT_VIEW) for d in _announcements(event, raw)],
+        "post_event_eligible": _tier(raw) == tier,
+        "announcements": [{"id": a.id, "eligible": _tier(a.raw) == tier, **_draft_json(a.draft)} for a in earlier],
     }
 
 
@@ -638,24 +746,29 @@ def _decide(raw, request: list[dict]) -> dict:
 
     decisions = consolidate(request).decisions
     by_draft = {}
-    claimed = set()
     for entry in request:
         mine = [d for d in decisions if d.draft == entry["draft"]]
         if len(mine) != 1:
             raise ValueError(f"consolidation gave {len(mine)} decisions for post event {entry['draft']}")
         decision = mine[0]
-        ids = {c["id"] for c in entry["candidates"]}
+        candidates = {c["id"]: c for c in entry["candidates"]}
         if decision.same_as is not None:
-            if decision.same_as not in ids:
+            if decision.same_as not in candidates:
                 raise ValueError(f"consolidation named event {decision.same_as}, not a candidate of {entry['draft']}")
-            if decision.same_as in claimed:
-                raise ValueError(f"consolidation gave event {decision.same_as} to two post events")
             if decision.event is None:
                 raise ValueError(f"consolidation matched post event {entry['draft']} without writing the event")
-            claimed.add(decision.same_as)
+            chosen = candidates[decision.same_as]
+            eligible = {a["id"] for a in chosen["announcements"] if a["eligible"]}
+            if chosen["post_event_eligible"]:
+                eligible.add(0)
+            if decision.description_from is not None and decision.description_from not in eligible:
+                raise ValueError(
+                    f"consolidation took the description of announcement {decision.description_from}, "
+                    f"not an eligible announcement of event {decision.same_as}"
+                )
         if "is" in entry and decision.same_as != entry["is"]:
             raise ValueError(f"consolidation did not keep re-read post event {entry['draft']} on event {entry['is']}")
-        if decision.possibly_same_as is not None and decision.possibly_same_as not in ids:
+        if decision.possibly_same_as is not None and decision.possibly_same_as not in candidates:
             decision.possibly_same_as = None  # a suspicion about a non-candidate names nothing staff can check
             logfire.warn("collected.suspected_non_candidate", raw_message_id=raw.id, draft=entry["draft"])
         by_draft[entry["draft"]] = decision
@@ -665,11 +778,10 @@ def _decide(raw, request: list[dict]) -> dict:
     return by_draft
 
 
-# --- Writing an event's collector-owned fields ------------------------------------
-# Each group is written whole or not at all. The latest attempt's `wrote` holds the
-# values the collector last wrote; a group whose value differs was edited by a person
-# and is never overwritten (ADR-007 D10). An event with no record yet (landed before
-# records were kept) treats every non-empty group as a person's.
+# --- Writing a consolidated event ---------------------------------------------------
+# Each collector-owned group is written whole or not at all; a group a person edited
+# (Event.edited_groups, recorded where the person saved) is never rewritten. The
+# attempt keeps the values from before the rewrite, so staff can undo by hand.
 
 _GROUPS = ("title", "description", "date", "price", "presence", "category", "place", "tags", "artists")
 
@@ -682,7 +794,7 @@ def _group_values(event) -> dict:
     return {
         "title": event.title,
         "description": event.description,
-        "date": [_utc(event.start), _utc(event.end), event.start_time_unknown],
+        "date": [_utc(event.start), _utc(event.end), event.start_time_unknown, event.timezone],
         "price": [event.price_min_cents, event.price_max_cents, event.is_free],
         "presence": event.presence,
         "category": event.category,
@@ -692,124 +804,195 @@ def _group_values(event) -> dict:
     }
 
 
+def _snapshot(event) -> dict:
+    """Everything a consolidation may change, as it is now."""
+    return {
+        **_group_values(event),
+        "visibility": event.visibility,
+        "status": event.status,
+        "organizers": [
+            [row.profile.name, row.attribution, row.is_primary]
+            for row in event.event_organizer_set.select_related("profile").order_by("order", "id")
+        ],
+    }
+
+
 def _empty(value) -> bool:
     if isinstance(value, list):
         return all(_empty(v) for v in value)
     return value in ("", None, False)
 
 
-def _last_written(event) -> dict:
-    from .models import ExtractionAttempt
-
-    attempt = ExtractionAttempt.objects.filter(event=event).exclude(wrote={}).order_by("-id").first()
-    return attempt.wrote if attempt else {}
+def _has_place(draft) -> bool:
+    return any((value or "").strip() for value in (draft.venue_name, draft.venue_address, draft.location_note))
 
 
-def _artist_list(event, raw, artist_names: list[str]) -> list[str]:
-    """The credits `artist_names` gives: one per name, no organizer, nothing suppressed for this source."""
-    from .models import ArtistCreditSuppression
+def _sync_artists(event, announcements, names: list[str]) -> None:
+    """Make the event's credits `names`, by difference: kept rows stay as they are (sb-7wzb.30 ruling 11).
 
-    taken = {name_key(row.profile.name) for row in event.event_organizer_set.select_related("profile")}
-    taken |= set(ArtistCreditSuppression.objects.filter(channel_id=raw.channel_id).values_list("name_key", flat=True))
-    names = []
-    for entry in artist_names:
-        for name in split_names(entry):
-            if name_key(name) not in taken:
-                taken.add(name_key(name))
-                names.append(name)
-    return names
-
-
-def rewrite_event(event, raw, merged, matched) -> tuple[list[str], dict]:
-    """Rewrite `event`'s collector-owned groups from `merged`, the event in full; return (groups changed, record).
-
-    A group a person edited is left alone; an empty new value never blanks a filled
-    group. The record is what `wrote` should hold after this write.
+    A name an organizer carries, or one a credited artist had removed for ANY source
+    attached to the event, is never credited.
     """
     from events.models import EventArtist
 
-    last = _last_written(event)
-    current = _group_values(event)
-    edited = {g for g in _GROUPS if (g in last and last[g] != current[g]) or (g not in last and not _empty(current[g]))}
-    columns = {}
+    from .models import ArtistCreditSuppression
+
+    channels = {a.raw.channel_id for a in announcements}
+    taken = {name_key(row.profile.name) for row in event.event_organizer_set.select_related("profile")}
+    taken |= set(ArtistCreditSuppression.objects.filter(channel_id__in=channels).values_list("name_key", flat=True))
+    wanted = []
+    for entry in names:
+        for name in split_names(entry):
+            if name_key(name) not in taken and name_key(name) not in {name_key(w) for w in wanted}:
+                wanted.append(name)
+    keys = {name_key(w) for w in wanted}
+    have = {name_key(credit.name): credit for credit in event.artist_credits.all()}
+    for key, credit in have.items():
+        if key not in keys:
+            credit.delete()
+    order = max((c.order for c in have.values()), default=-1) + 1
+    for name in wanted:
+        if name_key(name) not in have:
+            EventArtist.objects.create(event=event, name=name, order=order)
+            order += 1
+
+
+def _organizer_rows(merged, announcements) -> tuple[list[str], str]:
+    """(names, attribution) the collector credits a consolidated event with, whatever order its posts came in.
+
+    The judgement's merged explicit organizer (every name must appear in an
+    announcement's explicit organizer); with none explicit, a publisher outranks a
+    poster (ADR-007 D9). Names sort, so arrival order never picks the winner.
+    """
+    explicit = (merged.explicit_organizer or "").strip()
+    if explicit and explicit.lower() not in _NO_NAME:
+        names = [explicit] if find_profile(explicit) else split_names(explicit)
+        said = {
+            name_key(part)
+            for a in announcements
+            for part in [a.draft.explicit_organizer, *split_names(a.draft.explicit_organizer or "")]
+            if part
+        }
+        unsaid = [n for n in names if name_key(n) not in said]
+        if unsaid:
+            raise ValueError(f"consolidation named organizer(s) {unsaid} no announcement names")
+        return names, "explicit"
+    by_kind = {"publisher": set(), POSTER: set()}
+    for a in announcements:
+        names, attribution = organizer_names(a.raw, a.draft.model_copy(update={"explicit_organizer": ""}))
+        if attribution in by_kind:
+            by_kind[attribution].update(names)
+    for attribution in ("publisher", POSTER):
+        if by_kind[attribution]:
+            return sorted(by_kind[attribution], key=name_key), attribution
+    return [], ""
+
+
+def _set_organizers(event, raw, names: list[str], attribution: str) -> bool:
+    """Make the collector's organizer rows `names`; rows a person set (blank attribution) are never touched."""
+    from events.models import EventOrganizer
+
+    if not names:
+        return False
+    rows = list(event.event_organizer_set.all())
+    mine = [row for row in rows if row.attribution in (*_DEFAULTS, "explicit")]
+    people = [row for row in rows if row.attribution not in (*_DEFAULTS, "explicit")]
+    wanted = []
+    for name in names:
+        profile = find_profile(name) or _create_row_profile(name, raw)
+        if profile.id not in [p.id for p in wanted]:
+            wanted.append(profile)
+    if [(r.profile_id, r.attribution) for r in sorted(mine, key=lambda r: r.order)] == [
+        (p.id, attribution) for p in wanted
+    ]:
+        return False
+    EventOrganizer.objects.filter(id__in=[row.id for row in mine]).delete()
+    person_ids = {row.profile_id for row in people}
+    order = max((row.order for row in people), default=-1) + 1
+    has_primary = any(row.is_primary for row in people)
+    for profile in wanted:
+        if profile.id in person_ids:
+            continue
+        EventOrganizer.objects.create(
+            event=event, profile=profile, is_primary=not has_primary, order=order, attribution=attribution
+        )
+        has_primary, order = True, order + 1
+    return True
+
+
+def merge_into(event, raw, draft, merged, description_from, flyer, written_files) -> tuple[list[str], dict]:
+    """Attach this post's `draft` to `event` and rewrite the event from all its eligible announcements.
+
+    `merged` is the event written out in full (by the judgement, or the draft itself
+    when the event has no other announcement); `description_from` names the
+    announcement whose description is copied verbatim (0 = this post). Returns
+    (what changed, the values before). A frozen event (claimed, or made by a
+    person) never changes: the match is recorded, nothing is written.
+    """
+    from .extraction import match_entities
+
+    if not collector_owned(event):
+        return [], {}
+    announcements = [*_announcements(event, raw), Announcement(0, raw, draft)]
+    tier = _event_tier(announcements)
+    eligible = [a for a in announcements if _tier(a.raw) == tier]
+    before = _snapshot(event)
+    edited = set(event.edited_groups)
+    changed = []
+
+    names, attribution = _organizer_rows(merged, announcements)
+    if _set_organizers(event, raw, names, attribution):
+        changed.append("organizers")
+
+    columns = {"visibility": tier}  # privacy first: the most public source decides, every attach
     if "title" not in edited:
         columns["title"] = merged.title
-    if "description" not in edited and merged.description:
-        columns["description"] = merged.description
-    if "date" not in edited:
+    if "description" not in edited:
+        source = next((a for a in eligible if a.id == description_from and a.draft.description), None)
+        if source is not None:
+            columns["description"] = source.draft.description or ""
+        elif event.description not in {a.draft.description for a in eligible}:
+            columns["description"] = ""  # text no eligible announcement gave never stays on the event
+    start, end = _times(merged)
+    if "date" not in edited and not (merged.start_time_unknown and not event.start_time_unknown):
         columns.update(
-            start=_aware(merged.start),
-            end=_aware(merged.end) if merged.end else None,
-            start_time_unknown=merged.start_time_unknown,
+            start=start, end=end, start_time_unknown=merged.start_time_unknown, timezone=merged.timezone or _BERLIN
         )
     price = (merged.price_min_cents, merged.price_max_cents, merged.is_free)
     if "price" not in edited and not _empty(list(price)):
         columns.update(zip(("price_min_cents", "price_max_cents", "is_free"), price, strict=True))
-    if "presence" not in edited:
+    if "presence" not in edited and merged.presence is not None:
         columns["presence"] = merged.presence
     if "category" not in edited and merged.category:
         columns["category"] = merged.category
     if "place" not in edited:
-        venue, note = resolve_place(raw, merged)
-        if venue is not None or note or event.venue_id is None:
-            columns.update(venue=venue, location_note=note)
+        placed = [a for a in eligible if _has_place(a.draft)] or eligible
+        source = max(placed, key=lambda a: a.id or float("inf"))  # the latest eligible announcement that says where
+        presence = columns.get("presence", event.presence)
+        columns["venue"], columns["location_note"] = resolve_place(
+            source.raw, source.draft.model_copy(update={"presence": presence})
+        )
+    matched = match_entities(merged)
     if "tags" not in edited and (matched["matched_tags"] or matched["unmatched_tags"]):
         columns["suggested_tags"] = matched["unmatched_tags"]
+    if merged.cancelled or draft.cancelled:
+        columns["status"] = "cancelled"
     for field, value in columns.items():
         setattr(event, field, value)
-    if columns:
-        event.save(update_fields=list(columns))
+    event.save(update_fields=list(columns))
     if "tags" not in edited and (matched["matched_tags"] or matched["unmatched_tags"]):
         event.tags.set(matched["matched_tags"])
     if "artists" not in edited:
-        names = _artist_list(event, raw, merged.artist_names)
-        if names and names != current["artists"]:
-            event.artist_credits.all().delete()
-            for order, name in enumerate(names):
-                EventArtist.objects.create(event=event, name=name, order=order)
-    after = _group_values(event)
-    record = {g: (last[g] if g in edited else after[g]) for g in _GROUPS if g not in edited or g in last}
-    return [g for g in _GROUPS if after[g] != current[g]], record
+        _sync_artists(event, announcements, merged.artist_names)
 
-
-def _merge_organizers(event, raw, names, attribution, before=None) -> bool:
-    """An explicit organizer replaces the provisional rows and the ones this row named last time; explicit sets unite.
-
-    Returns True when the organizer rows changed.
-    """
-    from events.models import EventOrganizer
-
-    if attribution != "explicit":
-        return False
-    owned_rows = list(event.event_organizer_set.all())
-    named_before = set()
-    if before is not None:
-        named_before = {p.id for p in map(find_profile, organizer_names(raw, before)[0]) if p}
-    if all(_provisional(row, True) or row.profile_id in named_before for row in owned_rows):
-        if {row.profile_id for row in owned_rows} == {p.id for p in map(find_profile, names) if p} and all(
-            row.attribution == "explicit" for row in owned_rows
-        ):
-            return False
-        EventOrganizer.objects.filter(id__in=[row.id for row in owned_rows]).delete()
-        credit_people(event, raw, names, attribution, [])
-        return True
-    changed = False
-    have = {row.profile_id: row for row in owned_rows}
-    order = max(row.order for row in owned_rows) + 1
-    for name in names:
-        profile = find_profile(name) or _create_row_profile(name, raw)
-        if profile.id in have:
-            if have[profile.id].attribution != "explicit":
-                have[profile.id].attribution = "explicit"
-                have[profile.id].save(update_fields=["attribution"])
-                changed = True
-            continue
-        have[profile.id] = EventOrganizer.objects.create(
-            event=event, profile=profile, order=order, attribution="explicit"
-        )
-        order += 1
-        changed = True
-    return changed
+    after = _snapshot(event)
+    changed += [key for key in after if key != "organizers" and after[key] != before[key]]
+    if _add_link(event, raw, draft.external_url):
+        changed.append("link")
+    if flyer is not None and not event.images.exists():
+        _add_cover(event, draft, flyer, written_files)
+        changed.append("cover")
+    return changed, before
 
 
 def _add_link(event, raw, url: str | None) -> bool:
@@ -830,27 +1013,6 @@ def _add_link(event, raw, url: str | None) -> bool:
     return EventLink.objects.get_or_create(event=event, url=url[:1000], raw_message=raw)[1]
 
 
-def apply_to_event(event, raw, draft, merged, names, attribution, flyer, written_files, before=None):
-    """Attach this post's `draft` to `event`, rewriting it from `merged` (the event in full); return (changes, record).
-
-    A frozen event (collector_owned False) never changes.
-    """
-    from .extraction import match_entities
-
-    if not collector_owned(event):
-        return [], {}
-    organizers_changed = _merge_organizers(event, raw, names, attribution, before)  # first: artists skip organizers
-    changed, record = rewrite_event(event, raw, merged, match_entities(merged))
-    if organizers_changed:
-        changed.append("organizers")
-    if _add_link(event, raw, draft.external_url):
-        changed.append("link")
-    if flyer is not None and not event.images.exists():
-        _add_cover(event, draft, flyer, written_files)
-        changed.append("cover")
-    return changed, record
-
-
 def _add_cover(event, draft, flyer: bytes, written_files: list[str] | None) -> None:
     from events.models import EventImage
 
@@ -867,18 +1029,25 @@ _OUTCOME_RANK = ("extracted", "duplicate", "needs_review", "skipped")
 _LOW_CONFIDENCE = 0.4
 
 
-def wipe_non_event(raw, post_kind: str) -> None:
-    """Drop everything a post announcing no event said, images included; keep only its ids, kind and the verdict."""
+def set_aside(raw, post_kind: str) -> None:
+    """A post announcing no event: an `other` post (chat) is wiped at once, keeping only its ids and the verdict
+    (LIA §1); an `about_event` post (helper call, sold-out, reminder, recap) keeps its text (sb-7wzb.30 ruling 9).
+    """
     from django.conf import settings
 
     from .extraction import COLLECTED_PROMPT_VERSION
     from .models import ExtractionAttempt
 
-    raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id = "", {}, {}, ""
-    raw.extraction_status, raw.extraction_error = "skipped", "not_event"
-    raw.save(
-        update_fields=["text", "raw_payload", "enriched_payload", "sender_id", "extraction_status", "extraction_error"]
-    )
+    fields = ["extraction_status", "extraction_error"]
+    if post_kind == "about_event":  # the text stays; its images go, as for any read post
+        raw.raw_payload = {k: v for k, v in raw.raw_payload.items() if k != "images"}
+        raw.extraction_status, raw.extraction_error = "skipped", "about_event"
+        fields.append("raw_payload")
+    else:
+        raw.text, raw.raw_payload, raw.enriched_payload, raw.sender_id = "", {}, {}, ""
+        raw.extraction_status, raw.extraction_error = "skipped", "not_event"
+        fields += ["text", "raw_payload", "enriched_payload", "sender_id"]
+    raw.save(update_fields=fields)
     ExtractionAttempt.objects.create(
         raw_message=raw,
         model_name=settings.LLM_MODEL_NAME,
@@ -886,22 +1055,22 @@ def wipe_non_event(raw, post_kind: str) -> None:
         raw_response={"post_kind": post_kind, "events": []},
         post_kind=post_kind,
         success=False,
-        error="not_event",
+        error=raw.extraction_error,
     )
-    logfire.info("collected.not_event", raw_message_id=raw.id, post_kind=post_kind)
+    logfire.info("collected.no_event", raw_message_id=raw.id, post_kind=post_kind)
 
 
 def process_collected_row(raw, enriched: dict) -> None:
     """Extract the events a collected post announces (text + images) and land each one (ADR-007 D10).
 
-    No events = the post announces none = wiped at once (LIA §1). Otherwise each
-    event is held, skipped or landed; events with candidates go through one
-    consolidation call that says which existing event each one is. The first image
-    becomes a landed event's cover as a downsized copy (sb-7wzb.12 D1), then the
+    No events = the post announces none: set aside (an `other` post wiped at once).
+    Otherwise each event is held, skipped or landed; events with candidates go through
+    one consolidation call that says which existing event each one is. The first
+    image becomes a landed event's cover as a downsized copy (sb-7wzb.12 D1), then the
     original bytes are dropped; the post text stays with its events. The row lands
     whole or not at all: on any failure the events roll back, the images stay and
-    the cover files already written are deleted. A failed extraction keeps the row
-    whole so it can be re-run.
+    the cover files already written are deleted. A failed row keeps everything so the
+    next collect run can read it again.
     """
     from django.conf import settings
 
@@ -910,7 +1079,7 @@ def process_collected_row(raw, enriched: dict) -> None:
     images = raw.raw_payload.get("images", [])
     read = extract_collected_events(raw.text, images, enriched)
     if not read.events:
-        return wipe_non_event(raw, read.post_kind)
+        return set_aside(raw, read.post_kind)
 
     flyer = downsize_flyer(images[0]) if images else None
     written_files: list[str] = []
@@ -953,7 +1122,7 @@ def downsize_flyer(image_b64: str) -> bytes:
     return out.getvalue()
 
 
-def _record(attempt, draft, status, error="", event=None, success=False, decision=None, wrote=None):
+def _record(attempt, draft, status, error="", event=None, success=False, decision=None, before=None):
     from .models import ExtractionAttempt
 
     draft_json = draft.model_dump(mode="json")
@@ -965,16 +1134,22 @@ def _record(attempt, draft, status, error="", event=None, success=False, decisio
         success=success,
         error=error,
         event=event,
-        wrote=wrote or {},
+        before=before or {},
     )
     logfire.info("collected.landed", raw_message_id=attempt["raw_message"].id, outcome=status, error=error)
     return status, error
 
 
 def _hold_reason(draft) -> tuple[str, str] | None:
-    """(status, reason) when the draft must not land, else None."""
-    if (_aware(draft.end) if draft.end else _aware(draft.start)) < timezone.now() - timedelta(hours=1):
+    """(status, reason) when the draft must not land, else None.
+
+    A cancelled event only ever updates one we have, so place and confidence do not hold it.
+    """
+    start, end = _times(draft)
+    if (end or start) < timezone.now() - timedelta(hours=1):
         return "skipped", "past_event"
+    if draft.cancelled:
+        return None
     if not draft.in_berlin_area and draft.presence != "online":  # an online event is kept wherever it runs from
         return "skipped", "not_berlin"
     if draft.confidence < _LOW_CONFIDENCE:
@@ -982,17 +1157,33 @@ def _hold_reason(draft) -> tuple[str, str] | None:
     return None
 
 
+def _distinct(drafts) -> list:
+    """A post's drafts with repeats dropped: one event per title and start."""
+    seen, kept = set(), []
+    for draft in drafts:
+        key = (name_key(draft.title), _times(draft)[0])
+        if key not in seen:
+            seen.add(key)
+            kept.append(draft)
+    return kept
+
+
 def land_post_events(raw, drafts, attempt, flyer=None, written_files=None) -> list[tuple[str, str]]:
-    """Land a post's drafts; one (status, reason) per draft (ADR-007 D10).
+    """Land a post's drafts; one (status, reason) per distinct draft (ADR-007 D10).
 
     A re-read's draft paired with an event its row landed before updates that event
     (sb-7wzb.16 ruling 3). Every other draft looks for candidates; drafts with
     candidates, and paired drafts whose event other posts also announce, go through
-    one consolidation call. Same event: rewritten from all its announcements. New:
-    created, flagged possible_duplicate_of when the call was unsure.
+    one consolidation call, under the day lock. Same event: rewritten from all its
+    eligible announcements. New: created, flagged possible_duplicate_of when the
+    call was unsure. A cancelled draft only updates an event we have.
     """
+    from events.models import Event
+
     from .models import ExtractionAttempt
 
+    drafts = _distinct(drafts)
+    lock_days(drafts)
     pairs, unpaired = pair_with_own_events(raw, drafts)
     spoken_for = {event.id for event, _ in pairs.values()}
     outcomes: dict[int, tuple[str, str]] = {}
@@ -1000,7 +1191,7 @@ def land_post_events(raw, drafts, attempt, flyer=None, written_files=None) -> li
     for i, draft in enumerate(drafts):
         hold = _hold_reason(draft)
         names, attribution = ([], "") if hold else organizer_names(raw, draft)
-        if hold is None and not names:
+        if hold is None and not names and not draft.cancelled:
             hold = ("needs_review", attribution)
         if hold is None:
             ready[i] = (names, attribution)
@@ -1013,58 +1204,48 @@ def land_post_events(raw, drafts, attempt, flyer=None, written_files=None) -> li
             outcomes[i] = _record(attempt, draft, status, reason)
 
     request = []
-    for i, (names, _) in ready.items():
+    for i, (names, attribution) in ready.items():
         draft = drafts[i]
         if i in pairs:
             event = pairs[i][0]
             if _announcements(event, raw):
-                view = [_event_view(event, raw)]
+                view = [_event_view(event, raw, draft)]
                 request.append({"draft": i, "is": event.id, "event": _draft_json(draft), "candidates": view})
             continue
         known_venue, _ = resolve_place(raw, draft, create=False)
-        found = find_candidates(draft, names, known_venue, exclude=spoken_for)
+        explicit = {_organizer_key(n) for n in names} if attribution == "explicit" else set()
+        found = find_candidates(draft, names, known_venue, explicit, exclude=spoken_for)
         if found:
-            request.append(
-                {
-                    "draft": i,
-                    "event": _draft_json(draft),
-                    "candidates": [dict(_event_view(event, raw), signals=signals) for event, signals in found],
-                }
-            )
+            views = [dict(_event_view(event, raw, draft), signals=signals) for event, signals in found]
+            request.append({"draft": i, "event": _draft_json(draft), "candidates": views})
     decisions = _decide(raw, request) if request else {}
-
-    from events.models import Event
 
     for i, (names, attribution) in ready.items():
         draft, decision = drafts[i], decisions.get(i)
         if i in pairs or (decision and decision.same_as is not None):
-            if i in pairs:
-                event, before = pairs[i]
-            else:
-                event, before = Event.objects.get(id=decision.same_as), None
-            merged = decision.event if decision else draft
-            changed, wrote = apply_to_event(event, raw, draft, merged, names, attribution, flyer, written_files, before)
+            event = pairs[i][0] if i in pairs else Event.objects.get(id=decision.same_as)
+            merged, description_from = (decision.event, decision.description_from) if decision else (draft, 0)
+            changed, before = merge_into(event, raw, draft, merged, description_from, flyer, written_files)
             if event.raw_message_id == raw.id:  # an event this row landed before
-                outcomes[i] = _record(attempt, draft, "extracted", "re_read", event, True, decision, wrote)
+                outcomes[i] = _record(attempt, draft, "extracted", "re_read", event, True, decision, before)
             else:
                 reason = f"duplicate (rewrote: {', '.join(changed)})" if changed else "duplicate"
-                outcomes[i] = _record(attempt, draft, "duplicate", reason, event, False, decision, wrote)
+                outcomes[i] = _record(attempt, draft, "duplicate", reason, event, False, decision, before)
+            continue
+        if draft.cancelled:  # cancels an event we never had: nothing to create
+            outcomes[i] = _record(attempt, draft, "skipped", "cancelled", decision=decision)
             continue
         suspected = decision.possibly_same_as if decision else None
-        event, wrote = create_collected_event(raw, draft, names, attribution, flyer, written_files, suspected)
-        outcomes[i] = _record(attempt, draft, "extracted", "", event, True, decision, wrote)
+        event = create_collected_event(raw, draft, names, attribution, flyer, written_files, suspected)
+        outcomes[i] = _record(attempt, draft, "extracted", "", event, True, decision)
 
     for event in unpaired:  # left as it is: a re-read never deletes
         ExtractionAttempt.objects.create(**attempt, raw_response={}, event=event, error="unpaired_on_re_read")
     return [outcomes[i] for i in range(len(drafts))]
 
 
-def _draft_json(draft) -> dict:
-    return draft.model_dump(mode="json", include=_DRAFT_VIEW)
-
-
 def create_collected_event(raw, draft, names, attribution, flyer, written_files, possible_duplicate_of=None):
-    """A new event from one draft; returns (event, the groups it wrote)."""
+    """A new event from one draft."""
     from events.models import Event
     from syndication.authz import collector_may_publish
 
@@ -1072,22 +1253,24 @@ def create_collected_event(raw, draft, names, attribution, flyer, written_files,
 
     matched = match_entities(draft)
     venue, location_note = resolve_place(raw, draft)
+    start, end = _times(draft)
     event = Event.objects.create(
         title=draft.title,
         slug=slugify(draft.title)[:190] + "-" + uuid.uuid4().hex[:8],
         description=draft.description or "",
         venue=venue,
         location_note=location_note,
-        presence=draft.presence,
+        presence=draft.presence or "in_person",
         category=draft.category,
-        start=_aware(draft.start),
-        end=_aware(draft.end) if draft.end else None,
+        start=start,
+        end=end,
         start_time_unknown=draft.start_time_unknown,
+        timezone=draft.timezone or _BERLIN,
         price_min_cents=draft.price_min_cents,
         price_max_cents=draft.price_max_cents,
         is_free=draft.is_free,
         status="draft",
-        visibility=derive_visibility_from_sources([rawmessage_source_to_conceptual(raw.source_type)]),
+        visibility=_tier(raw),
         raw_message=raw,
         suggested_tags=matched["unmatched_tags"],
         possible_duplicate_of_id=possible_duplicate_of,
@@ -1101,4 +1284,4 @@ def create_collected_event(raw, draft, names, attribution, flyer, written_files,
         event.status = "published"
         event.published_at = timezone.now()
         event.save(update_fields=["status", "published_at"])
-    return event, _group_values(event)
+    return event

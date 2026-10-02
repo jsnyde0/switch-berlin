@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pydantic
 
@@ -28,8 +29,13 @@ class EventDraft(pydantic.BaseModel):
     tags: list[str] = []
     # Event.CATEGORY_CHOICES key, "" when none fits.
     category: Literal["", "play_party", "workshop", "munch", "performance", "social", "festival", "talk", "other"] = ""
-    # in_person | online | hybrid (ADR-007 D11); an online-only event is kept wherever it is run from.
-    presence: Literal["in_person", "online", "hybrid"] = "in_person"
+    # in_person | online | hybrid (ADR-007 D11), only as the post states it; None when it does not say.
+    # An online-only event is kept wherever it is run from.
+    presence: Literal["in_person", "online", "hybrid"] | None = None
+    # The IANA timezone the post states for its times; None = Europe/Berlin (ADR-007 D11).
+    timezone: str | None = None
+    # The post says this event is cancelled.
+    cancelled: bool = False
     confidence: float  # self-reported 0.0-1.0
     # True when the source gives the date but no start time; start is then that day at 00:00.
     start_time_unknown: bool = False
@@ -37,6 +43,16 @@ class EventDraft(pydantic.BaseModel):
     moved_from: datetime | None = None
     # False when an in-person event happens outside Berlin and its surroundings.
     in_berlin_area: bool = True
+
+    @pydantic.field_validator("timezone")
+    @classmethod
+    def _known_timezone(cls, value):
+        if value is not None:
+            try:
+                ZoneInfo(value)
+            except (ZoneInfoNotFoundError, ValueError) as exc:
+                raise ValueError(f"timezone {value!r} is not an IANA zone") from exc
+        return value
 
 
 PostKind = Literal["announcement", "about_event", "other"]
@@ -60,8 +76,11 @@ class Decision(pydantic.BaseModel):
     draft: int  # index into the post's events, as numbered in the request
     same_as: int | None = None  # the existing event's id when it IS that event
     possibly_same_as: int | None = None  # when unsure: a new event, flagged for staff against this id
-    # With same_as: the event written out in full from every announcement attached to it.
+    # With same_as: the event written out in full from every eligible announcement attached to it.
     event: EventDraft | None = None
+    # With same_as: the eligible announcement whose description the event takes, copied verbatim
+    # (0 = this post event); None when no eligible announcement has one.
+    description_from: int | None = None
 
 
 class Consolidation(pydantic.BaseModel):

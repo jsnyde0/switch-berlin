@@ -345,6 +345,8 @@ class Event(models.Model):
         on_delete=models.SET_NULL,
         related_name="extracted_events",
     )
+    # Collector-owned field groups a person edited (events/person_edits.py); the collector never rewrites them.
+    edited_groups = models.JSONField(default=list, blank=True)
     # The collector was unsure this event is not the one named here (ADR-007 D10): staff decide.
     possible_duplicate_of = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="possible_duplicates"
@@ -374,11 +376,15 @@ class Event(models.Model):
 
     @property
     def source_links(self) -> list:
-        """The links collected sources gave (ADR-007 D11), one per URL however many sources gave it."""
-        seen = {}
+        """The links collected sources gave (ADR-007 D11), one per URL however many sources gave it,
+        leaving out the organizer's own external_url and tickets_url (shown on their own)."""
+        seen = {self.external_url, self.tickets_url} - {""}
+        links = []
         for link in self.links.all():
-            seen.setdefault(link.url, link)
-        return list(seen.values())
+            if link.url not in seen:
+                seen.add(link.url)
+                links.append(link)
+        return links
 
     @classmethod
     def from_db(cls, db, field_names, values):

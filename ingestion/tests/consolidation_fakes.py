@@ -11,14 +11,26 @@ def as_draft(view: dict, **overrides) -> EventDraft:
     return EventDraft(**{"confidence": 0.9, **view, **overrides})
 
 
-def same_as_first(request: list[dict], **merged) -> Consolidation:
-    """Every post event is its first candidate, written out as the post event (plus `merged` overrides)."""
-    return Consolidation(
-        decisions=[
-            Decision(draft=e["draft"], same_as=e["candidates"][0]["id"], event=as_draft(e["event"], **merged))
-            for e in request
-        ]
-    )
+def same_as_first(request: list[dict], description_from=0, **merged) -> Consolidation:
+    """Every post event is its first candidate, written out as the post event (plus `merged` overrides).
+
+    The description comes from `description_from` (0 = the post event), when that announcement is eligible.
+    """
+    decisions = []
+    for e in request:
+        candidate = e["candidates"][0]
+        eligible = {a["id"] for a in candidate["announcements"] if a["eligible"]}
+        if candidate["post_event_eligible"]:
+            eligible.add(0)
+        decisions.append(
+            Decision(
+                draft=e["draft"],
+                same_as=candidate["id"],
+                event=as_draft(e["event"], **merged),
+                description_from=description_from if description_from in eligible else None,
+            )
+        )
+    return Consolidation(decisions=decisions)
 
 
 def all_new(request: list[dict]) -> Consolidation:

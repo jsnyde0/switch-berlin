@@ -8,8 +8,9 @@ Run (needs REQUESTY_API_KEY in .env; costs a few model calls per case):
 
     uv run pytest ingestion/tests/test_consolidation_eval.py -m agentic -s -p no:warnings
 
-Each post runs at its own "now" (when it was posted), so the eval stays valid after
-the events are past. -s prints each case's scorecard (the events it ended with).
+Posts run in the listed order, each at its own "now" (when it was posted, unless the
+case sets one), so the eval stays valid after the events are past. Each case runs
+RUNS times; a case passes only when every run does. -s prints each case's scorecard (the events it ended with).
 """
 
 import io
@@ -33,20 +34,21 @@ _REAL_KEY = django_settings.LLM_API_KEY
 CASES = json.loads((Path(__file__).parent / "eval" / "consolidation_cases.json").read_text())["cases"]
 
 
-def _run_post(post: dict) -> RawMessage:
+def _run_post(post: dict, now: str | None = None) -> RawMessage:
+    """Collect one post (a post already collected is re-read with its new text) and run the pipeline on it."""
     from ingestion.tasks import process_raw_message
 
-    raw = RawMessage.objects.create(
-        source_type=post["source_type"],
-        channel_id=post["channel_id"],
-        message_id=post["message_id"],
+    content = dict(
         text=post["text"],
         raw_payload=post["raw_payload"],
         enriched_payload={"url_content": post["url_content"]} if post["url_content"] else {},
+        extraction_status="pending",
     )
-    now = datetime.fromisoformat(post["now"])
+    raw, _ = RawMessage.objects.update_or_create(
+        source_type=post["source_type"], channel_id=post["channel_id"], message_id=post["message_id"], defaults=content
+    )
     with (
-        patch("django.utils.timezone.now", return_value=now),
+        patch("django.utils.timezone.now", return_value=datetime.fromisoformat(now or post["now"])),
         patch("ingestion.enrichment.enrich_urls", return_value={}),  # the frozen link content stands in
     ):
         process_raw_message(raw.id)
@@ -64,13 +66,13 @@ def _seed_event(seed: dict) -> None:
         confidence=0.9,
     )
     post = {
-        "source_type": "telegram_private_group",
+        "source_type": seed.get("source_type", "telegram_private_group"),
         "channel_id": seed["channel_id"],
         "message_id": "seed",
         "text": seed["description"],
         "url_content": "",
-        "raw_payload": {"default_organizer": "poster", "poster": seed["organizer"]},
-        "now": "2026-09-20T12:00:00+00:00",
+        "raw_payload": seed.get("raw_payload") or {"default_organizer": "poster", "poster": seed["organizer"]},
+        "now": "2026-09-15T12:00:00+00:00",
     }
     read = CollectedEvents(post_kind="announcement", events=[draft])
     with patch("ingestion.extraction.extract_collected_events", return_value=read):
@@ -108,19 +110,27 @@ def _card(case_id: str, raws: list[RawMessage]) -> str:
 # -- scorers: each returns the failures, empty = pass --------------------------
 
 
+def _retreats():
+    return [e for e in _matching(r"retreat|spitzm") if _day(e) == "2026-10-08"]
+
+
 def _score_a(raws):
     failures = []
-    retreats = [e for e in _matching(r"retreat|spitzm") if _day(e) == "2026-10-08"]
+    retreats = _retreats()
     if len(retreats) != 1:
         failures.append(f"expected ONE retreat event on 2026-10-08, got {[(e.id, e.title) for e in retreats]}")
     else:
-        description = retreats[0].description
+        retreat = retreats[0]
+        description = retreat.description
         if not re.search(r"temple night", description, re.IGNORECASE):
             failures.append("the retreat description lacks the programme ('Temple Nights')")
         if "530" not in description:
             failures.append("the retreat description lacks the price (530€)")
         if re.search(r"helper", description, re.IGNORECASE):
             failures.append("the retreat description carries the helper call")
+        organizers = [(r.profile.name, r.attribution) for r in retreat.event_organizer_set.order_by("order")]
+        if organizers != [("Till & Shirka", "publisher")]:
+            failures.append(f"the retreat is credited to {organizers}, expected Till & Shirka (publisher)")
     helper = next(r for r in raws if r.message_id == "174")
     attempts = list(ExtractionAttempt.objects.filter(raw_message=helper))
     if [a.post_kind for a in attempts] != ["about_event"]:
@@ -130,15 +140,52 @@ def _score_a(raws):
     return failures
 
 
-def _score_b(raws):
+def _score_privacy(raws):
+    retreats = _retreats()
+    if len(retreats) != 1:
+        return [f"expected ONE retreat event, got {[(e.id, e.title) for e in retreats]}"]
+    event = retreats[0]
     failures = []
-    for day, expected in (("2026-10-05", 4), ("2026-10-07", 2)):
-        events = [e for e in _live() if _day(e) == day]
-        if len(events) != expected:
-            failures.append(f"{day}: expected {expected} separate events, got {[e.title for e in events]}")
-    if any(r.extraction_status != "extracted" for r in raws):
-        failures.append(f"statuses {[(r.message_id, r.extraction_status) for r in raws]}, expected all extracted")
+    if event.visibility != "public":
+        failures.append(f"visibility {event.visibility!r}, expected public (a public source is attached)")
+    shown = f"{event.title}\n{event.description}\n{event.location_note}\n{event.venue.address if event.venue else ''}"
+    for private_only in ("Mühlenweg", "Centre to yourself", "The topic of our gathering"):
+        if private_only in shown:
+            failures.append(f"the public event carries private-only text {private_only!r}")
     return failures
+
+
+def _score_separate_hosts(raws):
+    events = {a.event_id for r in raws for a in r.attempts.all()}
+    if None in events or len(events) != 2:
+        return [f"expected two separate events, attempts point at {sorted(map(str, events))}"]
+    return []
+
+
+def _score_cancelled(raws):
+    zurich = Event.objects.filter(title="Temple Zurich").first()
+    if zurich is None or zurich.status != "cancelled":
+        return [f"the Zurich event is {zurich.status if zurich else 'missing'}, expected cancelled"]
+    return []
+
+
+def _score_re_read(raws):
+    retreats = _retreats()
+    if len(retreats) != 1:
+        return [f"expected ONE retreat event after the re-read, got {[(e.id, e.title) for e in retreats]}"]
+    return []
+
+
+def _score_b(raws):
+    """Each listed event lands on its own event: identity, not counts."""
+    landed = {}
+    for raw in raws:
+        events = {a.event_id for a in raw.attempts.all()}
+        if len(events) != 1 or None in events:
+            return [f"listing {raw.message_id!r} landed on {sorted(map(str, events))}, expected one event"]
+        landed[raw.message_id] = events.pop()
+    shared = len(landed) - len(set(landed.values()))
+    return [f"{shared} listing(s) share an event: {landed}"] if shared else []
 
 
 def _score_c(raws):
@@ -175,6 +222,11 @@ def _score_e(raws):
 
 SCORERS = {
     "a_retreat_one_event": _score_a,
+    "a_retreat_reverse_order": _score_a,
+    "privacy_public_teaser_drops_private_text": _score_privacy,
+    "different_explicit_organizers_stay_separate": _score_separate_hosts,
+    "cancellation_post_171": _score_cancelled,
+    "re_read_after_consolidation": _score_re_read,
     "b_iksk_one_day_separate": _score_b,
     "c_moved_date_no_duplicate": _score_c,
     "c_moved_date_from_old_date": _score_c,
@@ -183,10 +235,14 @@ SCORERS = {
 }
 
 
+RUNS = 3  # a case passes only when every run passes (the model is not deterministic)
+
+
 @pytest.mark.agentic
 @pytest.mark.django_db
+@pytest.mark.parametrize("run", range(1, RUNS + 1), ids=lambda n: f"run{n}")
 @pytest.mark.parametrize("case", CASES, ids=[c["id"] for c in CASES])
-def test_consolidation_eval(case, settings, tmp_path):
+def test_consolidation_eval(case, run, settings, tmp_path):
     if not _REAL_KEY:
         pytest.skip("REQUESTY_API_KEY is not set: the eval needs the real model")
     settings.LLM_API_KEY = _REAL_KEY
@@ -194,9 +250,10 @@ def test_consolidation_eval(case, settings, tmp_path):
     call_command("seed_collector_sources", stdout=io.StringIO())
     if "seed_event" in case:
         _seed_event(case["seed_event"])
-    raws = [_run_post(post) for post in sorted(case["posts"], key=lambda p: p["now"])]
+    raws = [_run_post(post, case.get("now")) for post in case["posts"]]
+    raws = list({raw.id: raw for raw in raws}.values())  # a re-read post counts once
     failures = SCORERS[case["id"]](raws)
-    print(_card(case["id"], raws))
+    print(_card(f"{case['id']} run{run}", raws))
     print("  PASS" if not failures else "  FAIL: " + "; ".join(failures))
     assert not failures, f"{case['criterion']}: {failures}"
 

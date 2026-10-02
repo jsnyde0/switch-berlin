@@ -84,7 +84,9 @@ class CollectedRowsEndpointTest(TestCase):
         with patch("ingestion.collected.async_task") as mock_task:
             self._post([_row()])
             resp = self._post([_row()])
-        self.assertEqual(resp.json(), {"created": 0, "already_collected": 1, "re_read": 0, "same_listing": 0})
+        self.assertEqual(
+            resp.json(), {"created": 0, "already_collected": 1, "re_read": 0, "same_listing": 0, "re_run": 0}
+        )
         self.assertEqual(RawMessage.objects.count(), 1)
         self.assertEqual(mock_task.call_count, 1)
 
@@ -374,10 +376,11 @@ class CollectedEventLandingTest(TestCase):
         self.assertEqual((event.presence, event.venue, event.location_note), ("online", None, "Zoom"))
         self.assertEqual((event.category, event.timezone, event.status), ("talk", "Europe/Berlin", "published"))
 
-    def test_a_post_about_an_event_that_announces_none_is_wiped_with_its_kind(self):
-        raw = self._raw(text="We lost some helpers from our Retreat-Team and would love one more person.")
+    def test_a_post_about_an_event_that_announces_none_keeps_its_text_and_kind(self):
+        text = "We lost some helpers from our Retreat-Team and would love one more person."
+        raw = self._raw(text=text)
         self._run(raw, CollectedEvents(post_kind="about_event", events=[]))
-        self.assertEqual((raw.extraction_status, raw.extraction_error, raw.text), ("skipped", "not_event", ""))
+        self.assertEqual((raw.extraction_status, raw.extraction_error, raw.text), ("skipped", "about_event", text))
         self.assertEqual(raw.attempts.get().post_kind, "about_event")
         self.assertFalse(Event.objects.exists())
 
@@ -506,3 +509,23 @@ class CollectedEventLandingTest(TestCase):
         self.assertFalse(Event.objects.exists())
         self.assertFalse(EventImage.objects.exists())
         self.assertEqual({p for p in self.media_root.rglob("*") if p.is_file()}, before)  # no orphaned file
+
+
+class ModelCallRetryTest(TestCase):
+    """ADR-008 D4 (FIRM): a transport error is retried up to twice; a reply that does not parse never is."""
+
+    def test_the_router_client_retries_transport_errors_twice(self):
+        from ingestion.extraction import router_model
+
+        self.assertEqual(router_model("m").client.max_retries, 2)
+
+    def test_both_collector_calls_never_retry_a_bad_reply(self):
+        from ingestion.extraction import consolidate, extract_collected_events
+        from ingestion.schemas import Consolidation
+
+        with patch("ingestion.extraction.Agent") as MockAgent:
+            MockAgent.return_value.run_sync.return_value.output = CollectedEvents(post_kind="other", events=[])
+            extract_collected_events("t", [], {})
+            MockAgent.return_value.run_sync.return_value.output = Consolidation(decisions=[])
+            consolidate([])
+        self.assertEqual([c.kwargs["retries"] for c in MockAgent.call_args_list], [0, 0])

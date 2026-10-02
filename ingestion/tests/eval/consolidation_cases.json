@@ -1,5 +1,5 @@
 {
- "about": "Real collected posts frozen from the dev DB (RawMessage ids in raw_message_id) for the consolidation eval, sb-7wzb.30 acceptance (1). Each post runs at its own 'now' (posted_at, else received_at). Scored by ingestion/tests/test_consolidation_eval.py.",
+ "about": "Real collected posts frozen from the dev DB (RawMessage ids in raw_message_id) for the consolidation eval, sb-7wzb.30 acceptance (1). Posts run in the listed order, each at its own 'now' (posted_at, else received_at) unless the case sets one. Notes mark every synthetic change. Scored by ingestion/tests/test_consolidation_eval.py.",
  "cases": [
   {
    "id": "a_retreat_one_event",
@@ -47,6 +47,19 @@
      }
     },
     {
+     "raw_message_id": 512,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "174",
+     "now": "2026-09-30T10:03:46+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-30 (Wednesday).\n\nEdit: found! 🐈\n\nIt‘s exactly this: \nWe lost some helpers from our Retreat-Team and would love to have one more person.\n\nIf you feel the call, your inner \"Meow\" then write to us and we‘ll see, if it‘s a fit... Priority for humans, that we already know.\n\nIt involves being there early, setting up, some tasks during the retreat and strike at the end.\nAnd you would still have to pay, but less then the full fee.",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
      "raw_message_id": 555,
      "source_type": "telegram_private_group",
      "channel_id": "2287767683:894",
@@ -60,19 +73,6 @@
       "poster": "Till Tailor"
      },
      "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed."
-    },
-    {
-     "raw_message_id": 512,
-     "source_type": "telegram_telethon",
-     "channel_id": "@TillTailorShirka",
-     "message_id": "174",
-     "now": "2026-09-30T10:03:46+00:00",
-     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-30 (Wednesday).\n\nEdit: found! 🐈\n\nIt‘s exactly this: \nWe lost some helpers from our Retreat-Team and would love to have one more person.\n\nIf you feel the call, your inner \"Meow\" then write to us and we‘ll see, if it‘s a fit... Priority for humans, that we already know.\n\nIt involves being there early, setting up, some tasks during the retreat and strike at the end.\nAnd you would still have to pay, but less then the full fee.",
-     "url_content": "",
-     "raw_payload": {
-      "source": "@TillTailorShirka",
-      "default_organizer": "Till & Shirka"
-     }
     }
    ]
   },
@@ -314,6 +314,279 @@
       "poster": "Tina"
      },
      "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed."
+    }
+   ]
+  },
+  {
+   "id": "a_retreat_reverse_order",
+   "criterion": "(a) + ruling 5: the same retreat posts in reverse order give the same one event, credited to Till & Shirka",
+   "now": "2026-09-30T12:00:00+00:00",
+   "posts": [
+    {
+     "raw_message_id": 555,
+     "source_type": "telegram_private_group",
+     "channel_id": "2287767683:894",
+     "message_id": "2456",
+     "now": "2026-09-30T10:28:09+00:00",
+     "text": "Telegram post in Sober Events in Berlin / Sex-positive offerings, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Sober Events in Berlin / Sex-positive offerings",
+      "default_organizer": "poster",
+      "poster": "Till Tailor"
+     },
+     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed."
+    },
+    {
+     "raw_message_id": 512,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "174",
+     "now": "2026-09-30T10:03:46+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-30 (Wednesday).\n\nEdit: found! 🐈\n\nIt‘s exactly this: \nWe lost some helpers from our Retreat-Team and would love to have one more person.\n\nIf you feel the call, your inner \"Meow\" then write to us and we‘ll see, if it‘s a fit... Priority for humans, that we already know.\n\nIt involves being there early, setting up, some tasks during the retreat and strike at the end.\nAnd you would still have to pay, but less then the full fee.",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
+     "raw_message_id": 513,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "173",
+     "now": "2026-09-30T10:03:29+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
+     "raw_message_id": 226,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "171",
+     "now": "2026-09-18T13:53:44+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-18 (Friday).\n\n🇨🇭 Zurich / Switzerland  - All events cancelled 😞\n\nWe're taking a break from hosting events in Zurich.\n-- and we cancelled all our Swiss dates - next week, and also in November and in 2027. \n\n🐌🐌 The reasons are personal: we took on too much and need a break. \n\nWe ran 5 events and got to know curious and playful humans.\nThanks to everyone who participated. 🙏🏼\n\nWe'd love to bring more events to Zurich, and maybe other Swiss cities as well. 🍇🌶🌈\nIt might take a while, and we'll keep you updated.\n\nMaybe we'll see you at one of our other events in Vienna or Berlin instead?\n\n💞 best wishes, Shirka & Till \n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext dates:\n08.-11.10 - Retreat Berlin\n06.-08.11. - Vienna Weekend\n14.11. - Berlin Temple\n11.-13. 12. - Vienna Weekend\n02.01.27 - New Years Temple Berlin\n! SAVE THE DATE: 26.-29.03. 27 - EASTER in Vienna: Kinky catholics and hot orgy bunnys! \n\n🍑 «We 💜 sillysexual! »  🍑\n\n ! Last call:  Temple Retreat! \n👉🏼 08.-11.10.26 at Spitzmühle / 4 days, 3 Nights / 530€-800€\n\n❗️October Retreat ❗️| TG | Insta",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
+     "raw_message_id": 249,
+     "source_type": "telegram_telethon",
+     "channel_id": "@ConsciousEventsBerlin:7888",
+     "message_id": "29872",
+     "now": "2026-09-16T09:33:49+00:00",
+     "text": "Telegram post in Conscious Events Berlin 🌽🦋 / Love (NeoTantra, Temple, Intimacy, Connection, Sinnlichkeit), posted 2026-09-16 (Wednesday).\n\n08.-11.10. / Close to Berlin\n\n🌈 Spielwiese Temple Retreat 🌈\n\n\"So is this all just one big Sex-Party? \nOr why do people go to a Temple Retreat?\"\n\nThis is what our participants say: \n\n1. Deeper Connection \n\"I love the intimacy of a smaller group in combination with a duration of several days.\"\n2. Permission to Be Yourself\n\"I felt like suddenly it was okay to be exactly who I was, where I was, and with what I was feeling.\"\n3. Space to Be Weird\n\"I can be weird (the good weird!), play and experiment.\"\n4. Community & Belonging\n\"It feels like a community and this is what I was longing for.\"\n5. Pleasure & Growth\n\"I came to explore my pleasure, share my desires, to learn and grow.\"\n6. Recharge from Daily Life\n\"I notice this gives me so much energy for my 'normal' life as doctor and parent.\"\n\n\n>>> Centre, Play, Rest - Repeat <<<\n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30-40 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite|  | Instagram",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Conscious Events Berlin / Love",
+      "default_organizer": "poster",
+      "poster": "Till Tailor"
+     },
+     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed."
+    }
+   ]
+  },
+  {
+   "id": "privacy_public_teaser_drops_private_text",
+   "criterion": "ruling 1: a private-group post with an address, then a public teaser of the same event -> a public event carrying neither the private-only prose nor the address",
+   "posts": [
+    {
+     "raw_message_id": 555,
+     "source_type": "telegram_private_group",
+     "channel_id": "2287767683:894",
+     "message_id": "2456",
+     "now": "2026-09-30T10:28:09+00:00",
+     "text": "Telegram post in Sober Events in Berlin / Sex-positive offerings, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram\n\n🏠 Address for registered guests: Mühlenweg 7, 15848 Spitzmühle",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Sober Events in Berlin / Sex-positive offerings",
+      "default_organizer": "poster",
+      "poster": "Till Tailor"
+     },
+     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed. The address line is synthetic: the dev DB holds no private post with an address."
+    },
+    {
+     "raw_message_id": 226,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "171",
+     "now": "2026-09-18T13:53:44+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-18 (Friday).\n\n🇨🇭 Zurich / Switzerland  - All events cancelled 😞\n\nWe're taking a break from hosting events in Zurich.\n-- and we cancelled all our Swiss dates - next week, and also in November and in 2027. \n\n🐌🐌 The reasons are personal: we took on too much and need a break. \n\nWe ran 5 events and got to know curious and playful humans.\nThanks to everyone who participated. 🙏🏼\n\nWe'd love to bring more events to Zurich, and maybe other Swiss cities as well. 🍇🌶🌈\nIt might take a while, and we'll keep you updated.\n\nMaybe we'll see you at one of our other events in Vienna or Berlin instead?\n\n💞 best wishes, Shirka & Till \n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext dates:\n08.-11.10 - Retreat Berlin\n06.-08.11. - Vienna Weekend\n14.11. - Berlin Temple\n11.-13. 12. - Vienna Weekend\n02.01.27 - New Years Temple Berlin\n! SAVE THE DATE: 26.-29.03. 27 - EASTER in Vienna: Kinky catholics and hot orgy bunnys! \n\n🍑 «We 💜 sillysexual! »  🍑\n\n ! Last call:  Temple Retreat! \n👉🏼 08.-11.10.26 at Spitzmühle / 4 days, 3 Nights / 530€-800€\n\n❗️October Retreat ❗️| TG | Insta",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    }
+   ]
+  },
+  {
+   "id": "different_explicit_organizers_stay_separate",
+   "criterion": "ruling 6: two workshops at one venue on one day, each naming a different host -> two events",
+   "posts": [
+    {
+     "raw_message_id": 189,
+     "source_type": "website",
+     "channel_id": "iksk-berlin.de",
+     "message_id": "2026-10-06|14 45 - 16 45 Cali Sessions w/ Ashraf",
+     "now": "2026-09-29T12:06:56.637710+00:00",
+     "text": "Event listed on the IKSK Berlin program (https://iksk-berlin.de/Program).\nDate: 2026-10-06 (Tuesday)\nEntry (time range as 'HH MM - HH MM', then title): 14 45 - 16 45 Cali Sessions w/ Ashraf\nHost: ashrafalali.com (the program links this event to the host's own site)\nVenue: IKSK Berlin, Holzmarkt 25, Berlin\nDetails: https://www.ashrafalali.com/\n",
+     "url_content": "Cali Sessions — Playful Movement, Community & Authentic Relating | Ashraf Alali[cali·sessions](#top)\n\n* [The Practice](#practice)\n* [Tuesdays](#tuesdays)\n* [Retreat Day](#retreat)\n* [Ashraf](#ashraf)\n* [Visit](#visit)\n* [Book your spot](https://www.eventbrite.com/e/cali-sessions-playful-movement-community-authentic-relating-tickets-1994791550225?aff=oddtdtcreator)\n\n![A circle of people moving together at Cali Sessions in Berlin](/_next/image?url=%2Fimages%2Fhero.jpg&w=3840&q=75&dpl=dpl_FxFgzoktAQNmtsmLk9tqCKvaWH2p)\n\nTuesdays 14:45–16:45 · IKSK, Berlin\n\nMove like you *mean to play.*\n=============================\n\nA different kind of training — where movement meets authenticity, community, and personal growth. Animal flow, calisthenics, breathwork and honest human connection.\n\n[I wanna play too→](https://www.eventbrite.com/e/cali-sessions-playful-movement-community-authentic-relating-tickets-1994791550225?aff=oddtdtcreator)[What is Cali?](#practice)\n\nAnimal FlowCalisthenicsBreathworkGroup DynamicAnimal FlowCalisthenicsBreathworkGroup DynamicAnimal FlowCalisthenicsBreathworkGroup Dynamic\n\nAnimal FlowCalisthenicsBreathworkGroup DynamicAnimal FlowCalisthenicsBreathworkGroup DynamicAnimal FlowCalisthenicsBreathworkGroup Dynamic\n\nWhy Cali exists\n\nCali emerged from my need to practice being a responsible adult — without losing playfulness and aliveness. \n\n“I noticed how I have gotten too adult, too quickly. As a child, I used to run the streets for hours and hours.”\n\n— Ashraf\n\nWhat we practice\n\nThree muscles no gym trains.\n----------------------------\n\n01\n\n### Nervous system capacity\n\n* Staying present in the body under activation\n* True resting — not restlessness — during recovery\n\n![Nervous system capacity](/_next/image?url=%2Fimages%2Fnervous-system.jpg&w=3840&q=75&dpl=dpl_FxFgzoktAQNmtsmLk9tqCKvaWH2p)\n\n02\n\n### Emotional honesty\n\n* Notice and understand feelings in a group setting\n* Voice and express feelings through body and voice\n* Discern personal emotions from absorbed ones\n\n![Emotional honesty](/_next/image?url=%2Fimages%2Femotional-honesty.jpg&w=3840&q=75&dpl=dpl_FxFgzoktAQNmtsmLk9tqCKvaWH2p)\n\n03\n\n### Authentic relating\n\n* Connect without abandoning yourself\n* Communicate Yes, No, Stop, Go\n* Create visible boundaries — neither permeable nor isolating\n\n![Authentic relating](/_next/image?url=%2Fimages%2Fauthentic-relating.jpg&w=3840&q=75&dpl=dpl_FxFgzoktAQNmtsmLk9tqCKvaWH2p)\n\n![Participants moving barefoot together in the studio](/_next/image?url=%2Fimages%2Fhow-we-practice.jpg&w=3840&q=75&dpl=dpl_FxFgzoktAQNmtsmLk9tqCKvaWH2p)\n\nHow we practice\n\nShoes off. Masks off.\n---------------------\n\nWe take off our shoes and masks, we move our bodies, express our feelings, and develop relational skills.\n\nThe space is built on consent and respect — where imperfection, boundaries, and challenge can exist without shaming or judging.\n\n* Consent first\n* No comparison\n* Imperfection welcome\n* Challenge without shame\n\nVoices from the circle\n\nThey found their people.\n------------------------\n\nDrag or swipe to explore ↔\n\n> Cali sessions are the place where I'm totally free for those two hours — nothing else matters.\n\nAAbud\n\n> Fun, with so much more than just a workout — also sharing wisdom and practical insights.\n\nGGeorg\n\n> The playfulness. Ashraf gives us trust in our bodies and connects the body, the mind and the soul.\n\nDDiana\n\n> A space where I can be playful and enjoy my physical strength, and where my mind can rest in the warmth of a loving community.\n\nHHan\n\n> Cali sessions are the place where I'm totally free for those two hours — nothing else matters.\n\nAAbud\n\n> Fun, with so much more than just a workout — also sharing wisdom and practical insights.\n\nGGeorg\n\n> The playfulness. Ashraf gives us trust in our bodies and connects the body, the mind and the soul.\n\nDDiana\n\n> A space where I can be playful and enjoy my physical strength, and where my mind can rest in the warmth of a loving community.\n\nHHan\n\n> The playfulness — even though we get a good burn and workout in, it doesn't feel intense.\n\nLLoui\n\n> A safe space. I can let my inner monkey play, I can be silly and intuitive, without anyone judging or shaming me.\n\nAAllam\n\n> Ashraf encouraged imperfection. Not comparison, not forcing — just being and playing.\n\nSSophie Rose\n\n> Cali sessions are the place where I'm totally free for those two hours — nothing else matters.\n\nAAbud\n\n> The playfulness — even though we get a good burn and workout in, it doesn't feel intense.\n\nLLoui\n\n> A safe space. I can let my inner monkey play, I can be silly and intuitive, without anyone judging or shaming me.\n\nAAllam\n\n> Ashraf encouraged imperfection. Not comparison, not forcing — just being and playing.\n\nSSophie Rose\n\n> Cali sessions are the place where I'm totally free for those two hours — nothing else matters.\n\nAAbud\n\nThe Tuesday Circle\n\nPay what carries you.\n---------------------\n\nContribution is based on roughly 2% of your monthly income — so the circle stays open to everyone who wants to show up.\n\n“Your presence is the real contribution.”\n\n€10–20\n\nmonthly income below €1,000\n\n€20–30\n\nmonthly income below €1,500\n\n€30–60\n\nmonthly income above €1,600\n\n[Reserve your Tuesday spot→](https://www.eventbrite.com/e/cali-sessions-playful-movement-community-authentic-relating-tickets-1994791550225?aff=oddtdtcreator)\n\nRetreat Day\n\nThe Full Reset.\n---------------\n\nMonths of the Tuesday work, compressed into one full day. A real reset — not just a taste — without the multi-week commitment. Step out of normal life long enough to feel an actual shift.\n\n* Full-day intensive (6–8 hrs): movement, breathwork, yoga, tarot & a deep authentic-relating circle\n\n  €300\n\n* Shared communal meal — part of the integration, not an add-on\n\n  €40\n\n* Small group, capped at 10–12 for real depth\n\n  intimacy\n\n* Take-home integration guide\n\n  €30\n\n* Follow-up group call one week later to lock in the shift\n\n  €50\n\nTotal value €420\n\n€199\n\n€149 early-bird — first date only\n\n### Who this day is for\n\nYou want to go deeper than a weekly session, but an 8-week cohort isn't realistic right now. You need an actual break from normal life — not another hour squeezed into a Tuesday.\n\nBonus\n\nFree entry to the following month's Tuesday Circle — a one-off becomes the start of a habit.\n\n[Claim the early-bird spot→](mailto:info@ashrafalali.com?subject=The%20Full%20Reset%20—%20Retreat%20Day)\n\nYour facilitator\n\nAshraf Alali\n------------\n\n* Psychologist\n* Life-Coach\n* Hatha & Ashtanga-Vinyasa Yoga Teacher\n* Men's circles facilitator\n\nAfter facing the challenges of the Syrian war and the complexities of immigration, Ashraf's journey has been one of resilience and personal growth. He integrates a holistic approach to healing by blending yoga, psychology, and personal experience.\n\nHis experience includes work at Berlin clinics Soteria and Heiligenfelde, and advanced workshops in shamanism, spirituality and emotional healing.\n\nBecome Light.\n\nA mission to inspire movement toward clarity, emotional balance, and a fulfilling, purposeful life.\n\n![Portrait of Ashraf Alali](/_next/image?url=%2Fimages%2Fashraf-portrait.jpg&w=3840&q=75&dpl=dpl_FxFgzoktAQNmtsmLk9tqCKvaWH2p)\n\nFinding us\n\nEvery Tuesday. One door. One bell.\n----------------------------------\n\n### The rhythm\n\n- 14:45\n\n  Doors open\n\n  Arrive, land, shoes off\n\n- 15:05\n\n  Door closes\n\n  The circle begins — please be on time\n\n- 16:45\n\n  We close\n\n  Leave lighter than you came\n\n“I'm committed to appreciating and respecting the time and the space of IKSK, and of all participants.”\n\n### The way in\n\n* 1\n\n  Enter through Holzmarkt\n\n* 2\n\n  Turn right — IKSK is written on the door\n\n* 3\n\n  Ring the bell 🔔\n\n* 4\n\n  Welcome ❣️\n\n[IKSK — Holzmarktstraße 25, 4. Etage, 10243 Berlin→](https://maps.google.com/?q=Holzmarktstra%C3%9Fe+25,+10243+Berlin)\n\nThe circle is waiting\n\nCome as you are. *Leave lighter.*\n---------------------------------\n\n[Let's gooo→](https://www.eventbrite.com/e/cali-sessions-playful-movement-community-authentic-relating-tickets-1994791550225?aff=oddtdtcreator)\n\ncali·sessions\n\nPlayful movement, community & authentic relating with Ashraf Alali. Tuesdays at IKSK, Berlin.\n\n[info@ashrafalali.com](mailto:info@ashrafalali.com)[+49 162 911 4646](tel:+491629114646)\n\nIKSK — Holzmarktstraße 25, 4. Etage, 10243 Berlin\n\n© 2026 Ashraf Alali · Built on consent and respect · Governing law: Germany",
+     "raw_payload": {
+      "source": "IKSK program page",
+      "venue": "IKSK Berlin (Holzmarkt 25, Haus 2)",
+      "venue_run_by": "IKSK Berlin",
+      "listing": {
+       "date": "2026-10-06",
+       "title": "14 45 - 16 45 Cali Sessions w/ Ashraf"
+      }
+     }
+    },
+    {
+     "raw_message_id": 177,
+     "source_type": "website",
+     "channel_id": "iksk-berlin.de",
+     "message_id": "2026-10-06|10 - 20 PELVIC WORK. DAS BECKEN II",
+     "now": "2026-09-29T12:06:56.514168+00:00",
+     "text": "Event listed on the IKSK Berlin program (https://iksk-berlin.de/Program).\nDate: 2026-10-06 (Tuesday)\nEntry (time range as 'HH MM - HH MM', then title): 10 - 20 PELVIC WORK. DAS BECKEN II\nHost: visionary-body.de (the program links this event to the host's own site)\nVenue: IKSK Berlin, Holzmarkt 25, Berlin\nDetails: https://visionary-body.de/termine/pelvic-work-das-becken-ii-innerer-beziehungsraum-teilearbeit/\n",
+     "url_content": " Pelvic Work. Das Becken II – Innerer Beziehungsraum/ Teile-Arbeit für Selbstliebe, Lust & Genuss - Visionary Body\n            \n   \n\n[![Visionary Body](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMTAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCAyMTAgNjAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHN0eWxlPSJmaWxsOiNjZmQ0ZGI7ZmlsbC1vcGFjaXR5OiAwLjE7Ii8+PC9zdmc+)](https://visionary-body.de/)\n\n* [Angebot](#)\n  + [Sexological Bodywork](https://visionary-body.de/somatisches-sexualcoaching-sexological-bodywork/)\n  + [Sinnliche Massagen](https://visionary-body.de/sinnliche-massagen-bodywork/)\n  + [Pelvic Care](https://visionary-body.de/integrale-beckenarbeit-pelvic-care/)\n  + [Aufstellungsarbeit](https://visionary-body.de/aufstellungsarbeit/)\n  + [Somatisches Coaching & Körpertherapie](https://visionary-body.de/somatisches-coaching-koerpertherapie/)\n* [Online](#)\n  + [Solo Love](https://mareen-juliette-embody-love.thinkific.com/courses/solo-love-fuer-frauen?ref=360164)\n  + [Anal! Massage, Sex, Pegging](https://www.joyclub.de/sexeducation/courses/34.anal_massage_sex_pegging.html)\n* [Über](https://visionary-body.de/ueber/)\n* [Kalender](https://visionary-body.de/kalender-veranstaltungen/)\n* [Preise](https://visionary-body.de/preise/)\n* [Kontakt](https://visionary-body.de/kontakt/)\n\n* Angebot\n  + [Sexological Bodywork](https://visionary-body.de/somatisches-sexualcoaching-sexological-bodywork/)\n  + [Sinnliche Massagen](https://visionary-body.de/sinnliche-massagen-bodywork/)\n  + [Pelvic Care](https://visionary-body.de/integrale-beckenarbeit-pelvic-care/)\n  + [Aufstellungsarbeit](https://visionary-body.de/aufstellungsarbeit/)\n  + [Somatisches Coaching & Körpertherapie](https://visionary-body.de/somatisches-coaching-koerpertherapie/)\n  + [Tao & Qi Gong](https://visionary-body.de/tao-qi-gong/)\n* Online\n  + [Solo Love](https://mareen-juliette-embody-love.thinkific.com/courses/solo-love-fuer-frauen?ref=360164)\n  + [Anal! Massage, Sex, Pegging](https://www.joyclub.de/sexeducation/courses/34.anal_massage_sex_pegging.html)\n* [Über](https://visionary-body.de/ueber/)\n* [Kalender](https://visionary-body.de/kalender-veranstaltungen/)\n* [Preise](https://visionary-body.de/preise/)\n* [News](https://visionary-body.de/aktuelles/)\n* [Kontakt](https://visionary-body.de/kontakt/)\n* [Termin buchen](https://calendly.com/mareen-scholl/)\n\n[Termin buchen](https://calendly.com/mareen-scholl/)\n\nPelvic Work. Das Becken II – Innerer Beziehungsraum/ Teile-Arbeit für Selbstliebe, Lust & Genuss\n\n![Pelvic Work. Das Becken II – Innerer Beziehungsraum/ Teile-Arbeit für Selbstliebe, Lust & Genuss](data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=)\n\n### Wann\n\n2. Oktober 2026 - 4. Oktober 2026\n\nGanztägig\n\n Zum Kalender hinzufügen\n\n[ICS herunterladen](https://visionary-body.de/termine/pelvic-work-das-becken-ii-innerer-beziehungsraum-teilearbeit/ical/)\n[Google Kalender](https://www.google.com/calendar/event?action=TEMPLATE&text=Pelvic+Work.+Das+Becken+II+%E2%80%93+Innerer+Beziehungsraum%2F+Teile-Arbeit+f%C3%BCr+Selbstliebe%2C+Lust+%26+Genuss&dates=20261002T000000/20261004T235959&details=Workshopreihe%2FWeiterbildung+f%C3%BCr+Professionals+als+auch+Paare+und+vertraute+Menschen%2C+die+gerne+miteinander+in+Ber%C3%BChrung+sind.+Modul+II+mit+Mareen+Scholl%2C+Juliette+Caryl+Morgan+und+Lukas+Forstmeyer.&location=&trp=false&sprop=https%3A%2F%2Fvisionary-body.de%2Ftermine%2Fpelvic-work-das-becken-ii-innerer-beziehungsraum-teilearbeit%2F&sprop=name:Visionary+Body&ctz=Europe%2FBerlin)\n[iCalendar](webcal://visionary-body.de/termine/pelvic-work-das-becken-ii-innerer-beziehungsraum-teilearbeit/ical/)\n[Office 365](https://outlook.office.com/calendar/0/deeplink/compose?allday=false&body=Workshopreihe%2FWeiterbildung+f%C3%BCr+Professionals+als+auch+Paare+und+vertraute+Menschen%2C+die+gerne+miteinander+in+Ber%C3%BChrung+sind.+Modul+II+mit+Mareen+Scholl%2C+Juliette+Caryl+Morgan+und+Lukas+Forstmeyer.&location=&path=/calendar/action/compose&rru=addevent&startdt=2026-10-02T00%3A00%3A00%2B02%3A00&enddt=2026-10-04T23%3A59%3A59%2B02%3A00&subject=Pelvic+Work.+Das+Becken+II+%E2%80%93+Innerer+Beziehungsraum%2F+Teile-Arbeit+f%C3%BCr+Selbstliebe%2C+Lust+%26+Genuss)\n[Outlook Live](https://outlook.live.com/calendar/0/deeplink/compose?allday=false&body=Workshopreihe%2FWeiterbildung+f%C3%BCr+Professionals+als+auch+Paare+und+vertraute+Menschen%2C+die+gerne+miteinander+in+Ber%C3%BChrung+sind.+Modul+II+mit+Mareen+Scholl%2C+Juliette+Caryl+Morgan+und+Lukas+Forstmeyer.&location=&path=/calendar/action/compose&rru=addevent&startdt=2026-10-02T00%3A00%3A00%2B02%3A00&enddt=2026-10-04T23%3A59%3A59%2B02%3A00&subject=Pelvic+Work.+Das+Becken+II+%E2%80%93+Innerer+Beziehungsraum%2F+Teile-Arbeit+f%C3%BCr+Selbstliebe%2C+Lust+%26+Genuss)\n\n![](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgMjQwIDMwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgc3R5bGU9ImZpbGw6I2NmZDRkYjtmaWxsLW9wYWNpdHk6IDAuMTsiLz48L3N2Zz4=) ![](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgMjQwIDMwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgc3R5bGU9ImZpbGw6I2NmZDRkYjtmaWxsLW9wYWNpdHk6IDAuMTsiLz48L3N2Zz4=) ![](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgMjQwIDMwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgc3R5bGU9ImZpbGw6I2NmZDRkYjtmaWxsLW9wYWNpdHk6IDAuMTsiLz48L3N2Zz4=)\n\nPelvic Work. Das Becken II\n--------------------------\n\n### Teilarbeit für die somatisch-sexologische Arbeit/ Erforschung von Selbstliebe, Genuss & Lust. Inklusive Kompaktkurs Teilearbeit\n\nALL GENDER\n\nDieser Kurs besteht aus einem Online-Kompaktkurs (somatische) Teilearbeit mit Lukas Forstmeyer und einem Wochenendkurs mit Mareen Scholl und [Juliette Caryl Morgan](http://www.juliette-c-morgan.com). Im Vorfeld des Workshops werden anhand schriftlicher Materialien und Video-Teachings zum Selbststudium und in 2 live-Calls unter Lukas` Hauptleitung den Teilnehmenden Grundlagen und Vertiefungen der Teilearbeit vermittelt.\n\nDie Live-Calls finden statt am 17. und 24. September von 18.30 – 20.30 Uhr. Die Onlinematerialien sind bereits vorab zugänglich, um sich auf die Calls vorzubereiten.\n\nIn den 2 Live-Calls werden wir die Welt der Sprache im Rahmen der Teilearbeit für somatische Sessions erforschen. In Teil 1 erforschen wir, welche Möglichkeiten wir überhaupt haben, um Menschen durch Worte zu berühren und ihre Erfahrung zu vertiefen. Und wir lernen, wie Teile-Arbeit einen Rahmen bieten kann, um alte aufkommende Themen aufzufangen.\n\nin Teil 2 lernen wir dann, wie Teile-Arbeit uns helfen kann, die alten Schutzstrategien und Wunden, die uns auf dem Weg zu mehr Selbstliebe begegnen, gekonnt mit ins Boot zu holen. Denn manche Dinge können wir nicht weg atmen. Sie wollen verstanden und integrieren werden.\n\nDarauf folgt ein 3-tägiger Workshop, in dem die Teilearbeit in den Kontext somatischer, sexologischer und therapeutischer Arbeit/ Forschung eingebettet werden. Als Hauptfokus wird mit Themen rund um Selbstliebe (Solo Sex als auch Selbstannahme), Genuss und Lust gearbeitet werden, da diese in der persönlichen Reise zu Verkörperung und Selbstliebe oft grundlegende Stolpersteine sind und in der professionellen 1:1-Begleitung häufig vorkommen. Meist sind diese Themen die Basis für jede weitere Arbeit.\n\nIm Fokus steht nicht die Selbstliebeforschung selbst, sondern detaillierte Prozesse, welche dabei aufkommen. Dieser Kurs bietet Möglichkeiten im Umgang mit aufkommenden emotionalen Prozessen, wenn Mensch sich dem eigenen Körper, Lust und Genuss zuwendet. Oft stehen Themen der Selbstannahme, Scham, Bewertung, Angst oder Wut einer Selbstliebepraxis gleich zu Beginn im Wege oder tauchen im Prozess auf. Schützende, jedoch heute nicht mehr hilfreiche Teile hindern den Menschen daran, den eigenen Körper zu bewohnen, Genuss als heilsamen und stärkenden Zustand des Nervensystems zu leben oder Lust und Erregung in der Sexualität, den Genitalien und dem Beckenraum zuzulassen.\n\nWährend des Workshops üben wir die Teilearbeit im Rahmen somatischer und verbaler Forschungs- und Begleitsettings. Wir widmen uns auch der Frage, wann es sinnvoll ist, Anteilen in Form von klassischer Telearbeit zu begegnen oder wann und wie es möglich oder besser ist, die Teile somatisch zu zu prozessieren. Wie kann in einer Session somatische Arbeit/Körperarbeit an die Teilearbeit anschließen oder sogar Hand in Hand gehen? Wie können auch einfache Elemente der Aufstellungsarbeit mit integriert und verräumlicht werden?\n\nEs wird außerdem Austausch darüber geben, wie andere Themen der Sexualität und Intimität, zu Genuss, Lust, Erregung und Orgasmus in der somatisch-sexologischen Arbeit mit Teilearbeit aufgegriffen werden können. Anhand exemplarischer Prozesse kann dies verdeutlicht und diskutiert werden.\n\nDie einzelnen Übungssettings können je nach Person und Thema sehr variieren. Die Übenden entscheiden selbst miteinander, wie und mit welchem Thema sie in die somatische Forschung gehen wollen. Die meisten Übungen finden bekleidet statt. Nacktheit und lustvolles Forschen ist je nach Setting aber auch eingeladen.\n\n**Für wen ist dieser Kurs?**\n----------------------------\n\nDer Kurs richtet sich vor allem an Professionals, welche Menschen in Einzelsessions begleiten. Er ist aber auch offen für Privatmenschen, welche sich gegenseitig in ihrem persönlichen Forschen begleiten wollen. Die Techniken zur Teilearbeit lassen sich außerdem in der eigenen Selbstentwicklung anwenden.\n\nPrivatmenschen sind eingeladen als vertrautes Duo oder Paar. Für diese ist es möglich, die Übungen auch mit anderen, wechselnden Teilnehmenden zu machen. Dies wird aber nicht garantiert und ist abhängig von der Offenheit der anderen.\n\nÜber die Workshop-Reihe\n-----------------------\n\n**Die Pelvic Work. Das Becken** Workshop/Weiterbildungs-Reihe besteht aus insgesamt 5 Modulen. Du kannst die Module einzeln, als 3er-Paket oder ganze Reihe buchen.\n\nDie Arbeit mit dem Becken als Teil der Gesamtkörperstruktur, als Bezugspunkt zum Thema Sexualität, Verkörperung und Gesundheit, kann sehr vielfältig aussehen. Verschiedene Methoden und Ansätze haben ganz eigene Qualitäten und Nutzen, berühren unterschiedliche Ebenen. Auch sprechen verschiedene Ansätze Menschen unterschiedlich an, sowohl als Practitioner\\*in als auch Klient\\*in.\n\nDiese Reihe stellt daher sehr unterschiedliche Möglichkeiten vor, mit dem Becken zu arbeiten (für Professionals) bzw. mit dem Becken in Kontakt zu gehen (für Privatmenschen), um eben auf eine Vielzahl an Möglichkeiten zurückgreifen zu können, Schichten des Erlebens und Facetten eines Themas zu erforschen.\n\n**I Bewegung, Verbindung, Raum 15. – 17. Mai 2026:** Körperstrukturen & Anatomie als verkörpertes Wissen und intuitive Spürräume. Emotions- und Beziehungsorientiertes Forschen mit somatischer, Körper- und Begleitarbeit, alleine und mit Unterstützung. ALL GENDER. 390/450€\n\n**II innerer Beziehungsraum** **2. – 4. Oktober / zoom-Calls 17. & 24. September 2026:** fokussiert auf die Begleitung von emotionalen Herausforderungen und Prozessen rund um Selbstliebe, Genuss und Lust unter Verwendung von Teilearbeit und einfachen Aufstellungselementen im Kontext somatisch-sinnlicher Selbstliebe-Exploration. Dieser Kurs beinhaltet einen Online-Kompaktkurs Teilearbeit mit Lukas Forstmeyer vor dem Vor-Ort-Kurs mit Mareen Scholl Juliette Caryl Morgan. ALL GENDER. Incl. 2 zoom Calls plus Materialien zum Selbststudium vorab. 540/600€\n\n**III Struktur 5.-7. März 2027 / 2 Lerncalls am 11. & 25. Februar**: fokussiert Wissen, Berührungskompetenz (wie/was berühre ich, was sagt das Gewebe, welche Besonderheiten können mir begegnen?) und individuelles Erspüren von innerer & äußerer Anatomie von Vulva/ Vulva-ähnlichen Genitalien. Es geht um Techniken der Körperarbeit zur Orientierung im physischen Innen- und Außenraum und Techniken für Release/Entspannung des Beckenbodens und der Struktur der (sexuellen) Organe, Bänder und Faszien, zur Unterstützung von Wohlgefühl, Gesundheit, Genuss und Lust. Dieser Kurs beinhaltet anatomische Online-Teachings vor dem Vor-Ort-Kurs. Mit Mareen Scholl und Raphaela Spohn. 470/520€\n\n**Modul IV Pleasur**e**: Lust & Genuss**\n\n**IV Pleasure 7.-9. Mai 2027**: Lust & Genuss. Fokussiert auf Empfangenden-/ Klient\\*innen-geleitet Pleasure-Exploration als auch konkrete Lustanatomie und Aktivierung diverser Pleasure- und Hormon-Spots von Vulva/ Vulva-ähnlichen Genitalien in der Körperarbeit. Mit Mareen Scholl und Juliette Caryl Morgan. 390/450€\n\n**V Rückverbindung & Care. Narben und Schmerzen 9. – 11. Juli 2027 / 2 Lerncalls im Juni/ 2. Juli**: Fokussiert auf den Umgang mit Schmerz-Symptomatiken von Becken und Genitalien sowie intuitive, einfache und fortgeschrittene Narbenbegleitung in der Körperarbeit. Mit Mareen Scholl und anderen. Lerncall am 2. Juli mit Sabine Schmidt zu Vaginismus, Autorin von „Wenn der Körper enin sagt“ ALL GENDER. Incl. 2 zoom Calls vorab. 470/520€\n\nMehr zu den einzelnen Modulen bei den einzelnen Eventbeschreibungen im Kalender.\n\nDie Reihe findet in Berlin Mitte als auch im [IKSK Berlin](https://www.iksk-berlin.de/) statt.\n\n### Ort Modul II\n\nonline und [IKSK Berlin](https://www.iksk-berlin.de/).\n\n### **Zeiten:**\n\nFreitag-Sonntag ganztägig.\n\nStart 10 Uhr\n\nEnde: spätestens 20 Uhr, Sonntag spätestens 18 Uhr\n\n### Kosten Modul II\n\n**Frühbuchung einzeln bis 1. August 2026:** 540€  \n**Regulär einzeln:** 600€\n\n**Frühbuchung gesamt bis 1. März (-10% Preisvorteil):** 2030€\n\n**Regulär gesamt bis zum Start (-10% Preisvorteil):** 2280€\n\n**Bei einer sofortigen Buchung von 3 Workshops:** 5% Ermäßigung auf den Early Bird bzw. den regulären Preis.\n\n**Die Module II, III und V haben etwas höhere Preise, da sie vorbereitende zoom-Calls, Video- und/oder Textmaterialien beinhalten. Mehr dazu und zum Gesamtpreis der Weiterbildung in den jeweiligen Modulbeschreibungen im Kalender.**\n\n### Anmeldung\n\nSchreib eine Email mit deiner Rechnungsadresse und knappen Infos zu deiner/euren bisherigen Erfahrung in Körperarbeit/Beckenforschung an: mail@mareenscholl.de. Du erhältst daraufhin eine Rechnung für „Weiterbildung Das Becken“ inkl. 19% USt.\n\n### Leitung\n\n![](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMzAwIDIwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgc3R5bGU9ImZpbGw6I2NmZDRkYjtmaWxsLW9wYWNpdHk6IDAuMTsiLz48L3N2Zz4=)\n\n**Lukas Forstmeyer**\n\nLukas beschäftige sich seit über 15 Jahren mit einer Frage: Wie funktioniert der Mensch – in Beziehung, im Körper, im Denken? Er hat Philosophie und Psychologie studiert und arbeite an der Schnittstelle von Neurobiologie, Bindungsforschung und Systemtheorie. Ihn interessiert, wie unsere innere Welt – Nervensystem, Emotionen, Glaubenssätze – unbewusst jede Beziehung formt. Und wie wir lernen können, das ein kleines bisschen bewusster zu gestalten. Lukas ist kein klassischer Therapeut. Er ist ein Lernarchitekt (Educational Designer) – Er entwirft Lernräume, in denen Menschen sich selbst und ihre Beziehungen verstehen lernen. Seit über einem Jahrzehnt leitet er Ausbildungen und Gruppen in den Bereichen Teilearbeit, Trauma-sensitive Körperarbeit und Beziehungsentwicklung.\n\n[www.lucasforstmeyer.com](https://www.lucasforstmeyer.com/)\n\n![](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMjQ5IiB2aWV3Qm94PSIwIDAgMzAwIDI0OSI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgc3R5bGU9ImZpbGw6I2NmZDRkYjtmaWxsLW9wYWNpdHk6IDAuMTsiLz48L3N2Zz4=)\n\n**Juliette Caryl Morgan**\n\nJuliette Caryl Morgan widmet sich in ihrer Arbeit Kinky Inszenierungen, somatischem Sexualcoaching und Interactive Erotic Education. Sie hat eine Leidenschaft für Tanz und Improvisation und erforscht gerne die transformative Kraft von somatischen Prozessen, insbesondere durch Contact Improvisation und Ritual Play.\n\nAls Workshop-Leiterin liegt ihr Fokus derzeit auf der spielerischen Umsetzung, experimentellen Dekonstruktion und dem neugierigen Hinterfragen von Fantasien und sexuellen Gewohnheiten. Ein weiterer Schwerpunkt ist die Erweiterung der Möglichkeiten für sinnlichen Genuss durch verkörperte Selbstliebe und Luzide Masturbation.  \n\nSeit 2019 arbeitet sie als Lehrende für das ISB Berlin (Institut für Somatische Bildung, Sexualität und Körperarbeit Berlin) im Rahmen der professionellen Ausbildung in Sexological Bodywork. In ihrer Praxis für Körperarbeit und somatisches Coaching arbeitet sie mit Interactive Erotic Education, Sexological Bodywork, Kink & BDSM-Coaching, Tao & Tantra sowie Bauch- & Beckenbodenmassage. \n\nMit mehr als 30 Jahren Erfahrung in Körperarbeit und Coaching hat sie zudem viele eigene kreative Methoden entwickelt, mit denen sie Menschen bei Herausforderungen in der Sexualität sowie der Entfaltung ihres Potentials für Lust und Genuss unterstützt.\n\n[www.juliette-c-morgan.com](https://www.juliette-c-morgan.com/)\n\n![](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgMjAwIDMwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgc3R5bGU9ImZpbGw6I2NmZDRkYjtmaWxsLW9wYWNpdHk6IDAuMTsiLz48L3N2Zz4=)\n\n**Mareen Scholl**\n\nMehr zu Mareen auf dieser Webseite.\n\n#### Newsletter anmelden\n\nMit meinem Newsletter bekommst du direkt alle Neuigkeiten rund um meine Workshops, Ausbildungen, Sessionangebote, Onlinekurse, Video- und Audio-Impulse,  Blogartikel und Inspirierendes in dein Postfach. Ohne digitale Überflutung, ca. 2-4 Mal im Jahr.\n\nFirst Name\n\nNachname\n\nE-Mail-Adresse\n\nWenn du ein Mensch bist, lasse das Feld leer:\n\n![](data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=)\n\nVisionary body\n\n* [Über mich](https://visionary-body.de/ueber/)\n* [Kalender](https://visionary-body.de/kalender-veranstaltungen/)\n* [Preise](https://visionary-body.de/preise/)\n* [News](https://visionary-body.de/aktuelles/)\n* [Kontakt](https://visionary-body.de/kontakt/)\n\nangebot\n\n* [Sexological Bodywork](https://visionary-body.de/somatisches-sexualcoaching-sexological-bodywork/)\n* [Sinnliche Massagen](https://visionary-body.de/sinnliche-massagen-bodywork/)\n* [Pelvic Care](https://visionary-body.de/integrale-beckenarbeit-pelvic-care/)\n* [Aufstellungsarbeit](https://visionary-body.de/aufstellungsarbeit/)\n* [Somatisches Coaching](https://visionary-body.de/somatisches-coaching-koerpertherapie/)\n\nsocial\n\n* [Instagram](https://instagram.com/mareenscholl/)\n* [Facebook](https://www.facebook.com/m.s.kultur)\n\n* [Datenschutz](https://visionary-body.de/datenschutzerklaerung/)\n* [Impressum](https://visionary-body.de/impressum/)\n\n  \n\n[![Visionary Body](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NTkiIGhlaWdodD0iMjc0IiB2aWV3Qm94PSIwIDAgOTU5IDI3NCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgc3R5bGU9ImZpbGw6I2NmZDRkYjtmaWxsLW9wYWNpdHk6IDAuMTsiLz48L3N2Zz4=)](https://visionary-body.de/)\n\nEinwilligung verwalten\n\nUm dir ein optimales Erlebnis zu bieten, verwenden wir Technologien wie Cookies, um Geräteinformationen zu speichern und/oder darauf zuzugreifen. Wenn du diesen Technologien zustimmst, können wir Daten wie das Surfverhalten oder eindeutige IDs auf dieser Website verarbeiten. Wenn du deine Einwilligung nicht erteilst oder zurückziehst, können bestimmte Merkmale und Funktionen beeinträchtigt werden.\n\nFunktional\n\n\n\nFunktional\nImmer aktiv \n\nDie technische Speicherung oder der Zugang ist unbedingt erforderlich für den rechtmäßigen Zweck, die Nutzung eines bestimmten Dienstes zu ermöglichen, der vom Teilnehmer oder Nutzer ausdrücklich gewünscht wird, oder für den alleinigen Zweck, die Übertragung einer Nachricht über ein elektronisches Kommunikationsnetz durchzuführen.\n\nPräferenzen\n\n\nPräferenzen\n\nDie technische Speicherung oder der Zugriff ist für den rechtmäßigen Zweck der Speicherung von Präferenzen erforderlich, die nicht vom Abonne...[truncated at 20KB]",
+     "raw_payload": {
+      "source": "IKSK program page",
+      "venue": "IKSK Berlin (Holzmarkt 25, Haus 2)",
+      "venue_run_by": "IKSK Berlin",
+      "listing": {
+       "date": "2026-10-06",
+       "title": "10 - 20 PELVIC WORK. DAS BECKEN II"
+      }
+     },
+     "note": "synthetic date: the real row lists 2026-10-02; moved to the day of the other hosted workshop."
+    }
+   ]
+  },
+  {
+   "id": "cancellation_post_171",
+   "criterion": "ruling 9: post 171 cancels Till & Shirka's Swiss dates -> the Zurich event we had is cancelled",
+   "seed_event": {
+    "title": "Temple Zurich",
+    "start": "2026-09-26T00:00:00+02:00",
+    "start_time_unknown": true,
+    "description": "Temple night in Zurich.",
+    "channel_id": "@TillTailorShirka",
+    "source_type": "telegram_telethon",
+    "raw_payload": {
+     "default_organizer": "Till & Shirka"
+    },
+    "note": "synthetic: the Zurich event itself is not in the dev DB; post 171 names it only as 'next week'."
+   },
+   "posts": [
+    {
+     "raw_message_id": 226,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "171",
+     "now": "2026-09-18T13:53:44+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-18 (Friday).\n\n🇨🇭 Zurich / Switzerland  - All events cancelled 😞\n\nWe're taking a break from hosting events in Zurich.\n-- and we cancelled all our Swiss dates - next week, and also in November and in 2027. \n\n🐌🐌 The reasons are personal: we took on too much and need a break. \n\nWe ran 5 events and got to know curious and playful humans.\nThanks to everyone who participated. 🙏🏼\n\nWe'd love to bring more events to Zurich, and maybe other Swiss cities as well. 🍇🌶🌈\nIt might take a while, and we'll keep you updated.\n\nMaybe we'll see you at one of our other events in Vienna or Berlin instead?\n\n💞 best wishes, Shirka & Till \n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext dates:\n08.-11.10 - Retreat Berlin\n06.-08.11. - Vienna Weekend\n14.11. - Berlin Temple\n11.-13. 12. - Vienna Weekend\n02.01.27 - New Years Temple Berlin\n! SAVE THE DATE: 26.-29.03. 27 - EASTER in Vienna: Kinky catholics and hot orgy bunnys! \n\n🍑 «We 💜 sillysexual! »  🍑\n\n ! Last call:  Temple Retreat! \n👉🏼 08.-11.10.26 at Spitzmühle / 4 days, 3 Nights / 530€-800€\n\n❗️October Retreat ❗️| TG | Insta",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    }
+   ]
+  },
+  {
+   "id": "re_read_after_consolidation",
+   "criterion": "ruling 10: the retreat posts, then one of them re-read with changed text -> still ONE retreat event",
+   "posts": [
+    {
+     "raw_message_id": 249,
+     "source_type": "telegram_telethon",
+     "channel_id": "@ConsciousEventsBerlin:7888",
+     "message_id": "29872",
+     "now": "2026-09-16T09:33:49+00:00",
+     "text": "Telegram post in Conscious Events Berlin 🌽🦋 / Love (NeoTantra, Temple, Intimacy, Connection, Sinnlichkeit), posted 2026-09-16 (Wednesday).\n\n08.-11.10. / Close to Berlin\n\n🌈 Spielwiese Temple Retreat 🌈\n\n\"So is this all just one big Sex-Party? \nOr why do people go to a Temple Retreat?\"\n\nThis is what our participants say: \n\n1. Deeper Connection \n\"I love the intimacy of a smaller group in combination with a duration of several days.\"\n2. Permission to Be Yourself\n\"I felt like suddenly it was okay to be exactly who I was, where I was, and with what I was feeling.\"\n3. Space to Be Weird\n\"I can be weird (the good weird!), play and experiment.\"\n4. Community & Belonging\n\"It feels like a community and this is what I was longing for.\"\n5. Pleasure & Growth\n\"I came to explore my pleasure, share my desires, to learn and grow.\"\n6. Recharge from Daily Life\n\"I notice this gives me so much energy for my 'normal' life as doctor and parent.\"\n\n\n>>> Centre, Play, Rest - Repeat <<<\n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30-40 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite|  | Instagram",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Conscious Events Berlin / Love",
+      "default_organizer": "poster",
+      "poster": "Till Tailor"
+     },
+     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed."
+    },
+    {
+     "raw_message_id": 226,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "171",
+     "now": "2026-09-18T13:53:44+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-18 (Friday).\n\n🇨🇭 Zurich / Switzerland  - All events cancelled 😞\n\nWe're taking a break from hosting events in Zurich.\n-- and we cancelled all our Swiss dates - next week, and also in November and in 2027. \n\n🐌🐌 The reasons are personal: we took on too much and need a break. \n\nWe ran 5 events and got to know curious and playful humans.\nThanks to everyone who participated. 🙏🏼\n\nWe'd love to bring more events to Zurich, and maybe other Swiss cities as well. 🍇🌶🌈\nIt might take a while, and we'll keep you updated.\n\nMaybe we'll see you at one of our other events in Vienna or Berlin instead?\n\n💞 best wishes, Shirka & Till \n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext dates:\n08.-11.10 - Retreat Berlin\n06.-08.11. - Vienna Weekend\n14.11. - Berlin Temple\n11.-13. 12. - Vienna Weekend\n02.01.27 - New Years Temple Berlin\n! SAVE THE DATE: 26.-29.03. 27 - EASTER in Vienna: Kinky catholics and hot orgy bunnys! \n\n🍑 «We 💜 sillysexual! »  🍑\n\n ! Last call:  Temple Retreat! \n👉🏼 08.-11.10.26 at Spitzmühle / 4 days, 3 Nights / 530€-800€\n\n❗️October Retreat ❗️| TG | Insta",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
+     "raw_message_id": 513,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "173",
+     "now": "2026-09-30T10:03:29+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
+     "raw_message_id": 512,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "174",
+     "now": "2026-09-30T10:03:46+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-30 (Wednesday).\n\nEdit: found! 🐈\n\nIt‘s exactly this: \nWe lost some helpers from our Retreat-Team and would love to have one more person.\n\nIf you feel the call, your inner \"Meow\" then write to us and we‘ll see, if it‘s a fit... Priority for humans, that we already know.\n\nIt involves being there early, setting up, some tasks during the retreat and strike at the end.\nAnd you would still have to pay, but less then the full fee.",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     }
+    },
+    {
+     "raw_message_id": 555,
+     "source_type": "telegram_private_group",
+     "channel_id": "2287767683:894",
+     "message_id": "2456",
+     "now": "2026-09-30T10:28:09+00:00",
+     "text": "Telegram post in Sober Events in Berlin / Sex-positive offerings, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram",
+     "url_content": "",
+     "raw_payload": {
+      "source": "Sober Events in Berlin / Sex-positive offerings",
+      "default_organizer": "poster",
+      "poster": "Till Tailor"
+     },
+     "note": "poster: the payload predates poster capture (sb-7wzb.29); the display name is assumed."
+    },
+    {
+     "raw_message_id": 513,
+     "source_type": "telegram_telethon",
+     "channel_id": "@TillTailorShirka",
+     "message_id": "173",
+     "now": "2026-09-30T10:03:29+00:00",
+     "text": "Telegram post in Till & Shirka - sexpositive Workshops, posted 2026-09-30 (Wednesday).\n\n08.-11.10.26  / Close to Berlin / Yes, next week! Last 3 spots. \n\n🌈 Spielwiese Temple Retreat 🌈\n\nThe topic of our gathering is:\n>>> Centre, Play, Rest - Repeat <<<\n\nSo expect exactly this: \n😉 Centre to yourself, Play and explore, Rest and integrate, cuddle and be soft — and then repeat!  —- Sounds like your thing? \n\n📅 08. - 11. October \n📍 at Spitzmühle / 1hr from Berlin\n💰 Price-range: 530€ to 800€ (all incl.)\n\n🕺🕺 Details & Sign up here 🕺🕺\n\n🔷 4 days - 3 nights experience in a beautiful location in nature 🌿💧🔥\n🔷 2 Temple Nights, Cacao and Dance 💃🏻 \n🔷 Time to just be, to connect or to integrate \n🔷 Lake, Sauna & Hot tub 💦\n❤  and about 30 playful humans\n\n🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴🔴\n\nNext multi-days experiences:\n26.-29.03. - Vienna - \"Kinky catholics meet Orgy bunnies\"\n02.-04.07. - ZEGG (Berlin) - Temple Retreat\n\n🍑 «More Fun-tra than Tantra!» 🍑\nWebsite| TG-Channel | Instagram",
+     "url_content": "",
+     "raw_payload": {
+      "source": "@TillTailorShirka",
+      "default_organizer": "Till & Shirka"
+     },
+     "note": "re-read: the same post collected again with edited text"
     }
    ]
   }

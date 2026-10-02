@@ -194,6 +194,16 @@ class EventAdmin(admin.ModelAdmin):
 
     primary_organizer_display.short_description = _("Organizer")
 
+    def save_related(self, request, form, formsets, change):
+        """A person saved: the collector-owned groups they changed are theirs from now on (events/person_edits.py)."""
+        from .person_edits import record_person_edit
+
+        super().save_related(request, form, formsets, change)
+        fields = list(form.changed_data)
+        if any(fs.model is EventArtist and fs.has_changed() for fs in formsets):
+            fields.append("artists")
+        record_person_edit(form.instance, fields)
+
     def save_model(self, request, obj, form, change):
         old_status = (
             obj.__class__.objects.filter(pk=obj.pk).values_list("status", flat=True).first() if obj.pk else None

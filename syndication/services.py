@@ -964,8 +964,11 @@ def update_event(user, event, **kwargs):
     tags = kwargs.pop("tags", None)
 
     update_fields = []
+    changed = []
     for field, value in kwargs.items():
         if field in _EVENT_FIELDS:
+            if getattr(event, field) != value:
+                changed.append(field)
             setattr(event, field, value)
             update_fields.append(field)
 
@@ -974,8 +977,14 @@ def update_event(user, event, **kwargs):
 
     # Set M2M tags if supplied
     if tags is not None:
+        if {getattr(t, "pk", t) for t in tags} != set(event.tags.values_list("pk", flat=True)):
+            changed.append("tags")
         event.tags.set(tags)
 
+    # A person's edit: the collector never rewrites these groups again (ADR-007 D10).
+    from events.person_edits import record_person_edit
+
+    record_person_edit(event, changed)
     return event
 
 

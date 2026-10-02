@@ -18,6 +18,7 @@ from django.utils import timezone
 from events.models import Event
 from ingestion.models import RawMessage
 from ingestion.schemas import CollectedEvents, EventDraft
+from ingestion.tests.consolidation_fakes import all_new, judge
 from organizers.models import Profile
 from venues.address import contains_street_address
 from venues.models import Venue
@@ -65,6 +66,7 @@ class CollectedVenueTest(TestCase):
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),
+            judge(all_new),  # events of one host on nearby days: each is its own event here
         ):
             MockAgent.return_value.run_sync.return_value = result
             process_raw_message(raw.id)

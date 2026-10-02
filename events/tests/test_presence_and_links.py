@@ -62,3 +62,35 @@ class PresenceAndLinksRenderTest(TestCase):
     def test_organizer_page_link_goes_through_the_outbound_component(self):
         html = self._detail(self._event(external_url="https://shirka-till.de/detox"))
         self.assertRegex(html, r'<a href="https://shirka-till.de/detox"\s+target="_blank"\s+rel="noopener noreferrer"')
+
+    def test_the_organizers_own_link_is_shown_once_not_again_in_the_link_list(self):
+        url = "https://shirka-till.de/detox"
+        event = self._event(external_url=url)
+        EventLink.objects.create(event=event, url=url, raw_message=self._raw("@a"))
+        html = self._detail(event)
+        self.assertEqual(html.count(f'href="{url}"'), 1)
+
+
+class CollectedUrlMigrationTest(TestCase):
+    """events 0022 copies a collected event's external_url into a link row and blanks nothing (ruling 7)."""
+
+    def test_external_url_is_copied_to_a_link_row_and_left_unchanged(self):
+        import importlib
+
+        from django.apps import apps
+
+        migration = importlib.import_module("events.migrations.0022_presence_timezone_links")
+        org = Profile.objects.create(name="O", slug="o", status="approved")
+        raw = RawMessage.objects.create(source_type="website", channel_id="x.de", raw_payload={})
+        url = "https://x.de/e"
+        collected = Event.objects.create(
+            title="C", slug="c", organizer=org, start=timezone.now(), raw_message=raw, external_url=url
+        )
+        own = Event.objects.create(title="P", slug="p", organizer=org, start=timezone.now(), external_url=url)
+        migration.copy_collected_urls_to_links(apps, None)
+        collected.refresh_from_db()
+        own.refresh_from_db()
+        self.assertEqual((collected.external_url, own.external_url), (url, url))
+        self.assertEqual(
+            list(EventLink.objects.values_list("event", "url", "raw_message")), [(collected.id, url, raw.id)]
+        )

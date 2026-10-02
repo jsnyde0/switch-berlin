@@ -1481,6 +1481,7 @@ class CollectedRowsOut(Schema):
     already_collected: int
     re_read: int  # collected before, content changed: read again (sb-7wzb.16)
     same_listing: int  # website re-listing of an earlier row: stored, not extracted
+    re_run: int  # collected before, its last read failed: read again (sb-7wzb.30)
 
 
 @api.post(

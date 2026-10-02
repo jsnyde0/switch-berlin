@@ -2,6 +2,7 @@ import base64
 
 import logfire
 from pydantic_ai import Agent, BinaryContent
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -56,7 +57,8 @@ Read the text AND the images.
 
 First say what the post is (post_kind):
 - "announcement": it announces one or more events, inviting people to come. A
-  post that changes an event's date, time or place announces the changed event.
+  post that changes an event's date, time or place announces the changed event;
+  a post that cancels an event announces it with cancelled true.
 - "about_event": it is about an event but does not announce it: a call for
   helpers or volunteers, a sold-out or waiting-list notice, a reminder, a recap
   or thank-you after the event.
@@ -75,11 +77,15 @@ If key fields (title, start datetime) are missing or ambiguous, set confidence <
 When a date is given but no start time, set start to that date at 00:00 and
 start_time_unknown to true; a missing time alone does not lower confidence.
 When the post says the event moved, set moved_from to the start it had before.
+Give times as the post states them. timezone is the IANA zone the post states
+for them ("Europe/Vienna" for times given in Vienna time); null when it states
+none.
 
 {people}
 
-presence is "online" when the event happens only online (Zoom, livestream),
-"hybrid" when it happens in a place and online, else "in_person".
+presence is "online" when the post says the event happens only online (Zoom,
+livestream), "hybrid" when it says it happens in a place and online,
+"in_person" when it names a place; null when it does not say.
 Set in_berlin_area to false only when an in-person or hybrid event happens
 outside Berlin and its surroundings (another city or country). An online event
 keeps in_berlin_area true.
@@ -122,32 +128,36 @@ or a similar title): the candidates. Many organizers run several different
 events on one day at one venue; a post may also be a copy of an announcement we
 already have, reposted in another channel or with different wording.
 
+Each candidate lists its announcements (id, the post's reading of the event,
+eligible). Only ELIGIBLE announcements may supply the event's text: the others
+come from a less public source and must not show on this event. The post event
+itself counts as announcement id 0, eligible as "post_event_eligible" says.
+
 For each post event, decide:
 - same_as: the candidate's id when the post event IS that event (the same
   occasion: same organizer or host, same dates, the same happening even under a
-  different title). Then write out `event`: the event in full, combined from
-  every announcement attached to it (its earlier announcements below plus this
-  post event), so the result does not depend on which came first:
-  - title: the clearest full title any announcement gives.
-  - description: the organizer's own prose, copied unchanged (never summarise,
-    rewrite or translate): take the fullest text, and add a paragraph another
-    announcement has that it lacks (programme, price, practical details), at
-    most {description_cap} characters. Never use text that is a call for
-    helpers, a reminder or other text not describing the event.
-  - dates, times, price, venue, artists, tags, presence, category: the most
-    complete and most recent information.
-  - explicit_organizer: only a name an announcement gave with organizer
-    wording; else "".
-  - external_url: this post event's own link.
+  different title). Then write out `event`, the event in full, from the
+  eligible announcements only (its eligible earlier announcements plus the post
+  event when eligible), so the result does not depend on which came first:
+  - title: the clearest full title an eligible announcement gives.
+  - dates, times, timezone, price, artists, tags, category: the most complete
+    and most recent information; presence only as an announcement states it.
+  - cancelled: true when an announcement says the event is cancelled.
+  - explicit_organizer: the names eligible announcements give with organizer
+    wording, joined with ", "; "" when none does.
+  - description, venue and links are taken by code: leave description "".
+  And set description_from: the id of the eligible announcement with the
+  fullest description of the event itself (never a call for helpers, a reminder
+  or other text not describing the event); null when none has one.
 - possibly_same_as: when you are unsure, give no same_as and name the candidate
   you suspect here; the post event becomes a new event a person will check.
 - neither: a new event.
 
 Two different explicit organizers are a strong sign of different events.
-Different events at one venue on one day are different events. Never give one
-candidate as same_as for two post events. A post event marked "is" below is a
-newer reading of a post already attached to that event: give that id as
-same_as.
+Different events at one venue on one day are different events. Two post events
+of one post may be the same candidate only when they are the same event. A post
+event marked "is" is a newer reading of a post already attached to that event:
+give that id as same_as.
 
 Answer with one decision per post event, numbered as below.
 
@@ -156,15 +166,32 @@ Post events and their candidates (JSON):
 """
 
 
+# ADR-008 D4: a transport error (connection, timeout, 429/5xx from the router) is retried up to
+# twice by the client; a reply that does not parse into the schema is never retried (Agent retries=0).
+TRANSPORT_RETRIES = 2
+
+
 def router_model(model_name: str) -> OpenAIChatModel:
     """A pydantic-ai model on the LLM router (settings.LLM_BASE_URL). Fails loud without a key."""
     from django.conf import settings
+    from openai import AsyncOpenAI
 
     if not settings.LLM_API_KEY:
         raise RuntimeError("REQUESTY_API_KEY is not set; the LLM router needs it (ADR-008 D3).")
-    return OpenAIChatModel(
-        model_name, provider=OpenAIProvider(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY)
-    )
+    client = AsyncOpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY, max_retries=TRANSPORT_RETRIES)
+    return OpenAIChatModel(model_name, provider=OpenAIProvider(openai_client=client))
+
+
+def _ask(output_type, prompt):
+    """One model call returning `output_type`. A reply that does not fit is never retried (ADR-008 D4):
+    it raises with the reason, so the row fails loud and the next collect run reads it again."""
+    from django.conf import settings
+
+    try:
+        return Agent(router_model(settings.LLM_MODEL_NAME), output_type=output_type, retries=0).run_sync(prompt).output
+    except UnexpectedModelBehavior as exc:
+        reason = exc.__cause__ or exc.body or exc
+        raise ValueError(f"the model's reply did not fit {output_type.__name__}: {reason}") from exc
 
 
 def _known_names() -> dict:
@@ -189,16 +216,16 @@ def extract_collected_events(text: str, images_b64: list[str], enriched_payload:
         enriched_content=enriched_payload.get("url_content", ""),
     )
     parts = [prompt] + [BinaryContent(data=base64.b64decode(b), media_type="image/jpeg") for b in images_b64]
-    result = Agent(router_model(settings.LLM_MODEL_NAME), output_type=CollectedEvents).run_sync(parts)
+    output = _ask(CollectedEvents, parts)
     logfire.info(
         "extraction.collected_llm_call",
         model_name=settings.LLM_MODEL_NAME,
         prompt_version=COLLECTED_PROMPT_VERSION,
         images=len(images_b64),
-        events=len(result.output.events),
-        post_kind=result.output.post_kind,
+        events=len(output.events),
+        post_kind=output.post_kind,
     )
-    return result.output
+    return output
 
 
 def consolidate(request: list[dict]) -> Consolidation:
@@ -211,10 +238,8 @@ def consolidate(request: list[dict]) -> Consolidation:
 
     from django.conf import settings
 
-    prompt = CONSOLIDATION_PROMPT.format(
-        description_cap=DESCRIPTION_CAP_CHARS, request=json.dumps(request, ensure_ascii=False, indent=1, default=str)
-    )
-    result = Agent(router_model(settings.LLM_MODEL_NAME), output_type=Consolidation).run_sync(prompt)
+    prompt = CONSOLIDATION_PROMPT.format(request=json.dumps(request, ensure_ascii=False, indent=1, default=str))
+    output = _ask(Consolidation, prompt)
     logfire.info(
         "extraction.consolidation_llm_call",
         model_name=settings.LLM_MODEL_NAME,
@@ -222,7 +247,7 @@ def consolidate(request: list[dict]) -> Consolidation:
         post_events=len(request),
         candidates=sum(len(entry["candidates"]) for entry in request),
     )
-    return result.output
+    return output
 
 
 def extract_event_draft(
