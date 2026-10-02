@@ -58,6 +58,9 @@ def collected_row(source: dict, channel_id: str, message_id: str, text: str, **p
     raw_payload = {"source": source["name"], **payload}
     if source.get("organizer"):
         raw_payload["organizer"] = source["organizer"]
+    for key in ("venue", "venue_run_by"):
+        if source.get(key):
+            raw_payload[key] = source[key]
     return {
         "source_type": source["shape"],
         "channel_id": channel_id[:100],

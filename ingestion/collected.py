@@ -15,6 +15,7 @@ Plain functions over the existing seam; no source framework (sb-7wzb.2 D3).
 
 import base64
 import io
+import re
 import uuid
 from datetime import timedelta
 
@@ -28,6 +29,8 @@ from django_q.tasks import async_task
 from PIL import Image, ImageOps
 
 from events.backfill_visibility import derive_visibility_from_sources, rawmessage_source_to_conceptual
+from organizers.duplicate_names import normalize
+from venues.address import split_street_address, validate_no_street_address
 
 # RawMessage.source_type values a collector may write. The bot forward stays the
 # bot's own door; its rows keep the draft-for-admin-review path.
@@ -122,6 +125,134 @@ def resolve_organizer(raw, draft, matched_organizer):
     if name.lower() in _NO_NAME:
         return None
     return _create_collected_profile(name, raw)
+
+
+# Location strings that name no place (sb-x5xh.2 ruling (b)): they become the
+# event's location note, never a venue.
+_PLACEHOLDER = re.compile(
+    r"\b(?:online|zoom|livestream|virtual|secret|geheim|on request|auf anfrage|ticket ?holders?|tba|tbd"
+    r"|private (?:venue|location|address|flat|apartment)"
+    r"|(?:location|address) (?:will be )?(?:shared|sent|announced))\b",
+    re.IGNORECASE,
+)
+# A name made only of these words is a city or district, not a place.
+_AREAS = set(
+    "berlin brandenburg potsdam vienna wien hamburg leipzig munich münchen köln cologne dresden prague prag amsterdam"
+    " germany deutschland austria mitte pankow kreuzberg neukölln friedrichshain prenzlauer berg wedding schöneberg"
+    " charlottenburg moabit lichtenberg tempelhof treptow köpenick spandau steglitz zehlendorf wilmersdorf"
+    " reinickendorf marzahn hellersdorf weißensee"
+    " friedenau".split()
+)
+# Words that mark an address as not for publication: its venue is created private.
+_RESTRICTED = re.compile(
+    r"\b(?:on request|auf anfrage|ticket ?holders?|private|privat|secret|geheim|nach anmeldung|after registration)\b",
+    re.IGNORECASE,
+)
+# Source shapes whose posts are not public: a venue first seen there is created private.
+_PRIVATE_SHAPES = ("telegram_private_channel", "telegram_private_group")
+
+
+def _is_placeholder(name: str) -> bool:
+    words = re.findall(r"[^\W\d_]+", normalize(name))
+    return bool(_PLACEHOLDER.search(name)) or bool(words) and all(w in _AREAS for w in words)
+
+
+def _find_venue(name: str, address: str | None = None):
+    """The venue with this exact normalized name (and address, when given), or None."""
+    from venues.models import Venue
+
+    key = (normalize(name), None if address is None else normalize(address))
+    # debt: scans every venue per event; fine at today's tens of venues, move
+    # to a stored normalized-name column when venues reach the thousands.
+    for venue in Venue.objects.all():
+        if (normalize(venue.name), None if address is None else normalize(venue.address)) == key:
+            return venue
+    return None
+
+
+def _venue(name: str, address: str = "", private: bool = False, by_address: bool = False):
+    """The venue with this exact normalized name (and address, when `by_address`), else a new one.
+
+    New venues carry the address text and no coordinates (no geocoding). They
+    never create or link a profile.
+    """
+    from venues.models import Venue
+
+    found = _find_venue(name, address if by_address else None)
+    if found is not None:
+        return found
+    base = slugify(name)[:40] or "venue"
+    slug = base if not Venue.objects.filter(slug=base).exists() else f"{base}-{uuid.uuid4().hex[:6]}"
+    venue = Venue.objects.create(name=name, slug=slug, address=address, privacy_mode="private" if private else "public")
+    logfire.info("collected.venue_created", venue_id=venue.id, privacy_mode=venue.privacy_mode)
+    return venue
+
+
+def apply_source_venue(raw):
+    """The source config's default venue, with its run-by profile set from config. None when unset.
+
+    The run-by profile must already exist (venues never create profiles); a
+    staff-set run-by is never overwritten.
+    """
+    from organizers.models import Profile
+
+    name = (raw.raw_payload.get("venue") or "").strip()
+    if not name:
+        return None
+    venue = _venue(name, private=raw.source_type in _PRIVATE_SHAPES)
+    runner_name = (raw.raw_payload.get("venue_run_by") or "").strip()
+    if runner_name:
+        runner = Profile.objects.filter(name__iexact=runner_name).first()
+        if runner is None:
+            raise ValueError(f"source config names venue run-by profile {runner_name!r}, which does not exist")
+        if venue.run_by_id is None:
+            venue.run_by = runner
+            venue.save(update_fields=["run_by"])
+        elif venue.run_by_id != runner.id:
+            logfire.warn("collected.venue_run_by_differs", venue_id=venue.id, config=runner_name)
+    return venue
+
+
+def resolve_place(raw, draft) -> tuple:
+    """(venue, location_note) for one collected event (sb-x5xh.2 ruling (b)).
+
+    A placeholder goes to the note; a street address goes to a venue, never the
+    note; a real place name matches or creates a venue; a post naming neither
+    lands on the source's default venue.
+    """
+    name = (draft.venue_name or "").strip()
+    note = (draft.location_note or "").strip()
+    address = (draft.venue_address or "").strip()
+    private = raw.source_type in _PRIVATE_SHAPES or bool(_RESTRICTED.search(f"{name} {note} {address}"))
+    default = apply_source_venue(raw)
+
+    # A known venue matches on its whole name, even one that holds its address.
+    known = _find_venue(name) if name and not _is_placeholder(name) else None
+    if known is None:
+        found, name = split_street_address(name)
+        address = address or found
+    found, note = split_street_address(note)
+    address = address or found
+    if name and _is_placeholder(name):
+        note = ", ".join(part for part in (name, note) if part)
+        name = ""
+    validate_no_street_address(note)
+
+    if known is not None:
+        venue = known
+    elif name:
+        venue = _venue(name, address, private)
+    elif address:
+        # No place name, only an address: name the venue without it, so a
+        # private address never shows through the venue name.
+        label = re.sub(r"\s*\([^)]*\)", "", note).split(",")[0].strip()
+        label = label or ("Private venue" if private else address)
+        venue = _venue(label, address, private, by_address=True)
+    elif not note:
+        venue = default
+    else:
+        venue = None
+    return venue, note
 
 
 def find_duplicate(title: str, start):
@@ -262,12 +393,14 @@ def land_collected_event(raw, draft, matched, attempt_kwargs, flyer: bytes | Non
     if organizer is None:
         return _record(attempt_kwargs, "needs_review", "no_organizer")
 
+    venue, location_note = resolve_place(raw, draft)
     event = Event.objects.create(
         title=draft.title,
         slug=slugify(draft.title)[:190] + "-" + uuid.uuid4().hex[:8],
         description=draft.description or "",
         organizer=organizer,
-        venue=matched["venue"],
+        venue=venue,
+        location_note=location_note,
         start=start,
         end=end,
         start_time_unknown=draft.start_time_unknown,

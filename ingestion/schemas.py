@@ -7,7 +7,12 @@ class EventDraft(pydantic.BaseModel):
     title: str
     description: str | None = None
     organizer_name: str
+    # The place as the post names it: a real place, or a placeholder (online, a city, "secret").
     venue_name: str | None = None
+    # A street address the post gives for the place, if any.
+    venue_address: str | None = None
+    # Where-info that is not a place name (online, district, "shared with ticket holders").
+    location_note: str | None = None
     start: datetime
     end: datetime | None = None
     price_min_cents: int | None = None

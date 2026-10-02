@@ -12,6 +12,11 @@
 #               (case-insensitive substring; must match exactly one dialog).
 # topic       = forum topic title (substring) for forum sources.
 # channel_organizer = true: a broadcast channel's own title is its organizer.
+# venue       = the source's default venue (exact Venue name): an event whose
+#               post names no place and no placeholder lands there.
+# venue_run_by = the Profile (exact name) that runs that venue; set on the
+#               venue when it has none. The profile must exist; venues never
+#               create profiles.
 
 [[source]]
 name = "IKSK program page"
@@ -19,6 +24,8 @@ shape = "website"
 parser = "iksk"
 url = "https://iksk-berlin.de/Program"
 organizer = "IKSK Berlin"
+venue = "IKSK Berlin (Holzmarkt 25, Haus 2)"
+venue_run_by = "IKSK Berlin"
 publish = true
 
 [[source]]
@@ -27,6 +34,8 @@ shape = "website"
 parser = "karada"
 url = "https://karada-house.de/event/"
 organizer = "Karada House"
+venue = "Karada House"
+venue_run_by = "Karada House"
 publish = true
 
 [[source]]
@@ -34,6 +43,8 @@ name = "@IKSKBerlin"
 shape = "telegram_telethon"
 chat = "@IKSKBerlin"
 organizer = "IKSK Berlin"
+venue = "IKSK Berlin (Holzmarkt 25, Haus 2)"
+venue_run_by = "IKSK Berlin"
 publish = true
 
 [[source]]

@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from a_core.validators import validate_image_size
 from events.managers import EventManager
+from venues.address import validate_no_street_address
 
 # Sentinel for "no value supplied" — distinguishes organizer=None from not set.
 _UNSET = object()
@@ -138,7 +139,7 @@ class Event(models.Model):
     # Free text for anything that is not a real place ("Secret location, Mitte",
     # "Online (Zoom)"), shown where the venue would be. Never a street address:
     # addresses live on a Venue, where privacy_mode applies (sb-x5xh.2 ruling (b)).
-    location_note = models.CharField(max_length=200, blank=True)
+    location_note = models.CharField(max_length=200, blank=True, validators=[validate_no_street_address])
     tags = models.ManyToManyField(Tag, blank=True, related_name="events")
     suggested_tags = models.JSONField(default=list, blank=True)
 

@@ -34,7 +34,7 @@ Enriched content from URLs:
 {enriched_content}
 """
 
-COLLECTED_PROMPT_VERSION = "collected-v2"
+COLLECTED_PROMPT_VERSION = "collected-v3"
 
 COLLECTED_PROMPT = """
 Below is one post a collector gathered from an organizer website or a Telegram
@@ -60,6 +60,12 @@ organizer unless the post says it hosts. If the post names no host, return "".
 
 Set in_berlin_area to false when the event takes place outside Berlin and its
 surroundings (another city or country), or only online.
+
+venue_name is the place the event happens, as the post names it. venue_address
+is the street address the post gives for it, if any. location_note is where-info
+that names no place: "Online (Zoom)", a city or district, "Secret location,
+shared with ticket holders". Never put a street address in location_note. Leave
+all three empty when the post says nothing about where.
 
 Post:
 {text}

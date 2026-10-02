@@ -100,3 +100,23 @@ def test_a_failed_detail_fetch_is_reported_and_the_row_still_lands():
     assert "Gone Workshop" in rows["20 00 - 22 00 Gone Workshop"]["text"]
     assert "enriched_payload" not in rows["20 00 - 22 00 Gone Workshop"]
     assert errors == ["https://iksk-berlin.de/gone: HTTPStatusError 404"]
+
+
+def test_source_default_venue_and_its_runner_ride_the_row():
+    from switch_cli.collect import collected_row
+
+    source = {**SOURCE, "venue": "IKSK Berlin (Holzmarkt 25, Haus 2)", "venue_run_by": "IKSK Berlin"}
+    payload = collected_row(source, "iksk-berlin.de", "m1", "text")["raw_payload"]
+    assert payload["venue"] == "IKSK Berlin (Holzmarkt 25, Haus 2)"
+    assert payload["venue_run_by"] == "IKSK Berlin"
+    assert "venue" not in collected_row(SOURCE, "iksk-berlin.de", "m1", "text")["raw_payload"]
+
+
+def test_shipped_iksk_sources_name_the_iksk_venue_run_by_iksk():
+    from switch_cli.collect import load_sources
+
+    iksk = {s["name"]: s for s in load_sources() if s["name"] in ("IKSK program page", "@IKSKBerlin")}
+    assert len(iksk) == 2
+    for source in iksk.values():
+        assert source["venue"] == "IKSK Berlin (Holzmarkt 25, Haus 2)"
+        assert source["venue_run_by"] == "IKSK Berlin"
