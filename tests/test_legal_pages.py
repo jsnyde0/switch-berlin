@@ -620,8 +620,16 @@ def test_takedown_de_gdpr_notice_translated(client, public_read_on):
 @pytest.mark.parametrize(
     ("lang", "gone", "present"),
     [
-        ("en", b"deleted once the events are extracted.", b"one reduced copy of the flyer"),
-        ("de", b"sobald die Veranstaltungen extrahiert sind.", b"eine verkleinerte Kopie des Flyers"),
+        (
+            "en",
+            b"deleted once the events are extracted.",
+            b"A flyer from an invite-only source is shown only to vouched",
+        ),
+        (
+            "de",
+            b"sobald die Veranstaltungen extrahiert sind.",
+            b"Ein Flyer aus einer nur auf Einladung",
+        ),
     ],
 )
 def test_privacy_says_a_reduced_flyer_copy_is_kept(client, public_read_on, lang, gone, present):
