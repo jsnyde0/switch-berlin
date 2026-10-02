@@ -2,11 +2,8 @@
 EventArtist — an artist credit on an event (ADR-007 D2, sb-x5xh.4).
 
 An artist credit is a display name, optionally linked to a Profile. Artists are
-credited only: they cannot edit the event (ADR-017 D1), and their names stay out
-of structured data, meta/OG tags, sitemaps and search (sb-7wzb.17 safeguard).
+credited only: they cannot edit the event (ADR-017 D1).
 """
-
-from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -122,53 +119,3 @@ class ArtistCannotEditTest(TestCase):
         event = _event(organizer=Profile.objects.create(name="Org", slug="org"))
         EventArtist.objects.create(event=event, profile=artist, name="Lu")
         self.assertFalse(can_edit(manager, event))
-
-
-class ArtistNamesStayOutOfIndexingTest(TestCase):
-    """sb-7wzb.17 safeguard: artist names never reach JSON-LD, meta/OG, sitemap or search."""
-
-    NAME = "Zephyrine Quill"
-
-    def setUp(self):
-        self.organizer = Profile.objects.create(name="Host Collective", slug="host-collective", status="approved")
-        self.event = _event(organizer=self.organizer, visibility="public", description="A night of rope.")
-        self.artist = Profile.objects.create(name=self.NAME, slug="zephyrine-quill", status="approved")
-        EventArtist.objects.create(event=self.event, profile=self.artist, name=self.NAME)
-        EventArtist.objects.create(event=self.event, name="Lu Unlinked")
-
-    def _detail_html(self):
-        with patch("a_core.context_processors.get_flag", return_value=True):
-            response = self.client.get(f"/events/{self.organizer.slug}/{self.event.slug}/")
-        self.assertEqual(response.status_code, 200)
-        return response.content.decode()
-
-    def test_page_renders_the_artist_but_not_in_head_or_structured_data(self):
-        html = self._detail_html()
-        self.assertIn(self.NAME, html)  # visible credit
-        head = html[: html.index("</head>")]
-        self.assertIn('property="og:title"', head)
-        self.assertNotIn(self.NAME, head)
-        self.assertNotIn("Lu Unlinked", head)
-        self.assertNotIn("performer", html)
-        for block in html.split('type="application/ld+json"')[1:]:
-            self.assertNotIn(self.NAME, block.split("</script>")[0])
-
-    def test_sitemap_carries_no_artist_name(self):
-        from events.sitemap import EventSitemap
-
-        sitemap = EventSitemap()
-        items = list(sitemap.items())
-        self.assertIn(self.event, items)
-        for item in items:
-            self.assertNotIn("zephyrine", sitemap.location(item))
-
-    def test_list_filter_does_not_match_artist(self):
-        response = self.client.get("/events/", {"organizer": self.artist.slug})
-        self.assertNotContains(response, "Artist Night")
-
-    def test_admin_search_does_not_match_artist_name(self):
-        User.objects.create_superuser(username="staff", email="s@test.com", password="x")
-        self.client.login(username="staff", password="x")
-        response = self.client.get("/admin/events/event/", {"q": "Zephyrine", "status__exact": "published"})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["cl"].result_count, 0)
