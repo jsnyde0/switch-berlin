@@ -134,15 +134,24 @@
               {% if event.end %}<span class="text-base-content/30">→</span> {{ event.end|date:"H:i" }}{% endif %}
             {% endif %}
           </dd>
-          {% if event.venue %}
+          {% if event.venue or event.location_note %}
             <dt class="text-base-content/40">{% trans "Venue" %}</dt>
             <dd class="text-base-content/85">
-              {% if event.venue.privacy_mode == 'private' and not user_going %}
-                {% trans 'Private venue' %}
-                <span class="kb-tag kb-tag-accent ml-1 normal-case">{% trans 'RSVP to reveal' %}</span>
-              {% else %}
-                {{ event.venue.name }}
-                {% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+              {% if event.venue %}
+                {% if event.venue.privacy_mode == 'private' and not user_going %}
+                  {% trans 'Private venue' %}
+                  <span class="kb-tag kb-tag-accent ml-1 normal-case">{% trans 'RSVP to reveal' %}</span>
+                {% else %}
+                  {% if event.venue.run_by %}
+                    <a href="{% url 'organizer-profile' slug=event.venue.run_by.slug %}" class="link link-hover">{{ event.venue.name }}</a>
+                  {% else %}
+                    {{ event.venue.name }}
+                  {% endif %}
+                  {% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+                {% endif %}
+              {% endif %}
+              {% if event.location_note %}
+                <span class="block{% if event.venue %} text-base-content/55{% endif %}">{{ event.location_note }}</span>
               {% endif %}
             </dd>
           {% endif %}

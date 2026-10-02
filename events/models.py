@@ -135,6 +135,10 @@ class Event(models.Model):
         blank=True,
         related_name="events",
     )
+    # Free text for anything that is not a real place ("Secret location, Mitte",
+    # "Online (Zoom)"), shown where the venue would be. Never a street address:
+    # addresses live on a Venue, where privacy_mode applies (sb-x5xh.2 ruling (b)).
+    location_note = models.CharField(max_length=200, blank=True)
     tags = models.ManyToManyField(Tag, blank=True, related_name="events")
     suggested_tags = models.JSONField(default=list, blank=True)
 

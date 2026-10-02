@@ -263,7 +263,7 @@ def event_detail(request, org_slug, event_slug):
             slug=event_slug,
             status="published",
         )
-        .select_related("venue")
+        .select_related("venue", "venue__run_by")
         .prefetch_related("tags", "images", "event_organizer_set__profile")
         .distinct()
     )

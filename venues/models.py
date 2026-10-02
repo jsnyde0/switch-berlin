@@ -23,6 +23,16 @@ class Venue(models.Model):
     )
     blur_radius_m = models.IntegerField(default=250)
 
+    # The profile that runs this place (one profile may run many venues).
+    # Linking and editing is staff-only (admin) for now (sb-x5xh.2 ruling (b)).
+    run_by = models.ForeignKey(
+        "organizers.Profile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="venues_run",
+    )
+
     url = models.URLField(blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

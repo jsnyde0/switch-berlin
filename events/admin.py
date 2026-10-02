@@ -46,6 +46,7 @@ class EventAdmin(admin.ModelAdmin):
                     "title",
                     "slug",
                     "venue",
+                    "location_note",
                     "tags",
                     "suggested_tags_display",
                     "description",
