@@ -23,7 +23,7 @@ import logging as _views_logger_mod
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 
@@ -279,6 +279,17 @@ def event_create(request):
     return render(request, "syndication/event_create.html", {"form": form})
 
 
+def _deny_unless_can_edit(request, event):
+    """
+    Read gate (sb-7wzb.26.4): return the 403 page unless the user can edit the
+    event, so a pk never renders drafts, hidden or collected events to a user who
+    manages nothing (ADR-017 D1/D2). Callers `return` a non-None result.
+    """
+    if not can_edit(request.user, event):
+        return render(request, "syndication/403.html", {}, status=403)
+    return None
+
+
 @login_required
 def event_hub(request, pk):
     """
@@ -304,6 +315,8 @@ def event_hub(request, pk):
     via the same pattern as the studio front-door view.
     """
     event = get_object_or_404(Event, pk=pk)
+    if (denied := _deny_unless_can_edit(request, event)) is not None:
+        return denied
     user_can_edit = can_edit(request.user, event)
     ctx = {
         "event": event,
@@ -538,6 +551,8 @@ def fragment_event_facts(request, pk):
     HTMX target for partial refresh of the event facts panel.
     """
     event = get_object_or_404(Event, pk=pk)
+    if (denied := _deny_unless_can_edit(request, event)) is not None:
+        return denied
     user_can_edit = can_edit(request.user, event)
     return render(
         request,
@@ -556,6 +571,8 @@ def fragment_event_posts(request, pk):
     HTMX target for partial refresh after a Post is added.
     """
     event = get_object_or_404(Event, pk=pk)
+    if (denied := _deny_unless_can_edit(request, event)) is not None:
+        return denied
     posts = Post.objects.filter(event=event).order_by("-created_at")
     user_can_edit = can_edit(request.user, event)
     return render(
@@ -597,6 +614,8 @@ def fragment_event_syndication(request, pk, *, action_error=None):
     from syndication.engine import render_projection
 
     event = get_object_or_404(Event, pk=pk)
+    if (denied := _deny_unless_can_edit(request, event)) is not None:
+        return denied
     user_can_edit = can_edit(request.user, event)
     user_can_publish = can_publish(request.user, event)
 
@@ -847,6 +866,8 @@ def post_hub(request, pk):
     """
     post = get_object_or_404(Post, pk=pk)
     event = post.event
+    if (denied := _deny_unless_can_edit(request, event)) is not None:
+        return denied
     user_can_edit = can_edit(request.user, event)
     ctx = {
         "post": post,
@@ -914,6 +935,8 @@ def fragment_post_syndication(request, pk, *, action_error=None):
 
     post = get_object_or_404(Post, pk=pk)
     event = post.event
+    if (denied := _deny_unless_can_edit(request, event)) is not None:
+        return denied
     user_can_edit = can_edit(request.user, event)
     user_can_publish = can_publish(request.user, event)
 
@@ -2069,6 +2092,10 @@ def version_copy_to(request, pk):
 
     source_version = get_object_or_404(ContentVersion, pk=pk)
 
+    event, post = _resolve_publishable_for_cv(source_version)
+    if (denied := _deny_unless_can_edit(request, event or post.event)) is not None:
+        return denied
+
     if request.method != "POST":
         return _publishable_hub_redirect_for_cv(source_version)
 
@@ -2333,6 +2360,8 @@ def version_copy_from(request, pk):
     ADR-008 D3: PermissionError → 403; ValueError → surfaced as action_error.
     """
     projection = get_object_or_404(PlatformProjection, pk=pk)
+    if (denied := _deny_unless_can_edit(request, projection.source_event or projection.source_post.event)) is not None:
+        return denied
 
     if request.method != "POST":
         return _publishable_hub_redirect(projection)
@@ -2631,8 +2660,6 @@ def coverage(request, pk):
       Ticking is client-only, no persistence.
     - sb-56c2 D5: forum rows are forum-level (one row per forum connection).
     """
-    from django.http import Http404
-
     from syndication.services import reconcile_telegram_coverage
 
     post = get_object_or_404(Post, pk=pk)

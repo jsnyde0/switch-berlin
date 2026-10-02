@@ -365,13 +365,6 @@ def test_syndication_views_block_under_tier(under_tier_client, non_public_events
 
 
 @pytest.mark.django_db
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "sb-7wzb.26.4: syndication event-hub and fragments resolve any Event pk "
-        "with no can_edit deny, so a vouched non-manager reads another organizer's draft collected event."
-    ),
-)
 def test_syndication_fragment_denies_non_manager_draft(vouched_client, private_venue, tag):
     other_org = Profile.objects.create(name="Other Org", slug="other-org", status="approved")
     draft = _collected_event("semi_public", other_org, private_venue, tag, status="draft")
