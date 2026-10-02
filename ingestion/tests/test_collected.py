@@ -83,7 +83,7 @@ class CollectedRowsEndpointTest(TestCase):
         with patch("ingestion.collected.async_task") as mock_task:
             self._post([_row()])
             resp = self._post([_row()])
-        self.assertEqual(resp.json(), {"created": 0, "already_collected": 1})
+        self.assertEqual(resp.json(), {"created": 0, "already_collected": 1, "re_read": 0, "same_listing": 0})
         self.assertEqual(RawMessage.objects.count(), 1)
         self.assertEqual(mock_task.call_count, 1)
 

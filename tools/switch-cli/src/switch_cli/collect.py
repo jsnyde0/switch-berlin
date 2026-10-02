@@ -148,7 +148,10 @@ def iksk_rows(
                 else:
                     header += "Venue: IKSK Berlin, Holzmarkt 25, Berlin\n"
                 text = header + (f"Details: {href}\n" if href else "")
-                row = collected_row(source, "iksk-berlin.de", f"{day.isoformat()}|{entry[:60]}", text, url=href)
+                listing = {"date": day.isoformat(), "title": entry}  # the server's pre-AI re-listing key
+                row = collected_row(
+                    source, "iksk-berlin.de", f"{day.isoformat()}|{entry[:60]}", text, url=href, listing=listing
+                )
                 if details.get(href):
                     row["enriched_payload"] = {"url_content": details[href]}
                 if off_site:

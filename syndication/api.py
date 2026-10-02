@@ -1479,6 +1479,8 @@ class CollectedRowIn(Schema):
 class CollectedRowsOut(Schema):
     created: int
     already_collected: int
+    re_read: int  # collected before, content changed: read again (sb-7wzb.16)
+    same_listing: int  # website re-listing of an earlier row: stored, not extracted
 
 
 @api.post(
@@ -1489,7 +1491,8 @@ class CollectedRowsOut(Schema):
     description=(
         "Writes one RawMessage per collected row and enqueues extraction. "
         "Operator (staff) principals only: collected events are authored by nobody on Switch. "
-        "Re-posting an already collected row is counted in already_collected, not duplicated."
+        "Re-posting an already collected row is counted in already_collected, not duplicated; "
+        "one whose content changed is read again and counted in re_read."
     ),
 )
 def ingest_collected_raw_messages(request, body: list[CollectedRowIn]):
