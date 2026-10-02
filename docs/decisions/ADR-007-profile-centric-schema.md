@@ -208,14 +208,14 @@ Built in sb-x5xh.6 (`run_by`, `location_note`) and sb-7wzb.19 (collector venues,
 | One-off locations as unlisted venues | `direct:` replaced in the sitting 2026-10-02 by the location note — placeholders are not places. |
 | Geocode venues now (OSM) | `direct:` spike — 3 of 122 rows carry an address; name-only geocoding returned San Francisco for "Soma House Berlin". |
 
-**What would invalidate this:** events commonly need several venues (multi-venue events, parked); or online events need their own listing behaviour that a note cannot carry.
+**What would invalidate this:** events commonly need several venues (multi-venue events, parked). Online events carry no venue; their listing behaviour is D11.
 
 ### D9: Collected events take their organizer from one chain — explicit, publisher, poster, hold; provenance is recorded (added 2026-10-02; chain evolved in place 2026-10-02)
 
 **Firmness: FLEXIBLE** — ratified in the sb-x5xh.2 sitting; provenance added by the post-fold adjudication (brain:sb-7wzb, 2026-10-02, accepted by default under the human's ruling). Chain extended 2026-10-02 on the human's ruling: community-board posts credit the poster, as a general rule, never a source-specific branch (sb-7wzb.29). Dogfood-pending.
 
 - **Organizer** comes from one chain, identical for every source, first hit wins: (1) **explicit** — the text names one ("organised by", "hosted by", "presented by", "Veranstalter"), and the publisher is at most the venue; (2) **publisher** — the source config's `default_organizer` is a Profile name, the source being that organizer's own site or channel; (3) **poster** — `default_organizer = "poster"` marks a community board where members post their own events, and the organizer is the post's author, named by their Telegram display name (first + last, else @username; a numeric id never becomes a name); (4) **none** — `default_organizer` unset: hold the row for review. **Never infer an organizer** (no fuzzy auto-link, no known-names list in the extraction prompt). One profile per name; several named organizers give several rows, the first named primary. Channel titles are not trusted as profile names; source config names the profile or says "poster". A poster profile is unclaimed, created like any collected profile; a name that matches an existing Profile exactly reuses it. No source name or chat id appears in code.
-- **Attribution provenance** on `EventOrganizer`: `explicit` (the text named it), `publisher` (taken from the source) or `poster` (the post's author). `publisher` and `poster` are defaults: on a duplicate merge an explicit organizer replaces them, and "different organizers never merge" applies only when both are explicit.
+- **Attribution provenance** on `EventOrganizer`: `explicit` (the text named it), `publisher` (taken from the source) or `poster` (the post's author). `publisher` and `poster` are defaults: when copies consolidate (D10) an explicit organizer replaces them. Two different explicit organizers are a strong "different event" signal for the consolidation judgement, not a hard rule.
 - Every other named person becomes an **artist credit as text**, one per name (D2, D7).
 
 *Code catches up in sb-7wzb.18* (provenance field, organizer rule), sb-7wzb.16 (duplicate rule) and sb-7wzb.29 (poster step, `default_organizer`).
@@ -233,6 +233,43 @@ Built in sb-x5xh.6 (`run_by`, `location_note`) and sb-7wzb.19 (collector venues,
 | No provenance field | `reasoned:` the duplicate rule cannot tell a real organizer conflict from a publisher default. |
 
 **What would invalidate this:** real posts commonly name the organizer only implicitly, so most third-party events stay credited to the publisher; or an explicit organizer moves many third-party events to new unclaimed profiles that publish at ingest (ADR-017 D4) faster than review can follow.
+
+### D10: Copies of one collected event consolidate by model judgement; code only finds candidates (added 2026-10-02)
+
+**Firmness: FLEXIBLE** — the human's ruling 2026-10-02 (sb-7wzb.30), replacing the rule-based duplicate match and fill-gaps merge of sb-x5xh.2 ruling (d) / sb-7wzb.16. Dogfood-pending.
+
+- **Extraction labels the post.** It returns only the events a post *announces* — a helper call, sold-out notice, reminder or recap announces none — plus a `post_kind` (announcement | about_event | other) kept on the extraction attempt.
+- **Code finds candidates, loosely.** A live event is a candidate when its dates overlap the draft's and at least one more signal matches: similar host name, a shared artist, same venue, similar title. Overlapping dates are the only hard requirement. The signal list lives in one place and is tuned from dogfood findings toward fewer false positives.
+- **The model decides and writes, in one call with one job:** given the post's events and the candidates, write out the events the post announces, each in full, giving an existing event's id when it is that event. With an id, the event's collector-owned fields are rewritten from **all** announcements attached to it, so arrival order does not matter; without one, a new event; when unsure, a new event flagged as a possible duplicate of the named id for staff. No candidates: no second call.
+- **A person's edit is never overwritten.** Extraction attempts keep every proposal, so offering changes to the person later needs no new storage.
+- Unchanged: a re-read updates its own events, a merged-away duplicate is never recreated (MergeRecord), a removed artist credit stays removed, and the organizer chain (D9).
+
+**Rationale:**
+- `direct:` dev data 2026-10-02 — one retreat became three events and a helper call became a fourth with the helper text as its description: the posts had no start time and differently worded titles and host names, so title-similarity and same-start rules never fired, and the first thin description blocked the full one.
+- `reasoned:` every hard rule we add covers one more shape of messy post; a judgement over a small candidate set covers the shapes we have not seen yet, at one extra model call per post that has candidates.
+
+**Alternatives:**
+
+| Alternative | Why rejected |
+|---|---|
+| More hard rules (same organizer + same day + unknown time) | `reasoned:` IKSK runs several events a day; each rule fixes one shape and breaks another. |
+| Separate "same?" and "merge" calls | `reasoned:` the second call re-reads the same input; split only if the eval shows one call loses quality. |
+| Semantic search (pgvector) for candidates | deferred — a short spike when code-side candidate finding visibly misses matches. |
+| Nightly duplicate sweep over all upcoming events | deferred — a safety net for misses that the per-post judgement already targets. |
+
+**What would invalidate this:** the eval set (sb-7wzb.30) or dogfood shows wrong merges the judgement cannot be prompted out of; or model cost per collector run becomes material.
+
+### D11: An event has a presence, a timezone and its links (added 2026-10-02)
+
+**Firmness: FLEXIBLE** — the human's ruling 2026-10-02 (sb-7wzb.30). Dogfood-pending.
+
+- **Presence:** `in_person | online | hybrid`. Online-only events are kept, marked clearly, and hidden by default in the events filters (design in sb-x5xh.1). An online event has no venue.
+- **Timezone:** one IANA name per event, default `Europe/Berlin`. Stored only; nothing converts or displays it yet. Start times stay stored in UTC.
+- **Links:** one row per link per source (the event, the URL, the raw message it came from). Shown as plain links named by their site. No link kind yet; a kind column (tickets, info) is a later additive change. Every outbound link renders through one shared template component so click analytics can be added in one place.
+
+**Rationale:** `direct:` the human, 2026-10-02 — online events are worth listing ("Emotional Sadomasochism"); a ticket link stored for an event never reached the page; timezones matter later for online events from elsewhere and cost one field now.
+
+**What would invalidate this:** online events crowd out in-person ones even when hidden by default; or one event commonly needs several links from the same source.
 
 ## Consequences
 
