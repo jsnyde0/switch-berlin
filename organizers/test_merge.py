@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.utils import timezone
 
-from events.models import Event, EventFacilitator, EventOrganizer
+from events.models import Event, EventArtist, EventOrganizer
 from organizers.merge import MergeRefused, merge_profiles, merge_venues
 from organizers.models import ClaimIntent, Follow, MergeRecord, Profile, ProfileClaim
 from reviews.models import Review
@@ -49,7 +49,7 @@ def test_merge_profiles_repoints_event_roles_and_claims_and_deletes_loser(pair, 
     winner, loser = pair
     ev = _event("ev-a")
     EventOrganizer.objects.create(event=ev, profile=loser, is_primary=True)
-    EventFacilitator.objects.create(event=_event("ev-b"), profile=loser, role="DJ")
+    EventArtist.objects.create(event=_event("ev-b"), profile=loser, name=loser.name, role="DJ")
     manager = User.objects.create_user(username="m", email="m@example.com", password="x")
     ProfileClaim.objects.create(profile=loser, user=manager, verified_method="admin_review")
     ClaimIntent.objects.create(profile=loser, user=manager)
@@ -60,7 +60,7 @@ def test_merge_profiles_repoints_event_roles_and_claims_and_deletes_loser(pair, 
 
     assert not Profile.objects.filter(pk=loser.pk).exists()
     assert EventOrganizer.objects.get(event=ev).profile == winner
-    assert EventFacilitator.objects.get(event__slug="ev-b").profile == winner
+    assert EventArtist.objects.get(event__slug="ev-b").profile == winner
     assert ProfileClaim.objects.get(user=manager).profile == winner
     assert ClaimIntent.objects.get(user=manager).profile == winner
     assert Follow.objects.get(user=manager).profile == winner
@@ -112,12 +112,12 @@ def test_both_organizers_of_one_event_collapse_to_one_row_keeping_primary(pair, 
 def test_both_artists_of_one_event_collapse_to_one_row(pair, staff):
     winner, loser = pair
     ev = _event("ev-art")
-    EventFacilitator.objects.create(event=ev, profile=winner, role="")
-    EventFacilitator.objects.create(event=ev, profile=loser, role="DJ")
+    EventArtist.objects.create(event=ev, profile=winner, name=winner.name, role="")
+    EventArtist.objects.create(event=ev, profile=loser, name=loser.name, role="DJ")
 
     merge_profiles(winner, loser, staff)
 
-    row = EventFacilitator.objects.get(event=ev)
+    row = EventArtist.objects.get(event=ev)
     assert row.profile == winner
     assert row.role == "DJ"
 

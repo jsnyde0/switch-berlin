@@ -33,6 +33,7 @@
         {% if event.organizer %}
           <a href="{% url 'organizer-profile' slug=event.organizer.slug %}"
              class="kb-mono relative z-10 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-base-content/55 hover:text-base-content transition-colors w-fit min-w-0">
+            <span class="text-base-content/35">{% trans "Organized by" %}</span>
             <span class="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-[8px] font-bold uppercase text-base-100"
                   style="background: hsl({{ hue_a }} 40% 75%)">{{ event.organizer.name|first }}</span>
             <span class="truncate max-w-[180px]">{{ event.organizer.name }}</span>
@@ -87,6 +88,14 @@
               {% else %}
                 {{ event.venue.name }}
               {% endif %}
+            </span>
+          </span>
+        {% endif %}
+        {% if event.artist_credits.all %}
+          <span class="inline-flex items-center gap-1.5 min-w-0">
+            <span class="text-base-content/35">{% trans "Artists" %}</span>
+            <span class="text-base-content/80 truncate max-w-[220px]">
+              {% for credit in event.artist_credits.all %}{{ credit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
             </span>
           </span>
         {% endif %}

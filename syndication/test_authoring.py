@@ -19,7 +19,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.utils import timezone
 
-from events.models import Event, EventFacilitator, EventOrganizer
+from events.models import Event, EventArtist, EventOrganizer
 from organizers.models import Profile, ProfileClaim
 from syndication.models import PlatformConnection, PlatformProjection, Post
 
@@ -67,7 +67,7 @@ class AuthorizationSeamTest(TestCase):
     can_edit / can_publish gate in syndication.authz (ADR-017 D2).
 
     Policy: edit/publish iff user is a claimant of an EventOrganizer Profile of the Event.
-    EventFacilitators are credited-only.
+    EventArtists are credited-only.
     """
 
     def setUp(self):
@@ -82,7 +82,7 @@ class AuthorizationSeamTest(TestCase):
             start=timezone.now(),
         )
         EventOrganizer.objects.create(event=self.event, profile=self.profile, is_primary=True)
-        EventFacilitator.objects.create(event=self.event, profile=self.fac_profile)
+        EventArtist.objects.create(event=self.event, profile=self.fac_profile, name=self.fac_profile.name)
 
     def test_can_edit_returns_true_for_organizer_claimant(self):
         """Organizer Profile claimant may edit."""

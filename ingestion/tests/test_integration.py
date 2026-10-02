@@ -62,11 +62,11 @@ class FullIngestionLoopTest(TestCase):
             "event_organizer_set-INITIAL_FORMS": "0",
             "event_organizer_set-MIN_NUM_FORMS": "0",
             "event_organizer_set-MAX_NUM_FORMS": "1000",
-            # EventFacilitatorInline management form (sb-qhl: EventFacilitator M2M)
-            "event_facilitator_set-TOTAL_FORMS": "0",
-            "event_facilitator_set-INITIAL_FORMS": "0",
-            "event_facilitator_set-MIN_NUM_FORMS": "0",
-            "event_facilitator_set-MAX_NUM_FORMS": "1000",
+            # EventArtistInline management form (sb-x5xh.4)
+            "artist_credits-TOTAL_FORMS": "0",
+            "artist_credits-INITIAL_FORMS": "0",
+            "artist_credits-MIN_NUM_FORMS": "0",
+            "artist_credits-MAX_NUM_FORMS": "1000",
             "_save": "Save",
         }
 

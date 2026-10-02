@@ -32,7 +32,7 @@ def event_list(request):
         Event.objects.visible_to(request.user)
         .filter(hidden=False, status="published", start__gte=now)
         .select_related("venue")
-        .prefetch_related("tags", "event_organizer_set__profile")
+        .prefetch_related("tags", "event_organizer_set__profile", "artist_credits__profile")
     )
 
     # Sort: trending, lowest_rated, most_reviewed, or default chronological.
@@ -264,7 +264,7 @@ def event_detail(request, org_slug, event_slug):
             status="published",
         )
         .select_related("venue", "venue__run_by")
-        .prefetch_related("tags", "images", "event_organizer_set__profile")
+        .prefetch_related("tags", "images", "event_organizer_set__profile", "artist_credits__profile")
         .distinct()
     )
     event = qs.first()

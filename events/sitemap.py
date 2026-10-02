@@ -36,6 +36,6 @@ class EventSitemap(Sitemap):
             # Events without an organizer are rare; fall back to a generic path.
             return f"/events/{obj.slug}/"
         return reverse(
-            "event_detail",
+            "event-detail",
             kwargs={"org_slug": organizer.slug, "event_slug": obj.slug},
         )

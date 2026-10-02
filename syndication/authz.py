@@ -4,7 +4,7 @@ Authorization seam for syndication (ADR-017 D2).
 Single chokepoint for edit/publish authorization.
 Policy per ADR-017 D1: a principal may edit/publish an Event iff they are a
 claimant (via ProfileClaim) of a Profile that is an EventOrganizer of that Event.
-EventFacilitators are credited-only and cannot edit or publish.
+EventArtists are credited-only and cannot edit or publish.
 
 v0: trivially satisfied for single-facilitator case.
 Future: enrich this seam for team-management (ADR-017 D3 — ProfileClaim.role).
@@ -22,7 +22,7 @@ def can_edit(user, event) -> bool:
     A claimant is a user with an active (non-revoked) ProfileClaim on a Profile
     that is in the event's EventOrganizer through-table.
 
-    EventFacilitators are credited-only — they do NOT get edit rights.
+    EventArtists are credited-only — they do NOT get edit rights.
     v0: ProfileClaim.role is trivially 'admin' for all claimants.
     ADR-017 D2: single seam, no scattered is_primary checks.
     """

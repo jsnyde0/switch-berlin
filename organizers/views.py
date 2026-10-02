@@ -56,7 +56,7 @@ def organizer_profile(request, slug):
             start__gte=now,
         )
         .select_related("venue")
-        .prefetch_related("tags", "event_organizer_set__profile")
+        .prefetch_related("tags", "event_organizer_set__profile", "artist_credits")
         .distinct()
     )
     if event_sort == "lowest_rated":
@@ -77,7 +77,7 @@ def organizer_profile(request, slug):
             start__lt=now,
         )
         .select_related("venue")
-        .prefetch_related("tags", "event_organizer_set__profile")
+        .prefetch_related("tags", "event_organizer_set__profile", "artist_credits")
         .distinct()
         .order_by("-start")[:20]
     )

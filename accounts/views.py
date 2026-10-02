@@ -101,7 +101,7 @@ def me_view(request):
             event__hidden=False,
         )
         .select_related("event", "event__venue")
-        .prefetch_related("event__event_organizer_set__profile")
+        .prefetch_related("event__event_organizer_set__profile", "event__artist_credits")
         .order_by("event__start")
     )
     past = (
@@ -113,7 +113,7 @@ def me_view(request):
             event__hidden=False,
         )
         .select_related("event", "event__venue")
-        .prefetch_related("event__event_organizer_set__profile")
+        .prefetch_related("event__event_organizer_set__profile", "event__artist_credits")
         .order_by("-event__start")
     )
     return render(

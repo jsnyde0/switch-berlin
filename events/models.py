@@ -75,38 +75,42 @@ class EventOrganizer(models.Model):
         return f"{self.profile} — {self.event} ({role})"
 
 
-class EventFacilitator(models.Model):
+class EventArtist(models.Model):
     """
-    Through-table connecting Event to Profile as a facilitator (ADR-007 D2).
+    An artist credit on an event (ADR-007 D2): a display name, optionally
+    linked to a Profile. Credited only — artists cannot edit the event
+    (ADR-017 D1). Only the event's organizer managers or staff set the link.
 
-    A Profile can hold any free-text role (Lead, DJ, Co-facilitator, …) or
-    no role at all (blank=True). The same profile can be an EventOrganizer AND
-    an EventFacilitator of the same event — the two tables are independent.
+    role is free text (Lead, DJ, Doula, …), kept but not displayed. The same
+    profile can be an EventOrganizer AND an EventArtist of the same event.
     """
 
     event = models.ForeignKey(
         "Event",
         on_delete=models.CASCADE,
-        related_name="event_facilitator_set",
+        related_name="artist_credits",
     )
     profile = models.ForeignKey(
         "organizers.Profile",
         on_delete=models.PROTECT,
-        related_name="facilitated_event_set",
+        null=True,
+        blank=True,
+        related_name="artist_credits",
     )
+    name = models.CharField(max_length=200)
     role = models.CharField(max_length=100, blank=True)
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["order", "id"]
-        verbose_name = _("event facilitator")
-        verbose_name_plural = _("event facilitators")
+        verbose_name = _("event artist")
+        verbose_name_plural = _("event artists")
         unique_together = (("event", "profile"),)
 
     def __str__(self):
         role_str = f" ({self.role})" if self.role else ""
-        return f"{self.profile} — {self.event}{role_str}"
+        return f"{self.name} — {self.event}{role_str}"
 
 
 class Event(models.Model):
@@ -120,13 +124,6 @@ class Event(models.Model):
         through="EventOrganizer",
         through_fields=("event", "profile"),
         related_name="events_organized",
-        blank=True,
-    )
-    facilitators = models.ManyToManyField(
-        "organizers.Profile",
-        through="EventFacilitator",
-        through_fields=("event", "profile"),
-        related_name="events_facilitated",
         blank=True,
     )
     venue = models.ForeignKey(

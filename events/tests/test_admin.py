@@ -48,11 +48,11 @@ class EventAdminTest(TestCase):
             "event_organizer_set-INITIAL_FORMS": "0",
             "event_organizer_set-MIN_NUM_FORMS": "0",
             "event_organizer_set-MAX_NUM_FORMS": "1000",
-            # EventFacilitatorInline formset management form (sb-qhl)
-            "event_facilitator_set-TOTAL_FORMS": "0",
-            "event_facilitator_set-INITIAL_FORMS": "0",
-            "event_facilitator_set-MIN_NUM_FORMS": "0",
-            "event_facilitator_set-MAX_NUM_FORMS": "1000",
+            # EventArtistInline formset management form (sb-x5xh.4)
+            "artist_credits-TOTAL_FORMS": "0",
+            "artist_credits-INITIAL_FORMS": "0",
+            "artist_credits-MIN_NUM_FORMS": "0",
+            "artist_credits-MAX_NUM_FORMS": "1000",
             "_save": "Save",
         }
 

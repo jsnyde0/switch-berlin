@@ -109,7 +109,7 @@ def _keep_one_connection(row, winner):
 # disposed of the row itself. Rows without a resolver are repointed as-is.
 _RESOLVERS = {
     ("events.EventOrganizer", "profile"): _keep_one_organizer_row,
-    ("events.EventFacilitator", "profile"): _keep_one_artist_row,
+    ("events.EventArtist", "profile"): _keep_one_artist_row,
     ("organizers.ProfileClaim", "profile"): _keep_one_claim,
     ("organizers.Follow", "profile"): _keep_one_follow,
     ("syndication.PlatformConnection", "organizer"): _keep_one_connection,
