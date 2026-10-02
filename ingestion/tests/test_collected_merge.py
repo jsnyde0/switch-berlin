@@ -41,7 +41,7 @@ _PG_ONLY = unittest.skipIf(connection.vendor == "sqlite", "the duplicate check u
 _BERLIN = ZoneInfo("Europe/Berlin")
 
 # What collect.py puts on an IKSK row (website and @IKSKBerlin) from collector_sources.toml.
-_IKSK = {"organizer": "IKSK", "venue": "IKSK", "venue_run_by": "IKSK"}
+_IKSK = {"default_organizer": "IKSK", "venue": "IKSK", "venue_run_by": "IKSK"}
 
 
 def _flyer_b64() -> str:
@@ -395,7 +395,7 @@ class FillGapsMergeTest(TestCase):
         # re-read after the off-site host became an explicit organizer.
         claimed = Profile.objects.create(name="IKSK Berlin", slug="iksk-berlin", status="approved")
         ProfileClaim.objects.create(profile=claimed, user=User.objects.create_user(username="m", password="pw"))
-        raw, event = self._land(payload={"organizer": "IKSK Berlin"}, title="Cali Sessions w/ Ashraf")
+        raw, event = self._land(payload={"default_organizer": "IKSK Berlin"}, title="Cali Sessions w/ Ashraf")
         EventOrganizer.objects.filter(event=event).update(attribution="")
         before = self._snapshot(event)
         raw.text = "re-collected"
@@ -412,7 +412,7 @@ class FillGapsMergeTest(TestCase):
         self.assertEqual(Event.objects.count(), 2)
 
     def test_e4_no_explicit_organizer_and_no_venue_matches_by_title_only(self):
-        payload = {"organizer": "IKSK"}  # no default venue
+        payload = {"default_organizer": "IKSK"}  # no default venue
         _, first = self._land(payload=payload, title="Rope Jam")
         raw, _ = self._land("@other", payload=payload, title="Massage Evening")
         self.assertEqual(raw.extraction_status, "extracted")
@@ -568,6 +568,26 @@ class FillGapsMergeTest(TestCase):
         self.assertEqual(self._snapshot(event), before)
         self.assertTrue(raw.attempts.filter(event=event, error="re_read_needs_review: low_confidence").exists())
         self.assertFalse(raw.attempts.filter(event=event, error="unpaired_on_re_read").exists())
+
+    def test_re_read_that_ended_skipped_is_not_what_the_row_said_last_time(self):
+        raw = self._extract(self._raw(), {"title": "Rope Jam", "description": "Ropes."})
+        raw = self._reread(raw, {"title": "Rope Jam", "description": "Ropes v2.", "confidence": 0.2})
+        self._reread(raw, {"title": "Rope Jam", "description": "Ropes v3."})
+        self.assertEqual(Event.objects.get().description, "Ropes v3.")
+
+    def test_two_board_posts_by_different_posters_for_the_same_event_still_merge(self):
+        board = {"default_organizer": "poster", "venue": "IKSK"}
+        _, event = self._land("@board", {**board, "poster": "Anna Berg"}, title="Rope Jam", venue_name="IKSK")
+        self.assertEqual(self._organizers(event), [("Anna Berg", True, "poster")])
+        raw, kept = self._land("@board2", {**board, "poster": "Bea Roth"}, title="Rope Jam", venue_name="IKSK")
+        self.assertEqual((raw.extraction_status, kept), ("duplicate", event))
+        self.assertEqual(Event.objects.count(), 1)
+
+    def test_explicit_organizer_replaces_a_poster_row_on_merge(self):
+        board = {"default_organizer": "poster", "venue": "IKSK", "poster": "Anna Berg"}
+        _, event = self._land("@board", board, title="Rope Jam", venue_name="IKSK")
+        self._land("@IKSKBerlin", title="Rope Jam", explicit_organizer="Visionary Body", venue_name="IKSK")
+        self.assertEqual(self._organizers(event), [("Visionary Body", True, "explicit")])
 
     # -- residues: images hashed, same_listing only behind a landed event ----
 

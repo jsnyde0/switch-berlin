@@ -52,6 +52,15 @@ async def _topic(client, entity, wanted: str):
     return hits[0]
 
 
+def _display_name(sender) -> str:
+    """A sender's name as people see it: first + last, else @username; '' when neither (never the numeric id)."""
+    name = " ".join(p for p in (getattr(sender, "first_name", None), getattr(sender, "last_name", None)) if p)
+    if name:
+        return name
+    username = getattr(sender, "username", None)
+    return f"@{username}" if username else ""
+
+
 async def collect_telegram(
     client, sources: list[dict], days: int, include_private: bool, limit: int = 80
 ) -> tuple[list[dict], list[dict]]:
@@ -92,6 +101,8 @@ async def collect_telegram(
                 posted = first.date.astimezone()
                 header = f"Telegram post in {title}, posted {posted.date().isoformat()} ({posted.strftime('%A')})."
                 extra = {"images": images} if images else {}
+                if poster := _display_name(first.sender):
+                    extra["poster"] = poster
                 row = collected_row(
                     source,
                     channel_id,

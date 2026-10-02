@@ -49,7 +49,7 @@ class CollectorOrganizerRuleTest(TestCase):
             channel_id="iksk-berlin.de",
             message_id="m1",
             text="Bondage Jam",
-            raw_payload={"source": "IKSK program page", "organizer": "IKSK Berlin"},
+            raw_payload={"source": "IKSK program page", "default_organizer": "IKSK Berlin"},
         )
         defaults.update(kwargs)
         return RawMessage.objects.create(**defaults)
@@ -119,33 +119,76 @@ class CollectorOrganizerRuleTest(TestCase):
         self.assertEqual(self._organizers(event), [("IKSK Berlin", True, "publisher")])
         self.assertEqual(self._artists(event), [("Lu", None)])
 
-    # (3)
-    def test_aggregator_row_without_explicit_organizer_is_held(self):
+    # (3) the one chain: explicit -> publisher -> poster -> hold
+    def test_explicit_organizer_wins_on_a_board_source(self):
         raw = self._raw(
             source_type="telegram_telethon",
-            channel_id="@berlinevents",
-            raw_payload={"source": "Berlin events", "aggregator": True},
-        )
-        event = self._land(raw, artist_names=["Lu"])
-        self.assertIsNone(event)
-        self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "no_explicit_organizer"))
-        self.assertEqual(Profile.objects.count(), 1)
-
-    def test_aggregator_row_with_explicit_organizer_lands(self):
-        raw = self._raw(
-            source_type="telegram_telethon",
-            channel_id="@berlinevents",
-            raw_payload={"source": "Berlin events", "aggregator": True},
+            channel_id="@board",
+            raw_payload={"source": "Board", "default_organizer": "poster", "poster": "Anna Berg"},
         )
         event = self._land(raw, explicit_organizer="Karada House")
         self.assertEqual(self._organizers(event), [("Karada House", True, "explicit")])
 
-    def test_configured_sources_are_not_aggregators(self):
+    def test_poster_on_a_board_source_is_the_organizer(self):
+        raw = self._raw(
+            source_type="telegram_private_group",
+            channel_id="board",
+            raw_payload={"source": "Board", "default_organizer": "poster", "poster": "Anna Berg"},
+        )
+        event = self._land(raw, explicit_organizer="")
+        self.assertEqual(self._organizers(event), [("Anna Berg", True, "poster")])
+        self.assertEqual(event.visibility, "semi_public")
+
+    def test_poster_name_matching_an_existing_profile_reuses_it(self):
+        anna = Profile.objects.create(name="Anna Berg", slug="anna-berg", status="approved")
+        raw = self._raw(
+            source_type="telegram_telethon",
+            channel_id="@board",
+            raw_payload={"source": "Board", "default_organizer": "poster", "poster": "anna  berg"},
+        )
+        event = self._land(raw)
+        self.assertEqual(list(event.organizers.all()), [anna])
+
+    def test_board_row_without_a_poster_name_is_held(self):
+        raw = self._raw(
+            source_type="telegram_telethon",
+            channel_id="@board",
+            raw_payload={"source": "Board", "default_organizer": "poster"},
+        )
+        event = self._land(raw)
+        self.assertIsNone(event)
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "no_organizer"))
+        self.assertEqual(Profile.objects.count(), 1)
+
+    def test_numeric_sender_id_never_becomes_a_profile_name(self):
+        raw = self._raw(
+            source_type="telegram_telethon",
+            channel_id="@board",
+            sender_id="12345",
+            raw_payload={"source": "Board", "default_organizer": "poster"},
+        )
+        self.assertIsNone(self._land(raw))
+        self.assertFalse(Profile.objects.filter(name__contains="12345").exists())
+
+    def test_publisher_on_an_own_channel_source(self):
+        event = self._land(self._raw(text="Shibari Basics"), title="Shibari Basics")
+        self.assertEqual(self._organizers(event), [("IKSK Berlin", True, "publisher")])
+
+    def test_unset_source_holds_for_review(self):
+        raw = self._raw(
+            source_type="telegram_telethon", channel_id="@berlinevents", raw_payload={"source": "Berlin events"}
+        )
+        event = self._land(raw, artist_names=["Lu"])
+        self.assertIsNone(event)
+        self.assertEqual((raw.extraction_status, raw.extraction_error), ("needs_review", "no_organizer"))
+        self.assertEqual(Profile.objects.count(), 1)
+
+    def test_configured_sources_use_only_default_organizer(self):
         import tomllib
         from pathlib import Path
 
         sources = tomllib.loads(Path("tools/switch-cli/collector_sources.toml").read_text())["source"]
-        self.assertEqual([s["name"] for s in sources if s.get("aggregator")], [])
+        self.assertEqual([s["name"] for s in sources if {"organizer", "aggregator"} & s.keys()], [])
 
     # (4)
     def test_multi_name_artist_string_yields_one_credit_per_name(self):
@@ -203,7 +246,7 @@ class CollectorOrganizerRuleTest(TestCase):
         self.assertEqual(self._organizers(event), [("IKSK Berlin", True, "explicit")])
 
     def test_publisher_from_config_matches_exact_normalized(self):
-        raw = self._raw(raw_payload={"source": "IKSK program page", "organizer": "iksk berlin"})
+        raw = self._raw(raw_payload={"source": "IKSK program page", "default_organizer": "iksk berlin"})
         event = self._land(raw)
         self.assertEqual(event.organizer, self.iksk)
 
@@ -224,7 +267,7 @@ class CollectorOrganizerRuleTest(TestCase):
         raw = self._raw(
             source_type="telegram_private_channel",
             channel_id="-100123",
-            raw_payload={"source": "Fist Them Berlin", "organizer": "Fist Them Berlin"},
+            raw_payload={"source": "Fist Them Berlin", "default_organizer": "Fist Them Berlin"},
         )
         event = self._land(raw, artist_names=["Mal"])
         self.assertEqual(event.visibility, "semi_public")

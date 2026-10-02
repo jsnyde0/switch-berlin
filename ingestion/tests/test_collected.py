@@ -48,7 +48,7 @@ def _row(**kwargs):
         "channel_id": "iksk-berlin.de",
         "message_id": "https://iksk-berlin.de/bondage-jam#2026-10-01",
         "text": "Bondage Jam, Thursday 1 October 19-23, IKSK",
-        "raw_payload": {"source": "IKSK program page", "organizer": "IKSK"},
+        "raw_payload": {"source": "IKSK program page", "default_organizer": "IKSK"},
         "collect_only": False,
     }
     row.update(kwargs)
@@ -76,7 +76,7 @@ class CollectedRowsEndpointTest(TestCase):
         raw = RawMessage.objects.get(message_id="m2")
         self.assertEqual(raw.source_type, "website")
         self.assertTrue(raw.collect_only)
-        self.assertEqual(raw.raw_payload["organizer"], "IKSK")
+        self.assertEqual(raw.raw_payload["default_organizer"], "IKSK")
         self.assertEqual(mock_task.call_count, 2)
 
     def test_recollected_row_is_reported_not_duplicated(self):
@@ -211,7 +211,7 @@ class CollectedEventLandingTest(TestCase):
             channel_id="iksk-berlin.de",
             message_id="m1",
             text="Bondage Jam",
-            raw_payload={"organizer": "IKSK"},
+            raw_payload={"default_organizer": "IKSK"},
         )
         defaults.update(kwargs)
         return RawMessage.objects.create(**defaults)
@@ -281,7 +281,9 @@ class CollectedEventLandingTest(TestCase):
 
     def test_post_announcing_several_events_lands_each(self):
         raw = self._raw(
-            source_type="telegram_telethon", channel_id="@TillTailorShirka", raw_payload={"organizer": "Till & Shirka"}
+            source_type="telegram_telethon",
+            channel_id="@TillTailorShirka",
+            raw_payload={"default_organizer": "Till & Shirka"},
         )
         drafts = [
             self._draft(title="Tantra Evening"),
@@ -303,7 +305,7 @@ class CollectedEventLandingTest(TestCase):
             source_type="telegram_telethon",
             channel_id="@IKSKBerlin",
             text="THURSDAY 1.10.26",
-            raw_payload={"organizer": "IKSK", "images": [flyer, back]},
+            raw_payload={"default_organizer": "IKSK", "images": [flyer, back]},
         )
         agent = self._run(raw, CollectedEvents(events=[self._draft()]))
         (parts,), _ = agent.return_value.run_sync.call_args
@@ -313,7 +315,7 @@ class CollectedEventLandingTest(TestCase):
             [(base64.b64decode(flyer), "image/jpeg"), (base64.b64decode(back), "image/jpeg")],
         )
         self.assertTrue(all(isinstance(p, BinaryContent) for p in parts[1:]))
-        self.assertEqual(raw.raw_payload, {"organizer": "IKSK"})  # image bytes do not outlive the pipeline
+        self.assertEqual(raw.raw_payload, {"default_organizer": "IKSK"})  # image bytes do not outlive the pipeline
         self.assertEqual(raw.text, "THURSDAY 1.10.26")
 
     def test_past_event_is_skipped_even_when_low_confidence(self):
@@ -334,7 +336,7 @@ class CollectedEventLandingTest(TestCase):
     def test_failed_extraction_keeps_images_for_a_rerun(self):
         from ingestion.tasks import process_raw_message
 
-        raw = self._raw(raw_payload={"organizer": "IKSK", "images": ["aGVsbG8="]})
+        raw = self._raw(raw_payload={"default_organizer": "IKSK", "images": ["aGVsbG8="]})
         with (
             patch("ingestion.extraction.Agent") as MockAgent,
             patch("ingestion.enrichment.enrich_urls", return_value={}),
@@ -360,7 +362,7 @@ class CollectedEventLandingTest(TestCase):
             source_type="telegram_private_channel",
             channel_id="-100555",
             text="",
-            raw_payload={"organizer": "IKSK", "images": list(images)},
+            raw_payload={"default_organizer": "IKSK", "images": list(images)},
             **kwargs,
         )
 
@@ -409,7 +411,7 @@ class CollectedEventLandingTest(TestCase):
                 source_type="telegram_telethon",
                 channel_id="@IKSKBerlin",
                 message_id="m3",
-                raw_payload={"organizer": "IKSK", "images": [flyer]},
+                raw_payload={"default_organizer": "IKSK", "images": [flyer]},
             )
         )
         self.assertEqual(other.extraction_status, "duplicate")

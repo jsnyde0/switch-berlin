@@ -6,13 +6,13 @@
 #               telegram_private_group land semi_public.
 # publish     = the per-source collector switch: false = collect-only (rows and
 #               drafts, never published).
-# organizer   = the Profile name of the source's own organizer (matched by
-#               exact name, else created), when the source IS an organizer: the
-#               publisher, credited unless a post explicitly names another
-#               organizer (ADR-007 D9). Channel titles are never used as names.
-#               Unset: only explicit organizer wording names one.
-# aggregator  = true: the source posts other people's events; a post without
-#               explicit organizer wording is held for review. None set today.
+# default_organizer = who organizes a post that does not name its own organizer
+#               (ADR-007 D9; an explicit organizer in the post always wins):
+#               a Profile name (matched by exact name, else created) = the
+#               source IS that organizer's own site or channel; "poster" = a
+#               community board, the post's author (their Telegram display
+#               name) organizes it; unset = hold the row for review. Channel
+#               titles are never used as names.
 # chat        = @username for public Telegram sources, else the dialog title
 #               (case-insensitive substring; must match exactly one dialog).
 # topic       = forum topic title (substring) for forum sources.
@@ -27,7 +27,7 @@ name = "IKSK program page"
 shape = "website"
 parser = "iksk"
 url = "https://iksk-berlin.de/Program"
-organizer = "IKSK Berlin"
+default_organizer = "IKSK Berlin"
 venue = "IKSK Berlin (Holzmarkt 25, Haus 2)"
 venue_run_by = "IKSK Berlin"
 publish = true
@@ -37,7 +37,7 @@ name = "Karada House events page"
 shape = "website"
 parser = "karada"
 url = "https://karada-house.de/event/"
-organizer = "Karada House"
+default_organizer = "Karada House"
 venue = "Karada House"
 venue_run_by = "Karada House"
 publish = true
@@ -46,7 +46,7 @@ publish = true
 name = "@IKSKBerlin"
 shape = "telegram_telethon"
 chat = "@IKSKBerlin"
-organizer = "IKSK Berlin"
+default_organizer = "IKSK Berlin"
 venue = "IKSK Berlin (Holzmarkt 25, Haus 2)"
 venue_run_by = "IKSK Berlin"
 publish = true
@@ -55,35 +55,35 @@ publish = true
 name = "@Kinkysoulevents"
 shape = "telegram_telethon"
 chat = "@Kinkysoulevents"
-organizer = "Kinky Soul"
+default_organizer = "Kinky Soul"
 publish = true
 
 [[source]]
 name = "@dirtytalkmagic"
 shape = "telegram_telethon"
 chat = "@dirtytalkmagic"
-organizer = "Dirty Talk Magic"
+default_organizer = "Dirty Talk Magic"
 publish = true
 
 [[source]]
 name = "@portalsofpermission"
 shape = "telegram_telethon"
 chat = "@portalsofpermission"
-organizer = "Gili Jala"
+default_organizer = "Gili Jala"
 publish = true
 
 [[source]]
 name = "@luhmendarc"
 shape = "telegram_telethon"
 chat = "@luhmendarc"
-organizer = "luhmen d'arc"
+default_organizer = "luhmen d'arc"
 publish = true
 
 [[source]]
 name = "@TillTailorShirka"
 shape = "telegram_telethon"
 chat = "@TillTailorShirka"
-organizer = "Till & Shirka"
+default_organizer = "Till & Shirka"
 publish = true
 
 [[source]]
@@ -91,6 +91,7 @@ name = "Conscious Events Berlin / Love"
 shape = "telegram_telethon"
 chat = "@ConsciousEventsBerlin"
 topic = "Love"
+default_organizer = "poster"
 publish = true
 
 [[source]]
@@ -112,28 +113,28 @@ publish = false
 name = "Fist Them Berlin"
 shape = "telegram_private_channel"
 chat = "Fist Them - Berlin"
-organizer = "Fist Them Berlin"
+default_organizer = "Fist Them Berlin"
 publish = true
 
 [[source]]
 name = "Kinky Perreo Party"
 shape = "telegram_private_channel"
 chat = "Kinky Perreo Party"
-organizer = "Kinky Perreo Party"
+default_organizer = "Kinky Perreo Party"
 publish = true
 
 [[source]]
 name = "Garden of Earthly Delights"
 shape = "telegram_private_channel"
 chat = "Garden of Earthly Delights"
-organizer = "Garden of Earthly Delights"
+default_organizer = "Garden of Earthly Delights"
 publish = true
 
 [[source]]
 name = "Connecting Passions & Charming Theys"
 shape = "telegram_private_channel"
 chat = "Connecting Passions & Charming Theys"
-organizer = "Connecting Passions & Charming Theys"
+default_organizer = "Connecting Passions & Charming Theys"
 publish = true
 
 [[source]]
@@ -159,4 +160,5 @@ name = "Sober Events in Berlin / Sex-positive offerings"
 shape = "telegram_private_group"
 chat = "Sober Events in Berlin"
 topic = "Sex-positive"
+default_organizer = "poster"
 publish = true

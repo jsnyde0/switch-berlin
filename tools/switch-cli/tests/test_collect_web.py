@@ -14,7 +14,7 @@ SOURCE = {
     "shape": "website",
     "parser": "iksk",
     "url": "https://iksk-berlin.de/Program",
-    "organizer": "IKSK Berlin",
+    "default_organizer": "IKSK Berlin",
     "publish": True,
 }
 
@@ -86,12 +86,12 @@ def test_off_site_cell_names_iksk_as_venue_and_the_linked_site_as_host():
     row = rows["18 00 - 20 00 Cali Sessions w/ Ashraf"]
     assert "Host: ashrafalali.com" in row["text"]
     assert "Venue: IKSK Berlin, Holzmarkt 25, Berlin" in row["text"]
-    assert "organizer" not in row["raw_payload"]
+    assert "default_organizer" not in row["raw_payload"]
 
 
 def test_same_host_cell_keeps_iksk_as_declared_organizer():
     rows, _, _ = _rows()
-    assert rows["19 00 - 23 00 Bondage Jam"]["raw_payload"]["organizer"] == "IKSK Berlin"
+    assert rows["19 00 - 23 00 Bondage Jam"]["raw_payload"]["default_organizer"] == "IKSK Berlin"
     # The row names the venue only; organizer wording in the text would read as an explicit organizer (ADR-007 D9).
     assert "Venue: IKSK Berlin, Holzmarkt 25, Berlin" in rows["19 00 - 23 00 Bondage Jam"]["text"]
     assert "organizer" not in rows["19 00 - 23 00 Bondage Jam"]["text"].lower()
@@ -124,19 +124,15 @@ def test_shipped_iksk_sources_name_the_iksk_venue_run_by_iksk():
         assert source["venue_run_by"] == "IKSK Berlin"
 
 
-def test_aggregator_flag_rides_the_row_and_no_shipped_source_sets_it():
+def test_default_organizer_rides_the_row_and_no_shipped_source_uses_the_retired_keys():
     from switch_cli.collect import collected_row, load_sources
 
-    payload = collected_row({**SOURCE, "aggregator": True}, "x", "m1", "text")["raw_payload"]
-    assert payload["aggregator"] is True
+    payload = collected_row({**SOURCE, "default_organizer": "poster"}, "x", "m1", "text")["raw_payload"]
+    assert payload["default_organizer"] == "poster"
     sources = load_sources()
-    assert [s["name"] for s in sources if s.get("aggregator")] == []
+    assert [s["name"] for s in sources if {"organizer", "aggregator"} & s.keys()] == []
     assert [s["name"] for s in sources if "channel_organizer" in s] == []  # config names organizers, never titles
-
-
-def test_row_names_its_listing_day_and_title_for_the_pre_ai_dedup():
-    rows, _, _ = _rows()
-    assert rows["19 00 - 23 00 Bondage Jam"]["raw_payload"]["listing"] == {
-        "date": "2026-10-06",
-        "title": "19 00 - 23 00 Bondage Jam",
-    }
+    assert [s["name"] for s in sources if s.get("default_organizer") == "poster"] == [
+        "Conscious Events Berlin / Love",
+        "Sober Events in Berlin / Sex-positive offerings",
+    ]

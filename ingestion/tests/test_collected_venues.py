@@ -28,7 +28,7 @@ _PG_ONLY = unittest.skipIf(
 )
 
 # What collect.py's collected_row puts on an IKSK row from collector_sources.toml.
-_IKSK_PAYLOAD = {"source": "IKSK program page", "organizer": "IKSK", "venue": "IKSK", "venue_run_by": "IKSK"}
+_IKSK_PAYLOAD = {"source": "IKSK program page", "default_organizer": "IKSK", "venue": "IKSK", "venue_run_by": "IKSK"}
 
 
 @_PG_ONLY
@@ -194,7 +194,7 @@ class CollectedVenueTest(TestCase):
             channel_id="iksk-berlin.de",
             message_id="linked",
             text="post",
-            raw_payload={"organizer": "IKSK"},
+            raw_payload={"default_organizer": "IKSK"},
             enriched_payload={"url_content": "The address is shared with ticket holders."},
         )
         draft = EventDraft(
@@ -251,7 +251,7 @@ class CollectedVenueTest(TestCase):
         self.assertEqual(event.location_note, "Online (Zoom)")
 
     def test_source_without_default_venue_and_no_place_has_neither(self):
-        event = self._land(None, raw_payload={"organizer": "IKSK"})
+        event = self._land(None, raw_payload={"default_organizer": "IKSK"})
         self.assertIsNone(event.venue)
         self.assertEqual(event.location_note, "")
 

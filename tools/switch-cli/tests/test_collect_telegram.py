@@ -21,6 +21,7 @@ def _msg(id, text="", photo=False, grouped_id=None, age_hours=1):
         grouped_id=grouped_id,
         date=NOW - timedelta(hours=age_hours),
         sender_id=777,
+        sender=SimpleNamespace(first_name="Anna", last_name="Berg", username="anna"),
     )
 
 
@@ -152,7 +153,21 @@ def test_failed_push_leaves_the_rows_file_for_a_retry(monkeypatch, tmp_path):
 def test_channel_title_is_never_the_organizer_the_config_names_it():
     titled = {**SOURCE, "name": "@party", "chat": "@party"}
     rows, _ = asyncio.run(collect_telegram(FakeClient([_msg(1, "Party!")]), [titled], days=14, include_private=False))
-    assert "organizer" not in rows[0]["raw_payload"]  # FakeClient's channel title is "IKSK Berlin"
-    named = {**titled, "organizer": "Party Collective"}
+    assert "default_organizer" not in rows[0]["raw_payload"]  # FakeClient's channel title is "IKSK Berlin"
+    named = {**titled, "default_organizer": "Party Collective"}
     rows, _ = asyncio.run(collect_telegram(FakeClient([_msg(1, "Party!")]), [named], days=14, include_private=False))
-    assert rows[0]["raw_payload"]["organizer"] == "Party Collective"
+    assert rows[0]["raw_payload"]["default_organizer"] == "Party Collective"
+
+
+def test_row_carries_the_posters_display_name_never_the_numeric_id():
+    def run(sender):
+        msg = _msg(1, "Party!")
+        msg.sender = sender
+        rows, _ = asyncio.run(collect_telegram(FakeClient([msg]), [SOURCE], days=14, include_private=False))
+        return rows[0]["raw_payload"].get("poster")
+
+    assert run(SimpleNamespace(first_name="Anna", last_name="Berg", username="anna")) == "Anna Berg"
+    assert run(SimpleNamespace(first_name="Anna", last_name=None, username="anna")) == "Anna"
+    assert run(SimpleNamespace(first_name=None, last_name=None, username="anna")) == "@anna"
+    assert run(SimpleNamespace(first_name=None, last_name=None, username=None)) is None  # sender_id 777 stays out
+    assert run(None) is None

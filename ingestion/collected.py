@@ -243,21 +243,30 @@ def split_names(text: str) -> list[str]:
     return [n for n in (part.strip() for part in _NAME_SPLIT.split(text)) if n.lower() not in _NO_NAME]
 
 
+POSTER = "poster"  # default_organizer value: the post's author is the organizer
+_DEFAULT_ATTRIBUTIONS = ("publisher", POSTER)  # organizers taken from the source, not named by the post
+
+
 def organizer_names(raw, draft) -> tuple[list[str], str]:
     """(names, attribution) for one collected event (ADR-007 D9), first name primary.
 
-    Explicit organizer wording wins (one name per person; a string that is an
-    existing profile's whole name stays one); else the publisher the source
-    config names. ([], reason) when the event must be held for review.
+    One chain for every source, first hit wins: the post names its organizer
+    (explicit; one name per person, a string that is an existing profile's
+    whole name stays one); else the source's default_organizer, a Profile name
+    (publisher: the source is that organizer's own site or channel); else
+    default_organizer "poster", the post's author by display name (a community
+    board where members post their own events). ([], reason) when the event
+    must be held for review.
     """
     explicit = (draft.explicit_organizer or "").strip()
     if explicit and explicit.lower() not in _NO_NAME:
         return ([explicit] if find_profile(explicit) else split_names(explicit)), "explicit"
-    if raw.raw_payload.get("aggregator"):
-        return [], "no_explicit_organizer"
-    publisher = (raw.raw_payload.get("organizer") or "").strip()
-    if publisher:
-        return [publisher], "publisher"
+    default = (raw.raw_payload.get("default_organizer") or "").strip()
+    if default == POSTER:
+        poster = (raw.raw_payload.get("poster") or "").strip()
+        return ([poster], "poster") if poster else ([], "no_organizer")
+    if default:
+        return [default], "publisher"
     return [], "no_organizer"
 
 
@@ -451,8 +460,8 @@ def collector_owned(event) -> bool:
 
 
 def _provisional(row, owned: bool) -> bool:
-    """A publisher-attributed organizer row, or a blank one (collected before 7d39889) on a collector-owned event."""
-    return row.attribution == "publisher" or (row.attribution == "" and owned)
+    """A default organizer row (publisher or poster), or a blank one (collected before 7d39889) on an owned event."""
+    return row.attribution in _DEFAULT_ATTRIBUTIONS or (row.attribution == "" and owned)
 
 
 def _explicit_ids(event) -> set[int]:
@@ -523,6 +532,7 @@ def pair_with_own_events(raw, drafts) -> tuple[dict, list]:
         attempt = (
             ExtractionAttempt.objects.filter(raw_message=raw, event=event)
             .exclude(extracted_draft={})
+            .exclude(error__startswith="re_read_")  # a paired draft that ended skipped or held wrote nothing
             .order_by("-id")
             .first()
         )

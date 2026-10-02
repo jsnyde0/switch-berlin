@@ -210,15 +210,15 @@ Built in sb-x5xh.6 (`run_by`, `location_note`) and sb-7wzb.19 (collector venues,
 
 **What would invalidate this:** events commonly need several venues (multi-venue events, parked); or online events need their own listing behaviour that a note cannot carry.
 
-### D9: Collected events credit the publisher as organizer unless the text names another; provenance is recorded (added 2026-10-02)
+### D9: Collected events take their organizer from one chain — explicit, publisher, poster, hold; provenance is recorded (added 2026-10-02; chain evolved in place 2026-10-02)
 
-**Firmness: FLEXIBLE** — ratified in the sb-x5xh.2 sitting; provenance added by the post-fold adjudication (brain:sb-7wzb, 2026-10-02, accepted by default under the human's ruling). Dogfood-pending.
+**Firmness: FLEXIBLE** — ratified in the sb-x5xh.2 sitting; provenance added by the post-fold adjudication (brain:sb-7wzb, 2026-10-02, accepted by default under the human's ruling). Chain extended 2026-10-02 on the human's ruling: community-board posts credit the poster, as a general rule, never a source-specific branch (sb-7wzb.29). Dogfood-pending.
 
-- **Organizer** = the publishing source's declared identity, unless the text explicitly names another ("organised by", "hosted by", "presented by", "Veranstalter") — then that one, and the publisher is at most the venue. **Never infer an organizer** (no fuzzy auto-link, no known-names list in the extraction prompt). One profile per name; several named organizers give several rows, the first named primary. Channel titles are not trusted as profile names; source config names the profile. Aggregator sources (a source-config flag) hold rows lacking explicit organizer wording for review.
-- **Attribution provenance** on `EventOrganizer`: `explicit` (the text named it) or `publisher` (taken from the source). On a duplicate merge an explicit organizer replaces a publisher one; "different organizers never merge" applies only when both are explicit.
+- **Organizer** comes from one chain, identical for every source, first hit wins: (1) **explicit** — the text names one ("organised by", "hosted by", "presented by", "Veranstalter"), and the publisher is at most the venue; (2) **publisher** — the source config's `default_organizer` is a Profile name, the source being that organizer's own site or channel; (3) **poster** — `default_organizer = "poster"` marks a community board where members post their own events, and the organizer is the post's author, named by their Telegram display name (first + last, else @username; a numeric id never becomes a name); (4) **none** — `default_organizer` unset: hold the row for review. **Never infer an organizer** (no fuzzy auto-link, no known-names list in the extraction prompt). One profile per name; several named organizers give several rows, the first named primary. Channel titles are not trusted as profile names; source config names the profile or says "poster". A poster profile is unclaimed, created like any collected profile; a name that matches an existing Profile exactly reuses it. No source name or chat id appears in code.
+- **Attribution provenance** on `EventOrganizer`: `explicit` (the text named it), `publisher` (taken from the source) or `poster` (the post's author). `publisher` and `poster` are defaults: on a duplicate merge an explicit organizer replaces them, and "different organizers never merge" applies only when both are explicit.
 - Every other named person becomes an **artist credit as text**, one per name (D2, D7).
 
-*Code catches up in sb-7wzb.18* (provenance field, organizer rule) and sb-7wzb.16 (duplicate rule).
+*Code catches up in sb-7wzb.18* (provenance field, organizer rule), sb-7wzb.16 (duplicate rule) and sb-7wzb.29 (poster step, `default_organizer`).
 
 **Rationale:**
 - `direct:` spike (sb-x5xh.2): the declared payload organizer always won, so "PELVIC WORK" by Visionary Body and Telegram rows naming other people landed under IKSK; channel titles became profile names.

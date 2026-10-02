@@ -56,9 +56,7 @@ def load_sources(path: Path = DEFAULT_SOURCES) -> list[dict]:
 def collected_row(source: dict, channel_id: str, message_id: str, text: str, **payload) -> dict:
     """A collected row in the shape the ingest verb accepts."""
     raw_payload = {"source": source["name"], **payload}
-    if source.get("organizer"):
-        raw_payload["organizer"] = source["organizer"]
-    for key in ("venue", "venue_run_by", "aggregator"):
+    for key in ("default_organizer", "venue", "venue_run_by"):
         if source.get(key):
             raw_payload[key] = source[key]
     return {
@@ -155,7 +153,7 @@ def iksk_rows(
                 if details.get(href):
                     row["enriched_payload"] = {"url_content": details[href]}
                 if off_site:
-                    row["raw_payload"].pop("organizer", None)
+                    row["raw_payload"].pop("default_organizer", None)
                 rows.append(row)
     return rows, errors
 
