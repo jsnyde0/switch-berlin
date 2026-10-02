@@ -42,6 +42,8 @@ Connection is **orthogonal** to:
 - `Follow(user, profile)` — asymmetric subscription (ADR-007 D6)
 - `Vouch(voucher, vouchee, …)` — asymmetric reputation-stake (sb-m69 D6)
 
+See [ADR-007 D7](ADR-007-profile-centric-schema.md) rule 1 for the target direction (the actor side of social features becomes the acting profile when this graph next evolves; that change needs its own FIRM confirmation).
+
 V0 scope is **graph-only**: Connection-acceptance unlocks D2 (visibility) and D3 (social proof). DM-bypass semantics (mutual Connection bypasses cold-DM eligibility) are *captured* in sb-svg M1/M2 but **not implemented at V0** because ADR-002 D4 defers all native 1:1 messaging until the 1.0 retrospective.
 
 **Counter-argument (FIRM-path requirement):** The alternative "Follow + Vouch is sufficient — don't add a third graph" was the previous default and rests on the observation that modern event platforms (Partiful, Lu.ma) have dropped mutual friendship in favor of asymmetric follow only. That rationale held *if Switch Berlin's scope were strictly an event platform*. The sb-fx9 user-reframe ("we're going beyond an event platform") rebuts the premise: kink-platform identity disclosure, consent communication, and mid-stakes acquaintance need a mid-tier signal that Vouch's scarcity (sb-m69 D9 — invites are deliberately rare) and Follow's asymmetry can't carry. The original two-graph rationale's premise no longer holds, so the FIRM decision flips.

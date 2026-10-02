@@ -122,7 +122,7 @@ Revisit if a UX need forces disambiguation between these three.
 
 **Why "manager" (2026-10-02):** "claimant" named the person after the act they once did, not the role they now hold; the screen and the scene say "manages this profile". Counter-argument considered: the old word matched the model name `ProfileClaim`. It still does for the act — the model records claims — but the accessor names the people, so it takes the role word. Rejected alternatives: "owner" (`reasoned:` implies one person and the hostage-admin problem Meta Pages show, `external:` sb-x5xh.2 research digest); "admin" (`reasoned:` collides with staff admin and with `ProfileClaim.role="admin"`).
 
-**Rationale:** matches the existing organizer-curation flow (we already create Organizer rows without User links). One mechanism handles "claim my page" for both kinds. The multi-claimant cardinality acknowledges that collectives (the dominant kink-scene actor type after individual organizers and artists) are co-organized by definition — IKSK is fronted by ~3 humans, not one. The verification metadata (`verified_at`, `verified_method`, `verified_by_admin`) on the through-model is load-bearing for the audit trail required by ADR-006 (legal gate) and ADR-001 D1 (curated-trust), which a plain M2M would lose.
+**Rationale:** matches the existing organizer-curation flow (we already create Organizer rows without User links). One mechanism handles "claim my page" for both kinds. The multi-manager cardinality acknowledges that collectives (the dominant kink-scene actor type after individual organizers and artists) are co-organized by definition — IKSK is fronted by ~3 humans, not one. The verification metadata (`verified_at`, `verified_method`, `verified_by_admin`) on the through-model is load-bearing for the audit trail required by ADR-006 (legal gate) and ADR-001 D1 (curated-trust), which a plain M2M would lose.
 
 **Note:** Claim *flow* (web-first entry, two-track verification, magic-link envelope) is canonicalized in [ADR-014](ADR-014-profile-claim-flow.md), which builds on this schema substrate.
 
@@ -131,6 +131,8 @@ Revisit if a UX need forces disambiguation between these three.
 **Firmness: FIRM**
 
 Replaces `OrganizerFollow`. Users follow Profiles regardless of kind. `Profile.follower_count` aggregates from `Follow` rows; existing `OrganizerFollow` rows migrate into `Follow`.
+
+See D7 rule 1 for the target direction (the follower side becomes the acting profile when this table next evolves).
 
 ### D7: Identity vocabulary — Account · Profile · Manager · Claim; Organizer · Artist · Venue — and five foresight rules (added 2026-10-02)
 
@@ -150,10 +152,12 @@ Replaces `OrganizerFollow`. Users follow Profiles regardless of kind. `Profile.f
 
 "Facilitator" in the event-role sense and "claimant" are retired. Organizer-sense "facilitator" in ADR-016 / ADR-019 (Track B) means **organizer**; renaming it there is Track B's, not this decision's. *Code catches up in sb-x5xh.4 (artist) and sb-x5xh.5 (manager).*
 
+**Access:** a claim gives the same profile-level access whether the profile appears as an artist or an organizer; event edit rights come from the profile's role on the event (organizer edits, artist is credited — ADR-017 D1). Teams are many managers per profile (`ProfileClaim`, ADR-014 D1).
+
 **Artist links:** only the event's organizer managers or staff link an artist name to a profile. No automatic linking; artists cannot claim a credit; no artist profiles are auto-created (parked behind the legal review sb-7wzb.17).
 
 **Five rules (FLEXIBLE):**
-1. Social features (follows, messages, posts, visible RSVPs) attach to **profiles, never accounts**. Every write records both the acting profile and the account, chosen in a visible "acting as" picker — never a hidden mode.
+1. **Target for new social features:** social features (follows, messages, posts, visible RSVPs) attach to **profiles, never accounts**. Every write records both the acting profile and the account, chosen in a visible "acting as" picker — never a hidden mode. Today's `Follow(user, profile)` (D6) and ADR-009's user-to-user `Connection` stay as built; when a feature next evolves them, the actor side becomes the acting profile — that is a FIRM evolution of D6 / ADR-009 D1 and needs its own human confirmation. This rule sets the direction; it does not change D6 or ADR-009.
 2. A profile **never drops to zero managers**; staff can reassign.
 3. **Who manages a profile is private** by default.
 4. **No business / portfolio layer** above profiles until a multi-profile organisation asks for one.

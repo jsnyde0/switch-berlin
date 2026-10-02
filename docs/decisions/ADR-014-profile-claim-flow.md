@@ -16,8 +16,8 @@ The claim flow has to honor three concrete realities surfaced during the sb-m69 
 
 The claim flow sits **upstream** of:
 - The User trust model (ADR-013) — claimed-Profile users are typically the first admin-vouched cohort.
-- Event editing surfaces (Phase 0.5+) — only claim-holders can edit their Profile's events.
-- Telegram bot ApprovedSender flows — claim-holders become natural senders for their Profile's organizer Telegram channel.
+- Event editing surfaces (Phase 0.5+) — only a Profile's managers can edit its events.
+- Telegram bot ApprovedSender flows — managers become natural senders for their Profile's organizer Telegram channel.
 
 This ADR canonicalizes the claim-flow primitives so those downstream surfaces have a stable substrate to bind against.
 
